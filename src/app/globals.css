@@ -1,39 +1,112 @@
 @import "tailwindcss";
 
+/* ─── DSN Brand · Light Mode ─────────────────────────────────── */
+/* Off-white canvas, white cards, deep green CTAs, red accent     */
 :root {
-  --primary: #0052A5;
-  --primary-dark: #003B7A;
-  --primary-light: #1A6BC4;
-  --primary-50: #EBF3FF;
-  --primary-100: #BDDAFF;
-  --accent: #E3192A;
-  --accent-dark: #B51020;
-  --accent-50: #FFF0F1;
-  --sidebar-bg: #0A1F44;
-  --sidebar-hover: rgba(255,255,255,0.06);
-  --sidebar-active: #0052A5;
-  --sidebar-fg: #8A9EC0;
+  /* Green — primary actions, headings, nav active */
+  --primary:         #0B5C2E;
+  --primary-dark:    #083D1E;
+  --primary-light:   #0E7A40;
+  --primary-hover:   #0A5229;
+  --primary-50:      #EBF5EF;
+  --primary-100:     #C8E6D4;
+
+  /* Red — badges, underlines, alerts, secondary accent */
+  --accent:          #E3192A;
+  --accent-dark:     #B51020;
+  --accent-50:       #FEF0F1;
+  --accent-100:      #FBCDD0;
+
+  /* Sidebar — very dark green, like DSN/Equalyz hero sections */
+  --sidebar-bg:      #071F10;
+  --sidebar-hover:   rgba(255,255,255,0.07);
+  --sidebar-active:  rgba(11,92,46,0.85);
+  --sidebar-fg:      #6B9A7C;
   --sidebar-fg-active: #FFFFFF;
-  --background: #F4F6FA;
-  --foreground: #0D1B2E;
-  --card: #FFFFFF;
-  --border: #E2E8F0;
-  --muted: #F1F5F9;
-  --muted-foreground: #64748B;
-  --subtle: #94A3B8;
-  --success: #0B8A4A;
-  --success-bg: #ECFDF5;
-  --warning: #B45309;
-  --warning-bg: #FFFBEB;
-  --danger: #DC2626;
-  --danger-bg: #FEF2F2;
-  --info: #0369A1;
-  --info-bg: #F0F9FF;
+  --sidebar-border:  rgba(255,255,255,0.05);
+
+  /* Canvas — off-white with the faintest green tint */
+  --background:      #F6F8F6;
+  --foreground:      #1A1A1A;
+  --card:            #FFFFFF;
+  --card-hover:      #F9FBF9;
+  --border:          #DDE8E1;
+  --border-strong:   #BDD0C6;
+  --muted:           #EFF4F1;
+  --muted-foreground:#5C7063;
+  --subtle:          #93A89C;
+
+  /* Semantic */
+  --success:         #0B5C2E;
+  --success-bg:      #EBF5EF;
+  --warning:         #92600A;
+  --warning-bg:      #FEF7E8;
+  --danger:          #E3192A;
+  --danger-bg:       #FEF0F1;
+  --info:            #0369A1;
+  --info-bg:         #F0F9FF;
+
+  /* Effects */
+  --ring:            rgba(11,92,46,0.20);
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.05), 0 1px 2px rgba(0,0,0,0.03);
+  --shadow-md:       0 4px 12px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg:       0 8px 30px rgba(0,0,0,0.09), 0 4px 8px rgba(0,0,0,0.04);
+
+  --transition:      0.18s cubic-bezier(0.4,0,0.2,1);
 }
 
+/* ─── Dark Mode ───────────────────────────────────────────────── */
+/* Neutral dark (slate) canvas — green only on CTAs & accents     */
+.dark {
+  --primary:         #22C55E;
+  --primary-dark:    #16A34A;
+  --primary-light:   #4ADE80;
+  --primary-hover:   #16A34A;
+  --primary-50:      #14231B;
+  --primary-100:     #1A3326;
+
+  --accent:          #F87171;
+  --accent-dark:     #EF4444;
+  --accent-50:       #2D1515;
+  --accent-100:      #3D1B1B;
+
+  --sidebar-bg:      #0A0F0B;
+  --sidebar-hover:   rgba(255,255,255,0.07);
+  --sidebar-active:  rgba(34,197,94,0.15);
+  --sidebar-fg:      #52796B;
+  --sidebar-fg-active: #FFFFFF;
+  --sidebar-border:  rgba(255,255,255,0.05);
+
+  /* Neutral dark — NOT green-tinted */
+  --background:      #111318;
+  --foreground:      #E8EAF0;
+  --card:            #1A1D24;
+  --card-hover:      #1F232C;
+  --border:          #2A2E38;
+  --border-strong:   #363B47;
+  --muted:           #1F232C;
+  --muted-foreground:#7A8494;
+  --subtle:          #4A5260;
+
+  --success:         #22C55E;
+  --success-bg:      #14231B;
+  --warning:         #FBBF24;
+  --warning-bg:      #241B00;
+  --danger:          #F87171;
+  --danger-bg:       #2D1515;
+  --info:            #60A5FA;
+  --info-bg:         #111929;
+
+  --ring:            rgba(34,197,94,0.25);
+  --shadow-sm:       0 1px 3px rgba(0,0,0,0.40);
+  --shadow-md:       0 4px 12px rgba(0,0,0,0.50);
+  --shadow-lg:       0 8px 30px rgba(0,0,0,0.60);
+}
+
+/* ─── Base ────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
-html { -webkit-font-smoothing: antialiased; }
+html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
 
 body {
   background: var(--background);
@@ -41,15 +114,39 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.6;
+  transition: background var(--transition), color var(--transition);
 }
 
+/* ─── Scrollbar ───────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--subtle); }
 
+/* ─── Focus ───────────────────────────────────────────────────── */
 input:focus, select:focus, textarea:focus {
   outline: none;
-  box-shadow: 0 0 0 3px rgba(0,82,165,0.15);
+  box-shadow: 0 0 0 3px var(--ring);
   border-color: var(--primary) !important;
+}
+
+button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ─── Theme transitions ───────────────────────────────────────── */
+.theme-transition * {
+  transition:
+    background var(--transition),
+    background-color var(--transition),
+    border-color var(--transition),
+    color var(--transition),
+    box-shadow var(--transition);
+}
+
+/* ─── Responsive helpers ──────────────────────────────────────── */
+@media (min-width: 1024px) {
+  .lg-flex { display: flex !important; }
+  .lg-hide { display: none !important; }
 }
