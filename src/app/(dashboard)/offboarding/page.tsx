@@ -8,8 +8,10 @@ import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import { UserMinus, Plus, AlertCircle } from "lucide-react"
 import { formatDate } from "@/lib/utils"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 export default function OffboardingPage() {
+  const { user } = useCurrentUser()
   const [offboardings, setOffboardings] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -40,11 +42,13 @@ export default function OffboardingPage() {
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Offboarding</h1>
           <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Manage employee exits systematically</p>
         </div>
-        <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Initiate Exit</Button>
+        {user?.caps.canManageOffboarding && (
+          <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Initiate Exit</Button>
+        )}
       </div>
       <Card>
         {loading ? <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)" }}>Loading...</div>
-        : offboardings.length === 0 ? <EmptyState icon={UserMinus} title="No active offboardings" description="Initiate an exit process for a departing employee." action={<Button onClick={() => setAddOpen(true)}><Plus size={14} /> Initiate Exit</Button>} />
+        : offboardings.length === 0 ? <EmptyState icon={UserMinus} title="No active offboardings" description="Initiate an exit process for a departing employee." action={user?.caps.canManageOffboarding ? <Button onClick={() => setAddOpen(true)}><Plus size={14} /> Initiate Exit</Button> : undefined} />
         : (
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr style={{ borderBottom: "1px solid var(--border)" }}>

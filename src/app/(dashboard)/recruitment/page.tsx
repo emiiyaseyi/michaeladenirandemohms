@@ -7,11 +7,13 @@ import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
 import { Briefcase, Plus, Users, Clock, ChevronRight, Mail, Phone, FileText } from "lucide-react"
 import { formatDate } from "@/lib/utils"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const STAGES = ["APPLICATION","ASSESSMENT","TECHNICAL","INTERVIEW","MANAGEMENT_REVIEW","OFFER","ONBOARDING"]
 const STAGE_LABELS: Record<string, string> = { APPLICATION: "Application", ASSESSMENT: "Assessment", TECHNICAL: "Technical", INTERVIEW: "Interview", MANAGEMENT_REVIEW: "Mgmt Review", OFFER: "Offer", ONBOARDING: "Onboarding" }
 
 export default function RecruitmentPage() {
+  const { user } = useCurrentUser()
   const [jobs, setJobs] = useState<any[]>([])
   const [applications, setApplications] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
@@ -49,7 +51,9 @@ export default function RecruitmentPage() {
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Recruitment & ATS</h1>
           <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Manage job postings and candidate pipeline</p>
         </div>
-        <Button size="sm" onClick={() => setAddJobOpen(true)}><Plus size={14} /> Post Job</Button>
+        {user?.caps.canManageRecruitment && (
+          <Button size="sm" onClick={() => setAddJobOpen(true)}><Plus size={14} /> Post Job</Button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -66,7 +70,7 @@ export default function RecruitmentPage() {
           {loading ? <div style={{ color: "var(--muted-foreground)", gridColumn: "1/-1", padding: 40, textAlign: "center" }}>Loading...</div>
           : jobs.length === 0 ? (
             <Card style={{ gridColumn: "1/-1" }}>
-              <EmptyState icon={Briefcase} title="No job postings yet" description="Create your first job posting to start recruiting." action={<Button onClick={() => setAddJobOpen(true)}><Plus size={14} /> Post Job</Button>} />
+              <EmptyState icon={Briefcase} title="No job postings yet" description="Create your first job posting to start recruiting." action={user?.caps.canManageRecruitment ? <Button onClick={() => setAddJobOpen(true)}><Plus size={14} /> Post Job</Button> : undefined} />
             </Card>
           ) : jobs.map((job: any) => (
             <Card key={job.id} style={{ padding: 20, cursor: "pointer" }} onClick={() => { setSelectedJob(job.id); setView("pipeline") }}>

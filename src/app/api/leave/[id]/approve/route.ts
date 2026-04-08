@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canApproveLeave) return forbidden("You are not authorised to approve leave")
+
   const { id } = await params
   const { action, comment } = await req.json()
 

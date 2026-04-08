@@ -8,8 +8,10 @@ import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
 import { CalendarDays, Plus, Check, X, MessageSquare, Clock } from "lucide-react"
 import { formatDate } from "@/lib/utils"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 export default function LeavePage() {
+  const { user } = useCurrentUser()
   const [requests, setRequests] = useState<any[]>([])
   const [leaveTypes, setLeaveTypes] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
@@ -57,7 +59,9 @@ export default function LeavePage() {
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Leave Management</h1>
           <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Review and manage staff leave requests</p>
         </div>
-        <Button size="sm" onClick={() => setApplyOpen(true)}><Plus size={14} /> Apply Leave</Button>
+        {user?.caps.canSubmitLeave && (
+          <Button size="sm" onClick={() => setApplyOpen(true)}><Plus size={14} /> Apply Leave</Button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -101,7 +105,7 @@ export default function LeavePage() {
                     <td style={{ padding: "14px 20px", fontSize: 12, color: "var(--muted-foreground)" }}>{formatDate(req.startDate)} → {formatDate(req.endDate)}</td>
                     <td style={{ padding: "14px 20px" }}><Badge status={req.status} /></td>
                     <td style={{ padding: "14px 20px" }}>
-                      {req.status === "PENDING" && (
+                      {req.status === "PENDING" && user?.caps.canApproveLeave && (
                         <div style={{ display: "flex", gap: 4 }}>
                           <button onClick={() => approve(req.id)} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><Check size={12} /> Approve</button>
                           <button onClick={() => reject(req.id)} style={{ background: "var(--danger-bg)", color: "var(--danger)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 10px", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}><X size={12} /> Reject</button>

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 
 export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canManageSettings) return forbidden()
   const { name, date, year } = await req.json()
   if (!name || !date) return NextResponse.json({ error: "Name and date required" }, { status: 400 })
   const d = new Date(date)

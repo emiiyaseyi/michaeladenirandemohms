@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//home/ahmad/**)",
+      "Bash(pdftotext \"/home/ahmad/dsn-hrms/DSN HRMS.pdf\" -)",
+      "Bash(python3 -c ':*)"
+    ]
+  }
+}

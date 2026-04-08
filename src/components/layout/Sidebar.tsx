@@ -2,27 +2,13 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
-import {
-  LayoutDashboard, Users, CalendarDays, Briefcase, TrendingUp,
-  UserCheck, UserMinus, GitBranch, BarChart3, Settings, LogOut,
-  ChevronRight, Building2, Leaf
-} from "lucide-react"
-
-const nav = [
-  { label: "Dashboard",    href: "/dashboard",    icon: LayoutDashboard },
-  { label: "Employees",    href: "/employees",    icon: Users },
-  { label: "Leave",        href: "/leave",        icon: CalendarDays },
-  { label: "Recruitment",  href: "/recruitment",  icon: Briefcase },
-  { label: "Performance",  href: "/performance",  icon: TrendingUp },
-  { label: "Onboarding",   href: "/onboarding",   icon: UserCheck },
-  { label: "Offboarding",  href: "/offboarding",  icon: UserMinus },
-  { label: "Org Chart",    href: "/org-chart",    icon: GitBranch },
-  { label: "Analytics",    href: "/analytics",    icon: BarChart3 },
-  { label: "Settings",     href: "/settings",     icon: Settings },
-]
+import { ChevronRight, Leaf, LogOut } from "lucide-react"
+import { getNavForRole, roleLabel } from "@/lib/rbac"
 
 export default function Sidebar({ user }: { user: any }) {
   const path = usePathname()
+  const nav = getNavForRole(user?.role ?? "STAFF")
+
   return (
     <aside style={{
       background: "var(--sidebar-bg)", width: 240, minHeight: "100vh",
@@ -48,7 +34,9 @@ export default function Sidebar({ user }: { user: any }) {
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: "12px 10px", overflowY: "auto" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--sidebar-fg)", padding: "4px 10px 8px", textTransform: "uppercase" }}>Main Menu</div>
+        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--sidebar-fg)", padding: "4px 10px 8px", textTransform: "uppercase" }}>
+          Main Menu
+        </div>
         {nav.map(({ label, href, icon: Icon }) => {
           const active = path === href || path.startsWith(href + "/")
           return (
@@ -81,11 +69,15 @@ export default function Sidebar({ user }: { user: any }) {
             fontSize: 11, fontWeight: 800, color: "white", flexShrink: 0,
             letterSpacing: "0.05em",
           }}>
-            {user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0,2) ?? "U"}
+            {user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) ?? "U"}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ color: "white", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{user?.name ?? "User"}</div>
-            <div style={{ color: "var(--sidebar-fg)", fontSize: 10, textTransform: "capitalize" }}>{user?.role?.replace(/_/g," ") ?? ""}</div>
+            <div style={{ color: "white", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {user?.name ?? "User"}
+            </div>
+            <div style={{ color: "var(--sidebar-fg)", fontSize: 10 }}>
+              {roleLabel(user?.role ?? "")}
+            </div>
           </div>
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}

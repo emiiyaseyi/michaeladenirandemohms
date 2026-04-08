@@ -9,8 +9,10 @@ import EmptyState from "@/components/ui/EmptyState"
 import { Users, Plus, Search, Filter, Download, Edit, Eye, Phone, Mail } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import AddEmployeeForm from "./AddEmployeeForm"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 export default function EmployeesPage() {
+  const { user } = useCurrentUser()
   const [employees, setEmployees] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -45,7 +47,9 @@ export default function EmployeesPage() {
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <Button variant="secondary" size="sm"><Download size={14} /> Export</Button>
-          <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button>
+          {user?.caps.canCreateEmployee && (
+            <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button>
+          )}
         </div>
       </div>
 
@@ -74,7 +78,7 @@ export default function EmployeesPage() {
         {loading ? (
           <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)" }}>Loading...</div>
         ) : employees.length === 0 ? (
-          <EmptyState icon={Users} title="No employees found" description="Add your first employee to get started." action={<Button onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button>} />
+          <EmptyState icon={Users} title="No employees found" description="Add your first employee to get started." action={user?.caps.canCreateEmployee ? <Button onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button> : undefined} />
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
