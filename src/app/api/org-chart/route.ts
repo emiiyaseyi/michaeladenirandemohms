@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/api-auth"
 
 export async function GET() {
+  const { error } = await requireAuth()
+  if (error) return error
+  // Org chart is read-accessible to all authenticated roles
   const [departments, roots] = await Promise.all([
     prisma.department.findMany({
       include: {

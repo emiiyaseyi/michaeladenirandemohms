@@ -1,8 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 import { subMonths, startOfMonth, format } from "date-fns"
 
 export async function GET() {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canViewAnalytics && !caps(user.role).canViewTeamAnalytics) {
+    return forbidden("No access to analytics")
+  }
   const [total, active, onLeave, openJobs, byDept, byType, allLeave, recruitment] = await Promise.all([
     prisma.employee.count(),
     prisma.employee.count({ where: { employeeStatus: "ACTIVE" } }),

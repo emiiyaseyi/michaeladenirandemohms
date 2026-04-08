@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 
 export async function GET() {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canManageOffboarding) return forbidden("No access to offboarding data")
   const [offboardings, employees] = await Promise.all([
     prisma.offboarding.findMany({
       include: { employee: { select: { firstName: true, lastName: true, jobTitle: true, profilePhoto: true } }, tasks: true },
@@ -13,6 +17,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canManageOffboarding) return forbidden()
+
   const { employeeId, exitType, lastWorkingDay, reason } = await req.json()
   if (!employeeId || !exitType || !lastWorkingDay) return NextResponse.json({ error: "Required fields missing" }, { status: 400 })
 

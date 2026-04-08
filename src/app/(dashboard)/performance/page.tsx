@@ -8,8 +8,10 @@ import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
 import { TrendingUp, Plus, Target, CheckCircle2, Clock, AlertCircle } from "lucide-react"
 import StatCard from "@/components/ui/StatCard"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 export default function PerformancePage() {
+  const { user } = useCurrentUser()
   const [kpis, setKpis] = useState<any[]>([])
   const [cycles, setCycles] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
@@ -55,7 +57,9 @@ export default function PerformancePage() {
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Performance Management</h1>
           <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>KPIs, appraisals and performance cycles</p>
         </div>
-        <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> New Cycle</Button>
+        {user?.caps.canManagePerformanceCycles && (
+          <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> New Cycle</Button>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
@@ -121,7 +125,7 @@ export default function PerformancePage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px,1fr))", gap: 16 }}>
           {cycles.length === 0 ? (
             <Card style={{ gridColumn: "1/-1" }}>
-              <EmptyState icon={TrendingUp} title="No performance cycles" description="Create a performance cycle to start tracking KPIs." action={<Button onClick={() => setAddOpen(true)}><Plus size={14} /> New Cycle</Button>} />
+              <EmptyState icon={TrendingUp} title="No performance cycles" description="Create a performance cycle to start tracking KPIs." action={user?.caps.canManagePerformanceCycles ? <Button onClick={() => setAddOpen(true)}><Plus size={14} /> New Cycle</Button> : undefined} />
             </Card>
           ) : cycles.map((cycle: any) => (
             <Card key={cycle.id} style={{ padding: 20 }}>
