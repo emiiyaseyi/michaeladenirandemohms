@@ -54,12 +54,23 @@ export default function SettingsPage() {
   const [divisions, setDivisions] = useState<any[]>([])
   const [leaveTypes, setLeaveTypes] = useState<any[]>([])
   const [holidays, setHolidays] = useState<any[]>([])
-  const [deptForm, setDeptForm] = useState({ name: "", description: "", divisionId: "" })
-  const [leaveForm, setLeaveForm] = useState({ name: "", description: "", defaultDays: "21", waitingDays: "0", genderSpecific: "", requiresDoc: false, minDocDays: "2" })
-  const [holidayForm, setHolidayForm] = useState({ name: "", date: "", year: new Date().getFullYear().toString() })
-  const [addDeptOpen, setAddDeptOpen] = useState(false)
-  const [addLeaveOpen, setAddLeaveOpen] = useState(false)
-  const [addHolidayOpen, setAddHolidayOpen] = useState(false)
+  const [settingsError, setSettingsError] = useState("")
+
+  const BLANK_DEPT = { name: "", description: "", divisionId: "" }
+  const BLANK_LEAVE = { name: "", description: "", defaultDays: "21", waitingDays: "0", genderSpecific: "", requiresDoc: false, minDocDays: "2", isActive: true }
+  const BLANK_HOLIDAY = { name: "", date: "" }
+
+  const [deptForm, setDeptForm] = useState({ ...BLANK_DEPT })
+  const [leaveForm, setLeaveForm] = useState({ ...BLANK_LEAVE })
+  const [holidayForm, setHolidayForm] = useState({ ...BLANK_HOLIDAY })
+
+  const [editingDept, setEditingDept] = useState<any | null>(null)
+  const [editingLeave, setEditingLeave] = useState<any | null>(null)
+  const [editingHoliday, setEditingHoliday] = useState<any | null>(null)
+
+  const [deptOpen, setDeptOpen] = useState(false)
+  const [leaveOpen, setLeaveOpen] = useState(false)
+  const [holidayOpen, setHolidayOpen] = useState(false)
 
   // ─── User management data ──────────────────────────────────────────────────
   const [sysUsers, setSysUsers] = useState<UserRecord[]>([])
@@ -97,20 +108,49 @@ export default function SettingsPage() {
   useEffect(() => { if (tab === "users") loadUsers() }, [tab, isSuperAdmin])
 
   // ─── Settings actions ──────────────────────────────────────────────────────
-  const addDept = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await fetch("/api/settings/departments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(deptForm) })
-    setAddDeptOpen(false); loadSettings()
+  const saveDept = async (e: React.FormEvent) => {
+    e.preventDefault(); setSettingsError("")
+    const method = editingDept ? "PATCH" : "POST"
+    const body = editingDept ? { id: editingDept.id, ...deptForm } : deptForm
+    const r = await fetch("/api/settings/departments", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    if (!r.ok) { const d = await r.json(); setSettingsError(d.error ?? "Failed"); return }
+    setDeptOpen(false); setEditingDept(null); setDeptForm({ ...BLANK_DEPT }); loadSettings()
   }
-  const addLeave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await fetch("/api/settings/leave-types", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(leaveForm) })
-    setAddLeaveOpen(false); loadSettings()
+  const deleteDept = async (id: string) => {
+    setSettingsError("")
+    const r = await fetch(`/api/settings/departments?id=${id}`, { method: "DELETE" })
+    if (!r.ok) { const d = await r.json(); setSettingsError(d.error ?? "Failed to delete"); return }
+    loadSettings()
   }
-  const addHoliday = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await fetch("/api/settings/holidays", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(holidayForm) })
-    setAddHolidayOpen(false); loadSettings()
+
+  const saveLeave = async (e: React.FormEvent) => {
+    e.preventDefault(); setSettingsError("")
+    const method = editingLeave ? "PATCH" : "POST"
+    const body = editingLeave ? { id: editingLeave.id, ...leaveForm } : leaveForm
+    const r = await fetch("/api/settings/leave-types", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    if (!r.ok) { const d = await r.json(); setSettingsError(d.error ?? "Failed"); return }
+    setLeaveOpen(false); setEditingLeave(null); setLeaveForm({ ...BLANK_LEAVE }); loadSettings()
+  }
+  const deleteLeave = async (id: string) => {
+    setSettingsError("")
+    const r = await fetch(`/api/settings/leave-types?id=${id}`, { method: "DELETE" })
+    if (!r.ok) { const d = await r.json(); setSettingsError(d.error ?? "Failed to delete"); return }
+    loadSettings()
+  }
+
+  const saveHoliday = async (e: React.FormEvent) => {
+    e.preventDefault(); setSettingsError("")
+    const method = editingHoliday ? "PATCH" : "POST"
+    const body = editingHoliday ? { id: editingHoliday.id, ...holidayForm } : holidayForm
+    const r = await fetch("/api/settings/holidays", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    if (!r.ok) { const d = await r.json(); setSettingsError(d.error ?? "Failed"); return }
+    setHolidayOpen(false); setEditingHoliday(null); setHolidayForm({ ...BLANK_HOLIDAY }); loadSettings()
+  }
+  const deleteHoliday = async (id: string) => {
+    setSettingsError("")
+    const r = await fetch(`/api/settings/holidays?id=${id}`, { method: "DELETE" })
+    if (!r.ok) { const d = await r.json(); setSettingsError(d.error ?? "Failed to delete"); return }
+    loadSettings()
   }
 
   // ─── User management actions ───────────────────────────────────────────────
@@ -204,14 +244,19 @@ export default function SettingsPage() {
             <Card>
               <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700 }}>Departments ({departments.length})</h3>
-                <Button size="sm" onClick={() => setAddDeptOpen(true)}><Plus size={14} /> Add</Button>
+                <Button size="sm" onClick={() => { setEditingDept(null); setDeptForm({ ...BLANK_DEPT }); setSettingsError(""); setDeptOpen(true) }}><Plus size={14} /> Add</Button>
               </div>
+              {settingsError && tab === "departments" && <div style={{ margin: "12px 20px", background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{settingsError}</div>}
               <div>
                 {departments.map(d => (
                   <div key={d.id} style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{d.name}</div>
                       <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{d.division?.name ?? "No Division"} · {d._count?.employees ?? 0} employees</div>
+                    </div>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <button onClick={() => { setEditingDept(d); setDeptForm({ name: d.name, description: d.description ?? "", divisionId: d.divisionId ?? "" }); setSettingsError(""); setDeptOpen(true) }} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--foreground)", fontWeight: 600 }}><Pencil size={12} /> Edit</button>
+                      <button onClick={() => { setSettingsError(""); deleteDept(d.id) }} style={{ background: "var(--danger-bg)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--danger)", fontWeight: 600 }}><Trash2 size={12} /> Delete</button>
                     </div>
                   </div>
                 ))}
@@ -225,8 +270,9 @@ export default function SettingsPage() {
             <Card>
               <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700 }}>Leave Types ({leaveTypes.length})</h3>
-                <Button size="sm" onClick={() => setAddLeaveOpen(true)}><Plus size={14} /> Add</Button>
+                <Button size="sm" onClick={() => { setEditingLeave(null); setLeaveForm({ ...BLANK_LEAVE }); setSettingsError(""); setLeaveOpen(true) }}><Plus size={14} /> Add</Button>
               </div>
+              {settingsError && tab === "leave-types" && <div style={{ margin: "12px 20px", background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{settingsError}</div>}
               <div>
                 {leaveTypes.map(l => (
                   <div key={l.id} style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -234,7 +280,11 @@ export default function SettingsPage() {
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{l.name}</div>
                       <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{l.defaultDays} days · {l.genderSpecific ? `${l.genderSpecific} only` : "All genders"} · {l.waitingDays > 0 ? `${l.waitingDays} day notice` : "No notice"}</div>
                     </div>
-                    <span style={{ fontSize: 12, background: l.isActive ? "var(--success-bg)" : "var(--muted)", color: l.isActive ? "var(--success)" : "var(--muted-foreground)", borderRadius: 999, padding: "2px 10px", fontWeight: 600 }}>{l.isActive ? "Active" : "Inactive"}</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 12, background: l.isActive ? "var(--success-bg)" : "var(--muted)", color: l.isActive ? "var(--success)" : "var(--muted-foreground)", borderRadius: 999, padding: "2px 10px", fontWeight: 600 }}>{l.isActive ? "Active" : "Inactive"}</span>
+                      <button onClick={() => { setEditingLeave(l); setLeaveForm({ name: l.name, description: l.description ?? "", defaultDays: String(l.defaultDays), waitingDays: String(l.waitingDays), genderSpecific: l.genderSpecific ?? "", requiresDoc: l.requiresDoc, minDocDays: String(l.minDocDays), isActive: l.isActive }); setSettingsError(""); setLeaveOpen(true) }} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--foreground)", fontWeight: 600 }}><Pencil size={12} /> Edit</button>
+                      <button onClick={() => { setSettingsError(""); deleteLeave(l.id) }} style={{ background: "var(--danger-bg)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--danger)", fontWeight: 600 }}><Trash2 size={12} /> Delete</button>
+                    </div>
                   </div>
                 ))}
                 {leaveTypes.length === 0 && <div style={{ padding: 32, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leave types configured.</div>}
@@ -247,13 +297,18 @@ export default function SettingsPage() {
             <Card>
               <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700 }}>Public Holidays {new Date().getFullYear()}</h3>
-                <Button size="sm" onClick={() => setAddHolidayOpen(true)}><Plus size={14} /> Add</Button>
+                <Button size="sm" onClick={() => { setEditingHoliday(null); setHolidayForm({ ...BLANK_HOLIDAY }); setSettingsError(""); setHolidayOpen(true) }}><Plus size={14} /> Add</Button>
               </div>
+              {settingsError && tab === "holidays" && <div style={{ margin: "12px 20px", background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{settingsError}</div>}
               <div>
                 {holidays.map(h => (
                   <div key={h.id} style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{h.name}</div>
-                    <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{new Date(h.date).toLocaleDateString("en-NG", { weekday: "long", day: "numeric", month: "long" })}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{new Date(h.date).toLocaleDateString("en-NG", { weekday: "long", day: "numeric", month: "long" })}</span>
+                      <button onClick={() => { setEditingHoliday(h); setHolidayForm({ name: h.name, date: new Date(h.date).toISOString().slice(0, 10) }); setSettingsError(""); setHolidayOpen(true) }} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--foreground)", fontWeight: 600 }}><Pencil size={12} /> Edit</button>
+                      <button onClick={() => { setSettingsError(""); deleteHoliday(h.id) }} style={{ background: "var(--danger-bg)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--danger)", fontWeight: 600 }}><Trash2 size={12} /> Delete</button>
+                    </div>
                   </div>
                 ))}
                 {holidays.length === 0 && <div style={{ padding: 32, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No holidays configured for this year.</div>}
@@ -380,49 +435,64 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* ── Add Department Modal ── */}
-      <Modal open={addDeptOpen} onClose={() => setAddDeptOpen(false)} title="Add Department" width={440}>
-        <form onSubmit={addDept}>
+      {/* ── Department Modal (Add / Edit) ── */}
+      <Modal open={deptOpen} onClose={() => { setDeptOpen(false); setEditingDept(null) }} title={editingDept ? "Edit Department" : "Add Department"} width={440}>
+        <form onSubmit={saveDept}>
           <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+            {settingsError && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{settingsError}</div>}
             <div><label style={labelStyle}>Name <span style={{ color: "var(--accent)" }}>*</span></label><input required value={deptForm.name} onChange={e => setDeptForm(f => ({...f, name: e.target.value}))} style={inp} /></div>
             <div><label style={labelStyle}>Description</label><input value={deptForm.description} onChange={e => setDeptForm(f => ({...f, description: e.target.value}))} style={inp} /></div>
+            {divisions.length > 0 && (
+              <div>
+                <label style={labelStyle}>Division</label>
+                <select value={deptForm.divisionId} onChange={e => setDeptForm(f => ({...f, divisionId: e.target.value}))} style={inp}>
+                  <option value="">No division</option>
+                  {divisions.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                </select>
+              </div>
+            )}
           </div>
           <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <Button type="button" variant="secondary" onClick={() => setAddDeptOpen(false)}>Cancel</Button>
-            <Button type="submit">Add Department</Button>
+            <Button type="button" variant="secondary" onClick={() => { setDeptOpen(false); setEditingDept(null) }}>Cancel</Button>
+            <Button type="submit">{editingDept ? "Save Changes" : "Add Department"}</Button>
           </div>
         </form>
       </Modal>
 
-      {/* ── Add Leave Type Modal ── */}
-      <Modal open={addLeaveOpen} onClose={() => setAddLeaveOpen(false)} title="Add Leave Type" width={480}>
-        <form onSubmit={addLeave}>
+      {/* ── Leave Type Modal (Add / Edit) ── */}
+      <Modal open={leaveOpen} onClose={() => { setLeaveOpen(false); setEditingLeave(null) }} title={editingLeave ? "Edit Leave Type" : "Add Leave Type"} width={480}>
+        <form onSubmit={saveLeave}>
           <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+            {settingsError && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{settingsError}</div>}
             <div><label style={labelStyle}>Name <span style={{ color: "var(--accent)" }}>*</span></label><input required value={leaveForm.name} onChange={e => setLeaveForm(f => ({...f, name: e.target.value}))} style={inp} /></div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div><label style={labelStyle}>Default Days</label><input type="number" value={leaveForm.defaultDays} onChange={e => setLeaveForm(f => ({...f, defaultDays: e.target.value}))} style={inp} /></div>
               <div><label style={labelStyle}>Notice Period (days)</label><input type="number" value={leaveForm.waitingDays} onChange={e => setLeaveForm(f => ({...f, waitingDays: e.target.value}))} style={inp} /></div>
             </div>
             <div><label style={labelStyle}>Gender Restriction</label><select value={leaveForm.genderSpecific} onChange={e => setLeaveForm(f => ({...f, genderSpecific: e.target.value}))} style={inp}><option value="">All genders</option><option value="MALE">Male only</option><option value="FEMALE">Female only</option></select></div>
-            <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}><input type="checkbox" checked={leaveForm.requiresDoc} onChange={e => setLeaveForm(f => ({...f, requiresDoc: e.target.checked}))} /> Requires supporting document</label>
+            <div style={{ display: "flex", gap: 20 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}><input type="checkbox" checked={leaveForm.requiresDoc} onChange={e => setLeaveForm(f => ({...f, requiresDoc: e.target.checked}))} /> Requires supporting document</label>
+              {editingLeave && <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}><input type="checkbox" checked={leaveForm.isActive} onChange={e => setLeaveForm(f => ({...f, isActive: e.target.checked}))} /> Active</label>}
+            </div>
           </div>
           <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <Button type="button" variant="secondary" onClick={() => setAddLeaveOpen(false)}>Cancel</Button>
-            <Button type="submit">Add Leave Type</Button>
+            <Button type="button" variant="secondary" onClick={() => { setLeaveOpen(false); setEditingLeave(null) }}>Cancel</Button>
+            <Button type="submit">{editingLeave ? "Save Changes" : "Add Leave Type"}</Button>
           </div>
         </form>
       </Modal>
 
-      {/* ── Add Holiday Modal ── */}
-      <Modal open={addHolidayOpen} onClose={() => setAddHolidayOpen(false)} title="Add Public Holiday" width={400}>
-        <form onSubmit={addHoliday}>
+      {/* ── Holiday Modal (Add / Edit) ── */}
+      <Modal open={holidayOpen} onClose={() => { setHolidayOpen(false); setEditingHoliday(null) }} title={editingHoliday ? "Edit Holiday" : "Add Public Holiday"} width={400}>
+        <form onSubmit={saveHoliday}>
           <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+            {settingsError && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{settingsError}</div>}
             <div><label style={labelStyle}>Holiday Name <span style={{ color: "var(--accent)" }}>*</span></label><input required value={holidayForm.name} onChange={e => setHolidayForm(f => ({...f, name: e.target.value}))} style={inp} /></div>
             <div><label style={labelStyle}>Date <span style={{ color: "var(--accent)" }}>*</span></label><input type="date" required value={holidayForm.date} onChange={e => setHolidayForm(f => ({...f, date: e.target.value}))} style={inp} /></div>
           </div>
           <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <Button type="button" variant="secondary" onClick={() => setAddHolidayOpen(false)}>Cancel</Button>
-            <Button type="submit">Add Holiday</Button>
+            <Button type="button" variant="secondary" onClick={() => { setHolidayOpen(false); setEditingHoliday(null) }}>Cancel</Button>
+            <Button type="submit">{editingHoliday ? "Save Changes" : "Add Holiday"}</Button>
           </div>
         </form>
       </Modal>

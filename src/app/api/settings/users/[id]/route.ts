@@ -4,12 +4,12 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 
 // PATCH /api/settings/users/[id] — update role, status, or reset password
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (user.role !== "SUPER_ADMIN") return forbidden("Super Admin only")
 
-  const { id } = params
+  const { id } = await params
   const body = await req.json()
   const { role, isActive, newPassword } = body
 
@@ -46,12 +46,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 // DELETE /api/settings/users/[id] — hard delete (only for users with no employee activity)
 // Prefer deactivation via PATCH isActive=false
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (user.role !== "SUPER_ADMIN") return forbidden("Super Admin only")
 
-  const { id } = params
+  const { id } = await params
 
   if (id === user.id) {
     return NextResponse.json({ error: "Cannot delete your own account" }, { status: 400 })
