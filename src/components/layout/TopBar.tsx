@@ -1,8 +1,32 @@
 "use client"
-import { Bell, Search, Sun, Moon, Monitor, Users, CalendarDays, Briefcase, LayoutDashboard, Building2, X } from "lucide-react"
+import { Bell, Search, Sun, Moon, Monitor, Users, CalendarDays, Briefcase, LayoutDashboard, Building2, X, CheckCheck, Info, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { useTheme } from "@/components/ThemeProvider"
+
+type Notification = {
+  id: string
+  title: string
+  message: string
+  type: "INFO" | "SUCCESS" | "WARNING" | "DANGER"
+  isRead: boolean
+  link: string | null
+  createdAt: string
+}
+
+const NOTIF_ICON: Record<string, any> = { INFO: Info, SUCCESS: CheckCircle, WARNING: AlertTriangle, DANGER: XCircle }
+const NOTIF_COLOR: Record<string, string> = { INFO: "#0369A1", SUCCESS: "#0B5C2E", WARNING: "#92600A", DANGER: "#DC2626" }
+const NOTIF_BG: Record<string, string> = { INFO: "#EFF6FF", SUCCESS: "#F0FDF4", WARNING: "#FFFBEB", DANGER: "#FEF2F2" }
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return "just now"
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
 
 const TYPE_ICON: Record<string, any> = {
   employee:   Users,
@@ -46,6 +70,51 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
   const [loading, setLoading]     = useState(false)
   const [open, setOpen]           = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
+
+  // Notifications
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [unreadCount, setUnreadCount]     = useState(0)
+  const [notifOpen, setNotifOpen]         = useState(false)
+  const notifRef                          = useRef<HTMLDivElement>(null)
+
+  const fetchNotifications = useCallback(() => {
+    fetch("/api/notifications")
+      .then(r => r.json())
+      .then(d => { setNotifications(d.notifications ?? []); setUnreadCount(d.unreadCount ?? 0) })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    fetchNotifications()
+    const interval = setInterval(fetchNotifications, 30000)
+    return () => clearInterval(interval)
+  }, [fetchNotifications])
+
+  // Close notif panel on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!notifRef.current?.contains(e.target as Node)) setNotifOpen(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const markRead = async (id: string) => {
+    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) })
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n))
+    setUnreadCount(prev => Math.max(0, prev - 1))
+  }
+
+  const markAllRead = async () => {
+    await fetch("/api/notifications", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ all: true }) })
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
+    setUnreadCount(0)
+  }
+
+  const handleNotifClick = (n: Notification) => {
+    if (!n.isRead) markRead(n.id)
+    if (n.link) { setNotifOpen(false); router.push(n.link) }
+  }
 
   const inputRef     = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -274,18 +343,118 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
       </button>
 
       {/* ── Notifications ── */}
-      <button style={{
-        position: "relative", background: "var(--muted)", border: "1px solid var(--border)",
-        cursor: "pointer", borderRadius: 8, padding: 8, color: "var(--muted-foreground)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        transition: "all 0.15s", flexShrink: 0,
-      }}
-      onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = "var(--primary)"; el.style.background = "var(--primary-50)" }}
-      onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = "var(--muted-foreground)"; el.style.background = "var(--muted)" }}
-      >
-        <Bell size={16} />
-        <span style={{ position: "absolute", top: 7, right: 7, width: 7, height: 7, borderRadius: "50%", background: "var(--accent)", border: "2px solid var(--card)" }} />
-      </button>
+      <div ref={notifRef} style={{ position: "relative", flexShrink: 0 }}>
+        <button
+          onClick={() => setNotifOpen(o => !o)}
+          style={{
+            position: "relative", background: notifOpen ? "var(--primary-50)" : "var(--muted)",
+            border: `1px solid ${notifOpen ? "var(--primary)" : "var(--border)"}`,
+            cursor: "pointer", borderRadius: 8, padding: 8,
+            color: notifOpen ? "var(--primary)" : "var(--muted-foreground)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "all 0.15s",
+          }}
+          onMouseEnter={e => { if (!notifOpen) { const el = e.currentTarget as HTMLElement; el.style.color = "var(--primary)"; el.style.background = "var(--primary-50)" } }}
+          onMouseLeave={e => { if (!notifOpen) { const el = e.currentTarget as HTMLElement; el.style.color = "var(--muted-foreground)"; el.style.background = "var(--muted)" } }}
+        >
+          <Bell size={16} />
+          {unreadCount > 0 && (
+            <span style={{
+              position: "absolute", top: -4, right: -4,
+              minWidth: 16, height: 16, borderRadius: 8, padding: "0 4px",
+              background: "var(--accent)", border: "2px solid var(--card)",
+              fontSize: 9, fontWeight: 800, color: "white",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>{unreadCount > 99 ? "99+" : unreadCount}</span>
+          )}
+        </button>
+
+        {/* Notification dropdown */}
+        {notifOpen && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 8px)", right: 0,
+            width: 360, maxHeight: 480,
+            background: "var(--card)", border: "1px solid var(--border)",
+            borderRadius: 12, boxShadow: "var(--shadow-lg)",
+            display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200,
+          }}>
+            {/* Header */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "12px 16px", borderBottom: "1px solid var(--border)",
+            }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "var(--foreground)" }}>
+                Notifications
+                {unreadCount > 0 && (
+                  <span style={{
+                    marginLeft: 8, background: "var(--primary)", color: "white",
+                    fontSize: 10, fontWeight: 800, borderRadius: 10, padding: "1px 7px",
+                  }}>{unreadCount}</span>
+                )}
+              </div>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllRead}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    color: "var(--primary)", fontSize: 12, fontWeight: 600,
+                    display: "flex", alignItems: "center", gap: 4, padding: "4px 8px",
+                    borderRadius: 6,
+                  }}
+                >
+                  <CheckCheck size={13} /> Mark all read
+                </button>
+              )}
+            </div>
+
+            {/* List */}
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {notifications.length === 0 ? (
+                <div style={{ padding: "40px 20px", textAlign: "center" }}>
+                  <Bell size={28} style={{ color: "var(--muted-foreground)", marginBottom: 8 }} />
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>All caught up</div>
+                  <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>No notifications yet</div>
+                </div>
+              ) : (
+                notifications.map(n => {
+                  const Icon = NOTIF_ICON[n.type] ?? Info
+                  return (
+                    <div
+                      key={n.id}
+                      onClick={() => handleNotifClick(n)}
+                      style={{
+                        display: "flex", gap: 12, padding: "12px 16px",
+                        background: n.isRead ? "transparent" : "var(--primary-50)",
+                        borderBottom: "1px solid var(--border)",
+                        cursor: n.link ? "pointer" : "default",
+                        transition: "background 0.1s",
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--muted)" }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = n.isRead ? "transparent" : "var(--primary-50)" }}
+                    >
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                        background: NOTIF_BG[n.type] ?? "#EFF6FF",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                      }}>
+                        <Icon size={15} style={{ color: NOTIF_COLOR[n.type] ?? "#0369A1" }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: n.isRead ? 500 : 700, color: "var(--foreground)", marginBottom: 2 }}>{n.title}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.4 }}>{n.message}</div>
+                        <div style={{ fontSize: 11, color: "var(--subtle)", marginTop: 4 }}>{timeAgo(n.createdAt)}</div>
+                      </div>
+                      {!n.isRead && (
+                        <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--primary)", flexShrink: 0, marginTop: 4 }} />
+                      )}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ── Avatar ── */}
       <div style={{

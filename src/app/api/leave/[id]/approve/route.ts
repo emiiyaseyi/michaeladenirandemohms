@@ -18,7 +18,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     data: {
       status: action === "APPROVED" ? "APPROVED" : "REJECTED",
       updatedAt: new Date(),
-    }
+    },
+    include: { leaveType: { select: { name: true } } },
   })
 
   // If approved, update employee status
@@ -26,6 +27,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await prisma.employee.update({
       where: { id: request.employeeId },
       data: { employeeStatus: "ON_LEAVE" }
+    })
+  }
+
+  // Notify the employee who made the request
+  const employee = await prisma.employee.findUnique({
+    where: { id: request.employeeId },
+    select: { userId: true },
+  })
+  if (employee) {
+    const isApproved = action === "APPROVED"
+    await prisma.notification.create({
+      data: {
+        userId: employee.userId,
+        employeeId: request.employeeId,
+        title: isApproved ? "Leave Request Approved" : "Leave Request Rejected",
+        message: isApproved
+          ? `Your ${(updated as any).leaveType?.name ?? "leave"} request has been approved.${comment ? ` Note: ${comment}` : ""}`
+          : `Your ${(updated as any).leaveType?.name ?? "leave"} request was not approved.${comment ? ` Reason: ${comment}` : ""}`,
+        type: isApproved ? "SUCCESS" : "DANGER",
+        link: "/leave",
+      },
     })
   }
 

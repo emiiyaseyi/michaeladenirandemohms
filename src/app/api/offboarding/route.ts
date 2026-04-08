@@ -41,7 +41,23 @@ export async function POST(req: NextRequest) {
     include: { tasks: true }
   })
 
-  await prisma.employee.update({ where: { id: employeeId }, data: { employeeStatus: exitType === "RESIGNATION" ? "RESIGNED" : "TERMINATED" } })
+  const emp = await prisma.employee.update({
+    where: { id: employeeId },
+    data: { employeeStatus: exitType === "RESIGNATION" ? "RESIGNED" : "TERMINATED" },
+    select: { userId: true, firstName: true, lastName: true },
+  })
+
+  // Notify the employee that offboarding has been initiated
+  await prisma.notification.create({
+    data: {
+      userId: emp.userId,
+      employeeId,
+      title: "Offboarding Process Initiated",
+      message: `Your offboarding process has been initiated (${exitType.toLowerCase().replace("_", " ")}). Please complete all assigned offboarding tasks.`,
+      type: "WARNING",
+      link: "/offboarding",
+    },
+  })
 
   return NextResponse.json({ offboarding: ob }, { status: 201 })
 }

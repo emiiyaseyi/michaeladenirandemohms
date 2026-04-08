@@ -68,12 +68,14 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Onboarding",
     href: "/onboarding",
     icon: UserCheck,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
+    // STAFF and INTERN are excluded here — they see this only when triggered by an admin (injected via DashboardLayout)
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
   },
   {
     label: "Offboarding",
     href: "/offboarding",
     icon: UserMinus,
+    // STAFF and INTERN are excluded here — they see this only when triggered by an admin (injected via DashboardLayout)
     roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
   },
   {
