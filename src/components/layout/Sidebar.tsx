@@ -3,11 +3,22 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import { ChevronRight, Leaf, LogOut } from "lucide-react"
-import { getNavForRole, roleLabel } from "@/lib/rbac"
+import { getNavForRole, roleLabel, type NavItem } from "@/lib/rbac"
 
-export default function Sidebar({ user }: { user: any }) {
+export default function Sidebar({ user, extraNav = [] }: { user: any; extraNav?: NavItem[] }) {
   const path = usePathname()
-  const nav = getNavForRole(user?.role ?? "STAFF")
+  const baseNav = getNavForRole(user?.role ?? "STAFF")
+
+  // Merge extra nav items (e.g. Onboarding/Offboarding for staff triggered by admin)
+  // Insert them before "Org Chart" if not already present
+  const nav = [...baseNav]
+  for (const item of extraNav) {
+    if (!nav.find(n => n.href === item.href)) {
+      const orgChartIdx = nav.findIndex(n => n.href === "/org-chart")
+      if (orgChartIdx >= 0) nav.splice(orgChartIdx, 0, item)
+      else nav.push(item)
+    }
+  }
 
   return (
     <aside style={{
