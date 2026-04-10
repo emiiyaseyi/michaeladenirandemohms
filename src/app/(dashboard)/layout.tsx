@@ -31,6 +31,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     }
   }
 
+  // Staff and interns land on the self-service profile as their home page
+  const role = (session.user as any).role ?? "STAFF"
+  // We don't redirect here because this layout wraps /self-service too.
+  // The redirect is handled in the dashboard page itself via a client-side component.
+
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <Sidebar user={session.user} extraNav={extraNav} />

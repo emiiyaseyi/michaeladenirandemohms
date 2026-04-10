@@ -3,7 +3,8 @@
 
 import {
   LayoutDashboard, Users, CalendarDays, Briefcase, TrendingUp,
-  UserCheck, UserMinus, GitBranch, BarChart3, Settings, type LucideIcon,
+  UserCheck, UserMinus, GitBranch, BarChart3, Settings, UserCircle,
+  FolderOpen, Layers, Megaphone, HelpCircle, type LucideIcon,
 } from "lucide-react"
 
 export type SystemRole =
@@ -38,6 +39,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
+    // Staff/Intern are redirected to /self-service from the dashboard page itself
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
+  },
+  {
+    label: "Self Service",
+    href: "/self-service",
+    icon: UserCircle,
     roles: ALL_ROLES,
   },
   {
@@ -47,16 +55,17 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
   },
   {
+    // Leave approval/admin view — staff access leave via Self Service
     label: "Leave",
     href: "/leave",
     icon: CalendarDays,
-    roles: ALL_ROLES,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
   },
   {
     label: "Recruitment",
     href: "/recruitment",
     icon: Briefcase,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "AUDIT"],
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
   },
   {
     label: "Performance",
@@ -68,15 +77,37 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Onboarding",
     href: "/onboarding",
     icon: UserCheck,
-    // STAFF and INTERN are excluded here — they see this only when triggered by an admin (injected via DashboardLayout)
     roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
   },
   {
     label: "Offboarding",
     href: "/offboarding",
     icon: UserMinus,
-    // STAFF and INTERN are excluded here — they see this only when triggered by an admin (injected via DashboardLayout)
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
+  },
+  {
+    label: "Projects",
+    href: "/projects",
+    icon: Layers,
+    roles: ALL_ROLES,
+  },
+  {
+    label: "Documents",
+    href: "/documents",
+    icon: FolderOpen,
+    roles: ALL_ROLES,
+  },
+  {
+    label: "Announcements",
+    href: "/announcements",
+    icon: Megaphone,
+    roles: ALL_ROLES,
+  },
+  {
+    label: "FAQ",
+    href: "/faq",
+    icon: HelpCircle,
+    roles: ALL_ROLES,
   },
   {
     label: "Org Chart",
@@ -103,12 +134,17 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const ROUTE_ROLES: Record<string, SystemRole[]> = {
   "/dashboard":    ALL_ROLES,
+  "/self-service": ALL_ROLES,
   "/employees":    ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
   "/leave":        ALL_ROLES,
-  "/recruitment":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "AUDIT"],
+  "/recruitment":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
   "/performance":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "PERFORMANCE_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
   "/onboarding":   ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
-  "/offboarding":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
+  "/offboarding":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
+  "/projects":     ALL_ROLES,
+  "/documents":    ALL_ROLES,
+  "/announcements": ALL_ROLES,
+  "/faq":          ALL_ROLES,
   "/org-chart":    ALL_ROLES,
   "/analytics":    ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PERFORMANCE_OFFICER", "AUDIT"],
   "/settings":     ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],

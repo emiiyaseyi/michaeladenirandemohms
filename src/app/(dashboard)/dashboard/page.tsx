@@ -5,8 +5,9 @@ import StatCard from "@/components/ui/StatCard"
 import Card from "@/components/ui/Card"
 import Badge from "@/components/ui/Badge"
 import Avatar from "@/components/ui/Avatar"
-import { Users, CalendarDays, Briefcase, TrendingUp, UserCheck, Clock, AlertCircle, CheckCircle2, ShieldAlert } from "lucide-react"
+import { Users, CalendarDays, Briefcase, TrendingUp, UserCheck, Clock, AlertCircle, ShieldAlert } from "lucide-react"
 import { formatDate } from "@/lib/utils"
+import StaffDashboard from "./StaffDashboard"
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const session = await auth()
@@ -14,6 +15,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const accessDenied = sp?.denied === "1"
 
   const role = (session?.user as any)?.role ?? "STAFF"
+
+  // Staff and interns see their personal profile dashboard
+  if (role === "STAFF" || role === "INTERN") {
+    return <StaffDashboard />
+  }
+
   const employeeId = (session?.user as any)?.employeeId
   const c = getCapabilities(role)
 
@@ -154,7 +161,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       {/* Tables */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-        {/* Recent Employees */}
         <Card>
           <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3 style={{ fontSize: 14, fontWeight: 700 }}>
@@ -180,7 +186,6 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </div>
         </Card>
 
-        {/* Leave */}
         <Card>
           <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <h3 style={{ fontSize: 14, fontWeight: 700 }}>

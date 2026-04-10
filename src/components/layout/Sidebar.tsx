@@ -71,9 +71,9 @@ export default function Sidebar({ user, extraNav = [] }: { user: any; extraNav?:
         })}
       </nav>
 
-      {/* User */}
+      {/* User + Logout */}
       <div style={{ padding: "10px", borderTop: "1px solid var(--sidebar-border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)", marginBottom: 6 }}>
           <div style={{
             width: 32, height: 32, borderRadius: "50%", background: "var(--primary)",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -90,16 +90,21 @@ export default function Sidebar({ user, extraNav = [] }: { user: any; extraNav?:
               {roleLabel(user?.role ?? "")}
             </div>
           </div>
-          <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            style={{ background: "none", border: "none", cursor: "pointer", color: "var(--sidebar-fg)", padding: 6, borderRadius: 6, display: "flex", transition: "all 0.15s" }}
-            title="Sign out"
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#F87171"; (e.currentTarget as HTMLElement).style.background = "rgba(248,113,113,0.1)" }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--sidebar-fg)"; (e.currentTarget as HTMLElement).style.background = "none" }}
-          >
-            <LogOut size={14} />
-          </button>
         </div>
+        <button
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          style={{
+            width: "100%", display: "flex", alignItems: "center", gap: 8,
+            padding: "8px 10px", borderRadius: 8, background: "rgba(248,113,113,0.08)",
+            border: "1px solid rgba(248,113,113,0.2)", cursor: "pointer",
+            color: "#F87171", fontSize: 12, fontWeight: 600, transition: "all 0.15s",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(248,113,113,0.18)" }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(248,113,113,0.08)" }}
+        >
+          <LogOut size={14} />
+          Sign Out
+        </button>
       </div>
     </aside>
   )

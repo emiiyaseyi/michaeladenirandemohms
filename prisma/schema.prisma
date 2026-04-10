@@ -54,6 +54,7 @@ model User {
   password      String?
   role          SystemRole @default(STAFF)
   isActive      Boolean   @default(true)
+  lastLoginAt   DateTime?
   accounts      Account[]
   sessions      Session[]
   employee      Employee?
@@ -168,6 +169,8 @@ model Employee {
   leaveRequests    LeaveRequest[] @relation("EmployeeLeave")
   reliefFor        LeaveRequest[] @relation("ReliefOfficer")
   leaveApprovals   LeaveApproval[]
+  leaveBalances    LeaveBalance[]
+  reliefAssignments LeaveReliefOfficer[] @relation("ReliefAssignments")
   jobApplications  JobApplication[]
   onboardingTasks  OnboardingTask[]
   kpis             KPI[]
@@ -331,6 +334,7 @@ model LeaveType {
   minDocDays      Int            @default(2)
   isActive        Boolean        @default(true)
   leaveRequests   LeaveRequest[]
+  leaveBalances   LeaveBalance[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }
@@ -373,10 +377,13 @@ model LeaveRequest {
   parentLeaveId   String?
   reliefEmployee  Employee?      @relation("ReliefOfficer", fields: [reliefEmployeeId], references: [id])
   reliefEmployeeId String?
+  reliefOfficersList LeaveReliefOfficer[]
+  teamLeadIds     String?        // JSON array of employee IDs selected as team leads
   approvals       LeaveApproval[]
   resumedAt       DateTime?
   reliefRating    Int?
   reliefComment   String?
+  ratingPromptShown Boolean      @default(false)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 }
@@ -601,6 +608,44 @@ model SuccessionPlan {
   updatedAt       DateTime       @updatedAt
 }
 
+// ─── LEAVE BALANCES ─────────────────────────────────────────────────────────
+
+model LeaveBalance {
+  id             String    @id @default(cuid())
+  employeeId     String
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveTypeId    String
+  leaveType      LeaveType @relation(fields: [leaveTypeId], references: [id])
+  year           Int
+  allocated      Int       @default(0)
+  used           Int       @default(0)
+  pending        Int       @default(0)
+  carriedOver    Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([employeeId, leaveTypeId, year])
+}
+
+model LeaveReliefOfficer {
+  id             String       @id @default(cuid())
+  leaveRequestId String
+  leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+  employeeId     String
+  employee       Employee     @relation("ReliefAssignments", fields: [employeeId], references: [id])
+  status         ReliefStatus @default(PENDING)
+  acceptedAt     DateTime?
+  declinedAt     DateTime?
+  comment        String?
+  rating         Int?
+  ratingComment  String?
+  ratedAt        DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([leaveRequestId, employeeId])
+}
+
 // ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
 
 model Notification {
@@ -749,6 +794,12 @@ enum TaskStatus {
   IN_PROGRESS
   COMPLETED
   OVERDUE
+}
+
+enum ReliefStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
 }
 
 enum LeaveStatus {

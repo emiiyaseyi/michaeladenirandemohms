@@ -1,8 +1,16 @@
 "use client"
-import { Bell, Search, Sun, Moon, Monitor, Users, CalendarDays, Briefcase, LayoutDashboard, Building2, X, CheckCheck, Info, AlertTriangle, CheckCircle, XCircle } from "lucide-react"
+import {
+  Bell, Search, Sun, Moon, Users, CalendarDays, Briefcase,
+  LayoutDashboard, Building2, X, CheckCheck, Info, AlertTriangle,
+  CheckCircle, XCircle, ChevronDown, User, Shield, Settings2,
+  LogOut, UserCircle, ArrowLeftRight,
+} from "lucide-react"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useTheme } from "@/components/ThemeProvider"
+import { signOut } from "next-auth/react"
+import { roleLabel } from "@/lib/rbac"
+import { formatDate } from "@/lib/utils"
 
 type Notification = {
   id: string
@@ -61,9 +69,13 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced
 }
 
+// Roles that have a "switch view" between self-service and admin/supervisor view
+const ELEVATED_ROLES = ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "PERFORMANCE_OFFICER", "TA_OFFICER"]
+
 export default function TopBar({ title, user }: { title: string; user: any }) {
-  const { theme, setTheme } = useTheme()
+  const { theme, toggle: cycleTheme } = useTheme()
   const router = useRouter()
+  const pathname = usePathname()
 
   const [query, setQuery]         = useState("")
   const [results, setResults]     = useState<any[]>([])
@@ -76,6 +88,17 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
   const [unreadCount, setUnreadCount]     = useState(0)
   const [notifOpen, setNotifOpen]         = useState(false)
   const notifRef                          = useRef<HTMLDivElement>(null)
+
+  // Switch view
+  const [switchOpen, setSwitchOpen] = useState(false)
+  const switchRef                   = useRef<HTMLDivElement>(null)
+
+  // User dropdown
+  const [userOpen, setUserOpen]     = useState(false)
+  const userRef                     = useRef<HTMLDivElement>(null)
+
+  const hasElevatedRole = ELEVATED_ROLES.includes(user?.role ?? "")
+  const isSelfService = pathname?.startsWith("/self-service")
 
   const fetchNotifications = useCallback(() => {
     fetch("/api/notifications")
@@ -90,10 +113,12 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
     return () => clearInterval(interval)
   }, [fetchNotifications])
 
-  // Close notif panel on outside click
+  // Close panels on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!notifRef.current?.contains(e.target as Node)) setNotifOpen(false)
+      if (!switchRef.current?.contains(e.target as Node)) setSwitchOpen(false)
+      if (!userRef.current?.contains(e.target as Node)) setUserOpen(false)
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
@@ -120,7 +145,6 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
   const containerRef = useRef<HTMLDivElement>(null)
   const debouncedQ   = useDebounce(query, 220)
 
-  // Fetch results
   useEffect(() => {
     if (!debouncedQ.trim()) { setResults([]); setOpen(false); return }
     setLoading(true)
@@ -130,7 +154,6 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
       .finally(() => setLoading(false))
   }, [debouncedQ])
 
-  // ⌘K / Ctrl+K global shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
@@ -143,7 +166,6 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
     return () => window.removeEventListener("keydown", handler)
   }, [])
 
-  // Click outside to close
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
@@ -165,19 +187,16 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
     else if (e.key === "Escape") { setOpen(false); inputRef.current?.blur() }
   }
 
-  const ThemeIcon = theme === "light" ? Sun : theme === "dark" ? Moon : Monitor
-  const cycleTheme = () => {
-    const next: Record<string, "light" | "dark" | "system"> = { light: "dark", dark: "system", system: "light" }
-    setTheme(next[theme] ?? "light")
-  }
+  const ThemeIcon = theme === "dark" ? Moon : Sun
 
-  // Group results by type
   const grouped = results.reduce<Record<string, any[]>>((acc, r, i) => {
     const g = r.type
     if (!acc[g]) acc[g] = []
     acc[g].push({ ...r, _idx: i })
     return acc
   }, {})
+
+  const initials = user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) ?? "U"
 
   return (
     <header style={{
@@ -211,11 +230,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             onKeyDown={handleKey}
             placeholder="Search people, leave, jobs, features…"
             autoComplete="off"
-            style={{
-              border: "none", background: "transparent", fontSize: 13,
-              color: "var(--foreground)", flex: 1, outline: "none",
-              minWidth: 0,
-            }}
+            style={{ border: "none", background: "transparent", fontSize: 13, color: "var(--foreground)", flex: 1, outline: "none", minWidth: 0 }}
           />
           {query
             ? <button onClick={() => { setQuery(""); setResults([]); setOpen(false) }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--subtle)", padding: 0, display: "flex", lineHeight: 1 }}><X size={13} /></button>
@@ -223,7 +238,6 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
           }
         </div>
 
-        {/* Results dropdown */}
         {open && results.length > 0 && (
           <div style={{
             position: "absolute", top: "100%", left: 0, right: 0,
@@ -236,46 +250,18 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               const Icon = TYPE_ICON[type] ?? LayoutDashboard
               return (
                 <div key={type}>
-                  {/* Group header */}
-                  <div style={{
-                    padding: "8px 14px 4px",
-                    fontSize: 10, fontWeight: 800, letterSpacing: "0.09em",
-                    color: "var(--subtle)", textTransform: "uppercase",
-                    display: "flex", alignItems: "center", gap: 5,
-                    borderTop: "1px solid var(--border)",
-                  }}>
-                    <Icon size={10} />
-                    {TYPE_LABEL[type] ?? type}
+                  <div style={{ padding: "8px 14px 4px", fontSize: 10, fontWeight: 800, letterSpacing: "0.09em", color: "var(--subtle)", textTransform: "uppercase", display: "flex", alignItems: "center", gap: 5, borderTop: "1px solid var(--border)" }}>
+                    <Icon size={10} />{TYPE_LABEL[type] ?? type}
                   </div>
                   {items.map(item => {
                     const isActive = item._idx === activeIdx
                     return (
-                      <div
-                        key={`${type}-${item._idx}`}
-                        onMouseEnter={() => setActiveIdx(item._idx)}
-                        onMouseLeave={() => setActiveIdx(-1)}
-                        onClick={() => navigate(item.href)}
-                        style={{
-                          display: "flex", alignItems: "center", gap: 10,
-                          padding: "9px 14px", cursor: "pointer",
-                          background: isActive ? "var(--muted)" : "transparent",
-                          transition: "background 0.1s",
-                        }}
-                      >
-                        {/* Avatar / icon */}
+                      <div key={`${type}-${item._idx}`} onMouseEnter={() => setActiveIdx(item._idx)} onMouseLeave={() => setActiveIdx(-1)} onClick={() => navigate(item.href)}
+                        style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", cursor: "pointer", background: isActive ? "var(--muted)" : "transparent", transition: "background 0.1s" }}>
                         {item.initials ? (
-                          <div style={{
-                            width: 28, height: 28, borderRadius: "50%", flexShrink: 0,
-                            background: TYPE_COLOR[type] ?? "var(--primary)",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                            fontSize: 10, fontWeight: 800, color: "white", letterSpacing: "0.04em",
-                          }}>{item.initials}</div>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", flexShrink: 0, background: TYPE_COLOR[type] ?? "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "white", letterSpacing: "0.04em" }}>{item.initials}</div>
                         ) : (
-                          <div style={{
-                            width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                            background: `${TYPE_COLOR[type] ?? "#374151"}18`,
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                          }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, flexShrink: 0, background: `${TYPE_COLOR[type] ?? "#374151"}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                             <Icon size={13} style={{ color: TYPE_COLOR[type] ?? "var(--muted-foreground)" }} />
                           </div>
                         )}
@@ -284,16 +270,9 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
                           <div style={{ fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.desc}</div>
                         </div>
                         {item.meta && (
-                          <span style={{
-                            fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, flexShrink: 0,
-                            background: item.meta === "APPROVED" || item.meta === "ACTIVE" || item.meta === "OPEN" ? "var(--success-bg)" : "var(--muted)",
-                            color: item.meta === "APPROVED" || item.meta === "ACTIVE" || item.meta === "OPEN" ? "var(--success)" : "var(--muted-foreground)",
-                            textTransform: "uppercase",
-                          }}>{item.meta}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, flexShrink: 0, background: item.meta === "APPROVED" || item.meta === "ACTIVE" || item.meta === "OPEN" ? "var(--success-bg)" : "var(--muted)", color: item.meta === "APPROVED" || item.meta === "ACTIVE" || item.meta === "OPEN" ? "var(--success)" : "var(--muted-foreground)", textTransform: "uppercase" }}>{item.meta}</span>
                         )}
-                        {isActive && (
-                          <kbd style={{ fontSize: 10, color: "var(--subtle)", background: "var(--border)", borderRadius: 4, padding: "1px 5px", fontFamily: "monospace", flexShrink: 0 }}>↵</kbd>
-                        )}
+                        {isActive && <kbd style={{ fontSize: 10, color: "var(--subtle)", background: "var(--border)", borderRadius: 4, padding: "1px 5px", fontFamily: "monospace", flexShrink: 0 }}>↵</kbd>}
                       </div>
                     )
                   })}
@@ -310,15 +289,8 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             </div>
           </div>
         )}
-
         {open && query && results.length === 0 && !loading && (
-          <div style={{
-            position: "absolute", top: "100%", left: 0, right: 0,
-            background: "var(--card)", border: "1.5px solid var(--primary)",
-            borderTop: "1px solid var(--border)", borderRadius: "0 0 12px 12px",
-            boxShadow: "var(--shadow-lg)", padding: "24px 14px",
-            textAlign: "center", zIndex: 100,
-          }}>
+          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1.5px solid var(--primary)", borderTop: "1px solid var(--border)", borderRadius: "0 0 12px 12px", boxShadow: "var(--shadow-lg)", padding: "24px 14px", textAlign: "center", zIndex: 100 }}>
             <div style={{ fontSize: 22, marginBottom: 6 }}>🔍</div>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>No results for "{query}"</div>
             <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Try a name, job title, leave type, or feature</div>
@@ -327,20 +299,74 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
       </div>
 
       {/* ── Theme toggle ── */}
-      <button
-        onClick={cycleTheme}
-        title={`Switch theme (${theme})`}
-        style={{
-          background: "var(--muted)", border: "1px solid var(--border)", cursor: "pointer",
-          borderRadius: 8, padding: 8, color: "var(--muted-foreground)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          transition: "all 0.15s", flexShrink: 0,
-        }}
+      <button onClick={cycleTheme} title={`Switch theme (${theme})`}
+        style={{ background: "var(--muted)", border: "1px solid var(--border)", cursor: "pointer", borderRadius: 8, padding: 8, color: "var(--muted-foreground)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", flexShrink: 0 }}
         onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.color = "var(--primary)"; el.style.background = "var(--primary-50)" }}
         onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.color = "var(--muted-foreground)"; el.style.background = "var(--muted)" }}
       >
         <ThemeIcon size={16} />
       </button>
+
+      {/* ── Switch View ── */}
+      {hasElevatedRole && (
+        <div ref={switchRef} style={{ position: "relative", flexShrink: 0 }}>
+          <button
+            onClick={() => setSwitchOpen(o => !o)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "7px 12px",
+              background: switchOpen ? "var(--primary)" : "var(--success-bg)",
+              border: `1px solid ${switchOpen ? "var(--primary)" : "var(--success)"}`,
+              borderRadius: 8, cursor: "pointer", transition: "all 0.15s",
+              color: switchOpen ? "white" : "var(--success)", fontSize: 13, fontWeight: 700,
+            }}
+          >
+            <ArrowLeftRight size={14} />
+            Switch View
+            <ChevronDown size={13} style={{ transform: switchOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+          </button>
+
+          {switchOpen && (
+            <div style={{
+              position: "absolute", top: "calc(100% + 6px)", right: 0,
+              background: "var(--card)", border: "1px solid var(--border)",
+              borderRadius: 10, boxShadow: "var(--shadow-lg)",
+              minWidth: 190, overflow: "hidden", zIndex: 200,
+            }}>
+              <div style={{ padding: "8px 12px 4px", fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", color: "var(--muted-foreground)", textTransform: "uppercase" }}>
+                Switch to
+              </div>
+              {[
+                { label: "My Self Service", href: "/self-service", icon: UserCircle, desc: "Personal profile & leave" },
+                { label: "Supervisor View", href: "/dashboard", icon: Shield, desc: "Team & approvals" },
+              ].map(item => {
+                const Icon = item.icon
+                const isActive = item.href === "/self-service" ? isSelfService : !isSelfService
+                return (
+                  <button key={item.href}
+                    onClick={() => { setSwitchOpen(false); router.push(item.href) }}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "center", gap: 10,
+                      padding: "10px 12px", background: isActive ? "var(--primary-50)" : "transparent",
+                      border: "none", cursor: "pointer", textAlign: "left", transition: "background 0.12s",
+                    }}
+                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "var(--muted)" }}
+                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent" }}
+                  >
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: isActive ? "var(--primary)" : "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Icon size={15} style={{ color: isActive ? "white" : "var(--muted-foreground)" }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? "var(--primary)" : "var(--foreground)" }}>{item.label}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{item.desc}</div>
+                    </div>
+                    {isActive && <div style={{ marginLeft: "auto", width: 6, height: 6, borderRadius: "50%", background: "var(--primary)" }} />}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Notifications ── */}
       <div ref={notifRef} style={{ position: "relative", flexShrink: 0 }}>
@@ -351,63 +377,32 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             border: `1px solid ${notifOpen ? "var(--primary)" : "var(--border)"}`,
             cursor: "pointer", borderRadius: 8, padding: 8,
             color: notifOpen ? "var(--primary)" : "var(--muted-foreground)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            transition: "all 0.15s",
+            display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
           }}
           onMouseEnter={e => { if (!notifOpen) { const el = e.currentTarget as HTMLElement; el.style.color = "var(--primary)"; el.style.background = "var(--primary-50)" } }}
           onMouseLeave={e => { if (!notifOpen) { const el = e.currentTarget as HTMLElement; el.style.color = "var(--muted-foreground)"; el.style.background = "var(--muted)" } }}
         >
           <Bell size={16} />
           {unreadCount > 0 && (
-            <span style={{
-              position: "absolute", top: -4, right: -4,
-              minWidth: 16, height: 16, borderRadius: 8, padding: "0 4px",
-              background: "var(--accent)", border: "2px solid var(--card)",
-              fontSize: 9, fontWeight: 800, color: "white",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>{unreadCount > 99 ? "99+" : unreadCount}</span>
+            <span style={{ position: "absolute", top: -4, right: -4, minWidth: 16, height: 16, borderRadius: 8, padding: "0 4px", background: "var(--accent)", border: "2px solid var(--card)", fontSize: 9, fontWeight: 800, color: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
           )}
         </button>
 
-        {/* Notification dropdown */}
         {notifOpen && (
-          <div style={{
-            position: "absolute", top: "calc(100% + 8px)", right: 0,
-            width: 360, maxHeight: 480,
-            background: "var(--card)", border: "1px solid var(--border)",
-            borderRadius: 12, boxShadow: "var(--shadow-lg)",
-            display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200,
-          }}>
-            {/* Header */}
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "12px 16px", borderBottom: "1px solid var(--border)",
-            }}>
+          <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 360, maxHeight: 480, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, boxShadow: "var(--shadow-lg)", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 200 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderBottom: "1px solid var(--border)" }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: "var(--foreground)" }}>
                 Notifications
-                {unreadCount > 0 && (
-                  <span style={{
-                    marginLeft: 8, background: "var(--primary)", color: "white",
-                    fontSize: 10, fontWeight: 800, borderRadius: 10, padding: "1px 7px",
-                  }}>{unreadCount}</span>
-                )}
+                {unreadCount > 0 && <span style={{ marginLeft: 8, background: "var(--primary)", color: "white", fontSize: 10, fontWeight: 800, borderRadius: 10, padding: "1px 7px" }}>{unreadCount}</span>}
               </div>
               {unreadCount > 0 && (
-                <button
-                  onClick={markAllRead}
-                  style={{
-                    background: "none", border: "none", cursor: "pointer",
-                    color: "var(--primary)", fontSize: 12, fontWeight: 600,
-                    display: "flex", alignItems: "center", gap: 4, padding: "4px 8px",
-                    borderRadius: 6,
-                  }}
-                >
+                <button onClick={markAllRead} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--primary)", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4, padding: "4px 8px", borderRadius: 6 }}>
                   <CheckCheck size={13} /> Mark all read
                 </button>
               )}
             </div>
-
-            {/* List */}
             <div style={{ overflowY: "auto", flex: 1 }}>
               {notifications.length === 0 ? (
                 <div style={{ padding: "40px 20px", textAlign: "center" }}>
@@ -415,55 +410,119 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>All caught up</div>
                   <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>No notifications yet</div>
                 </div>
-              ) : (
-                notifications.map(n => {
-                  const Icon = NOTIF_ICON[n.type] ?? Info
-                  return (
-                    <div
-                      key={n.id}
-                      onClick={() => handleNotifClick(n)}
-                      style={{
-                        display: "flex", gap: 12, padding: "12px 16px",
-                        background: n.isRead ? "transparent" : "var(--primary-50)",
-                        borderBottom: "1px solid var(--border)",
-                        cursor: n.link ? "pointer" : "default",
-                        transition: "background 0.1s",
-                      }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--muted)" }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = n.isRead ? "transparent" : "var(--primary-50)" }}
-                    >
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 8, flexShrink: 0,
-                        background: NOTIF_BG[n.type] ?? "#EFF6FF",
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                      }}>
-                        <Icon size={15} style={{ color: NOTIF_COLOR[n.type] ?? "#0369A1" }} />
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: n.isRead ? 500 : 700, color: "var(--foreground)", marginBottom: 2 }}>{n.title}</div>
-                        <div style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.4 }}>{n.message}</div>
-                        <div style={{ fontSize: 11, color: "var(--subtle)", marginTop: 4 }}>{timeAgo(n.createdAt)}</div>
-                      </div>
-                      {!n.isRead && (
-                        <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--primary)", flexShrink: 0, marginTop: 4 }} />
-                      )}
+              ) : notifications.map(n => {
+                const Icon = NOTIF_ICON[n.type] ?? Info
+                return (
+                  <div key={n.id} onClick={() => handleNotifClick(n)}
+                    style={{ display: "flex", gap: 12, padding: "12px 16px", background: n.isRead ? "transparent" : "var(--primary-50)", borderBottom: "1px solid var(--border)", cursor: n.link ? "pointer" : "default", transition: "background 0.1s" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--muted)" }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = n.isRead ? "transparent" : "var(--primary-50)" }}
+                  >
+                    <div style={{ width: 32, height: 32, borderRadius: 8, flexShrink: 0, background: NOTIF_BG[n.type] ?? "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <Icon size={15} style={{ color: NOTIF_COLOR[n.type] ?? "#0369A1" }} />
                     </div>
-                  )
-                })
-              )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: n.isRead ? 500 : 700, color: "var(--foreground)", marginBottom: 2 }}>{n.title}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.4 }}>{n.message}</div>
+                      <div style={{ fontSize: 11, color: "var(--subtle)", marginTop: 4 }}>{timeAgo(n.createdAt)}</div>
+                    </div>
+                    {!n.isRead && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--primary)", flexShrink: 0, marginTop: 4 }} />}
+                  </div>
+                )
+              })}
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Avatar ── */}
-      <div style={{
-        width: 34, height: 34, borderRadius: "50%", background: "var(--primary)",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 12, fontWeight: 700, color: "white", cursor: "pointer", flexShrink: 0,
-        boxShadow: "0 0 0 2px var(--primary-50)",
-      }}>
-        {user?.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0,2) ?? "U"}
+      {/* ── User dropdown ── */}
+      <div ref={userRef} style={{ position: "relative", flexShrink: 0 }}>
+        <button
+          onClick={() => setUserOpen(o => !o)}
+          style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "5px 10px 5px 5px",
+            background: userOpen ? "var(--muted)" : "transparent",
+            border: `1px solid ${userOpen ? "var(--border)" : "transparent"}`,
+            borderRadius: 10, cursor: "pointer", transition: "all 0.15s",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--muted)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)" }}
+          onMouseLeave={e => { if (!userOpen) { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.borderColor = "transparent" } }}
+        >
+          <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white" }}>
+            {initials}
+          </div>
+          <div style={{ textAlign: "left" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.2 }}>{user?.name ?? "User"}</div>
+            <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{roleLabel(user?.role ?? "")}</div>
+          </div>
+          <ChevronDown size={13} style={{ color: "var(--muted-foreground)", transform: userOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
+        </button>
+
+        {userOpen && (
+          <div style={{
+            position: "absolute", top: "calc(100% + 6px)", right: 0,
+            width: 240, background: "var(--card)", border: "1px solid var(--border)",
+            borderRadius: 12, boxShadow: "var(--shadow-lg)", overflow: "hidden", zIndex: 200,
+          }}>
+            {/* User info header */}
+            <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", gap: 10, alignItems: "center" }}>
+              <div style={{ width: 38, height: 38, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: "white", flexShrink: 0 }}>
+                {initials}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name ?? "User"}</div>
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.email ?? ""}</div>
+              </div>
+            </div>
+
+            {/* Menu items */}
+            <div style={{ padding: "6px 0" }}>
+              {[
+                { label: "Admin Profile", href: "/settings/profile", icon: Shield, show: hasElevatedRole },
+                { label: "My Profile", href: "/self-service", icon: UserCircle, show: true },
+                { label: "Preferences", href: "/self-service/preferences", icon: Settings2, show: true },
+              ].filter(i => i.show).map(item => {
+                const Icon = item.icon
+                return (
+                  <button key={item.href}
+                    onClick={() => { setUserOpen(false); router.push(item.href) }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", transition: "background 0.12s" }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--muted)" }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent" }}
+                  >
+                    <Icon size={15} style={{ color: "var(--muted-foreground)" }} />
+                    <span style={{ fontSize: 13, color: "var(--foreground)" }}>{item.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* Last login */}
+            {user?.lastLoginAt && (
+              <div style={{ padding: "8px 16px", borderTop: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 14, height: 14, borderRadius: 3, background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <div style={{ width: 6, height: 6, borderRadius: 1, background: "var(--muted-foreground)" }} />
+                </div>
+                <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                  Last Login: {new Date(user.lastLoginAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })} {new Date(user.lastLoginAt).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                </span>
+              </div>
+            )}
+
+            {/* Logout */}
+            <div style={{ padding: "6px 0 6px", borderTop: "1px solid var(--border)" }}>
+              <button
+                onClick={() => signOut({ callbackUrl: "/login" })}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", transition: "background 0.12s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--danger-bg)" }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent" }}
+              >
+                <LogOut size={15} style={{ color: "var(--accent)" }} />
+                <span style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600 }}>Log Out</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

@@ -6,9 +6,10 @@ import Avatar from "@/components/ui/Avatar"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
-import { Users, Plus, Search, Filter, Download, Edit, Eye, Phone, Mail } from "lucide-react"
+import { Users, Plus, Search, Filter, Download, Edit, Eye, Upload, FileText } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import AddEmployeeForm from "./AddEmployeeForm"
+import EditEmployeeModal from "./EditEmployeeModal"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 export default function EmployeesPage() {
@@ -21,6 +22,9 @@ export default function EmployeesPage() {
   const [deptFilter, setDeptFilter] = useState("")
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<any>(null)
+  const [editTarget, setEditTarget] = useState<any>(null)
+  const [csvUploading, setCsvUploading] = useState(false)
+  const [csvResult, setCsvResult] = useState<any>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -46,9 +50,25 @@ export default function EmployeesPage() {
           <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Manage your workforce</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Button variant="secondary" size="sm"><Download size={14} /> Export</Button>
+          <Button variant="secondary" size="sm" onClick={() => window.open("/api/employees/csv-upload", "_blank")}>
+            <Download size={14} /> Template
+          </Button>
           {user?.caps.canCreateEmployee && (
-            <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button>
+            <>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", color: "var(--foreground)" }}>
+                <Upload size={14} /> {csvUploading ? "Uploading…" : "CSV Upload"}
+                <input type="file" accept=".csv" style={{ display: "none" }} onChange={async e => {
+                  const f = e.target.files?.[0]; if (!f) return
+                  setCsvUploading(true); setCsvResult(null)
+                  const fd = new FormData(); fd.append("file", f)
+                  const r = await fetch("/api/employees/csv-upload", { method: "POST", body: fd })
+                  const d = await r.json()
+                  setCsvResult(d); setCsvUploading(false); e.target.value = ""
+                  if (d.created > 0) load()
+                }} />
+              </label>
+              <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button>
+            </>
           )}
         </div>
       </div>
@@ -72,6 +92,14 @@ export default function EmployeesPage() {
         </select>
         <div style={{ fontSize: 13, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{employees.length} result{employees.length !== 1 ? "s" : ""}</div>
       </Card>
+
+      {/* CSV Result Banner */}
+      {csvResult && (
+        <div style={{ padding: "12px 16px", borderRadius: 8, marginBottom: 16, background: csvResult.created > 0 ? "var(--success-bg)" : "var(--warning-bg)", border: `1px solid ${csvResult.created > 0 ? "var(--success)" : "var(--warning)"}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
+          <span><strong>{csvResult.created}</strong> employee{csvResult.created !== 1 ? "s" : ""} created, <strong>{csvResult.skipped}</strong> skipped.</span>
+          <button onClick={() => setCsvResult(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+        </div>
+      )}
 
       {/* Table */}
       <Card>
@@ -114,7 +142,9 @@ export default function EmployeesPage() {
                     <td style={{ padding: "14px 20px" }}>
                       <div style={{ display: "flex", gap: 4 }}>
                         <button onClick={() => setSelected(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="View"><Eye size={13} /></button>
-                        <button style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="Edit"><Edit size={13} /></button>
+                        {user?.caps.canEditAnyEmployee && (
+                          <button onClick={() => setEditTarget(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="Edit"><Edit size={13} /></button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -128,6 +158,19 @@ export default function EmployeesPage() {
       {/* Add Employee Modal */}
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add New Employee" width={720}>
         <AddEmployeeForm departments={departments} onSuccess={() => { setAddOpen(false); load() }} />
+      </Modal>
+
+      {/* Edit Employee Modal */}
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title={`Edit — ${editTarget?.firstName ?? ""} ${editTarget?.lastName ?? ""}`} width={720}>
+        {editTarget && (
+          <EditEmployeeModal
+            employee={editTarget}
+            departments={departments}
+            employees={employees}
+            onClose={() => setEditTarget(null)}
+            onSuccess={load}
+          />
+        )}
       </Modal>
 
       {/* View Employee Modal */}
