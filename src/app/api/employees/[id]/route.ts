@@ -22,6 +22,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         include: { project: { select: { id: true, name: true, status: true } } },
         where: { project: { status: "ACTIVE" } },
       },
+      user: { select: { role: true, additionalRoles: true } },
     },
   })
 
@@ -66,18 +67,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
-  // Also update user name if first/last name changed
+  // Update employee record
   const employee = await prisma.employee.update({
     where: { id },
     data,
     include: { department: true, manager: { select: { id: true, firstName: true, lastName: true } } },
   })
 
+  // Update user record: name, role, additionalRoles
+  const userUpdate: Record<string, any> = {}
   if (body.firstName || body.lastName) {
-    await prisma.user.update({
-      where: { id: employee.userId },
-      data: { name: `${employee.firstName} ${employee.lastName}` },
-    }).catch(() => {})
+    userUpdate.name = `${employee.firstName} ${employee.lastName}`
+  }
+  if (body.role) {
+    userUpdate.role = body.role
+  }
+  if (Array.isArray(body.additionalRoles)) {
+    userUpdate.additionalRoles = body.additionalRoles
+  }
+  if (Object.keys(userUpdate).length > 0) {
+    await prisma.user.update({ where: { id: employee.userId }, data: userUpdate }).catch(() => {})
   }
 
   return NextResponse.json({ employee })

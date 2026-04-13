@@ -72,10 +72,9 @@ export async function POST(req: NextRequest) {
   if (!caps(user.role).canSubmitLeave) return forbidden()
 
   const body = await req.json()
-  const { leaveTypeId, startDate, endDate, reason, handoverNotes, reliefOfficerIds = [], teamLeadIds = [] } = body
+  const { leaveTypeId, startDate, endDate, reason, handoverNotes, reliefOfficerIds = [], teamLeadIds = [], documentUrl } = body
   let { employeeId } = body
 
-  // Non-admins can only submit for themselves
   const c = caps(user.role)
   if (!c.canViewAllLeave && employeeId && employeeId !== user.employeeId) {
     return forbidden("You can only submit leave for yourself")
@@ -98,7 +97,6 @@ export async function POST(req: NextRequest) {
   })
   if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
 
-  // Check leave freeze periods
   const freeze = await prisma.leaveFreezeperiod.findFirst({
     where: { startDate: { lte: end }, endDate: { gte: start } },
   })
@@ -106,7 +104,77 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Leave is frozen during this period: "${freeze.name}"` }, { status: 400 })
   }
 
-  // Create request with relief officers and approval chain
+  // Find active projects where employee is a member but NOT the project owner
+  const memberAssignments = await prisma.projectAssignment.findMany({
+    where: { employeeId },
+    select: { projectId: true },
+  })
+  const projectLeadEmployeeIds: string[] = []
+  if (memberAssignments.length > 0) {
+    const activeProjects = await prisma.project.findMany({
+      where: { id: { in: memberAssignments.map(a => a.projectId) }, status: "ACTIVE" },
+      select: { id: true, ownerId: true },
+    })
+    for (const proj of activeProjects) {
+      const ownerId = proj.ownerId
+      if (!ownerId || ownerId === employeeId) continue
+      if (!projectLeadEmployeeIds.includes(ownerId)) {
+        projectLeadEmployeeIds.push(ownerId)
+      }
+    }
+  }
+
+  // Build approval records
+  const approvalRecords: any[] = []
+  const now = new Date()
+
+  // 1. Relief officer records (one per officer, each at RELIEF_OFFICER stage)
+  if (reliefOfficerIds.length > 0) {
+    for (let i = 0; i < reliefOfficerIds.length; i++) {
+      approvalRecords.push({
+        employeeId: reliefOfficerIds[i],
+        stage: "RELIEF_OFFICER" as const,
+        deadline: addHours(now, 12),
+      })
+    }
+  }
+
+  // 2. Project lead records (PROJECT_LEAD stage) - skip if project lead is also manager/dept lead
+  const skipLeadIds = new Set([
+    employee.managerId,
+    employee.departmentLeadId,
+    employeeId,
+    ...(teamLeadIds as string[]),
+  ].filter(Boolean))
+
+  for (const leadId of projectLeadEmployeeIds) {
+    if (skipLeadIds.has(leadId)) continue
+    approvalRecords.push({
+      employeeId: leadId,
+      stage: "PROJECT_LEAD" as const,
+      deadline: addHours(now, reliefOfficerIds.length > 0 ? 24 : 12),
+    })
+  }
+
+  // 3. Team lead
+  if (employee.departmentLeadId || teamLeadIds.length > 0) {
+    const tlId = teamLeadIds[0] || employee.departmentLeadId || employeeId
+    approvalRecords.push({
+      employeeId: tlId,
+      stage: "TEAM_LEAD" as const,
+      deadline: addHours(now, reliefOfficerIds.length > 0 ? 36 : 24),
+    })
+  }
+
+  // 4. Manager
+  if (employee.managerId) {
+    approvalRecords.push({
+      employeeId: employee.managerId,
+      stage: "MANAGER" as const,
+      deadline: addHours(now, reliefOfficerIds.length > 0 ? 48 : 36),
+    })
+  }
+
   const request = await prisma.leaveRequest.create({
     data: {
       employeeId,
@@ -116,41 +184,21 @@ export async function POST(req: NextRequest) {
       days,
       reason,
       handoverNotes: handoverNotes || null,
+      documentUrl: documentUrl || null,
       departmentId: employee.departmentId,
       status: "PENDING",
       teamLeadIds: teamLeadIds.length > 0 ? JSON.stringify(teamLeadIds) : null,
-      // Create relief officer records
       reliefOfficersList: reliefOfficerIds.length > 0 ? {
         create: reliefOfficerIds.map((rid: string) => ({ employeeId: rid, status: "PENDING" })),
       } : undefined,
-      // Create initial approval chain
       approvals: {
-        create: [
-          // Relief officer stage (if any)
-          ...(reliefOfficerIds.length > 0 ? [{
-            employeeId: reliefOfficerIds[0],
-            stage: "RELIEF_OFFICER" as const,
-            deadline: addHours(new Date(), 12),
-          }] : []),
-          // Team lead stage
-          ...(employee.departmentLeadId || teamLeadIds.length > 0 ? [{
-            employeeId: teamLeadIds[0] || employee.departmentLeadId || employeeId,
-            stage: "TEAM_LEAD" as const,
-            deadline: addHours(new Date(), reliefOfficerIds.length > 0 ? 24 : 12),
-          }] : []),
-          // Manager stage
-          ...(employee.managerId ? [{
-            employeeId: employee.managerId,
-            stage: "MANAGER" as const,
-            deadline: addHours(new Date(), reliefOfficerIds.length > 0 ? 36 : 24),
-          }] : []),
-        ],
+        create: approvalRecords,
       },
     },
     include: { employee: true, leaveType: true },
   })
 
-  // Notify relief officers
+  // Notify all relief officers
   for (const rid of reliefOfficerIds) {
     const reliefEmp = await prisma.employee.findUnique({ where: { id: rid }, select: { userId: true } })
     if (reliefEmp) {
@@ -161,13 +209,31 @@ export async function POST(req: NextRequest) {
           title: "Relief Officer Request",
           message: `${employee.firstName} ${employee.lastName} has selected you as a relief officer for their ${request.days}-day leave (${format(start, "MMM d")} – ${format(end, "MMM d")}). Please accept or decline within 12 hours.`,
           type: "INFO",
+          link: "/leave?tab=relief",
+        },
+      })
+    }
+  }
+
+  // Notify project leads
+  for (const leadId of projectLeadEmployeeIds) {
+    if (skipLeadIds.has(leadId)) continue
+    const leadEmp = await prisma.employee.findUnique({ where: { id: leadId }, select: { userId: true } })
+    if (leadEmp) {
+      await prisma.notification.create({
+        data: {
+          userId: leadEmp.userId,
+          employeeId: leadId,
+          title: "Leave Approval Required (Project Lead)",
+          message: `${employee.firstName} ${employee.lastName}, a member of your project, submitted a ${request.days}-day leave request requiring your approval.`,
+          type: "WARNING",
           link: "/leave",
         },
       })
     }
   }
 
-  // Notify manager/team lead
+  // Notify manager
   if (employee.managerId) {
     const manager = await prisma.employee.findUnique({ where: { id: employee.managerId }, select: { userId: true } })
     if (manager) {

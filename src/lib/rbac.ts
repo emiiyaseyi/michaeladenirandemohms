@@ -4,7 +4,7 @@
 import {
   LayoutDashboard, Users, CalendarDays, Briefcase, TrendingUp,
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, UserCircle,
-  FolderOpen, Layers, Megaphone, HelpCircle, type LucideIcon,
+  FolderOpen, Layers, Megaphone, HelpCircle, BarChart2, Receipt, Building2, type LucideIcon,
 } from "lucide-react"
 
 export type SystemRole =
@@ -39,8 +39,7 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Dashboard",
     href: "/dashboard",
     icon: LayoutDashboard,
-    // Staff/Intern are redirected to /self-service from the dashboard page itself
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
+    roles: ALL_ROLES,
   },
   {
     label: "Self Service",
@@ -89,7 +88,13 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Projects",
     href: "/projects",
     icon: Layers,
-    roles: ALL_ROLES,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
+  },
+  {
+    label: "Departments",
+    href: "/departments",
+    icon: Building2,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
   },
   {
     label: "Documents",
@@ -122,6 +127,18 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PERFORMANCE_OFFICER", "AUDIT"],
   },
   {
+    label: "Reports",
+    href: "/reports",
+    icon: BarChart2,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
+  },
+  {
+    label: "Payslips",
+    href: "/payslips",
+    icon: Receipt,
+    roles: ["SUPER_ADMIN", "HR_ADMIN"],
+  },
+  {
     label: "Settings",
     href: "/settings",
     icon: Settings,
@@ -141,12 +158,15 @@ export const ROUTE_ROLES: Record<string, SystemRole[]> = {
   "/performance":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "PERFORMANCE_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
   "/onboarding":   ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
   "/offboarding":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
-  "/projects":     ALL_ROLES,
+  "/projects":     ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
+  "/departments":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
   "/documents":    ALL_ROLES,
   "/announcements": ALL_ROLES,
   "/faq":          ALL_ROLES,
   "/org-chart":    ALL_ROLES,
   "/analytics":    ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PERFORMANCE_OFFICER", "AUDIT"],
+  "/reports":      ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
+  "/payslips":     ["SUPER_ADMIN", "HR_ADMIN"],
   "/settings":     ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
 }
 

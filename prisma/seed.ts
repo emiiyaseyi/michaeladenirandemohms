@@ -60,24 +60,24 @@ async function main() {
   // Super Admin user
   const adminPwd = await bcrypt.hash("Admin@DSN2024!", 10)
   const adminUser = await prisma.user.upsert({
-    where: { email: "admin@datasciencenigeria.org" },
+    where: { email: "admin@datasciencenigeria.ai" },
     update: {},
-    create: { name: "DSN Admin", email: "admin@datasciencenigeria.org", password: adminPwd, role: "SUPER_ADMIN" }
+    create: { name: "DSN Admin", email: "admin@datasciencenigeria.ai", password: adminPwd, role: "SUPER_ADMIN" }
   })
 
   // HR Admin
   const hrPwd = await bcrypt.hash("Welcome@DSN1", 10)
   const hrUser = await prisma.user.upsert({
-    where: { email: "hr@datasciencenigeria.org" },
+    where: { email: "hr@datasciencenigeria.ai" },
     update: {},
-    create: { name: "Amina Bello", email: "hr@datasciencenigeria.org", password: hrPwd, role: "HR_ADMIN" }
+    create: { name: "Amina Bello", email: "hr@datasciencenigeria.ai", password: hrPwd, role: "HR_ADMIN" }
   })
   const hrEmp = await prisma.employee.upsert({
-    where: { workEmail: "hr@datasciencenigeria.org" },
+    where: { workEmail: "hr@datasciencenigeria.ai" },
     update: {},
     create: {
       userId: hrUser.id, employeeId: "DSN0001", firstName: "Amina", lastName: "Bello",
-      workEmail: "hr@datasciencenigeria.org", phone: "+234 801 234 5678",
+      workEmail: "hr@datasciencenigeria.ai", phone: "+234 801 234 5678",
       gender: "FEMALE", jobTitle: "HR Manager", departmentId: hr.id,
       employmentType: "FULL_TIME", employeeStatus: "ACTIVE", hireDate: new Date("2021-03-01"),
     }
@@ -85,18 +85,18 @@ async function main() {
 
   // Sample employees
   const sampleEmployees = [
-    { name: "Emeka Okonkwo", email: "emeka.okonkwo@datasciencenigeria.org", gender: "MALE", title: "Senior Data Scientist", dept: dsn.id, type: "FULL_TIME", hire: "2022-05-10" },
-    { name: "Fatima Musa", email: "fatima.musa@datasciencenigeria.org", gender: "FEMALE", title: "Data Analyst", dept: dsn.id, type: "FULL_TIME", hire: "2023-01-15" },
-    { name: "Chidi Nwosu", email: "chidi.nwosu@datasciencenigeria.org", gender: "MALE", title: "Software Engineer", dept: eng.id, type: "FULL_TIME", hire: "2022-08-22" },
-    { name: "Ngozi Eze", email: "ngozi.eze@datasciencenigeria.org", gender: "FEMALE", title: "Product Manager", dept: prod.id, type: "FULL_TIME", hire: "2023-03-01" },
-    { name: "Tunde Adeyemi", email: "tunde.adeyemi@datasciencenigeria.org", gender: "MALE", title: "Programs Lead", dept: prog.id, type: "FULL_TIME", hire: "2021-11-05" },
-    { name: "Blessing Okafor", email: "blessing.okafor@datasciencenigeria.org", gender: "FEMALE", title: "Marketing Manager", dept: mkt.id, type: "FULL_TIME", hire: "2022-02-14" },
-    { name: "Ibrahim Sule", email: "ibrahim.sule@datasciencenigeria.org", gender: "MALE", title: "Finance Officer", dept: fin.id, type: "FULL_TIME", hire: "2022-07-18" },
-    { name: "Aisha Garba", email: "aisha.garba@datasciencenigeria.org", gender: "FEMALE", title: "Data Engineer", dept: dsn.id, type: "FULL_TIME", hire: "2023-06-01" },
-    { name: "Kelechi Ibe", email: "kelechi.ibe@datasciencenigeria.org", gender: "MALE", title: "Frontend Engineer", dept: eng.id, type: "FULL_TIME", hire: "2023-09-11" },
-    { name: "Zainab Hassan", email: "zainab.hassan@datasciencenigeria.org", gender: "FEMALE", title: "Data Science Intern", dept: dsn.id, type: "INTERN", hire: "2024-01-08" },
-    { name: "Olumide Adewale", email: "olumide.adewale@datasciencenigeria.org", gender: "MALE", title: "Backend Engineer", dept: eng.id, type: "FULL_TIME", hire: "2022-04-20" },
-    { name: "Grace Okeke", email: "grace.okeke@datasciencenigeria.org", gender: "FEMALE", title: "Partnerships Officer", dept: part.id, type: "CONTRACT", hire: "2023-11-01" },
+    { name: "Emeka Okonkwo", email: "emeka.okonkwo@datasciencenigeria.ai", gender: "MALE", title: "Senior Data Scientist", dept: dsn.id, type: "FULL_TIME", hire: "2022-05-10" },
+    { name: "Fatima Musa", email: "fatima.musa@datasciencenigeria.ai", gender: "FEMALE", title: "Data Analyst", dept: dsn.id, type: "FULL_TIME", hire: "2023-01-15" },
+    { name: "Chidi Nwosu", email: "chidi.nwosu@datasciencenigeria.ai", gender: "MALE", title: "Software Engineer", dept: eng.id, type: "FULL_TIME", hire: "2022-08-22" },
+    { name: "Ngozi Eze", email: "ngozi.eze@datasciencenigeria.ai", gender: "FEMALE", title: "Product Manager", dept: prod.id, type: "FULL_TIME", hire: "2023-03-01" },
+    { name: "Tunde Adeyemi", email: "tunde.adeyemi@datasciencenigeria.ai", gender: "MALE", title: "Programs Lead", dept: prog.id, type: "FULL_TIME", hire: "2021-11-05" },
+    { name: "Blessing Okafor", email: "blessing.okafor@datasciencenigeria.ai", gender: "FEMALE", title: "Marketing Manager", dept: mkt.id, type: "FULL_TIME", hire: "2022-02-14" },
+    { name: "Ibrahim Sule", email: "ibrahim.sule@datasciencenigeria.ai", gender: "MALE", title: "Finance Officer", dept: fin.id, type: "FULL_TIME", hire: "2022-07-18" },
+    { name: "Aisha Garba", email: "aisha.garba@datasciencenigeria.ai", gender: "FEMALE", title: "Data Engineer", dept: dsn.id, type: "FULL_TIME", hire: "2023-06-01" },
+    { name: "Kelechi Ibe", email: "kelechi.ibe@datasciencenigeria.ai", gender: "MALE", title: "Frontend Engineer", dept: eng.id, type: "FULL_TIME", hire: "2023-09-11" },
+    { name: "Zainab Hassan", email: "zainab.hassan@datasciencenigeria.ai", gender: "FEMALE", title: "Data Science Intern", dept: dsn.id, type: "INTERN", hire: "2024-01-08" },
+    { name: "Olumide Adewale", email: "olumide.adewale@datasciencenigeria.ai", gender: "MALE", title: "Backend Engineer", dept: eng.id, type: "FULL_TIME", hire: "2022-04-20" },
+    { name: "Grace Okeke", email: "grace.okeke@datasciencenigeria.ai", gender: "FEMALE", title: "Partnerships Officer", dept: part.id, type: "CONTRACT", hire: "2023-11-01" },
   ]
 
   for (let i = 0; i < sampleEmployees.length; i++) {
@@ -160,7 +160,7 @@ async function main() {
 
   // Leave request (sample)
   const annualLeave = await prisma.leaveType.findFirst({ where: { name: "Annual Leave" } })
-  const emeka = await prisma.employee.findFirst({ where: { workEmail: "emeka.okonkwo@datasciencenigeria.org" } })
+  const emeka = await prisma.employee.findFirst({ where: { workEmail: "emeka.okonkwo@datasciencenigeria.ai" } })
   if (annualLeave && emeka) {
     const existing = await prisma.leaveRequest.findFirst({ where: { employeeId: emeka.id } })
     if (!existing) {
@@ -177,9 +177,9 @@ async function main() {
 
   console.log("✅ Seed complete!")
   console.log("\n📧 Login credentials:")
-  console.log("   Super Admin: admin@datasciencenigeria.org / Admin@DSN2024!")
-  console.log("   HR Admin:    hr@datasciencenigeria.org / Welcome@DSN1")
-  console.log("   Staff:       emeka.okonkwo@datasciencenigeria.org / Welcome@DSN1")
+  console.log("   Super Admin: admin@datasciencenigeria.ai / Admin@DSN2024!")
+  console.log("   HR Admin:    hr@datasciencenigeria.ai / Welcome@DSN1")
+  console.log("   Staff:       emeka.okonkwo@datasciencenigeria.ai / Welcome@DSN1")
 }
 
 main().catch(e => { console.error(e); process.exit(1) }).finally(() => prisma.$disconnect())

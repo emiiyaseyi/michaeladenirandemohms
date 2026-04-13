@@ -74,6 +74,7 @@ function ProjectForm({ employees, initial, onSubmit, onClose, loading }: { emplo
     status: initial?.status ?? "ACTIVE",
     startDate: initial?.startDate ? initial.startDate.split("T")[0] : "",
     endDate: initial?.endDate ? initial.endDate.split("T")[0] : "",
+    noEndDate: !initial?.endDate,
     leadId: initial?.leadId ?? initial?.ownerId ?? "",
     memberIds: initial?.memberIds ?? (initial?.assignments?.filter((a: any) => a.role !== "Project Lead").map((a: any) => a.employeeId) ?? []),
   })
@@ -96,8 +97,14 @@ function ProjectForm({ employees, initial, onSubmit, onClose, loading }: { emplo
             <input type="date" value={form.startDate} onChange={e => set("startDate", e.target.value)} style={fi} />
           </div>
           <div>
-            <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>End Date</label>
-            <input type="date" value={form.endDate} onChange={e => set("endDate", e.target.value)} style={fi} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 5 }}>
+              <label style={{ fontSize: 12, fontWeight: 600 }}>End Date</label>
+              <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--muted-foreground)", cursor: "pointer", fontWeight: 500 }}>
+                <input type="checkbox" checked={form.noEndDate} onChange={e => { set("noEndDate", e.target.checked); if (e.target.checked) set("endDate", "") }} style={{ accentColor: "var(--primary)" }} />
+                No end date yet
+              </label>
+            </div>
+            <input type="date" value={form.endDate} onChange={e => set("endDate", e.target.value)} disabled={form.noEndDate} style={{ ...fi, opacity: form.noEndDate ? 0.45 : 1 }} />
           </div>
         </div>
         {initial && (
@@ -126,7 +133,7 @@ function ProjectForm({ employees, initial, onSubmit, onClose, loading }: { emplo
       </div>
       <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button onClick={() => onSubmit(form)} disabled={!form.name.trim() || loading}>
+        <Button onClick={() => onSubmit({ ...form, endDate: form.noEndDate ? null : form.endDate })} disabled={!form.name.trim() || loading}>
           {loading ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : initial ? "Save Changes" : "Create Project"}
         </Button>
         <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -177,7 +184,13 @@ export default function ProjectsPage() {
   }
 
   const retire = async (id: string, status: string) => {
-    await fetch(`/api/projects/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) })
+    const label = status === "ON_HOLD" ? "on hold" : "complete"
+    if (!confirm(`Mark this project as ${label}?`)) return
+    const res = await fetch(`/api/projects/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) })
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      alert(d.error ?? `Failed to update project status`)
+    }
     load()
   }
 
@@ -250,12 +263,14 @@ export default function ProjectsPage() {
                     <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 12, lineHeight: 1.5 }}>{p.description}</p>
                   )}
 
-                  {(p.startDate || p.endDate) && (
-                    <div style={{ display: "flex", gap: 12, marginBottom: 12, fontSize: 11, color: "var(--muted-foreground)" }}>
-                      <Calendar size={11} style={{ flexShrink: 0, marginTop: 1 }} />
-                      {p.startDate && <span>{formatDate(p.startDate, "MMM d, yyyy")}</span>}
-                      {p.startDate && p.endDate && <span>→</span>}
-                      {p.endDate && <span>{formatDate(p.endDate, "MMM d, yyyy")}</span>}
+                  {p.startDate && (
+                    <div style={{ display: "flex", gap: 8, marginBottom: 12, fontSize: 11, color: "var(--muted-foreground)", alignItems: "center" }}>
+                      <Calendar size={11} style={{ flexShrink: 0 }} />
+                      <span>{formatDate(p.startDate, "MMM d, yyyy")}</span>
+                      <span>→</span>
+                      <span style={{ fontStyle: p.endDate ? "normal" : "italic" }}>
+                        {p.endDate ? formatDate(p.endDate, "MMM d, yyyy") : "No end date"}
+                      </span>
                     </div>
                   )}
 
@@ -271,20 +286,21 @@ export default function ProjectsPage() {
 
                   {members.length > 0 && (
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, display: "flex", alignItems: "center", gap: 4 }}>
                         <Users size={11} /> {members.length} Member{members.length !== 1 ? "s" : ""}
                       </div>
-                      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                        {members.slice(0, 6).map((m: any) => (
-                          <div key={m.employeeId} title={`${m.employee.firstName} ${m.employee.lastName}`}>
-                            <Avatar name={`${m.employee.firstName} ${m.employee.lastName}`} photo={m.employee.profilePhoto} size={28} />
+                      <div style={{ display: "flex", flexDirection: "column", gap: 5, maxHeight: 140, overflowY: members.length > 4 ? "auto" : "visible" }}>
+                        {members.map((m: any) => (
+                          <div key={m.employeeId} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <Avatar name={`${m.employee.firstName} ${m.employee.lastName}`} photo={m.employee.profilePhoto} size={24} />
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                              {m.employee.firstName} {m.employee.lastName}
+                            </span>
+                            {m.employee.jobTitle && (
+                              <span style={{ fontSize: 11, color: "var(--muted-foreground)", flexShrink: 0 }}>· {m.employee.jobTitle}</span>
+                            )}
                           </div>
                         ))}
-                        {members.length > 6 && (
-                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--muted)", border: "2px solid var(--card)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)" }}>
-                            +{members.length - 6}
-                          </div>
-                        )}
                       </div>
                     </div>
                   )}

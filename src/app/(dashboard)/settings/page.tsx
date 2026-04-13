@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
-import { Building2, CalendarDays, Plus, Users, ShieldCheck, KeyRound, UserX, UserCheck, Pencil, Trash2 } from "lucide-react"
+import { Building2, CalendarDays, Plus, Users, ShieldCheck, KeyRound, UserX, UserCheck, Pencil, Trash2, Palette, Upload } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import { roleLabel, ALL_ROLES, type SystemRole } from "@/lib/rbac"
 
@@ -46,7 +46,7 @@ export default function SettingsPage() {
   const { user: currentUser } = useCurrentUser()
   const isSuperAdmin = currentUser?.role === "SUPER_ADMIN"
 
-  type Tab = "departments" | "leave-types" | "holidays" | "users"
+  type Tab = "departments" | "leave-types" | "holidays" | "users" | "branding"
   const [tab, setTab] = useState<Tab>("departments")
 
   // ─── Settings data ─────────────────────────────────────────────────────────
@@ -84,6 +84,30 @@ export default function SettingsPage() {
   const [userSearch, setUserSearch] = useState("")
   const [saving, setSaving] = useState(false)
   const [userError, setUserError] = useState("")
+
+  // ─── Branding state ────────────────────────────────────────────────────────
+  const [brandingForm, setBrandingForm] = useState({
+    orgName: "DataSphere Nigeria",
+    font: "Inter",
+    primaryColor: "#0052A5",
+  })
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [wallpaperPreview, setWallpaperPreview] = useState<string | null>(null)
+  const [brandingSaved, setBrandingSaved] = useState(false)
+
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) setLogoPreview(URL.createObjectURL(file))
+  }
+  const handleWallpaperChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) setWallpaperPreview(URL.createObjectURL(file))
+  }
+  const saveBranding = (e: React.FormEvent) => {
+    e.preventDefault()
+    setBrandingSaved(true)
+    setTimeout(() => setBrandingSaved(false), 2500)
+  }
 
   // ─── Load settings ─────────────────────────────────────────────────────────
   const loadSettings = async () => {
@@ -214,6 +238,7 @@ export default function SettingsPage() {
     { key: "leave-types" as Tab, label: "Leave Types", icon: CalendarDays },
     { key: "holidays" as Tab, label: "Public Holidays", icon: CalendarDays },
     ...(isSuperAdmin ? [{ key: "users" as Tab, label: "User Management", icon: ShieldCheck }] : []),
+    { key: "branding" as Tab, label: "Branding & Customization", icon: Palette },
   ]
 
   // ─── Render ────────────────────────────────────────────────────────────────
@@ -432,6 +457,118 @@ export default function SettingsPage() {
               </Card>
             </div>
           )}
+          {/* ── Branding & Customization ── */}
+          {tab === "branding" && (
+            <Card>
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700 }}>Branding &amp; Customization</h3>
+                <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Personalize the look and feel of your HRMS</p>
+              </div>
+              <form onSubmit={saveBranding}>
+                <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
+
+                  {brandingSaved && (
+                    <div style={{ background: "var(--success-bg, #E6F4EA)", color: "var(--success, #1A7336)", borderRadius: 8, padding: "10px 14px", fontSize: 13, fontWeight: 600 }}>
+                      Branding settings saved successfully.
+                    </div>
+                  )}
+
+                  {/* Logo */}
+                  <div>
+                    <label style={labelStyle}>Organization Logo</label>
+                    <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                      <div style={{ width: 80, height: 80, borderRadius: 12, border: "1px solid var(--border)", background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                        {logoPreview
+                          ? <img src={logoPreview} alt="Logo preview" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                          : <Upload size={24} style={{ color: "var(--muted-foreground)" }} />
+                        }
+                      </div>
+                      <div>
+                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
+                          <Upload size={13} /> Upload Logo
+                          <input type="file" accept="image/*" onChange={handleLogoChange} style={{ display: "none" }} />
+                        </label>
+                        <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 5 }}>PNG, JPG or SVG. Max 2 MB.</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Org name */}
+                  <div>
+                    <label style={labelStyle}>Organization Name</label>
+                    <input
+                      value={brandingForm.orgName}
+                      onChange={e => setBrandingForm(f => ({ ...f, orgName: e.target.value }))}
+                      style={inp}
+                      placeholder="e.g. DataSphere Nigeria"
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                    {/* Font */}
+                    <div>
+                      <label style={labelStyle}>System Font</label>
+                      <select value={brandingForm.font} onChange={e => setBrandingForm(f => ({ ...f, font: e.target.value }))} style={inp}>
+                        <option value="Inter">Inter</option>
+                        <option value="Roboto">Roboto</option>
+                        <option value="Open Sans">Open Sans</option>
+                        <option value="Poppins">Poppins</option>
+                        <option value="Lato">Lato</option>
+                      </select>
+                    </div>
+
+                    {/* Primary color */}
+                    <div>
+                      <label style={labelStyle}>Primary Color</label>
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <input
+                          type="color"
+                          value={brandingForm.primaryColor}
+                          onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))}
+                          style={{ width: 44, height: 38, padding: 2, border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", background: "var(--background)" }}
+                        />
+                        <input
+                          value={brandingForm.primaryColor}
+                          onChange={e => setBrandingForm(f => ({ ...f, primaryColor: e.target.value }))}
+                          style={{ ...inp, flex: 1, fontFamily: "monospace" }}
+                          placeholder="#0052A5"
+                          maxLength={7}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dashboard Wallpaper */}
+                  <div>
+                    <label style={labelStyle}>Dashboard Wallpaper</label>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+                      <div style={{ width: 140, height: 84, borderRadius: 10, border: "1px solid var(--border)", background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                        {wallpaperPreview
+                          ? <img src={wallpaperPreview} alt="Wallpaper preview" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                          : <Upload size={22} style={{ color: "var(--muted-foreground)" }} />
+                        }
+                      </div>
+                      <div>
+                        <label style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
+                          <Upload size={13} /> Upload Wallpaper
+                          <input type="file" accept="image/*" onChange={handleWallpaperChange} style={{ display: "none" }} />
+                        </label>
+                        <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 5 }}>Recommended: 1920×1080 or wider. Max 5 MB.</p>
+                        {wallpaperPreview && (
+                          <button type="button" onClick={() => setWallpaperPreview(null)} style={{ marginTop: 6, fontSize: 11, color: "var(--danger, #C0392B)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Remove wallpaper</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+                  <Button type="submit"><Palette size={14} /> Save Branding</Button>
+                </div>
+              </form>
+            </Card>
+          )}
+
         </div>
       </div>
 

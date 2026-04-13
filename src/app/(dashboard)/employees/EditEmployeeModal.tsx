@@ -28,6 +28,8 @@ export default function EditEmployeeModal({ employee, departments, employees: al
       firstName: employee.firstName ?? "",
       lastName: employee.lastName ?? "",
       middleName: employee.middleName ?? "",
+      role: employee.user?.role ?? "STAFF",
+      additionalRoles: employee.user?.additionalRoles ?? [],
       gender: employee.gender ?? "",
       dateOfBirth: employee.dateOfBirth ? employee.dateOfBirth.split("T")[0] : "",
       maritalStatus: employee.maritalStatus ?? "",
@@ -155,6 +157,42 @@ export default function EditEmployeeModal({ employee, departments, employees: al
               <option value="">None</option>
               {reportingOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
+          </F>
+
+          {section("System Access & Roles")}
+          <F label="Primary Role">
+            <select value={form.role ?? "STAFF"} onChange={e => setForm(f => ({ ...f, role: e.target.value }))} style={fi}>
+              {[["STAFF","Staff"],["INTERN","Intern"],["MANAGER","Manager"],["DEPARTMENT_LEAD","Department Lead"],["HR_ADMIN","HR Admin"],["ADMIN","Admin"],["PROJECT_MANAGER","Project Manager"],["TA_OFFICER","TA Officer"],["PERFORMANCE_OFFICER","Performance Officer"],["AUDIT","Audit"],["SUPER_ADMIN","Super Admin"]].map(([v, l]) => (
+                <option key={v} value={v}>{l}</option>
+              ))}
+            </select>
+          </F>
+          <F label="Additional Roles">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "8px 10px", border: "1px solid var(--border)", borderRadius: 8, minHeight: 40, background: "var(--background)" }}>
+              {[["STAFF","Staff"],["INTERN","Intern"],["MANAGER","Manager"],["DEPARTMENT_LEAD","Department Lead"],["HR_ADMIN","HR Admin"],["ADMIN","Admin"],["PROJECT_MANAGER","Project Manager"],["TA_OFFICER","TA Officer"],["PERFORMANCE_OFFICER","Performance Officer"],["AUDIT","Audit"]].map(([v, l]) => {
+                const isSelected = (form.additionalRoles ?? []).includes(v)
+                const isPrimary = form.role === v
+                return (
+                  <button key={v} type="button" disabled={isPrimary}
+                    onClick={() => {
+                      const current = form.additionalRoles ?? []
+                      setForm(f => ({ ...f, additionalRoles: isSelected ? current.filter((r: string) => r !== v) : [...current, v] }))
+                    }}
+                    style={{
+                      fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20,
+                      cursor: isPrimary ? "not-allowed" : "pointer",
+                      border: "1.5px solid",
+                      background: isSelected ? "var(--primary)" : "transparent",
+                      color: isSelected ? "white" : isPrimary ? "var(--muted-foreground)" : "var(--foreground)",
+                      borderColor: isSelected ? "var(--primary)" : isPrimary ? "var(--border)" : "var(--border)",
+                      opacity: isPrimary ? 0.5 : 1,
+                    }}>
+                    {l}
+                  </button>
+                )
+              })}
+            </div>
+            <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Click roles to toggle. Employee can switch between all assigned roles.</div>
           </F>
 
           {section("Next of Kin")}

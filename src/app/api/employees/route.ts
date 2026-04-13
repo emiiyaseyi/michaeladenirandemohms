@@ -47,7 +47,15 @@ export async function GET(req: NextRequest) {
           dept ? { departmentId: dept } : {},
         ]
       },
-      include: { department: true, manager: { select: { firstName: true, lastName: true } } },
+      include: {
+        department: true,
+        manager: { select: { firstName: true, lastName: true } },
+        projectAssignments: {
+          where: { project: { status: "ACTIVE" } },
+          include: { project: { select: { id: true, name: true, status: true } } },
+        },
+        user: { select: { role: true, additionalRoles: true } },
+      },
       orderBy: { createdAt: "desc" },
     }),
     prisma.department.findMany({ orderBy: { name: "asc" } }),
@@ -75,8 +83,19 @@ export async function POST(req: NextRequest) {
   const employeeId = `DSN${String(count + 1).padStart(4, "0")}`
 
   const hashedPwd = await bcrypt.hash("Welcome@DSN1", 10)
+  // Generate login email as firstname@datasciencenigeria.ai (fallback to workEmail if needed)
+  const loginEmail = workEmail.includes("@datasciencenigeria")
+    ? workEmail
+    : `${firstName.toLowerCase().replace(/[^a-z]/g, "")}@datasciencenigeria.ai`
+  // Handle collision: append number if exists
+  let finalEmail = loginEmail
+  const emailExists = await prisma.user.findFirst({ where: { email: loginEmail } })
+  if (emailExists) {
+    const count = await prisma.user.count({ where: { email: { startsWith: loginEmail.split("@")[0] } } })
+    finalEmail = `${loginEmail.split("@")[0]}${count + 1}@datasciencenigeria.ai`
+  }
   const newUser = await prisma.user.create({
-    data: { name: `${firstName} ${lastName}`, email: workEmail, password: hashedPwd, role: "STAFF" }
+    data: { name: `${firstName} ${lastName}`, email: finalEmail, password: hashedPwd, role: "STAFF" }
   })
 
   const employee = await prisma.employee.create({

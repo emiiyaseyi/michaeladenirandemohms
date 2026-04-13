@@ -8,6 +8,7 @@ import Avatar from "@/components/ui/Avatar"
 import { Users, CalendarDays, Briefcase, TrendingUp, UserCheck, Clock, AlertCircle, ShieldAlert } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import StaffDashboard from "./StaffDashboard"
+import DashboardAnnouncements from "@/components/DashboardAnnouncements"
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const session = await auth()
@@ -94,6 +95,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   return (
     <div>
+      <DashboardAnnouncements />
+
       {/* Access Denied Banner */}
       {accessDenied && (
         <div style={{

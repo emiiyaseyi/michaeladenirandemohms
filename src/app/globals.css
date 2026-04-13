@@ -153,3 +153,14 @@ button:focus-visible {
   .lg-flex { display: flex !important; }
   .lg-hide { display: none !important; }
 }
+
+/* ─── Announcement animations ─────────────────────────────────── */
+@keyframes marquee {
+  0%   { transform: translateX(0) }
+  100% { transform: translateX(-50%) }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(24px); opacity: 0 }
+  to   { transform: translateY(0);    opacity: 1 }
+}

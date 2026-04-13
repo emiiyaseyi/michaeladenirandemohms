@@ -1,10 +1,10 @@
 /**
  * Seed leave test accounts:
- *   - 1 Employee:     ada.obi@datasciencenigeria.org / Welcome@DSN1
- *   - Relief 1:       relief1.test@datasciencenigeria.org / Welcome@DSN1
- *   - Relief 2:       relief2.test@datasciencenigeria.org / Welcome@DSN1
- *   - Team Lead:      teamlead.test@datasciencenigeria.org / Welcome@DSN1  (DEPARTMENT_LEAD role)
- *   - Manager:        manager.test@datasciencenigeria.org / Welcome@DSN1   (MANAGER role)
+ *   - 1 Employee:     ada.obi@datasciencenigeria.ai / Welcome@DSN1
+ *   - Relief 1:       relief1.test@datasciencenigeria.ai / Welcome@DSN1
+ *   - Relief 2:       relief2.test@datasciencenigeria.ai / Welcome@DSN1
+ *   - Team Lead:      teamlead.test@datasciencenigeria.ai / Welcome@DSN1  (DEPARTMENT_LEAD role)
+ *   - Manager:        manager.test@datasciencenigeria.ai / Welcome@DSN1   (MANAGER role)
  *
  * Run: npx tsx prisma/seed-leave-test.ts
  */
@@ -28,11 +28,11 @@ async function main() {
   const count = await prisma.employee.count()
 
   const accounts = [
-    { email: "manager.test@datasciencenigeria.org", name: "David Manager", role: "MANAGER", title: "Engineering Manager", gender: "MALE", num: count + 1 },
-    { email: "teamlead.test@datasciencenigeria.org", name: "Sarah Lead", role: "DEPARTMENT_LEAD", title: "Tech Lead", gender: "FEMALE", num: count + 2 },
-    { email: "relief1.test@datasciencenigeria.org", name: "Emeka Relief", role: "STAFF", title: "Senior Engineer", gender: "MALE", num: count + 3 },
-    { email: "relief2.test@datasciencenigeria.org", name: "Ngozi Relief", role: "STAFF", title: "Frontend Developer", gender: "FEMALE", num: count + 4 },
-    { email: "ada.obi@datasciencenigeria.org", name: "Ada Obi", role: "STAFF", title: "Junior Engineer", gender: "FEMALE", num: count + 5 },
+    { email: "manager.test@datasciencenigeria.ai", name: "David Manager", role: "MANAGER", title: "Engineering Manager", gender: "MALE", num: count + 1 },
+    { email: "teamlead.test@datasciencenigeria.ai", name: "Sarah Lead", role: "DEPARTMENT_LEAD", title: "Tech Lead", gender: "FEMALE", num: count + 2 },
+    { email: "relief1.test@datasciencenigeria.ai", name: "Emeka Relief", role: "STAFF", title: "Senior Engineer", gender: "MALE", num: count + 3 },
+    { email: "relief2.test@datasciencenigeria.ai", name: "Ngozi Relief", role: "STAFF", title: "Frontend Developer", gender: "FEMALE", num: count + 4 },
+    { email: "ada.obi@datasciencenigeria.ai", name: "Ada Obi", role: "STAFF", title: "Junior Engineer", gender: "FEMALE", num: count + 5 },
   ]
 
   const created: Record<string, any> = {}
@@ -71,9 +71,9 @@ async function main() {
   }
 
   // Wire up reporting: Ada reports to Manager, Team Lead is dept lead
-  const ada = created["ada.obi@datasciencenigeria.org"]
-  const manager = created["manager.test@datasciencenigeria.org"]
-  const lead = created["teamlead.test@datasciencenigeria.org"]
+  const ada = created["ada.obi@datasciencenigeria.ai"]
+  const manager = created["manager.test@datasciencenigeria.ai"]
+  const lead = created["teamlead.test@datasciencenigeria.ai"]
 
   if (ada && manager && lead) {
     await prisma.employee.update({
@@ -85,11 +85,11 @@ async function main() {
   }
 
   console.log("\n📧 Leave Test Accounts:")
-  console.log("  Employee (applicant): ada.obi@datasciencenigeria.org / Welcome@DSN1")
-  console.log("  Relief Officer 1:     relief1.test@datasciencenigeria.org / Welcome@DSN1")
-  console.log("  Relief Officer 2:     relief2.test@datasciencenigeria.org / Welcome@DSN1")
-  console.log("  Team Lead:            teamlead.test@datasciencenigeria.org / Welcome@DSN1")
-  console.log("  Manager:              manager.test@datasciencenigeria.org / Welcome@DSN1")
+  console.log("  Employee (applicant): ada.obi@datasciencenigeria.ai / Welcome@DSN1")
+  console.log("  Relief Officer 1:     relief1.test@datasciencenigeria.ai / Welcome@DSN1")
+  console.log("  Relief Officer 2:     relief2.test@datasciencenigeria.ai / Welcome@DSN1")
+  console.log("  Team Lead:            teamlead.test@datasciencenigeria.ai / Welcome@DSN1")
+  console.log("  Manager:              manager.test@datasciencenigeria.ai / Welcome@DSN1")
 }
 
 main().catch(e => { console.error(e); process.exit(1) }).finally(() => prisma.$disconnect())

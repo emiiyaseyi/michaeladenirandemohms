@@ -6,8 +6,8 @@ import { Eye, EyeOff, Leaf, ArrowRight, Loader2 } from "lucide-react"
 
 const stats = [["200+","Employees"],["8","Departments"],["36","States"],["7+","Years"]]
 const demos = [
-  ["Super Admin",  "admin@datasciencenigeria.org", "Admin@DSN2024!"],
-  ["HR Admin",     "hr@datasciencenigeria.org",    "Welcome@DSN1"],
+  ["Super Admin",  "admin@datasciencenigeria.ai", "Admin@DSN2024!"],
+  ["HR Admin",     "hr@datasciencenigeria.ai",    "Welcome@DSN1"],
 ]
 
 export default function LoginPage() {
@@ -110,7 +110,7 @@ export default function LoginPage() {
                 <input
                   id="email" type="email" required autoComplete="email"
                   value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="you@datasciencenigeria.org"
+                  placeholder="you@datasciencenigeria.ai"
                   style={{
                     width: "100%", padding: "11px 14px",
                     border: "1.5px solid var(--border)", borderRadius: 10,

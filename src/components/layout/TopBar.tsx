@@ -69,8 +69,19 @@ function useDebounce<T>(value: T, delay: number): T {
   return debounced
 }
 
-// Roles that have a "switch view" between self-service and admin/supervisor view
-const ELEVATED_ROLES = ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "PERFORMANCE_OFFICER", "TA_OFFICER"]
+const ROLE_VIEW_MAP: Record<string, { label: string; href: string; desc: string; icon: any }> = {
+  SUPER_ADMIN:         { label: "Super Admin", href: "/dashboard", desc: "Full system control", icon: Shield },
+  ADMIN:               { label: "Admin", href: "/dashboard", desc: "HR & employee management", icon: Shield },
+  HR_ADMIN:            { label: "HR Admin", href: "/dashboard", desc: "HR operations", icon: Shield },
+  MANAGER:             { label: "Manager", href: "/dashboard", desc: "Team & approvals", icon: Shield },
+  DEPARTMENT_LEAD:     { label: "Dept Lead", href: "/dashboard", desc: "Department management", icon: Shield },
+  PROJECT_MANAGER:     { label: "Project Manager", href: "/dashboard", desc: "Project oversight", icon: Briefcase },
+  PERFORMANCE_OFFICER: { label: "Performance Officer", href: "/dashboard", desc: "Performance & appraisals", icon: Shield },
+  TA_OFFICER:          { label: "TA Officer", href: "/dashboard", desc: "Talent acquisition", icon: Shield },
+  AUDIT:               { label: "Auditor", href: "/dashboard", desc: "Audit & compliance", icon: Shield },
+  STAFF:               { label: "Staff (Self Service)", href: "/self-service/profile", desc: "Personal profile & leave", icon: UserCircle },
+  INTERN:              { label: "Intern (Self Service)", href: "/self-service/profile", desc: "Personal profile & leave", icon: UserCircle },
+}
 
 export default function TopBar({ title, user }: { title: string; user: any }) {
   const { theme, toggle: cycleTheme } = useTheme()
@@ -90,15 +101,23 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
   const notifRef                          = useRef<HTMLDivElement>(null)
 
   // Switch view
-  const [switchOpen, setSwitchOpen] = useState(false)
-  const switchRef                   = useRef<HTMLDivElement>(null)
+  const [switchOpen, setSwitchOpen]   = useState(false)
+  const [switching, setSwitching]     = useState<string | null>(null)
+  const switchRef                     = useRef<HTMLDivElement>(null)
 
   // User dropdown
   const [userOpen, setUserOpen]     = useState(false)
   const userRef                     = useRef<HTMLDivElement>(null)
 
-  const hasElevatedRole = ELEVATED_ROLES.includes(user?.role ?? "")
-  const isSelfService = pathname?.startsWith("/self-service")
+  // The effective (active) role is whatever the server resolved (may be cookie override)
+  const activeRole: string = user?.role ?? "STAFF"
+  const primaryRole: string = user?.primaryRole ?? activeRole
+  const additionalRoles: string[] = user?.additionalRoles ?? []
+  const allUserRoles = Array.from(new Set([primaryRole, ...additionalRoles])) as string[]
+  // Only show switcher if user has more than one role
+  const showSwitcher = allUserRoles.length > 1
+  const ELEVATED_ROLES = ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "PERFORMANCE_OFFICER", "TA_OFFICER", "AUDIT"]
+  const hasElevatedRole = allUserRoles.some(r => ELEVATED_ROLES.includes(r))
 
   const fetchNotifications = useCallback(() => {
     fetch("/api/notifications")
@@ -308,7 +327,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
       </button>
 
       {/* ── Switch View ── */}
-      {hasElevatedRole && (
+      {showSwitcher && (
         <div ref={switchRef} style={{ position: "relative", flexShrink: 0 }}>
           <button
             onClick={() => setSwitchOpen(o => !o)}
@@ -321,7 +340,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             }}
           >
             <ArrowLeftRight size={14} />
-            Switch View
+            Switch Role
             <ChevronDown size={13} style={{ transform: switchOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
           </button>
 
@@ -329,40 +348,85 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             <div style={{
               position: "absolute", top: "calc(100% + 6px)", right: 0,
               background: "var(--card)", border: "1px solid var(--border)",
-              borderRadius: 10, boxShadow: "var(--shadow-lg)",
-              minWidth: 190, overflow: "hidden", zIndex: 200,
+              borderRadius: 12, boxShadow: "var(--shadow-lg)",
+              minWidth: 240, overflow: "hidden", zIndex: 200,
             }}>
-              <div style={{ padding: "8px 12px 4px", fontSize: 10, fontWeight: 800, letterSpacing: "0.08em", color: "var(--muted-foreground)", textTransform: "uppercase" }}>
-                Switch to
+              <div style={{ padding: "10px 14px 6px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", color: "var(--muted-foreground)", textTransform: "uppercase" }}>
+                  Switch Active Role
+                </div>
+                <div style={{ fontSize: 11, color: "var(--subtle)", marginTop: 2 }}>
+                  Changes your permissions across the app
+                </div>
               </div>
-              {[
-                { label: "My Self Service", href: "/self-service", icon: UserCircle, desc: "Personal profile & leave" },
-                { label: "Supervisor View", href: "/dashboard", icon: Shield, desc: "Team & approvals" },
-              ].map(item => {
+              {allUserRoles.map(role => {
+                const item = ROLE_VIEW_MAP[role]
+                if (!item) return null
                 const Icon = item.icon
-                const isActive = item.href === "/self-service" ? isSelfService : !isSelfService
+                const isActive = role === activeRole
+                const isLoading = switching === role
                 return (
-                  <button key={item.href}
-                    onClick={() => { setSwitchOpen(false); router.push(item.href) }}
+                  <button key={role}
+                    disabled={isActive || !!switching}
+                    onClick={async () => {
+                      if (isActive) return
+                      setSwitching(role)
+                      try {
+                        await fetch("/api/switch-role", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ role }),
+                        })
+                        setSwitchOpen(false)
+                        // Navigate to the role's home, then hard reload to pick up new role cookie
+                        router.push(item.href)
+                        router.refresh()
+                      } finally {
+                        setSwitching(null)
+                      }
+                    }}
                     style={{
                       width: "100%", display: "flex", alignItems: "center", gap: 10,
-                      padding: "10px 12px", background: isActive ? "var(--primary-50)" : "transparent",
-                      border: "none", cursor: "pointer", textAlign: "left", transition: "background 0.12s",
+                      padding: "11px 14px",
+                      background: isActive ? "var(--primary-50)" : "transparent",
+                      border: "none", borderBottom: "1px solid var(--border)",
+                      cursor: isActive ? "default" : "pointer", textAlign: "left",
+                      transition: "background 0.12s", opacity: isLoading ? 0.6 : 1,
                     }}
                     onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "var(--muted)" }}
-                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent" }}
+                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = isActive ? "var(--primary-50)" : "transparent" }}
                   >
-                    <div style={{ width: 32, height: 32, borderRadius: 8, background: isActive ? "var(--primary)" : "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <Icon size={15} style={{ color: isActive ? "white" : "var(--muted-foreground)" }} />
+                    <div style={{
+                      width: 34, height: 34, borderRadius: 9,
+                      background: isActive ? "var(--primary)" : "var(--muted)",
+                      display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                      border: isActive ? "none" : "1px solid var(--border)",
+                    }}>
+                      {isLoading
+                        ? <div style={{ width: 14, height: 14, border: "2px solid", borderColor: isActive ? "white" : "var(--border)", borderTopColor: "var(--primary)", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+                        : <Icon size={15} style={{ color: isActive ? "white" : "var(--muted-foreground)" }} />
+                      }
                     </div>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: isActive ? "var(--primary)" : "var(--foreground)" }}>{item.label}</div>
-                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{item.desc}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: isActive ? 700 : 500, color: isActive ? "var(--primary)" : "var(--foreground)", display: "flex", alignItems: "center", gap: 6 }}>
+                        {item.label}
+                        {role === primaryRole && (
+                          <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 4, background: "var(--muted)", color: "var(--muted-foreground)", letterSpacing: "0.05em" }}>PRIMARY</span>
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.desc}</div>
                     </div>
-                    {isActive && <div style={{ marginLeft: "auto", width: 6, height: 6, borderRadius: "50%", background: "var(--primary)" }} />}
+                    {isActive && (
+                      <div style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M2 6l3 3 5-5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                      </div>
+                    )}
                   </button>
                 )
               })}
+              <div style={{ padding: "8px 14px", fontSize: 11, color: "var(--subtle)" }}>
+                Role changes take effect immediately across the app.
+              </div>
             </div>
           )}
         </div>
@@ -479,7 +543,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             <div style={{ padding: "6px 0" }}>
               {[
                 { label: "Admin Profile", href: "/settings/profile", icon: Shield, show: hasElevatedRole },
-                { label: "My Profile", href: "/self-service", icon: UserCircle, show: true },
+                { label: "My Profile", href: "/self-service/profile", icon: UserCircle, show: true },
                 { label: "Preferences", href: "/self-service/preferences", icon: Settings2, show: true },
               ].filter(i => i.show).map(item => {
                 const Icon = item.icon

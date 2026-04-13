@@ -13,7 +13,7 @@ const FAQS = [
   { cat: "Profile", q: "How is profile completeness calculated?", a: "Profile completeness is based on 15 required fields: personal info, contact, address, next of kin, and bank details." },
   { cat: "Payroll", q: "When is salary paid?", a: "Salaries are processed on the last working day of each month. Contact HR or your Finance team if there are any discrepancies." },
   { cat: "Payroll", q: "How do I update my bank details?", a: "Update your bank details under Self Service → My Profile → Bank Details. Bank detail changes are reviewed by HR before taking effect." },
-  { cat: "General", q: "How do I contact HR?", a: "You can raise a Grievance via Self Service → Grievance, or send an email directly to hr@datasciencenigeria.org." },
+  { cat: "General", q: "How do I contact HR?", a: "You can raise a Grievance via Self Service → Grievance, or send an email directly to hr@datasciencenigeria.ai." },
   { cat: "General", q: "What is the default password for new accounts?", a: "New accounts are created with the password Welcome@DSN1. You are strongly advised to change this immediately after first login." },
 ]
 

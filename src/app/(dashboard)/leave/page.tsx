@@ -1,5 +1,6 @@
 "use client"
 import React, { useState, useEffect, useCallback, useRef } from "react"
+import { useSearchParams, useRouter } from "next/navigation"
 import Card from "@/components/ui/Card"
 import Badge from "@/components/ui/Badge"
 import Avatar from "@/components/ui/Avatar"
@@ -9,7 +10,7 @@ import EmptyState from "@/components/ui/EmptyState"
 import {
   CalendarDays, Plus, Check, X, Clock, ChevronRight, ChevronLeft,
   AlertCircle, Users, Loader2, Info, Eye, Search, Trash2, Edit3,
-  CalendarCheck, ArrowLeft,
+  CalendarCheck, ArrowLeft, ShieldCheck, MessageSquare, Star,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
@@ -51,15 +52,17 @@ function BalanceCard({ lb }: { lb: any }) {
 }
 
 function StageBar({ approvals }: { approvals: any[] }) {
-  const stages = ["RELIEF_OFFICER", "TEAM_LEAD", "MANAGER", "ADMIN"]
-  const labels: Record<string, string> = { RELIEF_OFFICER: "Relief", TEAM_LEAD: "Team Lead", MANAGER: "Manager", ADMIN: "HR/Admin" }
+  const stages = ["RELIEF_OFFICER", "PROJECT_LEAD", "TEAM_LEAD", "MANAGER", "ADMIN"]
+  const labels: Record<string, string> = { RELIEF_OFFICER: "Relief", PROJECT_LEAD: "Proj Lead", TEAM_LEAD: "Team Lead", MANAGER: "Manager", ADMIN: "HR/Admin" }
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
       {stages.map((s, i) => {
-        const a = approvals.find(x => x.stage === s)
-        const done = a?.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(a.action)
-        const rej = a?.action === "REJECTED"
-        const pend = a && !a.action
+        const stageApprovals = approvals.filter(x => x.stage === s)
+        if (stageApprovals.length === 0) return null
+        const allDone = stageApprovals.every(a => a.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(a.action))
+        const anyRej = stageApprovals.some(a => a.action === "REJECTED")
+        const anyPend = stageApprovals.some(a => !a.action)
+        const done = allDone; const rej = anyRej; const pend = anyPend && !anyRej
         return (
           <div key={s} style={{ display: "flex", alignItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
@@ -68,7 +71,7 @@ function StageBar({ approvals }: { approvals: any[] }) {
               </div>
               <span style={{ fontSize: 9, color: "var(--muted-foreground)", whiteSpace: "nowrap", fontWeight: 600 }}>{labels[s]}</span>
             </div>
-            {i < stages.length - 1 && <div style={{ width: 18, height: 2, background: done ? "var(--success)" : "var(--border)", margin: "0 0 14px" }} />}
+            {i < stages.length - 1 && <div style={{ width: 14, height: 2, background: done ? "var(--success)" : "var(--border)", margin: "0 0 14px" }} />}
           </div>
         )
       })}
@@ -154,7 +157,8 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [calcDays, setCalcDays] = useState(0)
   const [holidays, setHolidays] = useState<any[]>([])
-  const [form, setForm] = useState({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", handoverNotes: "", reliefOfficerIds: [] as string[] })
+  const [docUploading, setDocUploading] = useState(false)
+  const [form, setForm] = useState({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", handoverNotes: "", reliefOfficerIds: [] as string[], documentUrl: "" })
 
   const selType = leaveTypes.find(t => t.id === form.leaveTypeId)
   const selBal = balances.find(b => b.leaveTypeId === form.leaveTypeId)
@@ -195,7 +199,12 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
       if (form.startDate && form.endDate && form.endDate < form.startDate) e.endDate = "End date must be after start date"
     }
     if (step === 3 && form.reliefOfficerIds.length === 0) e.relief = "At least one relief officer required"
-    if (step === 4 && !form.reason.trim()) e.reason = "Required"
+    if (step === 4) {
+      if (!form.reason.trim()) e.reason = "Required"
+      if (selType?.requiresDoc && calcDays >= selType.minDocDays && !form.documentUrl) {
+        e.doc = "A supporting document is required for this leave type"
+      }
+    }
     setErrors(e)
     return Object.keys(e).length === 0
   }
@@ -211,7 +220,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
     setSubmitting(false)
     if (r.ok) {
       onClose(); setStep(1)
-      setForm({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", handoverNotes: "", reliefOfficerIds: [] })
+      setForm({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", handoverNotes: "", reliefOfficerIds: [], documentUrl: "" })
       onSuccess()
     } else {
       const d = await r.json(); setErrors({ submit: d.error ?? "Submission failed" })
@@ -360,9 +369,38 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
               <textarea value={form.handoverNotes} onChange={e => setForm(f => ({ ...f, handoverNotes: e.target.value }))} rows={4} placeholder="Describe your responsibilities, ongoing tasks, and what the relief officer needs to know…" style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
             </div>
             {selType?.requiresDoc && calcDays >= selType.minDocDays && (
-              <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8 }}>
-                <AlertCircle size={14} style={{ flexShrink: 0 }} />
-                A medical/supporting document is required for {selType.name} ≥ {selType.minDocDays} days. Document upload will be available in a future update.
+              <div>
+                <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8, marginBottom: 10 }}>
+                  <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+                  A supporting document (e.g. doctor's report) is required for {selType.name} of {selType.minDocDays}+ days.
+                </div>
+                {form.documentUrl ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--success-bg)", border: "1px solid var(--success)", borderRadius: 8, padding: "10px 14px" }}>
+                    <Check size={14} style={{ color: "var(--success)", flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: "var(--success)", flex: 1, fontWeight: 600 }}>Document uploaded</span>
+                    <a href={form.documentUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "var(--primary)", textDecoration: "underline" }}>View</a>
+                    <button onClick={() => setForm(f => ({ ...f, documentUrl: "" }))} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 0, display: "flex" }}><X size={13} /></button>
+                  </div>
+                ) : (
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "2px dashed var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, color: "var(--muted-foreground)", transition: "border-color .15s" }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--primary)"}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"}>
+                    {docUploading ? <><Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> Uploading…</> : <><Plus size={14} /> Attach document (PDF, JPG, PNG — max 5MB)</>}
+                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} disabled={docUploading}
+                      onChange={async e => {
+                        const f = e.target.files?.[0]; if (!f) return
+                        setDocUploading(true)
+                        const fd = new FormData(); fd.append("file", f)
+                        const r = await fetch("/api/leave/upload-doc", { method: "POST", body: fd })
+                        const d = await r.json()
+                        setDocUploading(false)
+                        if (d.url) setForm(f => ({ ...f, documentUrl: d.url }))
+                        else setErrors(err => ({ ...err, doc: d.error ?? "Upload failed" }))
+                        e.target.value = ""
+                      }} />
+                  </label>
+                )}
+                {errors.doc && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 4 }}>{errors.doc}</div>}
               </div>
             )}
           </div>
@@ -377,6 +415,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
                 ["Duration", `${calcDays} working day${calcDays !== 1 ? "s" : ""}`],
                 ["Dates", form.startDate && form.endDate ? `${formatDate(form.startDate)} → ${formatDate(form.endDate)}` : "—"],
                 ["Relief Officer(s)", `${form.reliefOfficerIds.length} selected`],
+                ...(form.documentUrl ? [["Supporting Document", "Attached ✓"]] : []),
               ].map(([label, value]) => (
                 <div key={label as string} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
                   <span style={{ color: "var(--muted-foreground)" }}>{label}</span>
@@ -401,6 +440,236 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
           ? <Button onClick={next}>Next <ChevronRight size={13} /></Button>
           : <Button onClick={submit} disabled={submitting}>{submitting ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Submitting…</> : "Submit Request"}</Button>
         }
+      </div>
+    </Modal>
+  )
+}
+
+// ── Leave Detail Popup ────────────────────────────────────────────────────────
+
+function LeaveDetailModal({ req, onClose }: { req: any; onClose: () => void }) {
+  if (!req) return null
+  return (
+    <Modal open onClose={onClose} title="Leave Request Details" width={580}>
+      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
+        {/* Employee header */}
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", background: "var(--muted)", borderRadius: 10 }}>
+          <Avatar name={`${req.employee?.firstName} ${req.employee?.lastName}`} photo={req.employee?.profilePhoto} size={48} />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{req.employee?.firstName} {req.employee?.lastName}</div>
+            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{req.employee?.department?.name ?? "—"}</div>
+          </div>
+          <div style={{ marginLeft: "auto" }}><Badge status={req.status} /></div>
+        </div>
+
+        {/* Key details */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+          {[
+            { label: "Leave Type", value: req.leaveType?.name },
+            { label: "Duration", value: `${req.days} day${req.days !== 1 ? "s" : ""}` },
+            { label: "Period", value: `${formatDate(req.startDate, "MMM d")} → ${formatDate(req.endDate, "MMM d")}` },
+          ].map(({ label, value }) => (
+            <div key={label} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 14px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 3 }}>{label}</div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>{value ?? "—"}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Approval chain — always show full pipeline */}
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Approval Progress</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {(["RELIEF_OFFICER", "PROJECT_LEAD", "TEAM_LEAD", "MANAGER", "ADMIN"] as const).map(stage => {
+              const STAGE_LABELS: Record<string, string> = { RELIEF_OFFICER: "Relief Officer(s)", PROJECT_LEAD: "Project Lead(s)", TEAM_LEAD: "Team Lead", MANAGER: "Manager", ADMIN: "HR / Admin" }
+              const stageApprovals: any[] = req.approvals?.filter((x: any) => x.stage === stage) ?? []
+              const a = stageApprovals[0]
+              // For RELIEF_OFFICER and PROJECT_LEAD: skip if no records (not assigned)
+              if ((stage === "RELIEF_OFFICER" || stage === "PROJECT_LEAD") && stageApprovals.length === 0) return null
+              // For TEAM_LEAD/MANAGER/ADMIN: always show (even if no record yet — "Not yet reached")
+              const allDone = stageApprovals.length > 0 && stageApprovals.every((sa: any) => sa.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(sa.action))
+              const anyRej = stageApprovals.some((sa: any) => sa.action === "REJECTED")
+              const anyPending = stageApprovals.some((sa: any) => !sa.action)
+              const done = allDone
+              const rej = anyRej
+              const pending = stageApprovals.length > 0 && anyPending && !anyRej
+              const notReached = stageApprovals.length === 0
+              // Get person name from approval record
+              const personName = stageApprovals.length === 1 && a?.employee
+                ? `${a.employee.firstName} ${a.employee.lastName}`
+                : null
+              return (
+                <div key={stage} style={{
+                  display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8,
+                  background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)",
+                  opacity: notReached ? 0.5 : 1,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
+                      {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
+                    </div>
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>{STAGE_LABELS[stage]}</span>
+                      {personName && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {personName}</span>}
+                      {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
+                      {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
+                    </div>
+                    {stageApprovals.length === 1 && a?.action && <Badge status={a.action ?? "PENDING"} />}
+                    {stageApprovals.length === 1 && pending && a?.deadline && <CountdownTimer deadline={a.deadline} />}
+                  </div>
+                  {/* Multiple approvers — show each row */}
+                  {stageApprovals.length > 1 && (
+                    <div style={{ marginLeft: 32, display: "flex", flexDirection: "column", gap: 3 }}>
+                      {stageApprovals.map((sa: any, i: number) => {
+                        const saDone = sa.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(sa.action)
+                        const saRej = sa.action === "REJECTED"
+                        const saPending = !sa.action
+                        return (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                            <div style={{ width: 14, height: 14, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: saRej ? "var(--accent)" : saDone ? "var(--success)" : "#F59E0B" }}>
+                              {saDone ? <Check size={8} color="white" /> : saRej ? <X size={8} color="white" /> : <Clock size={8} color="white" />}
+                            </div>
+                            <span style={{ fontWeight: 600, color: "var(--foreground)" }}>
+                              {sa.employee ? `${sa.employee.firstName} ${sa.employee.lastName}` : "—"}
+                            </span>
+                            <span style={{ color: saDone ? "var(--success)" : saRej ? "var(--accent)" : "#F59E0B", fontWeight: 700 }}>
+                              {saDone ? "Accepted" : saRej ? "Declined" : "Pending"}
+                            </span>
+                            {sa?.comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{sa.comment}"</span>}
+                            {saPending && sa?.deadline && <CountdownTimer deadline={sa.deadline} />}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                  {stageApprovals.length === 1 && a?.comment && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic", marginLeft: 32 }}>"{a.comment}"</span>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Reason & Notes */}
+        {req.reason && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>Description</div>
+            <div style={{ fontSize: 13, background: "var(--muted)", borderRadius: 8, padding: "10px 14px", lineHeight: 1.5 }}>{req.reason}</div>
+          </div>
+        )}
+        {req.handoverNotes && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>Handover Notes</div>
+            <div style={{ fontSize: 13, background: "var(--muted)", borderRadius: 8, padding: "10px 14px", lineHeight: 1.5 }}>{req.handoverNotes}</div>
+          </div>
+        )}
+        {req.documentUrl && (
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>Supporting Document</div>
+            <a href={req.documentUrl} target="_blank" rel="noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--primary)", fontWeight: 600, textDecoration: "none", background: "var(--primary-50)", padding: "7px 12px", borderRadius: 8 }}>
+              View Document →
+            </a>
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+        <button onClick={onClose} style={{ padding: "8px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>Close</button>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Edit Leave Modal ──────────────────────────────────────────────────────────
+
+function EditLeaveModal({ req, onClose, onDone, isAdmin }: { req: any; onClose: () => void; onDone: () => void; isAdmin: boolean }) {
+  const [form, setForm] = useState({
+    startDate: req.startDate ? req.startDate.split("T")[0] : "",
+    endDate: req.endDate ? req.endDate.split("T")[0] : "",
+    reason: req.reason ?? "",
+    handoverNotes: req.handoverNotes ?? "",
+  })
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
+  const [calcDays, setCalcDays] = useState(req.days ?? 0)
+
+  useEffect(() => {
+    if (!form.startDate || !form.endDate || !req.leaveTypeId) return
+    fetch(`/api/leave/calculate-days?start=${form.startDate}&end=${form.endDate}&leaveTypeId=${req.leaveTypeId}`)
+      .then(r => r.json())
+      .then(d => { if (d.days) setCalcDays(d.days) })
+      .catch(() => {})
+  }, [form.startDate, form.endDate, req.leaveTypeId])
+
+  const anyReliefActed = (req.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING")
+  const locked = anyReliefActed && !isAdmin
+
+  const save = async () => {
+    setLoading(true); setError("")
+    const r = await fetch(`/api/leave/${req.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    })
+    setLoading(false)
+    if (!r.ok) { const d = await r.json(); setError(d.error ?? "Failed to save"); return }
+    onDone(); onClose()
+  }
+
+  const fi = { width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)" } as const
+
+  return (
+    <Modal open onClose={onClose} title="Edit Leave Request" width={540}>
+      <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+        {locked && (
+          <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8 }}>
+            <AlertCircle size={14} style={{ flexShrink: 0 }} />
+            A relief officer has already responded. This request is locked for editing. Contact HR/Admin for changes.
+          </div>
+        )}
+        {isAdmin && anyReliefActed && (
+          <div style={{ background: "var(--info-bg)", border: "1px solid var(--info)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--info)", display: "flex", gap: 8 }}>
+            <Info size={14} style={{ flexShrink: 0 }} />
+            Admin override — relief officer has already responded but you can still make changes.
+          </div>
+        )}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Start Date</label>
+            <input type="date" disabled={locked} value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} style={{ ...fi, opacity: locked ? 0.6 : 1 }} />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>End Date</label>
+            <input type="date" disabled={locked} value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} style={{ ...fi, opacity: locked ? 0.6 : 1 }} />
+          </div>
+        </div>
+        {calcDays > 0 && (
+          <div style={{ background: "var(--muted)", borderRadius: 8, padding: "8px 14px", fontSize: 13, display: "flex", justifyContent: "space-between" }}>
+            <span style={{ color: "var(--muted-foreground)" }}>Working days</span>
+            <strong>{calcDays} days</strong>
+          </div>
+        )}
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Reason</label>
+          <textarea disabled={locked} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={3}
+            style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical", opacity: locked ? 0.6 : 1 }} />
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Handover Notes</label>
+          <textarea disabled={locked} value={form.handoverNotes} onChange={e => setForm(f => ({ ...f, handoverNotes: e.target.value }))} rows={3}
+            style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical", opacity: locked ? 0.6 : 1 }} />
+        </div>
+        {error && (
+          <div style={{ background: "var(--danger-bg)", color: "var(--accent)", padding: "10px 14px", borderRadius: 8, fontSize: 13, display: "flex", gap: 8 }}>
+            <AlertCircle size={14} />{error}
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <Button variant="secondary" onClick={onClose}>Cancel</Button>
+        {!locked && (
+          <Button onClick={save} disabled={loading}>
+            {loading ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : "Save Changes"}
+          </Button>
+        )}
       </div>
     </Modal>
   )
@@ -431,12 +700,323 @@ function RejectModal({ id, onClose, onDone }: { id: string; onClose: () => void;
   )
 }
 
+// ── Star Rating display ───────────────────────────────────────────────────────
+
+function StarRating({ value, max = 5 }: { value: number; max?: number }) {
+  return (
+    <div style={{ display: "flex", gap: 2 }}>
+      {Array.from({ length: max }, (_, i) => (
+        <Star key={i} size={14} fill={i < value ? "#F59E0B" : "none"} style={{ color: i < value ? "#F59E0B" : "var(--border)" }} />
+      ))}
+    </div>
+  )
+}
+
+// ── Ratings Panel ─────────────────────────────────────────────────────────────
+
+const PLACEHOLDER_RATINGS = {
+  given: [
+    { id: "r1", name: "Emeka Okonkwo", jobTitle: "Senior Engineer", leaveType: "Annual Leave", period: "Feb 3 – Feb 14", rating: 5, comment: "Excellent cover, handled all tasks perfectly", date: "2026-02-15" },
+    { id: "r2", name: "Ngozi Eze", jobTitle: "Frontend Developer", leaveType: "Sick Leave", period: "Jan 10 – Jan 12", rating: 4, comment: "Good communication, minor delays on reports", date: "2026-01-13" },
+  ],
+  received: [
+    { id: "r3", name: "Fatima Musa", jobTitle: "HR Specialist", leaveType: "Annual Leave", period: "Mar 1 – Mar 7", rating: 5, comment: "Thorough handover notes made it easy to cover", date: "2026-03-02" },
+    { id: "r4", name: "Chidi Nwosu", jobTitle: "Data Analyst", leaveType: "Compassionate Leave", period: "Dec 20 – Dec 22", rating: 3, comment: "Handover notes could have been more detailed", date: "2025-12-21" },
+  ],
+}
+
+function RatingsPanel({ isAdmin }: { isAdmin: boolean }) {
+  const [tab, setTab] = useState<"given" | "received" | "all">(isAdmin ? "all" : "given")
+
+  const RatingRow = ({ r, dir }: { r: any; dir: "given" | "received" }) => (
+    <tr style={{ borderBottom: "1px solid var(--border)" }}
+      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
+      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
+      <td style={{ padding: "11px 16px" }}>
+        <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
+        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{r.jobTitle}</div>
+      </td>
+      <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)" }}>{r.leaveType} · {r.period}</td>
+      <td style={{ padding: "11px 16px" }}><StarRating value={r.rating} /></td>
+      <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)", maxWidth: 200 }}>{r.comment || "—"}</td>
+      <td style={{ padding: "11px 16px", fontSize: 11, color: "var(--muted-foreground)" }}>{formatDate(r.date, "MMM d, yyyy")}</td>
+      <td style={{ padding: "11px 16px" }}>
+        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: dir === "given" ? "var(--primary-50)" : "var(--success-bg)", color: dir === "given" ? "var(--primary)" : "var(--success)" }}>
+          {dir === "given" ? "Given" : "Received"}
+        </span>
+      </td>
+    </tr>
+  )
+
+  const allRatings = [
+    ...PLACEHOLDER_RATINGS.given.map(r => ({ ...r, dir: "given" as const })),
+    ...PLACEHOLDER_RATINGS.received.map(r => ({ ...r, dir: "received" as const })),
+  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+
+  const avgReceived = PLACEHOLDER_RATINGS.received.length
+    ? (PLACEHOLDER_RATINGS.received.reduce((s, r) => s + r.rating, 0) / PLACEHOLDER_RATINGS.received.length).toFixed(1)
+    : "—"
+
+  const displayTabs = isAdmin
+    ? [{ key: "all", label: "All Ratings" }, { key: "given", label: "Given" }, { key: "received", label: "Received" }]
+    : [{ key: "given", label: "Ratings I Gave" }, { key: "received", label: "My Ratings (Relief)" }]
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {/* Average score card */}
+      {!isAdmin && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Card style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: "#FEF3C7", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Star size={22} style={{ color: "#F59E0B" }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 2 }}>Avg Rating as Relief</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: "#F59E0B" }}>{avgReceived}</div>
+              <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{PLACEHOLDER_RATINGS.received.length} relief assignment{PLACEHOLDER_RATINGS.received.length !== 1 ? "s" : ""}</div>
+            </div>
+          </Card>
+          <Card style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--primary-50)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <Star size={22} style={{ color: "var(--primary)" }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 2 }}>Ratings I've Given</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color: "var(--primary)" }}>{PLACEHOLDER_RATINGS.given.length}</div>
+              <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>to relief officers</div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* Tab bar */}
+      <div style={{ display: "flex", gap: 3, background: "var(--muted)", borderRadius: 7, padding: 3, alignSelf: "flex-start" }}>
+        {displayTabs.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key as any)}
+            style={{ padding: "5px 14px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: tab === t.key ? "var(--card)" : "transparent", color: tab === t.key ? "var(--foreground)" : "var(--muted-foreground)", transition: "all .15s" }}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      <Card style={{ padding: 0 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--border)" }}>
+              {["Person", "Leave", "Rating", "Comment", "Date", "Direction"].map(h => (
+                <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {tab === "given" && PLACEHOLDER_RATINGS.given.map(r => <RatingRow key={r.id} r={r} dir="given" />)}
+            {tab === "received" && PLACEHOLDER_RATINGS.received.map(r => <RatingRow key={r.id} r={r} dir="received" />)}
+            {tab === "all" && allRatings.map(r => <RatingRow key={r.id} r={r} dir={r.dir} />)}
+          </tbody>
+        </table>
+        <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border)", fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>
+          Ratings are submitted 24 hours after leave starts (relief officer rates applicant) and 24 hours after return (applicant rates relief officers). Placeholder data shown.
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// ── Relief Duties Panel ───────────────────────────────────────────────────────
+
+function ReliefDutiesPanel() {
+  const [assignments, setAssignments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [respondingId, setRespondingId] = useState<string | null>(null)
+  const [declineModal, setDeclineModal] = useState<{ id: string } | null>(null)
+  const [declineComment, setDeclineComment] = useState("")
+  const [declineLoading, setDeclineLoading] = useState(false)
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    const r = await fetch("/api/leave/relief")
+    const d = await r.json()
+    setAssignments(d.assignments ?? [])
+    setLoading(false)
+  }, [])
+
+  useEffect(() => { load() }, [load])
+
+  const respond = async (id: string, action: "ACCEPTED" | "DECLINED", comment?: string) => {
+    setRespondingId(id)
+    await fetch(`/api/leave/relief/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, comment }),
+    })
+    setRespondingId(null)
+    load()
+  }
+
+  const statusColor: Record<string, string> = {
+    PENDING: "var(--warning)",
+    ACCEPTED: "var(--success)",
+    DECLINED: "var(--accent)",
+  }
+
+  if (loading) {
+    return <div style={{ padding: 60, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--muted-foreground)" }}><Loader2 size={16} style={{ animation: "spin .8s linear infinite" }} /> Loading…</div>
+  }
+
+  if (assignments.length === 0) {
+    return <EmptyState icon={ShieldCheck} title="No relief assignments" description="When someone adds you as a relief officer for their leave, it will appear here." />
+  }
+
+  const pending = assignments.filter(a => a.status === "PENDING")
+  const past = assignments.filter(a => a.status !== "PENDING")
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {pending.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 12 }}>
+            Awaiting Your Response ({pending.length})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {pending.map((a: any) => {
+              const req = a.leaveRequest
+              const emp = req.employee
+              const isResponding = respondingId === a.id
+              return (
+                <Card key={a.id} style={{ padding: 0, border: "2px solid var(--warning)", overflow: "hidden" }}>
+                  <div style={{ padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                      <Avatar name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} size={42} />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14 }}>{emp.firstName} {emp.lastName}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{emp.jobTitle} · {emp.department?.name}</div>
+                        <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                          <span style={{ fontSize: 12, background: "var(--muted)", borderRadius: 6, padding: "3px 8px", fontWeight: 600 }}>{req.leaveType?.name}</span>
+                          <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+                            {formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")} · <strong>{req.days}</strong> days
+                          </span>
+                        </div>
+                        {req.handoverNotes && (
+                          <div style={{ marginTop: 8, background: "var(--muted)", borderRadius: 8, padding: "8px 12px", fontSize: 12, maxWidth: 420 }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 3 }}>Handover Notes</div>
+                            {req.handoverNotes}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                      <button
+                        disabled={isResponding}
+                        onClick={() => respond(a.id, "ACCEPTED")}
+                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: "var(--success-bg)", color: "var(--success)", opacity: isResponding ? 0.6 : 1 }}
+                      >
+                        {isResponding ? <Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} /> : <Check size={13} />} Accept
+                      </button>
+                      <button
+                        disabled={isResponding}
+                        onClick={() => { setDeclineModal({ id: a.id }); setDeclineComment("") }}
+                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: "var(--danger-bg)", color: "var(--accent)", opacity: isResponding ? 0.6 : 1 }}
+                      >
+                        <X size={13} /> Decline
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ padding: "8px 20px", background: "rgba(234,179,8,0.06)", borderTop: "1px solid var(--warning)", display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--warning)", fontWeight: 600 }}>
+                    <Clock size={11} /> Respond within 12 hours of receiving this request
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {past.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 12 }}>
+            Past Relief Duties ({past.length})
+          </div>
+          <Card style={{ padding: 0 }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)" }}>
+                  {["Employee", "Leave Type", "Period", "Days", "Status", "Comment"].map(h => (
+                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {past.map((a: any) => {
+                  const req = a.leaveRequest
+                  const emp = req.employee
+                  return (
+                    <tr key={a.id} style={{ borderBottom: "1px solid var(--border)" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
+                      <td style={{ padding: "11px 16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <Avatar name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} size={28} />
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 13 }}>{emp.firstName} {emp.lastName}</div>
+                            <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{emp.department?.name}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: "11px 16px", fontSize: 13 }}>{req.leaveType?.name}</td>
+                      <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
+                      <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
+                      <td style={{ padding: "11px 16px" }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: a.status === "ACCEPTED" ? "var(--success-bg)" : "var(--danger-bg)", color: statusColor[a.status] }}>
+                          {a.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)", maxWidth: 200 }}>{a.comment || "—"}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </Card>
+        </div>
+      )}
+
+      {/* Decline Modal */}
+      <Modal open={!!declineModal} onClose={() => setDeclineModal(null)} title="Decline Relief Request" width={420}>
+        <div style={{ padding: 24 }}>
+          <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 12 }}>
+            Please provide a reason for declining. This will be visible to the leave applicant.
+          </div>
+          <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>Reason <span style={{ color: "var(--accent)" }}>*</span></label>
+          <textarea value={declineComment} onChange={e => setDeclineComment(e.target.value)} rows={3}
+            placeholder="e.g. I'm unavailable during this period…"
+            style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
+        </div>
+        <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <Button variant="secondary" onClick={() => setDeclineModal(null)}>Cancel</Button>
+          <Button variant="danger" disabled={!declineComment.trim() || declineLoading} onClick={async () => {
+            if (!declineModal) return
+            setDeclineLoading(true)
+            await respond(declineModal.id, "DECLINED", declineComment)
+            setDeclineLoading(false)
+            setDeclineModal(null)
+          }}>
+            {declineLoading ? <><Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} /> Declining…</> : "Confirm Decline"}
+          </Button>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 type Tab = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED"
+type MainTab = Tab | "RELIEF" | "RATINGS"
 
 export default function LeavePage() {
   const { user } = useCurrentUser()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const [requests, setRequests] = useState<any[]>([])
   const [leaveTypes, setLeaveTypes] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
@@ -445,13 +1025,30 @@ export default function LeavePage() {
   const [employeeGender, setEmployeeGender] = useState<string | undefined>()
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>("ALL")
+  const [mainTab, setMainTab] = useState<MainTab>(() => {
+    // Will be corrected in useEffect after hydration
+    return "ALL"
+  })
   const [applyOpen, setApplyOpen] = useState(false)
   const [rejectId, setRejectId] = useState("")
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [editLeave, setEditLeave] = useState<any | null>(null)
+  const [viewLeave, setViewLeave] = useState<any | null>(null)
 
   const canApprove = user?.caps?.canApproveLeave
   const canSubmit = user?.caps?.canSubmitLeave
   const isAdmin = user?.caps?.canViewAllLeave
+
+  // Sync mainTab from URL ?tab=relief
+  useEffect(() => {
+    const t = searchParams.get("tab")
+    if (t === "relief") setMainTab("RELIEF")
+  }, [searchParams])
+
+  // Sync status tab from mainTab
+  useEffect(() => {
+    if (mainTab !== "RELIEF") setTab(mainTab as Tab)
+  }, [mainTab])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -484,9 +1081,15 @@ export default function LeavePage() {
 
   useEffect(() => { load() }, [load])
 
-  const approve = async (id: string) => {
-    await fetch(`/api/leave/${id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "APPROVED" }) })
+  const approve = async (id: string, stage?: string) => {
+    await fetch(`/api/leave/${id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "APPROVED", stage }) })
     load()
+  }
+
+  const nudge = async (id: string, stage: string) => {
+    const res = await fetch(`/api/leave/${id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "NUDGE", stage }) })
+    const d = await res.json()
+    if (d.ok) alert("Reminder sent to approver")
   }
 
   const cancel = async (id: string) => {
@@ -495,7 +1098,7 @@ export default function LeavePage() {
     load()
   }
 
-  const tabs: Tab[] = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED"]
+  const statusTabs: Tab[] = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED"]
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -507,11 +1110,52 @@ export default function LeavePage() {
             {isAdmin ? "Manage all leave requests across the organisation" : "Your leave requests and team availability"}
           </p>
         </div>
-        {canSubmit && <Button size="sm" onClick={() => setApplyOpen(true)}><Plus size={13} /> Apply for Leave</Button>}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {!isAdmin && (
+            <div style={{ display:"flex", alignItems:"center", gap:6, background:"#FEF3C7", borderRadius:8, padding:"6px 14px", border:"1px solid #F59E0B44" }}>
+              <Star size={14} fill="#F59E0B" style={{ color:"#F59E0B" }} />
+              <span style={{ fontSize:16, fontWeight:900, color:"#B45309", lineHeight:1 }}>
+                {PLACEHOLDER_RATINGS.received.length
+                  ? (PLACEHOLDER_RATINGS.received.reduce((s: number, r: any) => s + r.rating, 0) / PLACEHOLDER_RATINGS.received.length).toFixed(1)
+                  : "—"}
+              </span>
+              <span style={{ fontSize:11, color:"#92400E", fontWeight:600 }}>Avg Relief Rating</span>
+            </div>
+          )}
+          {canSubmit && <Button size="sm" onClick={() => setApplyOpen(true)}><Plus size={13} /> Apply for Leave</Button>}
+        </div>
       </div>
 
-      {/* Balances */}
-      {balances.length > 0 && (
+      {/* Main navigation tabs */}
+      <div style={{ display: "flex", gap: 0, borderBottom: "2px solid var(--border)" }}>
+        {[
+          { key: "ALL", label: "My Requests" },
+          { key: "RELIEF", label: "Relief Duties", icon: ShieldCheck },
+          { key: "RATINGS", label: "Ratings", icon: Star },
+        ].map(({ key, label, icon: Icon }) => {
+          const activeActual = mainTab === key
+          return (
+            <button key={key} onClick={() => { setMainTab(key as MainTab); if (key !== "RELIEF") router.replace("/leave") }}
+              style={{
+                padding: "10px 18px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: activeActual ? 700 : 500,
+                background: "transparent", color: activeActual ? "var(--primary)" : "var(--muted-foreground)",
+                borderBottom: `2px solid ${activeActual ? "var(--primary)" : "transparent"}`,
+                marginBottom: -2, display: "flex", alignItems: "center", gap: 6, transition: "all .15s",
+              }}>
+              {Icon && <Icon size={14} />}{label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Relief Duties panel */}
+      {mainTab === "RELIEF" && <ReliefDutiesPanel />}
+
+      {/* Ratings panel */}
+      {mainTab === "RATINGS" && <RatingsPanel isAdmin={!!isAdmin} />}
+
+      {/* Leave content — hidden when on Relief/Ratings tab */}
+      {mainTab !== "RELIEF" && mainTab !== "RATINGS" && balances.length > 0 && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Your Leave Balances</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px,1fr))", gap: 10 }}>
@@ -521,7 +1165,7 @@ export default function LeavePage() {
       )}
 
       {/* Team on leave */}
-      {teamOnLeave.length > 0 && (
+      {mainTab !== "RELIEF" && mainTab !== "RATINGS" && teamOnLeave.length > 0 && (
         <Card>
           <div style={{ padding: "13px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 7 }}><Users size={14} style={{ color: "var(--primary)" }} /> Team Leave</div>
@@ -542,11 +1186,11 @@ export default function LeavePage() {
       )}
 
       {/* Requests table */}
-      <Card>
+      {mainTab !== "RELIEF" && mainTab !== "RATINGS" && <Card>
         <div style={{ padding: "13px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 13, fontWeight: 700 }}>{canApprove ? "Leave Requests" : "My Leave History"}</div>
           <div style={{ display: "flex", gap: 3, background: "var(--muted)", borderRadius: 7, padding: 3 }}>
-            {tabs.map(t => (
+            {statusTabs.map(t => (
               <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 10px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: tab === t ? "var(--card)" : "transparent", color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", transition: "all .15s" }}>
                 {t.charAt(0) + t.slice(1).toLowerCase()}
               </button>
@@ -596,60 +1240,60 @@ export default function LeavePage() {
                         )}
                       </td>
                       <td style={{ padding: "11px 14px" }}>
-                        <div style={{ display: "flex", gap: 4 }}>
+                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                           {req.status === "PENDING" && canApprove && (
                             <>
-                              <button onClick={() => approve(req.id)} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
-                              <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
+                              {/* Admin: stage-aware approve — show pending stages as options */}
+                              {isAdmin && req.approvals?.length > 0 ? (
+                                <>
+                                  {req.approvals.filter((a: any) => !a.action).map((a: any) => (
+                                    <div key={a.id} style={{ display: "flex", gap: 3 }}>
+                                      <button onClick={() => approve(req.id, a.stage)} title={`Approve ${a.stage} stage`} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                                        <Check size={10} /> {a.stage.replace(/_/g, " ")}
+                                      </button>
+                                      <button onClick={() => nudge(req.id, a.stage)} title="Send reminder" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", fontSize: 10, fontWeight: 700 }}>
+                                        ↑
+                                      </button>
+                                    </div>
+                                  ))}
+                                  <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /></button>
+                                </>
+                              ) : (
+                                <>
+                                  <button onClick={() => approve(req.id)} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
+                                  <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
+                                </>
+                              )}
                             </>
+                          )}
+                          {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) && (
+                            <button onClick={() => setEditLeave(req)} title="Edit request" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }}>
+                              <Edit3 size={12} />
+                            </button>
                           )}
                           {["PENDING", "APPROVED"].includes(req.status) && (req.employeeId === user?.employeeId || isAdmin) && (
                             <button onClick={() => cancel(req.id)} title="Cancel request" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }}>
                               <Trash2 size={12} />
                             </button>
                           )}
-                          <button onClick={() => setExpandedId(expandedId === req.id ? null : req.id)} style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }}>
+                          <button onClick={() => setViewLeave(req)} style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }} title="View details">
                             <Eye size={12} />
                           </button>
                         </div>
                       </td>
                     </tr>
-                    {expandedId === req.id && (
-                      <tr key={`${req.id}-detail`}>
-                        <td colSpan={7} style={{ padding: "0 14px 14px", background: "var(--muted)" }}>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, paddingTop: 12 }}>
-                            {req.reason && <div><div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 4 }}>Description</div><div style={{ fontSize: 13 }}>{req.reason}</div></div>}
-                            {req.handoverNotes && <div><div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 4 }}>Handover Notes</div><div style={{ fontSize: 13 }}>{req.handoverNotes}</div></div>}
-                            {req.approvals?.length > 0 && (
-                              <div style={{ gridColumn: "1/-1" }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 8 }}>Approval History</div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                                  {req.approvals.map((a: any) => (
-                                    <div key={a.id} style={{ display: "flex", gap: 10, fontSize: 12, alignItems: "center" }}>
-                                      <Badge status={a.action ?? "PENDING"} />
-                                      <span style={{ fontWeight: 600 }}>{a.stage.replace(/_/g, " ")}</span>
-                                      {a.employee && <span style={{ color: "var(--muted-foreground)" }}>by {a.employee.firstName} {a.employee.lastName}</span>}
-                                      {a.comment && <span style={{ color: "var(--muted-foreground)" }}>— "{a.comment}"</span>}
-                                      {!a.action && <CountdownTimer deadline={a.deadline} />}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
                   </React.Fragment>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </Card>
+      </Card>}
 
       <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} />
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
+      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} onClose={() => setEditLeave(null)} onDone={load} />}
+      {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} />}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )

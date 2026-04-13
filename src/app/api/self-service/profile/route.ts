@@ -181,6 +181,13 @@ export async function GET() {
       activeProjects: employee.projectAssignments.map(a => ({ id: a.project.id, name: a.project.name, role: a.role })),
       employeeStatus: employee.employeeStatus,
       gender: employee.gender,
+      // Contact & personal
+      email: employee.workEmail ?? employee.personalEmail,
+      phone: employee.phone,
+      city: employee.city,
+      state: employee.state,
+      maritalStatus: employee.maritalStatus,
+      bankName: employee.bankName,
     },
     leaveBalances: filteredBalances,
     teamOnLeave: (teamOnLeave as any[]).map(m => ({
