@@ -42,8 +42,8 @@ export async function POST(req: NextRequest) {
     jobTitle, departmentId, employmentType,
   } = body
 
-  if (!email || !password || !firstName || !lastName) {
-    return NextResponse.json({ error: "email, password, firstName, lastName are required" }, { status: 400 })
+  if (!email || !firstName || !lastName) {
+    return NextResponse.json({ error: "email, firstName, lastName are required" }, { status: 400 })
   }
 
   // Check duplicate email
@@ -58,7 +58,8 @@ export async function POST(req: NextRequest) {
   const existingEmp = await prisma.employee.findUnique({ where: { employeeId: generatedEmpId } })
   if (existingEmp) return NextResponse.json({ error: "Employee ID already in use" }, { status: 409 })
 
-  const hashedPassword = await bcrypt.hash(password, 12)
+  // Default password is "dsn-staff" if none provided
+  const hashedPassword = await bcrypt.hash(password || "dsn-staff", 12)
 
   const newUser = await prisma.user.create({
     data: {

@@ -6,10 +6,74 @@ import Avatar from "@/components/ui/Avatar"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
-import { Users, Plus, Search, Filter, Download, Edit, Eye, Phone, Mail } from "lucide-react"
+import { Users, Plus, Search, Filter, Download, Edit, Eye, Upload, FileText } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import AddEmployeeForm from "./AddEmployeeForm"
+import EditEmployeeModal from "./EditEmployeeModal"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import { Briefcase } from "lucide-react"
+
+function EmployeeViewModal({ employee }: { employee: any }) {
+  // projectAssignments are now included in the employee list response — no extra fetch needed
+  const activeProjects = (employee?.projectAssignments ?? []).filter((a: any) => a.project?.status === "ACTIVE")
+  const projLoading = false
+
+  return (
+    <div style={{ padding: 24, maxHeight: "75vh", overflowY: "auto" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, padding: "16px 20px", background: "linear-gradient(135deg, var(--primary) 0%, #0a6630 100%)", borderRadius: 12, color: "white" }}>
+        <Avatar name={`${employee.firstName} ${employee.lastName}`} photo={employee.profilePhoto} size={64} />
+        <div style={{ flex: 1 }}>
+          <h2 style={{ fontSize: 18, fontWeight: 800, color: "white" }}>{employee.firstName} {employee.lastName}</h2>
+          <p style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>{employee.jobTitle ?? "—"} · {employee.department?.name ?? "—"}</p>
+          <p style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>{employee.employeeId} · {employee.workEmail}</p>
+          <div style={{ marginTop: 6 }}><Badge status={employee.employeeStatus} /></div>
+        </div>
+      </div>
+
+      {/* Info grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        {[
+          { label: "Employee ID", value: employee.employeeId },
+          { label: "Email", value: employee.workEmail },
+          { label: "Phone", value: employee.phone ?? "—" },
+          { label: "Employment Type", value: employee.employmentType?.replace(/_/g," ") },
+          { label: "Hire Date", value: formatDate(employee.hireDate) },
+          { label: "Department", value: employee.department?.name ?? "—" },
+          { label: "Manager", value: employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}` : "—" },
+          { label: "Category", value: employee.category === "TECHNICAL" ? "Technical" : "Non-Technical" },
+        ].map(({ label, value }) => (
+          <div key={label} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 14px" }}>
+            <div style={{ fontSize: 10, color: "var(--muted-foreground)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Active Projects */}
+      <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>
+          <Briefcase size={13} /> Active Projects
+        </div>
+        {projLoading ? (
+          <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Loading…</div>
+        ) : activeProjects.length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--muted-foreground)", fontStyle: "italic" }}>No active projects</div>
+        ) : (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+            {activeProjects.map((a: any) => (
+              <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--success-bg)", border: "1px solid var(--success)", borderRadius: 20, padding: "4px 12px" }}>
+                <div style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)" }} />
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--success)" }}>{a.project?.name}</span>
+                {a.role && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {a.role}</span>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 export default function EmployeesPage() {
   const { user } = useCurrentUser()
@@ -21,6 +85,9 @@ export default function EmployeesPage() {
   const [deptFilter, setDeptFilter] = useState("")
   const [addOpen, setAddOpen] = useState(false)
   const [selected, setSelected] = useState<any>(null)
+  const [editTarget, setEditTarget] = useState<any>(null)
+  const [csvUploading, setCsvUploading] = useState(false)
+  const [csvResult, setCsvResult] = useState<any>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -46,9 +113,25 @@ export default function EmployeesPage() {
           <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Manage your workforce</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <Button variant="secondary" size="sm"><Download size={14} /> Export</Button>
+          <Button variant="secondary" size="sm" onClick={() => window.open("/api/employees/csv-upload", "_blank")}>
+            <Download size={14} /> Template
+          </Button>
           {user?.caps.canCreateEmployee && (
-            <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button>
+            <>
+              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", color: "var(--foreground)" }}>
+                <Upload size={14} /> {csvUploading ? "Uploading…" : "CSV Upload"}
+                <input type="file" accept=".csv" style={{ display: "none" }} onChange={async e => {
+                  const f = e.target.files?.[0]; if (!f) return
+                  setCsvUploading(true); setCsvResult(null)
+                  const fd = new FormData(); fd.append("file", f)
+                  const r = await fetch("/api/employees/csv-upload", { method: "POST", body: fd })
+                  const d = await r.json()
+                  setCsvResult(d); setCsvUploading(false); e.target.value = ""
+                  if (d.created > 0) load()
+                }} />
+              </label>
+              <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button>
+            </>
           )}
         </div>
       </div>
@@ -73,6 +156,14 @@ export default function EmployeesPage() {
         <div style={{ fontSize: 13, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{employees.length} result{employees.length !== 1 ? "s" : ""}</div>
       </Card>
 
+      {/* CSV Result Banner */}
+      {csvResult && (
+        <div style={{ padding: "12px 16px", borderRadius: 8, marginBottom: 16, background: csvResult.created > 0 ? "var(--success-bg)" : "var(--warning-bg)", border: `1px solid ${csvResult.created > 0 ? "var(--success)" : "var(--warning)"}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
+          <span><strong>{csvResult.created}</strong> employee{csvResult.created !== 1 ? "s" : ""} created, <strong>{csvResult.skipped}</strong> skipped.</span>
+          <button onClick={() => setCsvResult(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+        </div>
+      )}
+
       {/* Table */}
       <Card>
         {loading ? (
@@ -87,6 +178,7 @@ export default function EmployeesPage() {
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Employee</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Department</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Role / Type</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Hire Date</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Actions</th>
@@ -109,12 +201,19 @@ export default function EmployeesPage() {
                       <div style={{ fontSize: 13 }}>{emp.jobTitle ?? "—"}</div>
                       <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{emp.employmentType?.replace(/_/g," ")}</div>
                     </td>
+                    <td style={{ padding: "14px 20px" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: emp.category === "TECHNICAL" ? "#EEF2FF" : "#FFFBEB", color: emp.category === "TECHNICAL" ? "#6366F1" : "#F59E0B" }}>
+                        {emp.category === "TECHNICAL" ? "Technical" : "Non-Technical"}
+                      </span>
+                    </td>
                     <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{formatDate(emp.hireDate)}</td>
                     <td style={{ padding: "14px 20px" }}><Badge status={emp.employeeStatus} /></td>
                     <td style={{ padding: "14px 20px" }}>
                       <div style={{ display: "flex", gap: 4 }}>
                         <button onClick={() => setSelected(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="View"><Eye size={13} /></button>
-                        <button style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="Edit"><Edit size={13} /></button>
+                        {user?.caps.canEditAnyEmployee && (
+                          <button onClick={() => setEditTarget(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="Edit"><Edit size={13} /></button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -130,37 +229,22 @@ export default function EmployeesPage() {
         <AddEmployeeForm departments={departments} onSuccess={() => { setAddOpen(false); load() }} />
       </Modal>
 
-      {/* View Employee Modal */}
-      <Modal open={!!selected} onClose={() => setSelected(null)} title="Employee Profile" width={640}>
-        {selected && (
-          <div style={{ padding: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
-              <Avatar name={`${selected.firstName} ${selected.lastName}`} photo={selected.profilePhoto} size={64} />
-              <div>
-                <h2 style={{ fontSize: 18, fontWeight: 700 }}>{selected.firstName} {selected.lastName}</h2>
-                <p style={{ color: "var(--muted-foreground)", fontSize: 13 }}>{selected.jobTitle ?? "—"} · {selected.department?.name ?? "—"}</p>
-                <div style={{ marginTop: 6 }}><Badge status={selected.employeeStatus} /></div>
-              </div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              {[
-                { label: "Employee ID", value: selected.employeeId },
-                { label: "Email", value: selected.workEmail },
-                { label: "Phone", value: selected.phone ?? "—" },
-                { label: "Employment Type", value: selected.employmentType?.replace(/_/g," ") },
-                { label: "Hire Date", value: formatDate(selected.hireDate) },
-                { label: "Department", value: selected.department?.name ?? "—" },
-                { label: "Manager", value: selected.manager ? `${selected.manager.firstName} ${selected.manager.lastName}` : "—" },
-                { label: "Annual Leave Balance", value: `${selected.annualLeaveBalance} days` },
-              ].map(({ label, value }) => (
-                <div key={label} style={{ background: "var(--muted)", borderRadius: 8, padding: "12px 16px" }}>
-                  <div style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>{label}</div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
+      {/* Edit Employee Modal */}
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title={`Edit — ${editTarget?.firstName ?? ""} ${editTarget?.lastName ?? ""}`} width={720}>
+        {editTarget && (
+          <EditEmployeeModal
+            employee={editTarget}
+            departments={departments}
+            employees={employees}
+            onClose={() => setEditTarget(null)}
+            onSuccess={load}
+          />
         )}
+      </Modal>
+
+      {/* View Employee Modal */}
+      <Modal open={!!selected} onClose={() => setSelected(null)} title="Employee Profile" width={660}>
+        {selected && <EmployeeViewModal employee={selected} />}
       </Modal>
     </div>
   )

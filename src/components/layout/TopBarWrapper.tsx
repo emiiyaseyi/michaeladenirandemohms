@@ -3,16 +3,25 @@ import { usePathname } from "next/navigation"
 import TopBar from "./TopBar"
 
 const titles: Record<string, string> = {
-  "/dashboard":   "Dashboard",
-  "/employees":   "Employees",
-  "/leave":       "Leave Management",
-  "/recruitment": "Recruitment & ATS",
-  "/performance": "Performance Management",
-  "/onboarding":  "Onboarding",
-  "/offboarding": "Offboarding",
-  "/org-chart":   "Organisation Chart",
-  "/analytics":   "Analytics & Reports",
-  "/settings":    "Settings",
+  "/dashboard":      "Dashboard",
+  "/self-service/payslips": "My Payslips",
+  "/self-service":   "Self Service",
+  "/employees/teams": "Teams",
+  "/employees/profile-requests": "Profile Update Requests",
+  "/employees/personal-docs":    "Personal Documents",
+  "/employees":      "Employees",
+  "/leave":          "Leave Management",
+  "/projects":       "Projects",
+  "/recruitment":    "Recruitment & ATS",
+  "/performance":    "Performance Management",
+  "/onboarding":     "Onboarding",
+  "/offboarding":    "Offboarding",
+  "/documents":      "Document Management",
+  "/announcements":  "Announcements",
+  "/faq":            "FAQ",
+  "/org-chart":      "Organisation Chart",
+  "/analytics":      "Analytics & Reports",
+  "/settings":       "Settings",
 }
 
 export default function TopBarWrapper({ user }: { user: any }) {

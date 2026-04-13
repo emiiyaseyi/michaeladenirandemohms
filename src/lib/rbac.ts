@@ -3,7 +3,8 @@
 
 import {
   LayoutDashboard, Users, CalendarDays, Briefcase, TrendingUp,
-  UserCheck, UserMinus, GitBranch, BarChart3, Settings, type LucideIcon,
+  UserCheck, UserMinus, GitBranch, BarChart3, Settings, UserCircle,
+  FolderOpen, Layers, Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck, type LucideIcon,
 } from "lucide-react"
 
 export type SystemRole =
@@ -13,10 +14,14 @@ export type SystemRole =
   | "MANAGER"
   | "DEPARTMENT_LEAD"
   | "PROJECT_MANAGER"
+  | "TEAM_LEAD"
+  | "PROJECT_LEAD"
+  | "RELIEF_OFFICER"
   | "STAFF"
   | "INTERN"
   | "TA_OFFICER"
   | "PERFORMANCE_OFFICER"
+  | "PAYROLL_OFFICER"
   | "AUDIT"
 
 // ─── NAV ITEMS ───────────────────────────────────────────────────────────────
@@ -26,11 +31,13 @@ export interface NavItem {
   href: string
   icon: LucideIcon
   roles: SystemRole[]
+  indent?: boolean
 }
 
 export const ALL_ROLES: SystemRole[] = [
   "SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD",
-  "PROJECT_MANAGER", "STAFF", "INTERN", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT",
+  "PROJECT_MANAGER", "TEAM_LEAD", "PROJECT_LEAD", "RELIEF_OFFICER",
+  "STAFF", "INTERN", "TA_OFFICER", "PERFORMANCE_OFFICER", "PAYROLL_OFFICER", "AUDIT",
 ]
 
 export const NAV_ITEMS: NavItem[] = [
@@ -41,22 +48,50 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ALL_ROLES,
   },
   {
+    label: "Self Service",
+    href: "/self-service",
+    icon: UserCircle,
+    roles: ALL_ROLES,
+  },
+  {
     label: "Employees",
     href: "/employees",
     icon: Users,
     roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
   },
   {
+    label: "Teams",
+    href: "/employees/teams",
+    icon: Users,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
+    indent: true,
+  },
+  {
+    label: "Profile Requests",
+    href: "/employees/profile-requests",
+    icon: UserCheck,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
+    indent: true,
+  },
+  {
+    label: "Personal Documents",
+    href: "/employees/personal-docs",
+    icon: FileCheck,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
+    indent: true,
+  },
+  {
+    // Leave approval/admin view — staff access leave via Self Service
     label: "Leave",
     href: "/leave",
     icon: CalendarDays,
-    roles: ALL_ROLES,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
   },
   {
     label: "Recruitment",
     href: "/recruitment",
     icon: Briefcase,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "AUDIT"],
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
   },
   {
     label: "Performance",
@@ -68,15 +103,43 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Onboarding",
     href: "/onboarding",
     icon: UserCheck,
-    // STAFF and INTERN are excluded here — they see this only when triggered by an admin (injected via DashboardLayout)
     roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
   },
   {
     label: "Offboarding",
     href: "/offboarding",
     icon: UserMinus,
-    // STAFF and INTERN are excluded here — they see this only when triggered by an admin (injected via DashboardLayout)
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
+  },
+  {
+    label: "Projects",
+    href: "/projects",
+    icon: Layers,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
+  },
+  {
+    label: "Departments",
+    href: "/departments",
+    icon: Building2,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
+  },
+  {
+    label: "Documents",
+    href: "/documents",
+    icon: FolderOpen,
+    roles: ALL_ROLES,
+  },
+  {
+    label: "Announcements",
+    href: "/announcements",
+    icon: Megaphone,
+    roles: ALL_ROLES,
+  },
+  {
+    label: "FAQ",
+    href: "/faq",
+    icon: HelpCircle,
+    roles: ALL_ROLES,
   },
   {
     label: "Org Chart",
@@ -91,6 +154,24 @@ export const NAV_ITEMS: NavItem[] = [
     roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PERFORMANCE_OFFICER", "AUDIT"],
   },
   {
+    label: "Reports",
+    href: "/reports",
+    icon: BarChart2,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
+  },
+  {
+    label: "Payslips",
+    href: "/payslips",
+    icon: Receipt,
+    roles: ["SUPER_ADMIN", "PAYROLL_OFFICER"],
+  },
+  {
+    label: "Trash",
+    href: "/trash",
+    icon: Trash2,
+    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
+  },
+  {
     label: "Settings",
     href: "/settings",
     icon: Settings,
@@ -103,14 +184,23 @@ export const NAV_ITEMS: NavItem[] = [
 
 export const ROUTE_ROLES: Record<string, SystemRole[]> = {
   "/dashboard":    ALL_ROLES,
+  "/self-service": ALL_ROLES,
   "/employees":    ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
   "/leave":        ALL_ROLES,
-  "/recruitment":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "AUDIT"],
+  "/recruitment":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
   "/performance":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "PERFORMANCE_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
   "/onboarding":   ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
-  "/offboarding":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
+  "/offboarding":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
+  "/projects":     ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
+  "/departments":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
+  "/documents":    ALL_ROLES,
+  "/announcements": ALL_ROLES,
+  "/faq":          ALL_ROLES,
   "/org-chart":    ALL_ROLES,
   "/analytics":    ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PERFORMANCE_OFFICER", "AUDIT"],
+  "/reports":      ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
+  "/payslips":     ["SUPER_ADMIN", "PAYROLL_OFFICER"],
+  "/trash":        ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
   "/settings":     ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
 }
 
@@ -292,6 +382,21 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
     isReadOnly: false,
   },
 
+  PAYROLL_OFFICER: {
+    canViewAllEmployees: true, canViewTeamEmployees: true,
+    canCreateEmployee: false, canEditAnyEmployee: false,
+    canViewAllLeave: false, canViewTeamLeave: false,
+    canApproveLeave: false, canSubmitLeave: true,
+    canManageRecruitment: false, canViewRecruitment: false,
+    canManagePerformanceCycles: false, canViewAllPerformance: false,
+    canViewTeamPerformance: false, canSubmitOwnKPI: true, canScoreKPIs: false,
+    canManageOnboarding: false, canViewOwnOnboarding: true,
+    canManageOffboarding: false,
+    canManageSettings: false,
+    canViewAnalytics: false, canViewTeamAnalytics: false,
+    isReadOnly: false,
+  },
+
   AUDIT: {
     canViewAllEmployees: true, canViewTeamEmployees: true,
     canCreateEmployee: false, canEditAnyEmployee: false,
@@ -305,6 +410,51 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
     canManageSettings: false,
     canViewAnalytics: true, canViewTeamAnalytics: true,
     isReadOnly: true,
+  },
+
+  TEAM_LEAD: {
+    canViewAllEmployees: false, canViewTeamEmployees: true,
+    canCreateEmployee: false, canEditAnyEmployee: false,
+    canViewAllLeave: false, canViewTeamLeave: true,
+    canApproveLeave: true, canSubmitLeave: true,
+    canManageRecruitment: false, canViewRecruitment: false,
+    canManagePerformanceCycles: false, canViewAllPerformance: false,
+    canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
+    canManageOnboarding: false, canViewOwnOnboarding: true,
+    canManageOffboarding: false,
+    canManageSettings: false,
+    canViewAnalytics: false, canViewTeamAnalytics: true,
+    isReadOnly: false,
+  },
+
+  PROJECT_LEAD: {
+    canViewAllEmployees: false, canViewTeamEmployees: true,
+    canCreateEmployee: false, canEditAnyEmployee: false,
+    canViewAllLeave: false, canViewTeamLeave: true,
+    canApproveLeave: true, canSubmitLeave: true,
+    canManageRecruitment: false, canViewRecruitment: false,
+    canManagePerformanceCycles: false, canViewAllPerformance: false,
+    canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
+    canManageOnboarding: false, canViewOwnOnboarding: true,
+    canManageOffboarding: false,
+    canManageSettings: false,
+    canViewAnalytics: false, canViewTeamAnalytics: true,
+    isReadOnly: false,
+  },
+
+  RELIEF_OFFICER: {
+    canViewAllEmployees: false, canViewTeamEmployees: false,
+    canCreateEmployee: false, canEditAnyEmployee: false,
+    canViewAllLeave: false, canViewTeamLeave: false,
+    canApproveLeave: true, canSubmitLeave: true,
+    canManageRecruitment: false, canViewRecruitment: false,
+    canManagePerformanceCycles: false, canViewAllPerformance: false,
+    canViewTeamPerformance: false, canSubmitOwnKPI: true, canScoreKPIs: false,
+    canManageOnboarding: false, canViewOwnOnboarding: true,
+    canManageOffboarding: false,
+    canManageSettings: false,
+    canViewAnalytics: false, canViewTeamAnalytics: false,
+    isReadOnly: false,
   },
 }
 
@@ -339,6 +489,10 @@ export function roleLabel(role: string): string {
     INTERN: "Intern",
     TA_OFFICER: "TA Officer",
     PERFORMANCE_OFFICER: "Performance Officer",
+    PAYROLL_OFFICER: "Payroll Officer",
+    TEAM_LEAD: "Team Lead",
+    PROJECT_LEAD: "Project Lead",
+    RELIEF_OFFICER: "Relief Officer",
     AUDIT: "Auditor",
   }
   return labels[role] ?? role

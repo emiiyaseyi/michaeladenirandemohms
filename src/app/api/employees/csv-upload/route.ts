@@ -1,0 +1,151 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import bcrypt from "bcryptjs"
+
+// Required CSV columns
+const REQUIRED = ["firstName", "lastName", "workEmail"]
+
+function parseCSV(text: string): Record<string, string>[] {
+  const lines = text.split(/\r?\n/).filter(l => l.trim())
+  if (lines.length < 2) return []
+  const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""))
+  return lines.slice(1).map(line => {
+    // Simple CSV parse (handles quoted fields)
+    const values: string[] = []
+    let cur = "", inQuote = false
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i]
+      if (ch === '"') { inQuote = !inQuote }
+      else if (ch === "," && !inQuote) { values.push(cur.trim()); cur = "" }
+      else cur += ch
+    }
+    values.push(cur.trim())
+    const row: Record<string, string> = {}
+    headers.forEach((h, i) => { row[h] = values[i] ?? "" })
+    return row
+  })
+}
+
+export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canCreateEmployee) return forbidden()
+
+  const formData = await req.formData()
+  const file = formData.get("file") as File | null
+  if (!file) return NextResponse.json({ error: "No file uploaded" }, { status: 400 })
+
+  const text = await file.text()
+  const rows = parseCSV(text)
+  if (!rows.length) return NextResponse.json({ error: "CSV is empty or has no data rows" }, { status: 400 })
+
+  // Validate required columns
+  const headers = Object.keys(rows[0])
+  for (const req2 of REQUIRED) {
+    if (!headers.includes(req2)) {
+      return NextResponse.json({ error: `Missing required column: ${req2}` }, { status: 400 })
+    }
+  }
+
+  const results: { row: number; status: "created" | "skipped"; email?: string; error?: string }[] = []
+  const hashedPwd = await bcrypt.hash("Welcome@DSN1", 10)
+  const count = await prisma.employee.count()
+  let nextNum = count + 1
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]
+    const { firstName, lastName, workEmail, phone, jobTitle, hireDate, gender, employmentType, departmentName, managerEmail, teamLeadEmail, grossSalary } = row
+
+    if (!firstName?.trim() || !lastName?.trim() || !workEmail?.trim()) {
+      results.push({ row: i + 2, status: "skipped", error: "Missing required fields" })
+      continue
+    }
+
+    const existing = await prisma.employee.findFirst({ where: { workEmail: workEmail.trim().toLowerCase() } })
+    if (existing) {
+      results.push({ row: i + 2, status: "skipped", email: workEmail, error: "Email already exists" })
+      continue
+    }
+
+    try {
+      // Look up department by name
+      let departmentId: string | null = null
+      if (departmentName?.trim()) {
+        const dept = await prisma.department.findFirst({ where: { name: { equals: departmentName.trim(), mode: "insensitive" } } })
+        departmentId = dept?.id ?? null
+      }
+
+      // Look up manager by email
+      let managerId: string | null = null
+      if (managerEmail?.trim()) {
+        const mgr = await prisma.employee.findFirst({ where: { workEmail: managerEmail.trim().toLowerCase() } })
+        managerId = mgr?.id ?? null
+      }
+
+      // Look up team lead by email
+      let departmentLeadId: string | null = null
+      if (teamLeadEmail?.trim()) {
+        const lead = await prisma.employee.findFirst({ where: { workEmail: teamLeadEmail.trim().toLowerCase() } })
+        departmentLeadId = lead?.id ?? null
+      }
+
+      const empId = `DSN${String(nextNum).padStart(4, "0")}`
+      nextNum++
+
+      const newUser = await prisma.user.create({
+        data: { name: `${firstName.trim()} ${lastName.trim()}`, email: workEmail.trim().toLowerCase(), password: hashedPwd, role: "STAFF" },
+      })
+
+      await prisma.employee.create({
+        data: {
+          userId: newUser.id,
+          employeeId: empId,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          workEmail: workEmail.trim().toLowerCase(),
+          phone: phone?.trim() || null,
+          jobTitle: jobTitle?.trim() || null,
+          hireDate: hireDate?.trim() ? new Date(hireDate.trim()) : null,
+          gender: (gender?.trim().toUpperCase() === "MALE" ? "MALE" : gender?.trim().toUpperCase() === "FEMALE" ? "FEMALE" : null) as any,
+          employmentType: (["FULL_TIME","PART_TIME","CONTRACT","INTERN","NYSC"].includes(employmentType?.trim().toUpperCase() ?? "")
+            ? employmentType!.trim().toUpperCase()
+            : "FULL_TIME") as any,
+          departmentId,
+          managerId,
+          departmentLeadId,
+          grossSalary: grossSalary?.trim() ? parseFloat(grossSalary.trim()) || null : null,
+        },
+      })
+
+      results.push({ row: i + 2, status: "created", email: workEmail })
+    } catch (e: any) {
+      results.push({ row: i + 2, status: "skipped", email: workEmail, error: e.message ?? "Unknown error" })
+    }
+  }
+
+  const created = results.filter(r => r.status === "created").length
+  const skipped = results.filter(r => r.status === "skipped").length
+  return NextResponse.json({ created, skipped, results })
+}
+
+// GET: download CSV template
+export async function GET() {
+  const headers = [
+    "firstName", "lastName", "workEmail", "phone", "jobTitle",
+    "hireDate", "gender", "employmentType", "departmentName",
+    "managerEmail", "teamLeadEmail", "grossSalary",
+  ]
+  const example = [
+    "John", "Doe", "john.doe@company.com", "08012345678",
+    "Software Engineer", "2024-01-15", "MALE", "FULL_TIME",
+    "Engineering", "manager@company.com", "lead@company.com", "450000",
+  ]
+  const csv = [headers.join(","), example.join(",")].join("\n")
+  return new Response(csv, {
+    headers: {
+      "Content-Type": "text/csv",
+      "Content-Disposition": 'attachment; filename="employee_upload_template.csv"',
+    },
+  })
+}

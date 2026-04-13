@@ -7,20 +7,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── AUTH ───────────────────────────────────────────────────────────────────
-
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -43,152 +41,155 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// ─── USERS & ROLES ──────────────────────────────────────────────────────────
-
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  password      String?
-  role          SystemRole @default(STAFF)
-  isActive      Boolean   @default(true)
-  accounts      Account[]
-  sessions      Session[]
-  employee      Employee?
-  notifications Notification[]
-  auditLogs     AuditLog[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id              String         @id @default(cuid())
+  name            String?
+  email           String?        @unique
+  emailVerified   DateTime?
+  image           String?
+  password        String?
+  role            SystemRole     @default(STAFF)
+  isActive        Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  lastLoginAt     DateTime?
+  additionalRoles SystemRole[]   @default([])
+  accounts               Account[]
+  auditLogs              AuditLog[]
+  employee               Employee?
+  notifications          Notification[]
+  announcements          Announcement[]        @relation("AnnouncementCreator")
+  orgDocsUploaded        OrgDocument[]         @relation("OrgDocUploader")
+  sessions               Session[]
+  profileUpdateReviews   ProfileUpdateRequest[]
+  personalDocReviews     PersonalDocument[]    @relation("PersonalDocReviewer")
 }
-
-// ─── ORG STRUCTURE ──────────────────────────────────────────────────────────
 
 model Division {
   id          String       @id @default(cuid())
   name        String       @unique
   description String?
-  departments Department[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  departments Department[]
 }
 
 model Department {
-  id          String     @id @default(cuid())
-  name        String     @unique
-  description String?
-  divisionId  String?
-  division    Division?  @relation(fields: [divisionId], references: [id])
-  parentId    String?
-  parent      Department?  @relation("DeptHierarchy", fields: [parentId], references: [id])
-  children    Department[] @relation("DeptHierarchy")
-  employees   Employee[]
-  jobPostings JobPosting[]
+  id            String         @id @default(cuid())
+  name          String         @unique
+  description   String?
+  divisionId    String?
+  parentId      String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  division      Division?      @relation(fields: [divisionId], references: [id])
+  parent        Department?    @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children      Department[]   @relation("DeptHierarchy")
+  employees     Employee[]
+  teams         Team[]
+  jobPostings   JobPosting[]
   leaveRequests LeaveRequest[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
 }
 
-// ─── HRIS / EMPLOYEES ───────────────────────────────────────────────────────
+model Team {
+  id           String           @id @default(cuid())
+  name         String
+  category     EmployeeCategory @default(NON_TECHNICAL)
+  departmentId String?
+  headId       String?
+  description  String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  department   Department?      @relation(fields: [departmentId], references: [id])
+  head         Employee?        @relation("TeamHead", fields: [headId], references: [id])
+  members      Employee[]       @relation("TeamMembership")
+}
 
 model Employee {
-  id               String         @id @default(cuid())
-  employeeId       String         @unique
-  userId           String         @unique
-  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Personal
-  firstName        String
-  lastName         String
-  middleName       String?
-  gender           Gender?
-  dateOfBirth      DateTime?
-  maritalStatus    MaritalStatus?
-  nationality      String?        @default("Nigerian")
-  stateOfOrigin    String?
-  profilePhoto     String?
-
-  // Contact
-  personalEmail    String?
-  workEmail        String         @unique
-  phone            String?
-  alternatePhone   String?
-
-  // Address
-  address          String?
-  city             String?
-  state            String?
-  country          String?        @default("Nigeria")
-  postalCode       String?
-
-  // Employment
-  departmentId     String?
-  department       Department?    @relation(fields: [departmentId], references: [id])
-  jobTitle         String?
-  employmentType   EmploymentType @default(FULL_TIME)
-  employeeStatus   EmployeeStatus @default(ACTIVE)
-  hireDate         DateTime?
-  confirmationDate DateTime?
-  endDate          DateTime?
-
-  // Reporting
-  managerId        String?
-  manager          Employee?      @relation("ManagerRelation", fields: [managerId], references: [id])
-  directReports    Employee[]     @relation("ManagerRelation")
-  departmentLeadId String?
-  departmentLead   Employee?      @relation("DeptLeadRelation", fields: [departmentLeadId], references: [id])
-  deptLeadOf       Employee[]     @relation("DeptLeadRelation")
-
-  // Financial
-  bankName         String?
-  bankAccountNo    String?
-  bankAccountName  String?
-  pensionPin       String?
-  tin              String?
-  nhfNo            String?
-  grossSalary      Float?
-
-  // Next of kin
-  nokName          String?
-  nokPhone         String?
-  nokRelationship  String?
-  nokAddress       String?
-
-  // Probation
-  onProbation      Boolean        @default(false)
-  probationEndDate DateTime?
-
-  // Leave
-  annualLeaveBalance Int          @default(21)
-  sickLeaveBalance   Int          @default(14)
-
-  // Relations
-  documents        Document[]
-  leaveRequests    LeaveRequest[] @relation("EmployeeLeave")
-  reliefFor        LeaveRequest[] @relation("ReliefOfficer")
-  leaveApprovals   LeaveApproval[]
-  jobApplications  JobApplication[]
-  onboardingTasks  OnboardingTask[]
-  kpis             KPI[]
-  appraisals       Appraisal[]
-  feedbackGiven    Feedback[]     @relation("FeedbackGiver")
-  feedbackReceived Feedback[]     @relation("FeedbackReceiver")
-  offboarding      Offboarding?
-  weeklyReports    WeeklyReport[]
+  id                 String               @id @default(cuid())
+  employeeId         String               @unique
+  userId             String               @unique
+  firstName          String
+  lastName           String
+  middleName         String?
+  gender             Gender?
+  dateOfBirth        DateTime?
+  maritalStatus      MaritalStatus?
+  nationality        String?              @default("Nigerian")
+  stateOfOrigin      String?
+  profilePhoto       String?
+  personalEmail      String?
+  workEmail          String               @unique
+  phone              String?
+  alternatePhone     String?
+  address            String?
+  city               String?
+  state              String?
+  country            String?              @default("Nigeria")
+  postalCode         String?
+  departmentId       String?
+  jobTitle           String?
+  employmentType     EmploymentType       @default(FULL_TIME)
+  category           EmployeeCategory     @default(NON_TECHNICAL)
+  employeeStatus     EmployeeStatus       @default(ACTIVE)
+  hireDate           DateTime?
+  confirmationDate   DateTime?
+  endDate            DateTime?
+  managerId          String?
+  departmentLeadId   String?
+  teamId             String?
+  bankName           String?
+  bankAccountNo      String?
+  bankAccountName    String?
+  pensionPin         String?
+  tin                String?
+  nhfNo              String?
+  grossSalary        Float?
+  nokName            String?
+  nokPhone           String?
+  nokRelationship    String?
+  nokAddress         String?
+  onProbation        Boolean              @default(false)
+  probationEndDate   DateTime?
+  annualLeaveBalance Int                  @default(21)
+  sickLeaveBalance   Int                  @default(14)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  appraisals         Appraisal[]
+  docAcks            DocAck[]
+  documents          Document[]
+  department         Department?          @relation(fields: [departmentId], references: [id])
+  departmentLead     Employee?            @relation("DeptLeadRelation", fields: [departmentLeadId], references: [id])
+  deptLeadOf         Employee[]           @relation("DeptLeadRelation")
+  manager            Employee?            @relation("ManagerRelation", fields: [managerId], references: [id])
+  directReports      Employee[]           @relation("ManagerRelation")
+  team               Team?                @relation("TeamMembership", fields: [teamId], references: [id])
+  ledTeams           Team[]               @relation("TeamHead")
+  profileUpdateRequests ProfileUpdateRequest[]
+  personalDocuments  PersonalDocument[]
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  feedbackGiven      Feedback[]           @relation("FeedbackGiver")
+  feedbackReceived   Feedback[]           @relation("FeedbackReceiver")
+  jobApplications    JobApplication[]
+  kpis               KPI[]
+  leaveApprovals     LeaveApproval[]
+  leaveBalances      LeaveBalance[]
+  reliefAssignments  LeaveReliefOfficer[] @relation("ReliefAssignments")
+  leaveRequests      LeaveRequest[]       @relation("EmployeeLeave")
+  reliefFor          LeaveRequest[]       @relation("ReliefOfficer")
+  notifications      Notification[]       @relation("EmployeeNotifications")
+  offboarding        Offboarding?
+  onboardingTasks    OnboardingTask[]
   projectAssignments ProjectAssignment[]
-  successionPlans  SuccessionPlan[] @relation("SuccessorEmployee")
-  successionRoles  SuccessionPlan[] @relation("CurrentRoleEmployee")
-  notifications    Notification[] @relation("EmployeeNotifications")
-
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  successionRoles    SuccessionPlan[]     @relation("CurrentRoleEmployee")
+  successionPlans    SuccessionPlan[]     @relation("SuccessorEmployee")
+  weeklyReports      WeeklyReport[]
+  payslips           Payslip[]
 }
 
 model Document {
   id           String       @id @default(cuid())
   employeeId   String
-  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   name         String
   type         DocumentType
   fileUrl      String
@@ -201,122 +202,192 @@ model Document {
   notes        String?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+  employee     Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
-// ─── RECRUITMENT (ATS) ──────────────────────────────────────────────────────
+model Announcement {
+  id            String              @id @default(cuid())
+  title         String
+  body          String?             @db.Text
+  type          AnnouncementType    @default(TEXT)
+  videoUrl      String?
+  imageUrl      String?
+  behavior      AnnouncementBehavior @default(NOTIFICATION_BAR)
+  status        AnnouncementStatus  @default(DRAFT)
+  targetRoles   String[]            @default([])
+  sendEmail     Boolean             @default(false)
+  publishedAt   DateTime?
+  retiredAt     DateTime?
+  createdById   String
+  createdBy     User                @relation("AnnouncementCreator", fields: [createdById], references: [id])
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+}
+
+enum AnnouncementType {
+  TEXT
+  IMAGE
+  VIDEO
+}
+
+enum AnnouncementBehavior {
+  POPUP
+  NOTIFICATION_BAR
+  DASHBOARD_SCROLL
+  EMAIL_ONLY
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+  RETIRED
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model OrgDocument {
+  id              String         @id @default(cuid())
+  title           String
+  category        OrgDocCategory @default(OTHER)
+  description     String?
+  fileUrl         String
+  fileSize        Int?
+  mimeType        String?
+  canView         Boolean        @default(true)
+  canDownload     Boolean        @default(false)
+  canCopy         Boolean        @default(true)
+  requiresAck     Boolean        @default(false)
+  isActive        Boolean        @default(true)
+  uploadedById    String
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  acknowledgments DocAck[]
+  uploadedBy      User           @relation("OrgDocUploader", fields: [uploadedById], references: [id])
+}
+
+model DocAck {
+  id             String      @id @default(cuid())
+  documentId     String
+  employeeId     String
+  acknowledged   Boolean     @default(false)
+  acknowledgedAt DateTime?
+  signatureUrl   String?
+  createdAt      DateTime    @default(now())
+  document       OrgDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  employee       Employee    @relation(fields: [employeeId], references: [id])
+
+  @@unique([documentId, employeeId])
+}
 
 model JobPosting {
-  id               String         @id @default(cuid())
-  title            String
-  departmentId     String?
-  department       Department?    @relation(fields: [departmentId], references: [id])
-  description      String         @db.Text
-  requirements     String?        @db.Text
-  employmentType   EmploymentType @default(FULL_TIME)
-  location         String?
-  salaryMin        Float?
-  salaryMax        Float?
-  isInternal       Boolean        @default(false)
-  status           JobStatus      @default(DRAFT)
-  openDate         DateTime?
-  closeDate        DateTime?
-  requisitionId    String?
-  requisition      JobRequisition? @relation(fields: [requisitionId], references: [id])
-  applications     JobApplication[]
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  id             String           @id @default(cuid())
+  title          String
+  departmentId   String?
+  description    String
+  requirements   String?
+  employmentType EmploymentType   @default(FULL_TIME)
+  location       String?
+  salaryMin      Float?
+  salaryMax      Float?
+  isInternal     Boolean          @default(false)
+  status         JobStatus        @default(DRAFT)
+  openDate       DateTime?
+  closeDate      DateTime?
+  requisitionId  String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  applications   JobApplication[]
+  department     Department?      @relation(fields: [departmentId], references: [id])
+  requisition    JobRequisition?  @relation(fields: [requisitionId], references: [id])
 }
 
 model JobRequisition {
-  id             String        @id @default(cuid())
+  id             String            @id @default(cuid())
   title          String
   departmentId   String?
-  description    String?       @db.Text
-  employmentType EmploymentType @default(FULL_TIME)
-  isInternal     Boolean       @default(false)
+  description    String?
+  employmentType EmploymentType    @default(FULL_TIME)
+  isInternal     Boolean           @default(false)
   status         RequisitionStatus @default(PENDING)
   requestedById  String?
   approvedById   String?
   approvedAt     DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   jobPostings    JobPosting[]
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
 }
 
 model JobApplication {
   id              String            @id @default(cuid())
   jobPostingId    String
-  jobPosting      JobPosting        @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
   employeeId      String?
-  employee        Employee?         @relation(fields: [employeeId], references: [id])
-
-  // Candidate info (external)
   candidateName   String
   candidateEmail  String
   candidatePhone  String?
   resumeUrl       String?
-  coverLetter     String?           @db.Text
-
+  coverLetter     String?
   stage           ApplicationStage  @default(APPLICATION)
   status          ApplicationStatus @default(ACTIVE)
-  notes           String?           @db.Text
+  notes           String?
   rejectionReason String?
-
-  interviews      Interview[]
-  offer           Offer?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
+  interviews      Interview[]
+  employee        Employee?         @relation(fields: [employeeId], references: [id])
+  jobPosting      JobPosting        @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
+  offer           Offer?
 }
 
 model Interview {
-  id            String           @id @default(cuid())
+  id            String          @id @default(cuid())
   applicationId String
-  application   JobApplication   @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   scheduledAt   DateTime
-  type          InterviewType    @default(TECHNICAL)
+  type          InterviewType   @default(TECHNICAL)
   interviewers  String?
   location      String?
-  notes         String?          @db.Text
-  feedback      String?          @db.Text
+  notes         String?
+  feedback      String?
   rating        Int?
-  status        InterviewStatus  @default(SCHEDULED)
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  status        InterviewStatus @default(SCHEDULED)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  application   JobApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 }
 
 model Offer {
-  id            String        @id @default(cuid())
-  applicationId String        @unique
-  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  id            String         @id @default(cuid())
+  applicationId String         @unique
   salary        Float
   startDate     DateTime?
   expiryDate    DateTime?
-  status        OfferStatus   @default(PENDING)
-  terms         String?       @db.Text
-  version       Int           @default(1)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  status        OfferStatus    @default(PENDING)
+  terms         String?
+  version       Int            @default(1)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 }
 
-// ─── ONBOARDING ─────────────────────────────────────────────────────────────
-
 model OnboardingTask {
-  id          String            @id @default(cuid())
+  id          String             @id @default(cuid())
   employeeId  String
-  employee    Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   title       String
   description String?
   category    OnboardingCategory @default(HR)
   assignedTo  String?
   dueDate     DateTime?
-  status      TaskStatus        @default(PENDING)
+  status      TaskStatus         @default(PENDING)
   completedAt DateTime?
   notes       String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  employee    Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
-
-// ─── LEAVE MANAGEMENT ───────────────────────────────────────────────────────
 
 model LeaveType {
   id              String         @id @default(cuid())
@@ -330,9 +401,10 @@ model LeaveType {
   requiresDoc     Boolean        @default(false)
   minDocDays      Int            @default(2)
   isActive        Boolean        @default(true)
-  leaveRequests   LeaveRequest[]
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
+  leaveBalances   LeaveBalance[]
+  leaveRequests   LeaveRequest[]
 }
 
 model PublicHoliday {
@@ -353,286 +425,317 @@ model LeaveFreezeperiod {
 }
 
 model LeaveRequest {
-  id              String         @id @default(cuid())
-  employeeId      String
-  employee        Employee       @relation("EmployeeLeave", fields: [employeeId], references: [id], onDelete: Cascade)
-  departmentId    String?
-  department      Department?    @relation(fields: [departmentId], references: [id])
-  leaveTypeId     String
-  leaveType       LeaveType      @relation(fields: [leaveTypeId], references: [id])
-  startDate       DateTime
-  endDate         DateTime
-  days            Int
-  reason          String         @db.Text
-  handoverNotes   String?        @db.Text
-  documentUrl     String?
-  status          LeaveStatus    @default(PENDING)
-  version         Int            @default(1)
-  reliefOfficers  LeaveRequest[] @relation("LeaveReliefOfficers")
-  parentLeave     LeaveRequest?  @relation("LeaveReliefOfficers", fields: [parentLeaveId], references: [id])
-  parentLeaveId   String?
-  reliefEmployee  Employee?      @relation("ReliefOfficer", fields: [reliefEmployeeId], references: [id])
-  reliefEmployeeId String?
-  approvals       LeaveApproval[]
-  resumedAt       DateTime?
-  reliefRating    Int?
-  reliefComment   String?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  id                 String               @id @default(cuid())
+  employeeId         String
+  departmentId       String?
+  leaveTypeId        String
+  startDate          DateTime
+  endDate            DateTime
+  days               Int
+  reason             String
+  handoverNotes      String?
+  documentUrl        String?
+  status             LeaveStatus          @default(PENDING)
+  version            Int                  @default(1)
+  parentLeaveId      String?
+  reliefEmployeeId   String?
+  resumedAt          DateTime?
+  reliefRating       Int?
+  reliefComment      String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  ratingPromptShown  Boolean              @default(false)
+  teamLeadIds        String?
+  approvals          LeaveApproval[]
+  reliefOfficersList LeaveReliefOfficer[]
+  department         Department?          @relation(fields: [departmentId], references: [id])
+  employee           Employee             @relation("EmployeeLeave", fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType          LeaveType            @relation(fields: [leaveTypeId], references: [id])
+  parentLeave        LeaveRequest?        @relation("LeaveReliefOfficers", fields: [parentLeaveId], references: [id])
+  reliefOfficers     LeaveRequest[]       @relation("LeaveReliefOfficers")
+  reliefEmployee     Employee?            @relation("ReliefOfficer", fields: [reliefEmployeeId], references: [id])
 }
 
 model LeaveApproval {
-  id            String        @id @default(cuid())
+  id             String          @id @default(cuid())
   leaveRequestId String
-  leaveRequest  LeaveRequest  @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
-  employeeId    String
-  employee      Employee      @relation(fields: [employeeId], references: [id])
-  stage         ApprovalStage
-  action        ApprovalAction?
-  comment       String?
-  actedAt       DateTime?
-  deadline      DateTime
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  employeeId     String
+  stage          ApprovalStage
+  action         ApprovalAction?
+  comment        String?
+  actedAt        DateTime?
+  deadline       DateTime
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  employee       Employee        @relation(fields: [employeeId], references: [id])
+  leaveRequest   LeaveRequest    @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
 }
 
-// ─── PERFORMANCE ────────────────────────────────────────────────────────────
-
 model PerformanceCycle {
-  id          String    @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
   year        Int
-  half        Int       @default(1)
+  half        Int         @default(1)
   startDate   DateTime
   endDate     DateTime
   kpiDeadline DateTime?
-  isActive    Boolean   @default(false)
-  kpis        KPI[]
+  isActive    Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
   appraisals  Appraisal[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  kpis        KPI[]
 }
 
 model KPI {
-  id             String          @id @default(cuid())
-  employeeId     String
-  employee       Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  cycleId        String
-  cycle          PerformanceCycle @relation(fields: [cycleId], references: [id])
-  title          String
-  description    String?         @db.Text
-  keyResultArea  String?
-  weight         Float
-  target         String?
-  deadline       DateTime?
-  projectName    String?
-  ownerId        String?
-  status         KPIStatus       @default(DRAFT)
-  kpiStatus      KPIProgressStatus @default(NOT_STARTED)
-  progress       Int             @default(0)
-  evidenceUrl    String?
-  selfScore      Float?
-  managerScore   Float?
-  finalScore     Float?
-  comments       String?         @db.Text
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id            String            @id @default(cuid())
+  employeeId    String
+  cycleId       String
+  title         String
+  description   String?
+  keyResultArea String?
+  weight        Float
+  target        String?
+  deadline      DateTime?
+  projectName   String?
+  ownerId       String?
+  status        KPIStatus         @default(DRAFT)
+  kpiStatus     KPIProgressStatus @default(NOT_STARTED)
+  progress      Int               @default(0)
+  evidenceUrl   String?
+  selfScore     Float?
+  managerScore  Float?
+  finalScore    Float?
+  comments      String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  cycle         PerformanceCycle  @relation(fields: [cycleId], references: [id])
+  employee      Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model Appraisal {
-  id               String          @id @default(cuid())
+  id               String           @id @default(cuid())
   employeeId       String
-  employee         Employee        @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   cycleId          String
-  cycle            PerformanceCycle @relation(fields: [cycleId], references: [id])
   kpiScore         Float?
   behavioralScore  Float?
   finalScore       Float?
   performanceBand  PerformanceBand?
-  status           AppraisalStatus @default(PENDING)
-  selfCompleted    Boolean         @default(false)
-  managerCompleted Boolean         @default(false)
-  arcCompleted     Boolean         @default(false)
-  comments         String?         @db.Text
+  status           AppraisalStatus  @default(PENDING)
+  selfCompleted    Boolean          @default(false)
+  managerCompleted Boolean          @default(false)
+  arcCompleted     Boolean          @default(false)
+  comments         String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  cycle            PerformanceCycle @relation(fields: [cycleId], references: [id])
+  employee         Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   feedbacks        Feedback[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
 }
 
 model Feedback {
   id          String       @id @default(cuid())
   appraisalId String?
-  appraisal   Appraisal?   @relation(fields: [appraisalId], references: [id])
   giverId     String
-  giver       Employee     @relation("FeedbackGiver", fields: [giverId], references: [id])
   receiverId  String
-  receiver    Employee     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
   type        FeedbackType @default(PEER)
   rating      Float?
-  comment     String?      @db.Text
+  comment     String?
   isAnonymous Boolean      @default(false)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  appraisal   Appraisal?   @relation(fields: [appraisalId], references: [id])
+  giver       Employee     @relation("FeedbackGiver", fields: [giverId], references: [id])
+  receiver    Employee     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
 }
 
-// ─── INTERN MANAGEMENT ──────────────────────────────────────────────────────
-
 model WeeklyReport {
-  id           String             @id @default(cuid())
-  employeeId   String
-  employee     Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  weekStart    DateTime
-  weekEnd      DateTime
-  entries      WeeklyReportEntry[]
-  status       ReportStatus       @default(DRAFT)
-  supervisorId String?
-  totalScore   Float?
-  submittedAt  DateTime?
-  reviewedAt   DateTime?
+  id            String              @id @default(cuid())
+  employeeId    String
+  weekStart     DateTime
+  weekEnd       DateTime
+  status        ReportStatus        @default(DRAFT)
+  supervisorId  String?
+  totalScore    Float?
+  submittedAt   DateTime?
+  reviewedAt    DateTime?
   reviewComment String?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  employee      Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  entries       WeeklyReportEntry[]
 }
 
 model WeeklyReportEntry {
   id          String       @id @default(cuid())
   reportId    String
-  report      WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
   date        DateTime
   task        String
   project     String?
   duration    Float
-  description String       @db.Text
-  outcome     String?      @db.Text
-  learnings   String?      @db.Text
-  challenges  String?      @db.Text
+  description String
+  outcome     String?
+  learnings   String?
+  challenges  String?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  report      WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
 }
 
-// ─── PROJECTS ───────────────────────────────────────────────────────────────
-
 model Project {
-  id           String              @id @default(cuid())
-  name         String
-  description  String?             @db.Text
-  ownerId      String?
-  status       ProjectStatus       @default(ACTIVE)
-  startDate    DateTime?
-  endDate      DateTime?
-  assignments  ProjectAssignment[]
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
+  id          String              @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String?
+  status      ProjectStatus       @default(ACTIVE)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  assignments ProjectAssignment[]
 }
 
 model ProjectAssignment {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   projectId  String
-  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   employeeId String
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   role       String?
   startDate  DateTime?
   endDate    DateTime?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime  @default(now())
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, employeeId])
 }
 
-// ─── OFFBOARDING ────────────────────────────────────────────────────────────
-
 model Offboarding {
-  id            String            @id @default(cuid())
-  employeeId    String            @unique
-  employee      Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  exitType      ExitType
+  id             String            @id @default(cuid())
+  employeeId     String            @unique
+  exitType       ExitType
   lastWorkingDay DateTime
-  reason        String?           @db.Text
-  status        OffboardingStatus @default(INITIATED)
-  exitInterview ExitInterview?
-  tasks         OffboardingTask[]
-  initiatedAt   DateTime          @default(now())
-  completedAt   DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  reason         String?
+  status         OffboardingStatus @default(INITIATED)
+  initiatedAt    DateTime          @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  exitInterview  ExitInterview?
+  employee       Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  tasks          OffboardingTask[]
 }
 
 model OffboardingTask {
-  id            String       @id @default(cuid())
+  id            String      @id @default(cuid())
   offboardingId String
-  offboarding   Offboarding  @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
   title         String
   assignedTo    String?
   category      String?
-  status        TaskStatus   @default(PENDING)
+  status        TaskStatus  @default(PENDING)
   dueDate       DateTime?
   completedAt   DateTime?
   notes         String?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  offboarding   Offboarding @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
 }
 
 model ExitInterview {
   id            String      @id @default(cuid())
   offboardingId String      @unique
-  offboarding   Offboarding @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
   responses     Json?
   isAnonymous   Boolean     @default(false)
   completedAt   DateTime?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  offboarding   Offboarding @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
 }
-
-// ─── SUCCESSION PLANNING ────────────────────────────────────────────────────
 
 model SuccessionPlan {
-  id              String         @id @default(cuid())
+  id              String             @id @default(cuid())
   roleTitle       String
   currentHolderId String?
-  currentHolder   Employee?      @relation("CurrentRoleEmployee", fields: [currentHolderId], references: [id])
-  isCritical      Boolean        @default(false)
-  riskLevel       RiskLevel      @default(HIGH)
+  isCritical      Boolean            @default(false)
+  riskLevel       RiskLevel          @default(HIGH)
   successorId     String?
-  successor       Employee?      @relation("SuccessorEmployee", fields: [successorId], references: [id])
   readiness       SuccessorReadiness @default(LONG_TERM)
-  developmentPlan String?        @db.Text
-  notes           String?        @db.Text
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  developmentPlan String?
+  notes           String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  currentHolder   Employee?          @relation("CurrentRoleEmployee", fields: [currentHolderId], references: [id])
+  successor       Employee?          @relation("SuccessorEmployee", fields: [successorId], references: [id])
 }
 
-// ─── NOTIFICATIONS ──────────────────────────────────────────────────────────
+model LeaveBalance {
+  id          String    @id @default(cuid())
+  employeeId  String
+  leaveTypeId String
+  year        Int
+  allocated   Int       @default(0)
+  used        Int       @default(0)
+  pending     Int       @default(0)
+  carriedOver Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique([employeeId, leaveTypeId, year])
+}
+
+model LeaveReliefOfficer {
+  id             String       @id @default(cuid())
+  leaveRequestId String
+  employeeId     String
+  status         ReliefStatus @default(PENDING)
+  acceptedAt     DateTime?
+  declinedAt     DateTime?
+  comment        String?
+  rating         Int?
+  ratingComment  String?
+  ratedAt        DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  employee       Employee     @relation("ReliefAssignments", fields: [employeeId], references: [id])
+  leaveRequest   LeaveRequest @relation(fields: [leaveRequestId], references: [id], onDelete: Cascade)
+
+  @@unique([leaveRequestId, employeeId])
+}
 
 model Notification {
-  id         String   @id @default(cuid())
+  id         String           @id @default(cuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   employeeId String?
-  employee   Employee? @relation("EmployeeNotifications", fields: [employeeId], references: [id])
   title      String
   message    String
   type       NotificationType @default(INFO)
-  isRead     Boolean  @default(false)
+  isRead     Boolean          @default(false)
   link       String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime         @default(now())
+  employee   Employee?        @relation("EmployeeNotifications", fields: [employeeId], references: [id])
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-
-// ─── AUDIT LOGS ─────────────────────────────────────────────────────────────
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  userId     String?
-  user       User?    @relation(fields: [userId], references: [id])
-  action     String
-  entity     String
-  entityId   String?
-  oldValues  Json?
-  newValues  Json?
-  ipAddress  String?
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  oldValues Json?
+  newValues Json?
+  ipAddress String?
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
 }
 
-// ─── ENUMS ──────────────────────────────────────────────────────────────────
+enum OrgDocCategory {
+  ONBOARDING
+  POLICY
+  SOP
+  TEMPLATE
+  OTHER
+}
 
 enum SystemRole {
   SUPER_ADMIN
@@ -646,6 +749,10 @@ enum SystemRole {
   TA_OFFICER
   PERFORMANCE_OFFICER
   AUDIT
+  PAYROLL_OFFICER
+  TEAM_LEAD
+  PROJECT_LEAD
+  RELIEF_OFFICER
 }
 
 enum Gender {
@@ -666,6 +773,11 @@ enum EmploymentType {
   CONTRACT
   INTERN
   NYSC
+}
+
+enum EmployeeCategory {
+  TECHNICAL
+  NON_TECHNICAL
 }
 
 enum EmployeeStatus {
@@ -751,6 +863,12 @@ enum TaskStatus {
   OVERDUE
 }
 
+enum ReliefStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 enum LeaveStatus {
   PENDING
   APPROVED
@@ -761,6 +879,7 @@ enum LeaveStatus {
 
 enum ApprovalStage {
   RELIEF_OFFICER
+  PROJECT_LEAD
   TEAM_LEAD
   MANAGER
   ADMIN
@@ -854,9 +973,94 @@ enum SuccessorReadiness {
   LONG_TERM
 }
 
+enum PayslipStatus {
+  DRAFT
+  PENDING
+  RELEASED
+}
+
+model Payslip {
+  id              String        @id @default(cuid())
+  employeeId      String
+  month           Int           // 1-12
+  year            Int
+  grossSalary     Float
+  basicSalary     Float
+  housing         Float         @default(0)
+  transport       Float         @default(0)
+  meal            Float         @default(0)
+  otherAllowances Float         @default(0)
+  payeTax         Float         @default(0)
+  pension         Float         @default(0)
+  nhf             Float         @default(0)
+  healthInsurance Float         @default(0)
+  otherDeductions Float         @default(0)
+  netPay          Float
+  status          PayslipStatus @default(DRAFT)
+  notes           String?
+  releasedAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, month, year])
+}
+
 enum NotificationType {
   INFO
   SUCCESS
   WARNING
   DANGER
+}
+
+enum ProfileUpdateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ProfileUpdateRequest {
+  id          String              @id @default(cuid())
+  employeeId  String
+  changes     Json
+  status      ProfileUpdateStatus @default(PENDING)
+  reviewedBy  String?
+  reviewNote  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  employee    Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer    User?               @relation(fields: [reviewedBy], references: [id])
+}
+
+enum PersonalDocType {
+  SSCE
+  FIRST_DEGREE
+  NYSC
+  PROFESSIONAL_CERT
+  UTILITY_BILL
+  OTHER
+}
+
+enum PersonalDocStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model PersonalDocument {
+  id          String            @id @default(cuid())
+  employeeId  String
+  type        PersonalDocType
+  fileUrl     String
+  fileName    String
+  notes       String?
+  status      PersonalDocStatus @default(PENDING)
+  reviewedBy  String?
+  reviewNote  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  employee    Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer    User?             @relation("PersonalDocReviewer", fields: [reviewedBy], references: [id])
 }

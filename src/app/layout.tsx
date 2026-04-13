@@ -15,13 +15,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Prevent flash of wrong theme */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function(){
-            var t = localStorage.getItem('dsn-theme') || 'light';
-            var dark = t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            var t = localStorage.getItem('dsn-theme');
+            var dark = t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches);
             if (dark) document.documentElement.classList.add('dark');
           })();
         ` }} />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <Providers><ThemeProvider>{children}</ThemeProvider></Providers>
       </body>
     </html>

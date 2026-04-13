@@ -24,7 +24,14 @@ export const authOptions: NextAuthOptions = {
         if (!user || !user.password) return null
         const valid = await bcrypt.compare(credentials.password, user.password)
         if (!valid) return null
-        return { id: user.id, email: user.email, name: user.name, role: user.role, employeeId: user.employee?.id, image: user.employee?.profilePhoto ?? user.image }
+        // Track last login time (non-fatal)
+        try { await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }) } catch {}
+        return {
+          id: user.id, email: user.email, name: user.name, role: user.role,
+          additionalRoles: user.additionalRoles ?? [],
+          employeeId: user.employee?.id, image: user.employee?.profilePhoto ?? user.image,
+          lastLoginAt: new Date().toISOString(),
+        }
       },
     }),
   ],
@@ -32,7 +39,9 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = (user as any).role
+        token.additionalRoles = (user as any).additionalRoles ?? []
         token.employeeId = (user as any).employeeId
+        token.lastLoginAt = (user as any).lastLoginAt
       }
       return token
     },
@@ -40,7 +49,9 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         ;(session.user as any).id = token.sub
         ;(session.user as any).role = token.role
+        ;(session.user as any).additionalRoles = token.additionalRoles ?? []
         ;(session.user as any).employeeId = token.employeeId
+        ;(session.user as any).lastLoginAt = token.lastLoginAt
       }
       return session
     },

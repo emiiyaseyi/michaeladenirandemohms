@@ -1,0 +1,64 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { getDay, getHours } from "date-fns"
+
+// Called by a scheduler (or Vercel cron) every hour on weekdays.
+// Sends in-app notification to pending approvers whose deadline has passed
+// if within 8am–6pm window. Silences weekends.
+//
+// Protect with a shared secret: CRON_SECRET env var.
+
+export async function POST(req: NextRequest) {
+  const secret = req.headers.get("x-cron-secret")
+  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  }
+
+  const now = new Date()
+  const day = getDay(now) // 0=Sun, 6=Sat
+  const hour = getHours(now)
+
+  // Only run on weekdays 8am–6pm
+  if (day === 0 || day === 6 || hour < 8 || hour >= 18) {
+    return NextResponse.json({ ok: true, skipped: "outside window" })
+  }
+
+  // Find all PENDING leave requests with overdue approvals
+  const overdueApprovals = await prisma.leaveApproval.findMany({
+    where: {
+      action: null,
+      deadline: { lt: now },
+      leaveRequest: { status: "PENDING" },
+    },
+    include: {
+      employee: { select: { id: true, firstName: true, lastName: true, userId: true } },
+      leaveRequest: {
+        include: {
+          employee: { select: { firstName: true, lastName: true } },
+          leaveType: { select: { name: true } },
+        },
+      },
+    },
+  })
+
+  if (overdueApprovals.length === 0) {
+    return NextResponse.json({ ok: true, nudged: 0 })
+  }
+
+  const notifications = overdueApprovals.map(approval => {
+    const requester = `${approval.leaveRequest.employee.firstName} ${approval.leaveRequest.employee.lastName}`
+    const leaveTypeName = approval.leaveRequest.leaveType.name
+    return {
+      userId: approval.employee.userId,
+      employeeId: approval.employee.id,
+      title: "Leave Approval Overdue",
+      message: `Your approval is overdue for ${requester}'s ${leaveTypeName} leave request. Please review and take action.`,
+      type: "WARNING" as const,
+      link: `/leave?highlight=${approval.leaveRequestId}`,
+    }
+  })
+
+  await prisma.notification.createMany({ data: notifications })
+
+  return NextResponse.json({ ok: true, nudged: overdueApprovals.length })
+}
