@@ -6,8 +6,9 @@ import { Eye, EyeOff, Leaf, ArrowRight, Loader2 } from "lucide-react"
 
 const stats = [["200+","Employees"],["8","Departments"],["36","States"],["7+","Years"]]
 const demos = [
-  ["Super Admin",  "admin@datasciencenigeria.ai", "Admin@DSN2024!"],
-  ["HR Admin",     "hr@datasciencenigeria.ai",    "Welcome@DSN1"],
+  ["Super Admin",  "admin@datasciencenigeria.ai",         "Admin@DSN2024!"],
+  ["HR Admin",     "hr@datasciencenigeria.ai",            "dsn-staff"],
+  ["Staff",        "emeka.okonkwo@datasciencenigeria.ai", "dsn-staff"],
 ]
 
 export default function LoginPage() {
