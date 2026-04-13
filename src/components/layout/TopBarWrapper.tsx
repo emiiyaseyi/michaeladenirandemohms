@@ -4,7 +4,11 @@ import TopBar from "./TopBar"
 
 const titles: Record<string, string> = {
   "/dashboard":      "Dashboard",
+  "/self-service/payslips": "My Payslips",
   "/self-service":   "Self Service",
+  "/employees/teams": "Teams",
+  "/employees/profile-requests": "Profile Update Requests",
+  "/employees/personal-docs":    "Personal Documents",
   "/employees":      "Employees",
   "/leave":          "Leave Management",
   "/projects":       "Projects",

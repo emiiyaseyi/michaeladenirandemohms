@@ -1,11 +1,11 @@
 "use client"
-import { useState, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import {
   BarChart2, Users, CalendarDays, TrendingUp, DollarSign, Clock,
-  FileText, Download, Plus, Calendar, ChevronRight, Mail,
+  FileText, Download, Plus, Calendar, ChevronRight, Mail, X,
 } from "lucide-react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -99,10 +99,32 @@ export default function ReportsPage() {
   const [dateTo, setDateTo] = useState("2026-03-31")
   const [department, setDepartment] = useState("all")
   const [empType, setEmpType] = useState("all")
-  const [status, setStatus] = useState("active")
+  const [status, setStatus] = useState("ACTIVE")
+  const [employeeId, setEmployeeId] = useState("all")
+  const [empSearch, setEmpSearch] = useState("")
+  const [empDropOpen, setEmpDropOpen] = useState(false)
+  const [departments, setDepartments] = useState<any[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
   const [selectedFormat, setSelectedFormat] = useState<"CSV" | "Excel" | "PDF">("PDF")
   const [scheduleOpen, setScheduleOpen] = useState(false)
   const [generating, setGenerating] = useState(false)
+  const empRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    fetch("/api/settings/departments").then(r => r.json()).then(d => setDepartments(d.departments ?? [])).catch(() => {})
+    fetch("/api/employees?status=ALL&limit=500").then(r => r.json()).then(d => setEmployees(d.employees ?? [])).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (!empRef.current?.contains(e.target as Node)) setEmpDropOpen(false) }
+    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h)
+  }, [])
+
+  const selectedEmp = employees.find(e => e.id === employeeId)
+  const filteredEmps = employees.filter(e => {
+    const q = empSearch.toLowerCase()
+    return `${e.firstName} ${e.lastName}`.toLowerCase().includes(q) || (e.employeeId ?? "").toLowerCase().includes(q)
+  })
 
   // Schedule form
   const [schedFreq, setSchedFreq] = useState("monthly")
@@ -189,7 +211,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Filters grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
               <div>
                 <label style={labelStyle}>Date From</label>
                 <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inp} />
@@ -202,28 +224,57 @@ export default function ReportsPage() {
                 <label style={labelStyle}>Department</label>
                 <select value={department} onChange={e => setDepartment(e.target.value)} style={inp}>
                   <option value="all">All Departments</option>
-                  <option value="engineering">Engineering</option>
-                  <option value="hr">Human Resources</option>
-                  <option value="finance">Finance</option>
-                  <option value="operations">Operations</option>
-                  <option value="marketing">Marketing</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
               <div>
                 <label style={labelStyle}>Employee Type</label>
                 <select value={empType} onChange={e => setEmpType(e.target.value)} style={inp}>
                   <option value="all">All</option>
-                  <option value="technical">Technical</option>
-                  <option value="non-technical">Non-Technical</option>
+                  <option value="TECHNICAL">Technical</option>
+                  <option value="NON_TECHNICAL">Non-Technical</option>
                 </select>
               </div>
               <div>
                 <label style={labelStyle}>Status</label>
                 <select value={status} onChange={e => setStatus(e.target.value)} style={inp}>
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
                   <option value="all">All</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                  <option value="EXITED">Exited</option>
+                  <option value="RETIRED">Retired</option>
                 </select>
+              </div>
+              {/* Single employee filter */}
+              <div ref={empRef} style={{ position: "relative" }}>
+                <label style={labelStyle}>Single Employee</label>
+                {selectedEmp ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--background)", fontSize: 13 }}>
+                    <span style={{ flex: 1, fontWeight: 600 }}>{selectedEmp.firstName} {selectedEmp.lastName} <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>· {selectedEmp.employeeId}</span></span>
+                    <button onClick={() => { setEmployeeId("all"); setEmpSearch("") }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--muted-foreground)", lineHeight: 1 }}><X size={13} /></button>
+                  </div>
+                ) : (
+                  <input
+                    value={empSearch}
+                    onChange={e => { setEmpSearch(e.target.value); setEmpDropOpen(true) }}
+                    onFocus={() => setEmpDropOpen(true)}
+                    placeholder="All employees"
+                    style={inp}
+                  />
+                )}
+                {empDropOpen && !selectedEmp && filteredEmps.length > 0 && (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+                    {filteredEmps.slice(0, 30).map(e => (
+                      <div key={e.id} onClick={() => { setEmployeeId(e.id); setEmpDropOpen(false); setEmpSearch("") }}
+                        style={{ padding: "9px 12px", cursor: "pointer", fontSize: 13 }}
+                        onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                        onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = ""}>
+                        <span style={{ fontWeight: 600 }}>{e.firstName} {e.lastName}</span>
+                        <span style={{ color: "var(--muted-foreground)", marginLeft: 8, fontSize: 11 }}>{e.employeeId}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

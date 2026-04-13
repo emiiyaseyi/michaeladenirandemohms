@@ -334,7 +334,7 @@ function HeroCard({ profile, onTakeTour }: { profile: any; onTakeTour: () => voi
 // ─── Quick Actions ────────────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
   { label:"Request Leave",   href:"/self-service/leave",        color:"#6366F1", icon:CalendarDays },
-  { label:"View Payslip",    href:"/payslips",                  color:"#10B981", icon:FileText },
+  { label:"View Payslip",    href:"/self-service/payslips",     color:"#10B981", icon:FileText },
   { label:"Set KPI Goals",   href:"/performance",               color:"#F59E0B", icon:Target },
   { label:"Take Appraisal",  href:"/performance",               color:"#EC4899", icon:TrendingUp },
   { label:"My Requisition",  href:"/self-service/requisitions", color:"#0EA5E9", icon:ShoppingBag },

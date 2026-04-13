@@ -78,6 +78,10 @@ const ROLE_VIEW_MAP: Record<string, { label: string; href: string; desc: string;
   PROJECT_MANAGER:     { label: "Project Manager", href: "/dashboard", desc: "Project oversight", icon: Briefcase },
   PERFORMANCE_OFFICER: { label: "Performance Officer", href: "/dashboard", desc: "Performance & appraisals", icon: Shield },
   TA_OFFICER:          { label: "TA Officer", href: "/dashboard", desc: "Talent acquisition", icon: Shield },
+  PAYROLL_OFFICER:     { label: "Payroll Officer", href: "/payslips", desc: "Payroll & payslips", icon: Shield },
+  TEAM_LEAD:           { label: "Team Lead", href: "/dashboard", desc: "Team management", icon: Shield },
+  PROJECT_LEAD:        { label: "Project Lead", href: "/dashboard", desc: "Project leadership", icon: Briefcase },
+  RELIEF_OFFICER:      { label: "Relief Officer", href: "/leave", desc: "Leave relief approvals", icon: Shield },
   AUDIT:               { label: "Auditor", href: "/dashboard", desc: "Audit & compliance", icon: Shield },
   STAFF:               { label: "Staff (Self Service)", href: "/self-service/profile", desc: "Personal profile & leave", icon: UserCircle },
   INTERN:              { label: "Intern (Self Service)", href: "/self-service/profile", desc: "Personal profile & leave", icon: UserCircle },
@@ -226,7 +230,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
       <h1 style={{ fontSize: 16, fontWeight: 700, color: "var(--foreground)", flex: 1, margin: 0 }}>{title}</h1>
 
       {/* ── Global Search ── */}
-      <div ref={containerRef} style={{ position: "relative" }}>
+      <div ref={containerRef} style={{ position: "relative", flexShrink: 0 }}>
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
           background: open ? "var(--card)" : "var(--muted)",
@@ -378,10 +382,9 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
                           body: JSON.stringify({ role }),
                         })
                         setSwitchOpen(false)
-                        // Navigate to the role's home, then hard reload to pick up new role cookie
-                        router.push(item.href)
-                        router.refresh()
-                      } finally {
+                        // Hard redirect so the new role cookie is fully picked up by the server layout
+                        window.location.href = item.href
+                      } catch {
                         setSwitching(null)
                       }
                     }}

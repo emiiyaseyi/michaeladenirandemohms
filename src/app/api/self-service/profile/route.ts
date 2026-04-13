@@ -111,9 +111,7 @@ export async function GET() {
         remaining: Math.max(0, balance.allocated - balance.used - balance.pending),
       }
     }
-    let allocated = lt.defaultDays
-    if (lt.name.toLowerCase().includes("annual")) allocated = employee.annualLeaveBalance
-    else if (lt.name.toLowerCase().includes("sick")) allocated = employee.sickLeaveBalance
+    const allocated = lt.defaultDays
     const usedDays = leaveRequests.filter(r => r.leaveTypeId === lt.id && r.status === "APPROVED" && new Date(r.endDate) < new Date()).reduce((s, r) => s + r.days, 0)
     const pendingDays = leaveRequests.filter(r => r.leaveTypeId === lt.id && r.status === "PENDING").reduce((s, r) => s + r.days, 0)
     return {

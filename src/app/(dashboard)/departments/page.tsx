@@ -41,8 +41,9 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
   useEffect(() => {
     if (!isAdmin) return
     fetch("/api/employees")
-      .then(r => r.json())
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(d => setAllEmployees(d.employees ?? []))
+      .catch(() => {})
   }, [isAdmin])
 
   const addEmployee = async (employeeId: string) => {
@@ -168,9 +169,25 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
 
 // ── Department Form Modal ─────────────────────────────────────────────────────
 function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () => void; onSuccess: () => void }) {
-  const [form, setForm] = useState({ name: dept?.name ?? "", description: dept?.description ?? "" })
+  const [form, setForm] = useState({ name: dept?.name ?? "", description: dept?.description ?? "", leadId: dept?.lead?.id ?? "" })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [employees, setEmployees] = useState<any[]>([])
+  const [empSearch, setEmpSearch] = useState("")
+
+  useEffect(() => {
+    fetch("/api/employees?status=ACTIVE")
+      .then(r => r.json())
+      .then(d => setEmployees(d.employees ?? []))
+  }, [])
+
+  const filteredEmps = employees.filter(e => {
+    if (!empSearch) return true
+    const q = empSearch.toLowerCase()
+    return `${e.firstName} ${e.lastName} ${e.employeeId}`.toLowerCase().includes(q)
+  })
+
+  const selectedLead = employees.find(e => e.id === form.leadId)
 
   const save = async () => {
     if (!form.name.trim()) { setError("Name is required"); return }
@@ -186,7 +203,7 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
   }
 
   return (
-    <Modal open onClose={onClose} title={dept ? "Edit Department" : "New Department"} width={440}>
+    <Modal open onClose={onClose} title={dept ? "Edit Department" : "New Department"} width={480}>
       <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
         <div>
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Name <span style={{ color: "var(--accent)" }}>*</span></label>
@@ -196,6 +213,62 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Description</label>
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} style={{ ...fi, resize: "vertical" }} placeholder="Optional description" />
         </div>
+
+        {/* Department Lead selector */}
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Department Lead</label>
+          {selectedLead ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--primary-50, rgba(11,92,46,0.07))", borderRadius: 8, border: "1.5px solid var(--primary)" }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white", flexShrink: 0 }}>
+                {selectedLead.firstName[0]}{selectedLead.lastName[0]}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--primary)" }}>{selectedLead.firstName} {selectedLead.lastName}</div>
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{selectedLead.jobTitle ?? ""}</div>
+              </div>
+              <button onClick={() => { setForm(f => ({ ...f, leadId: "" })); setEmpSearch("") }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
+                <X size={14} />
+              </button>
+            </div>
+          ) : (
+            <div style={{ position: "relative" }}>
+              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
+              <input
+                value={empSearch}
+                onChange={e => setEmpSearch(e.target.value)}
+                placeholder="Search employee to assign as lead…"
+                style={{ ...fi, paddingLeft: 30 }}
+              />
+              {empSearch && filteredEmps.length > 0 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto" }}>
+                  {filteredEmps.slice(0, 8).map(e => (
+                    <button key={e.id} onClick={() => { setForm(f => ({ ...f, leadId: e.id })); setEmpSearch("") }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer", textAlign: "left" }}
+                      onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                      onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = "transparent"}
+                    >
+                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "white", flexShrink: 0 }}>
+                        {e.firstName[0]}{e.lastName[0]}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
+                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.employeeId} · {e.jobTitle ?? ""}</div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {empSearch && filteredEmps.length === 0 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: 12, fontSize: 12, color: "var(--muted-foreground)", zIndex: 50 }}>
+                  No employees found
+                </div>
+              )}
+            </div>
+          )}
+          <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Optional. The lead will appear on the department card.</div>
+        </div>
+
         {error && <div style={{ color: "#EF4444", fontSize: 13, display: "flex", gap: 6 }}><AlertCircle size={14} />{error}</div>}
       </div>
       <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end" }}>

@@ -21,6 +21,11 @@ export default function EditEmployeeModal({ employee, departments, employees: al
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [saved, setSaved] = useState(false)
+  const [teams, setTeams] = useState<any[]>([])
+
+  useEffect(() => {
+    fetch("/api/teams").then(r => r.ok ? r.json() : { teams: [] }).then(d => setTeams(d.teams ?? []))
+  }, [])
 
   useEffect(() => {
     if (!employee) return
@@ -51,6 +56,7 @@ export default function EditEmployeeModal({ employee, departments, employees: al
       confirmationDate: employee.confirmationDate ? employee.confirmationDate.split("T")[0] : "",
       managerId: employee.managerId ?? "",
       departmentLeadId: employee.departmentLeadId ?? "",
+      teamId: employee.teamId ?? "",
       grossSalary: employee.grossSalary ?? "",
       annualLeaveBalance: employee.annualLeaveBalance ?? 21,
       sickLeaveBalance: employee.sickLeaveBalance ?? 14,
@@ -64,8 +70,40 @@ export default function EditEmployeeModal({ employee, departments, employees: al
     })
   }, [employee])
 
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }))
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const value = e.target.value
+    setForm(f => {
+      const updated = { ...f, [k]: value }
+
+      // Auto-fill manager and dept lead based on department selection
+      if (k === "departmentId" && value) {
+        const deptEmps = allEmployees.filter((emp: any) => emp.departmentId === value && emp.id !== employee?.id)
+        const mgr = deptEmps.find((emp: any) => emp.user?.role === "MANAGER" || emp.user?.role === "DEPARTMENT_LEAD")
+        const lead = deptEmps.find((emp: any) => emp.user?.role === "DEPARTMENT_LEAD")
+        const mgrAny = deptEmps.find((emp: any) => emp.user?.role === "MANAGER")
+        if (lead) updated.departmentLeadId = lead.id
+        if (mgrAny) updated.managerId = mgrAny.id
+        else if (mgr) updated.managerId = mgr.id
+      }
+
+      // Auto-fill based on team selection
+      if (k === "teamId" && value) {
+        const team = teams.find((t: any) => t.id === value)
+        if (team) {
+          // Auto-fill department from team
+          if (team.department?.id) updated.departmentId = team.department.id
+          // Auto-fill manager from team head
+          if (team.head?.id) updated.managerId = team.head.id
+          // Auto-fill dept lead from department's lead
+          const deptEmps = allEmployees.filter((emp: any) => emp.departmentId === team.department?.id && emp.id !== employee?.id)
+          const lead = deptEmps.find((emp: any) => emp.user?.role === "DEPARTMENT_LEAD")
+          if (lead) updated.departmentLeadId = lead.id
+        }
+      }
+
+      return updated
+    })
+  }
 
   const save = async () => {
     setLoading(true); setError("")
@@ -145,7 +183,18 @@ export default function EditEmployeeModal({ employee, departments, employees: al
           {inp("Annual Leave Balance", "annualLeaveBalance", "number")}
           {inp("Sick Leave Balance", "sickLeaveBalance", "number")}
 
-          {section("Reporting")}
+          {section("Team & Reporting")}
+          <F label="Team">
+            <select value={form.teamId ?? ""} onChange={set("teamId")} style={fi}>
+              <option value="">No team</option>
+              {teams.map((t: any) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}{t.department ? ` · ${t.department.name}` : ""}
+                </option>
+              ))}
+            </select>
+          </F>
+          <div />
           <F label="Manager">
             <select value={form.managerId ?? ""} onChange={set("managerId")} style={fi}>
               <option value="">None</option>
@@ -158,6 +207,12 @@ export default function EditEmployeeModal({ employee, departments, employees: al
               {reportingOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </F>
+          {(form.managerId || form.departmentLeadId) && (
+            <div style={{ gridColumn: "1/-1", fontSize: 11, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success, #1A7336)", display: "inline-block" }} />
+              Auto-filled from team/department. Adjust manually if needed.
+            </div>
+          )}
 
           {section("System Access & Roles")}
           <F label="Primary Role">

@@ -10,7 +10,7 @@ import EmptyState from "@/components/ui/EmptyState"
 import {
   CalendarDays, Plus, Check, X, Clock, ChevronRight, ChevronLeft,
   AlertCircle, Users, Loader2, Info, Eye, Search, Trash2, Edit3,
-  CalendarCheck, ArrowLeft, ShieldCheck, MessageSquare, Star,
+  CalendarCheck, ArrowLeft, ShieldCheck, MessageSquare, Star, Bell,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
@@ -447,7 +447,24 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
 
 // ── Leave Detail Popup ────────────────────────────────────────────────────────
 
-function LeaveDetailModal({ req, onClose }: { req: any; onClose: () => void }) {
+function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => void; isAdmin?: boolean }) {
+  const [nudging, setNudging] = useState<string | null>(null)
+  const [nudged, setNudged] = useState<Record<string, boolean>>({})
+
+  const nudgeStage = async (stage: string) => {
+    setNudging(stage)
+    try {
+      const r = await fetch(`/api/leave/${req.id}/nudge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ stage }),
+      })
+      if (r.ok) setNudged(prev => ({ ...prev, [stage]: true }))
+    } finally {
+      setNudging(null)
+    }
+  }
+
   if (!req) return null
   return (
     <Modal open onClose={onClose} title="Leave Request Details" width={580}>
@@ -516,6 +533,17 @@ function LeaveDetailModal({ req, onClose }: { req: any; onClose: () => void }) {
                     </div>
                     {stageApprovals.length === 1 && a?.action && <Badge status={a.action ?? "PENDING"} />}
                     {stageApprovals.length === 1 && pending && a?.deadline && <CountdownTimer deadline={a.deadline} />}
+                    {isAdmin && pending && (
+                      <button
+                        onClick={() => nudgeStage(stage)}
+                        disabled={nudging === stage || nudged[stage]}
+                        title="Send reminder to approver"
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged[stage] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged[stage] ? "var(--success)" : "var(--warning)", cursor: nudging === stage ? "wait" : nudged[stage] ? "default" : "pointer", flexShrink: 0 }}
+                      >
+                        <Bell size={10} />
+                        {nudged[stage] ? "Sent!" : nudging === stage ? "…" : "Nudge"}
+                      </button>
+                    )}
                   </div>
                   {/* Multiple approvers — show each row */}
                   {stageApprovals.length > 1 && (
@@ -1293,7 +1321,7 @@ export default function LeavePage() {
       <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} />
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
       {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} onClose={() => setEditLeave(null)} onDone={load} />}
-      {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} />}
+      {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} />}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )

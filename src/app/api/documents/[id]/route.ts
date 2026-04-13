@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params
   const body = await req.json()
-  const { title, category, description, canView, canDownload, requiresAck } = body
+  const { title, category, description, canView, canDownload, requiresAck, canCopy } = body
 
   const doc = await prisma.orgDocument.update({
     where: { id },
@@ -22,6 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       ...(canView !== undefined && { canView }),
       ...(canDownload !== undefined && { canDownload }),
       ...(requiresAck !== undefined && { requiresAck }),
+      ...(canCopy !== undefined && { canCopy }),
     },
     include: { uploadedBy: { select: { name: true } } },
   })

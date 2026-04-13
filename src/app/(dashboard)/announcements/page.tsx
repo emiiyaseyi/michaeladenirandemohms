@@ -63,6 +63,30 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [imgFile, setImgFile] = useState<File | null>(null)
+  const [imgPreview, setImgPreview] = useState<string>(ann?.imageUrl ?? "")
+  const [uploading, setUploading] = useState(false)
+  const imgRef = useRef<HTMLInputElement>(null)
+
+  const handleImgFile = (file: File) => {
+    setImgFile(file)
+    const reader = new FileReader()
+    reader.onload = e => setImgPreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!imgFile) return form.imageUrl || null
+    setUploading(true)
+    const fd = new FormData()
+    fd.append("file", imgFile)
+    fd.append("folder", "announcements")
+    const r = await fetch("/api/upload", { method: "POST", body: fd })
+    setUploading(false)
+    if (!r.ok) { const d = await r.json(); setError(d.error ?? "Image upload failed"); return null }
+    const d = await r.json()
+    return d.url
+  }
 
   const toggleRole = (r: string) => setForm(f => ({
     ...f,
@@ -72,7 +96,13 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
   const save = async (publishNow = false) => {
     if (!form.title.trim()) { setError("Title is required"); return }
     setLoading(true); setError("")
-    const payload = { ...form, status: publishNow ? "PUBLISHED" : form.status }
+    let imageUrl = form.imageUrl
+    if (form.type === "IMAGE" && imgFile) {
+      const uploaded = await uploadImage()
+      if (!uploaded) { setLoading(false); return }
+      imageUrl = uploaded
+    }
+    const payload = { ...form, imageUrl, status: publishNow ? "PUBLISHED" : form.status }
     const url = ann ? `/api/announcements/${ann.id}` : "/api/announcements"
     const method = ann ? "PATCH" : "POST"
     const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
@@ -119,11 +149,51 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
           </div>
         )}
         {form.type === "IMAGE" && (
-          <div>
-            <label style={{ display:"block", fontSize:12, fontWeight:600, marginBottom:5 }}>Image URL</label>
-            <input value={form.imageUrl} onChange={e => setForm(f=>({...f, imageUrl:e.target.value}))} placeholder="https://..." style={fi} />
-            <div style={{ fontSize:11, color:"var(--muted-foreground)", marginTop:4 }}>You can also add a caption below.</div>
-            <textarea value={form.body} onChange={e => setForm(f=>({...f, body:e.target.value}))} rows={2} placeholder="Caption (optional)…" style={{ ...fi, resize:"vertical", marginTop:8 }} />
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            {/* Upload or URL */}
+            <div>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, marginBottom:5 }}>Image</label>
+              <input ref={imgRef} type="file" accept="image/*" style={{ display:"none" }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleImgFile(f) }} />
+              <div
+                onClick={() => imgRef.current?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f && f.type.startsWith("image/")) handleImgFile(f) }}
+                style={{
+                  border: `2px dashed ${imgPreview ? "var(--primary)" : "var(--border)"}`,
+                  borderRadius:10, padding: imgPreview ? 0 : "24px 16px", cursor:"pointer",
+                  background:"var(--muted)", textAlign:"center", overflow:"hidden", minHeight: 80,
+                  display:"flex", alignItems:"center", justifyContent:"center",
+                }}
+              >
+                {imgPreview ? (
+                  <div style={{ position:"relative", width:"100%" }}>
+                    <img src={imgPreview} alt="preview" style={{ width:"100%", maxHeight:200, objectFit:"cover", display:"block" }} />
+                    <button onClick={e => { e.stopPropagation(); setImgFile(null); setImgPreview(""); setForm(f=>({...f,imageUrl:""})) }}
+                      style={{ position:"absolute", top:6, right:6, background:"rgba(0,0,0,0.6)", border:"none", borderRadius:"50%", width:24, height:24, cursor:"pointer", color:"white", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                      <X size={12} />
+                    </button>
+                    {imgFile && <div style={{ position:"absolute", bottom:6, left:6, fontSize:10, background:"rgba(0,0,0,0.55)", color:"white", padding:"2px 7px", borderRadius:4 }}>{imgFile.name}</div>}
+                  </div>
+                ) : (
+                  <div>
+                    <Image size={24} style={{ color:"var(--muted-foreground)", margin:"0 auto 6px" }} />
+                    <div style={{ fontSize:12, fontWeight:600, color:"var(--foreground)" }}>Click or drag to upload image</div>
+                    <div style={{ fontSize:11, color:"var(--muted-foreground)", marginTop:2 }}>PNG, JPG, GIF, WebP — or paste a URL below</div>
+                  </div>
+                )}
+              </div>
+              {!imgFile && (
+                <div style={{ marginTop:8 }}>
+                  <input value={form.imageUrl} onChange={e => { setForm(f=>({...f,imageUrl:e.target.value})); setImgPreview(e.target.value) }}
+                    placeholder="Or paste image URL: https://..." style={fi} />
+                </div>
+              )}
+            </div>
+            <div>
+              <label style={{ display:"block", fontSize:12, fontWeight:600, marginBottom:5 }}>Caption (optional)</label>
+              <textarea value={form.body} onChange={e => setForm(f=>({...f, body:e.target.value}))} rows={2} placeholder="Caption or description…" style={{ ...fi, resize:"vertical" }} />
+            </div>
           </div>
         )}
         {form.type === "VIDEO" && (

@@ -86,9 +86,10 @@ export default function SelfServicePage() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
         {services.map(({ icon: Icon, label, desc, href, color, badge }) => (
           <Link key={href} href={href} style={{ textDecoration: "none" }}>
-            <Card style={{ height: "100%", cursor: "pointer", transition: "all 0.15s" }}
-              onMouseEnter={(e: any) => { (e.currentTarget as HTMLElement).style.boxShadow = `0 0 0 2px ${color}40, var(--shadow-md)`; (e.currentTarget as HTMLElement).style.borderColor = `${color}60` }}
-              onMouseLeave={(e: any) => { (e.currentTarget as HTMLElement).style.boxShadow = ""; (e.currentTarget as HTMLElement).style.borderColor = "" }}
+            <div
+              style={{ height: "100%", cursor: "pointer", transition: "all 0.15s", background: "var(--card)", borderRadius: 12, border: "1px solid var(--border)", boxShadow: "0 1px 3px rgba(0,0,0,0.05)" }}
+              onMouseEnter={(e: any) => { (e.currentTarget as HTMLElement).style.boxShadow = `0 0 0 2px ${color}40`; (e.currentTarget as HTMLElement).style.borderColor = `${color}60` }}
+              onMouseLeave={(e: any) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 1px 3px rgba(0,0,0,0.05)"; (e.currentTarget as HTMLElement).style.borderColor = "" }}
             >
               <div style={{ padding: "20px 20px 16px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
@@ -105,7 +106,7 @@ export default function SelfServicePage() {
                 <div style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)", marginBottom: 6 }}>{label}</div>
                 <div style={{ fontSize: 12, color: "var(--muted-foreground)", lineHeight: 1.5 }}>{desc}</div>
               </div>
-            </Card>
+            </div>
           </Link>
         ))}
       </div>

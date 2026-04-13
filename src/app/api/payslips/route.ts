@@ -21,17 +21,24 @@ export async function GET(req: NextRequest) {
   const year = searchParams.get("year") ? Number(searchParams.get("year")) : undefined
   const employeeId = searchParams.get("employeeId") ?? undefined
 
-  // SUPER_ADMIN / HR_ADMIN can see all payslips
-  // Others can only see their own
+  const isPayrollAdmin = user.role === "SUPER_ADMIN" || user.role === "PAYROLL_OFFICER"
+
   let where: any = {}
-  if (c.canManageSettings || user.role === "SUPER_ADMIN" || user.role === "HR_ADMIN") {
+  if (isPayrollAdmin) {
     if (status) where.status = status
     if (month) where.month = month
     if (year) where.year = year
     if (employeeId) where.employeeId = employeeId
   } else {
     // Self: employee can view own released payslips
-    where.employeeId = user.employeeId
+    // employeeId may be missing from token if account was linked after last login — look it up
+    let selfEmployeeId = user.employeeId
+    if (!selfEmployeeId) {
+      const emp = await prisma.employee.findFirst({ where: { userId: user.id }, select: { id: true } })
+      selfEmployeeId = emp?.id
+    }
+    if (!selfEmployeeId) return NextResponse.json({ payslips: [] })
+    where.employeeId = selfEmployeeId
     where.status = "RELEASED"
     if (month) where.month = month
     if (year) where.year = year
@@ -54,7 +61,7 @@ export async function GET(req: NextRequest) {
 
   // Return all active employees for HR to pick from when creating payslips
   let employees: any[] = []
-  if (c.canManageSettings || user.role === "SUPER_ADMIN" || user.role === "HR_ADMIN") {
+  if (isPayrollAdmin) {
     employees = await prisma.employee.findMany({
       where: { employeeStatus: "ACTIVE" },
       select: {
@@ -72,7 +79,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN" && user.role !== "HR_ADMIN") return forbidden()
+  const isPayrollAdmin2 = user.role === "SUPER_ADMIN" || user.role === "PAYROLL_OFFICER"
+  if (!isPayrollAdmin2) return forbidden()
 
   const body = await req.json()
   const {

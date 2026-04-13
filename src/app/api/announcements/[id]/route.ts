@@ -45,6 +45,10 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!isAdmin) return forbidden()
 
   const { id } = await params
-  await prisma.announcement.delete({ where: { id } })
+  // Soft delete — set to RETIRED so it can be restored from trash
+  await prisma.announcement.update({
+    where: { id },
+    data: { status: "RETIRED", retiredAt: new Date() },
+  })
   return NextResponse.json({ ok: true })
 }

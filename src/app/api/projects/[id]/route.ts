@@ -56,6 +56,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!caps(user.role).canViewAllEmployees) return forbidden()
 
   const { id } = await params
-  await prisma.project.delete({ where: { id } })
+  // Soft delete — mark as CANCELLED so it can be restored from trash
+  await prisma.project.update({ where: { id }, data: { status: "CANCELLED" } })
   return NextResponse.json({ ok: true })
 }

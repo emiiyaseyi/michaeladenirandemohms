@@ -9,7 +9,7 @@ import Badge from "@/components/ui/Badge"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import {
   Briefcase, Plus, Search, Users, Calendar, Pencil, Trash2,
-  Archive, CheckCircle, Loader2, AlertCircle, X, ChevronDown,
+  Archive, CheckCircle, Loader2, AlertCircle, X, ChevronDown, PlayCircle,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
@@ -184,7 +184,7 @@ export default function ProjectsPage() {
   }
 
   const retire = async (id: string, status: string) => {
-    const label = status === "ON_HOLD" ? "on hold" : "complete"
+    const label = status === "ON_HOLD" ? "on hold" : status === "ACTIVE" ? "active" : "complete"
     if (!confirm(`Mark this project as ${label}?`)) return
     const res = await fetch(`/api/projects/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) })
     if (!res.ok) {
@@ -250,6 +250,9 @@ export default function ProjectsPage() {
                         <button onClick={() => setEditTarget({ ...p, leadId: lead?.employeeId, memberIds: members.map((m: any) => m.employeeId) })} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 7px", cursor: "pointer", color: "var(--muted-foreground)" }} title="Edit"><Pencil size={12} /></button>
                         {p.status === "ACTIVE" && (
                           <button onClick={() => retire(p.id, "ON_HOLD")} style={{ background: "var(--warning-bg)", border: "none", borderRadius: 6, padding: "5px 7px", cursor: "pointer", color: "var(--warning)" }} title="Put on hold"><Archive size={12} /></button>
+                        )}
+                        {p.status === "ON_HOLD" && (
+                          <button onClick={() => retire(p.id, "ACTIVE")} style={{ background: "var(--success-bg)", border: "none", borderRadius: 6, padding: "5px 7px", cursor: "pointer", color: "var(--success)" }} title="Reactivate project"><PlayCircle size={12} /></button>
                         )}
                         {p.status !== "COMPLETED" && (
                           <button onClick={() => retire(p.id, "COMPLETED")} style={{ background: "var(--success-bg)", border: "none", borderRadius: 6, padding: "5px 7px", cursor: "pointer", color: "var(--success)" }} title="Mark complete"><CheckCircle size={12} /></button>

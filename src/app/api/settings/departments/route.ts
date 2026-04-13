@@ -47,9 +47,17 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canManageSettings) return forbidden()
-  const { name, description, divisionId } = await req.json()
+  const { name, description, divisionId, leadId } = await req.json()
   if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 })
   const dept = await prisma.department.create({ data: { name, description: description || null, divisionId: divisionId || null } })
+
+  if (leadId) {
+    await prisma.employee.updateMany({
+      where: { departmentId: dept.id },
+      data: { departmentLeadId: leadId },
+    })
+  }
+
   return NextResponse.json({ dept }, { status: 201 })
 }
 
@@ -57,12 +65,20 @@ export async function PATCH(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canManageSettings) return forbidden()
-  const { id, name, description, divisionId } = await req.json()
+  const { id, name, description, divisionId, leadId } = await req.json()
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 })
   const dept = await prisma.department.update({
     where: { id },
     data: { name, description: description || null, divisionId: divisionId || null },
   })
+
+  if (leadId !== undefined) {
+    await prisma.employee.updateMany({
+      where: { departmentId: id },
+      data: { departmentLeadId: leadId || null },
+    })
+  }
+
   return NextResponse.json({ dept })
 }
 

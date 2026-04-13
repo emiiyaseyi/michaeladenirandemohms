@@ -54,13 +54,15 @@ model User {
   updatedAt       DateTime       @updatedAt
   lastLoginAt     DateTime?
   additionalRoles SystemRole[]   @default([])
-  accounts        Account[]
-  auditLogs       AuditLog[]
-  employee        Employee?
-  notifications   Notification[]
-  announcements   Announcement[] @relation("AnnouncementCreator")
-  orgDocsUploaded OrgDocument[]  @relation("OrgDocUploader")
-  sessions        Session[]
+  accounts               Account[]
+  auditLogs              AuditLog[]
+  employee               Employee?
+  notifications          Notification[]
+  announcements          Announcement[]        @relation("AnnouncementCreator")
+  orgDocsUploaded        OrgDocument[]         @relation("OrgDocUploader")
+  sessions               Session[]
+  profileUpdateReviews   ProfileUpdateRequest[]
+  personalDocReviews     PersonalDocument[]    @relation("PersonalDocReviewer")
 }
 
 model Division {
@@ -84,8 +86,23 @@ model Department {
   parent        Department?    @relation("DeptHierarchy", fields: [parentId], references: [id])
   children      Department[]   @relation("DeptHierarchy")
   employees     Employee[]
+  teams         Team[]
   jobPostings   JobPosting[]
   leaveRequests LeaveRequest[]
+}
+
+model Team {
+  id           String           @id @default(cuid())
+  name         String
+  category     EmployeeCategory @default(NON_TECHNICAL)
+  departmentId String?
+  headId       String?
+  description  String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  department   Department?      @relation(fields: [departmentId], references: [id])
+  head         Employee?        @relation("TeamHead", fields: [headId], references: [id])
+  members      Employee[]       @relation("TeamMembership")
 }
 
 model Employee {
@@ -113,12 +130,14 @@ model Employee {
   departmentId       String?
   jobTitle           String?
   employmentType     EmploymentType       @default(FULL_TIME)
+  category           EmployeeCategory     @default(NON_TECHNICAL)
   employeeStatus     EmployeeStatus       @default(ACTIVE)
   hireDate           DateTime?
   confirmationDate   DateTime?
   endDate            DateTime?
   managerId          String?
   departmentLeadId   String?
+  teamId             String?
   bankName           String?
   bankAccountNo      String?
   bankAccountName    String?
@@ -144,6 +163,10 @@ model Employee {
   deptLeadOf         Employee[]           @relation("DeptLeadRelation")
   manager            Employee?            @relation("ManagerRelation", fields: [managerId], references: [id])
   directReports      Employee[]           @relation("ManagerRelation")
+  team               Team?                @relation("TeamMembership", fields: [teamId], references: [id])
+  ledTeams           Team[]               @relation("TeamHead")
+  profileUpdateRequests ProfileUpdateRequest[]
+  personalDocuments  PersonalDocument[]
   user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   feedbackGiven      Feedback[]           @relation("FeedbackGiver")
   feedbackReceived   Feedback[]           @relation("FeedbackReceiver")
@@ -220,6 +243,13 @@ enum AnnouncementStatus {
   RETIRED
 }
 
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
 model OrgDocument {
   id              String         @id @default(cuid())
   title           String
@@ -230,6 +260,7 @@ model OrgDocument {
   mimeType        String?
   canView         Boolean        @default(true)
   canDownload     Boolean        @default(false)
+  canCopy         Boolean        @default(true)
   requiresAck     Boolean        @default(false)
   isActive        Boolean        @default(true)
   uploadedById    String
@@ -718,6 +749,10 @@ enum SystemRole {
   TA_OFFICER
   PERFORMANCE_OFFICER
   AUDIT
+  PAYROLL_OFFICER
+  TEAM_LEAD
+  PROJECT_LEAD
+  RELIEF_OFFICER
 }
 
 enum Gender {
@@ -738,6 +773,11 @@ enum EmploymentType {
   CONTRACT
   INTERN
   NYSC
+}
+
+enum EmployeeCategory {
+  TECHNICAL
+  NON_TECHNICAL
 }
 
 enum EmployeeStatus {
@@ -971,4 +1011,56 @@ enum NotificationType {
   SUCCESS
   WARNING
   DANGER
+}
+
+enum ProfileUpdateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model ProfileUpdateRequest {
+  id          String              @id @default(cuid())
+  employeeId  String
+  changes     Json
+  status      ProfileUpdateStatus @default(PENDING)
+  reviewedBy  String?
+  reviewNote  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  employee    Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer    User?               @relation(fields: [reviewedBy], references: [id])
+}
+
+enum PersonalDocType {
+  SSCE
+  FIRST_DEGREE
+  NYSC
+  PROFESSIONAL_CERT
+  UTILITY_BILL
+  OTHER
+}
+
+enum PersonalDocStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model PersonalDocument {
+  id          String            @id @default(cuid())
+  employeeId  String
+  type        PersonalDocType
+  fileUrl     String
+  fileName    String
+  notes       String?
+  status      PersonalDocStatus @default(PENDING)
+  reviewedBy  String?
+  reviewNote  String?
+  reviewedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  employee    Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewer    User?             @relation("PersonalDocReviewer", fields: [reviewedBy], references: [id])
 }

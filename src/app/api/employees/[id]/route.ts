@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     "address", "city", "state", "country", "postalCode",
     "departmentId", "jobTitle", "employmentType", "employeeStatus",
     "hireDate", "confirmationDate", "endDate",
-    "managerId", "departmentLeadId",
+    "managerId", "departmentLeadId", "teamId",
     "bankName", "bankAccountNo", "bankAccountName", "pensionPin", "tin", "nhfNo",
     "grossSalary", "onProbation", "probationEndDate",
     "nokName", "nokPhone", "nokRelationship", "nokAddress",

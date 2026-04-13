@@ -31,37 +31,41 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const [employees, departments] = await Promise.all([
-    prisma.employee.findMany({
-      where: {
-        AND: [
-          scopeFilter,
-          search ? { OR: [
-            { firstName: { contains: search, mode: "insensitive" } },
-            { lastName: { contains: search, mode: "insensitive" } },
-            { workEmail: { contains: search, mode: "insensitive" } },
-            { employeeId: { contains: search, mode: "insensitive" } },
-            { jobTitle: { contains: search, mode: "insensitive" } },
-          ]} : {},
-          status ? { employeeStatus: status as any } : {},
-          dept ? { departmentId: dept } : {},
-        ]
-      },
-      include: {
-        department: true,
-        manager: { select: { firstName: true, lastName: true } },
-        projectAssignments: {
-          where: { project: { status: "ACTIVE" } },
-          include: { project: { select: { id: true, name: true, status: true } } },
+  try {
+    const [employees, departments] = await Promise.all([
+      prisma.employee.findMany({
+        where: {
+          AND: [
+            scopeFilter,
+            search ? { OR: [
+              { firstName: { contains: search, mode: "insensitive" } },
+              { lastName: { contains: search, mode: "insensitive" } },
+              { workEmail: { contains: search, mode: "insensitive" } },
+              { employeeId: { contains: search, mode: "insensitive" } },
+              { jobTitle: { contains: search, mode: "insensitive" } },
+            ]} : {},
+            status ? { employeeStatus: status as any } : {},
+            dept ? { departmentId: dept } : {},
+          ]
         },
-        user: { select: { role: true, additionalRoles: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.department.findMany({ orderBy: { name: "asc" } }),
-  ])
+        include: {
+          department: true,
+          manager: { select: { firstName: true, lastName: true } },
+          projectAssignments: {
+            include: { project: { select: { id: true, name: true, status: true } } },
+          },
+          user: { select: { role: true, additionalRoles: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.department.findMany({ orderBy: { name: "asc" } }),
+    ])
 
-  return NextResponse.json({ employees, departments })
+    return NextResponse.json({ employees, departments })
+  } catch (e: any) {
+    console.error("[GET /api/employees]", e)
+    return NextResponse.json({ error: "Failed to load employees", employees: [], departments: [] }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {

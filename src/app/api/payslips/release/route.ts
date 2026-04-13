@@ -5,7 +5,7 @@ import { requireAuth, forbidden } from "@/lib/api-auth"
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN" && user.role !== "HR_ADMIN") return forbidden()
+  if (user.role !== "SUPER_ADMIN" && user.role !== "PAYROLL_OFFICER") return forbidden()
 
   const { ids, month, year } = await req.json()
 

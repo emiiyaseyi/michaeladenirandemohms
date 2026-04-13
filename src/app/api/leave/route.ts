@@ -55,11 +55,12 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     }),
     prisma.leaveType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
-    // Always return all active employees so any user can pick relief officers
+    // Return active employees for relief officer picker — deduplicate by userId
     prisma.employee.findMany({
       where: { employeeStatus: "ACTIVE" },
       orderBy: { firstName: "asc" },
-      select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true, gender: true },
+      select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true, gender: true, userId: true },
+      distinct: ["userId"],
     }),
   ])
 

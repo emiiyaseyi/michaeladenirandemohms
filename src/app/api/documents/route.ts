@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
   const canView = formData.get("canView") !== "false"
   const canDownload = formData.get("canDownload") === "true"
   const requiresAck = formData.get("requiresAck") === "true"
+  const canCopy = formData.get("canCopy") !== "false"
 
   if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 })
   if (!file) return NextResponse.json({ error: "File is required" }, { status: 400 })
@@ -84,6 +85,7 @@ export async function POST(req: NextRequest) {
       canView,
       canDownload,
       requiresAck,
+      canCopy,
       uploadedById: user.id,
     },
     include: { uploadedBy: { select: { name: true } } },

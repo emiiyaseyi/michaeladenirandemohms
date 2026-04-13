@@ -52,7 +52,7 @@ function CategoryBadge({ cat }: { cat: string }) {
 
 // ── Upload Modal ─────────────────────────────────────────────────────────────
 function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
-  const [form, setForm] = useState({ title: "", category: "OTHER", description: "", canView: true, canDownload: false, requiresAck: false })
+  const [form, setForm] = useState({ title: "", category: "OTHER", description: "", canView: true, canDownload: false, canCopy: true, requiresAck: false })
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -69,6 +69,7 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
     fd.append("description", form.description)
     fd.append("canView", String(form.canView))
     fd.append("canDownload", String(form.canDownload))
+    fd.append("canCopy", String(form.canCopy))
     fd.append("requiresAck", String(form.requiresAck))
     const r = await fetch("/api/documents", { method: "POST", body: fd })
     setLoading(false)
@@ -117,6 +118,7 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
               {[
                 { key: "canView", icon: Eye, label: "Employees can view", desc: "Document visible to all employees" },
                 { key: "canDownload", icon: Download, label: "Allow downloads", desc: "Employees can download a copy" },
+                { key: "canCopy", icon: Shield, label: "Allow text selection & copy", desc: "Disable to prevent text copying in viewer" },
                 { key: "requiresAck", icon: FileCheck, label: "Requires acknowledgement", desc: "Employees must confirm they've read it" },
               ].map(({ key, icon: Icon, label, desc }) => (
                 <label key={key} style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}>
@@ -150,7 +152,7 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
 
 // ── Edit Modal (admin) ───────────────────────────────────────────────────────
 function EditModal({ doc, onClose, onSuccess }: { doc: any; onClose: () => void; onSuccess: () => void }) {
-  const [form, setForm] = useState({ title: doc.title, category: doc.category, description: doc.description ?? "", canView: doc.canView, canDownload: doc.canDownload, requiresAck: doc.requiresAck })
+  const [form, setForm] = useState({ title: doc.title, category: doc.category, description: doc.description ?? "", canView: doc.canView, canDownload: doc.canDownload, canCopy: doc.canCopy ?? true, requiresAck: doc.requiresAck })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const fi = { width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", boxSizing: "border-box" as const }
@@ -190,6 +192,7 @@ function EditModal({ doc, onClose, onSuccess }: { doc: any; onClose: () => void;
             {[
               { key: "canView", label: "Employees can view" },
               { key: "canDownload", label: "Allow downloads" },
+              { key: "canCopy", label: "Allow text selection & copy" },
               { key: "requiresAck", label: "Requires acknowledgement" },
             ].map(({ key, label }) => (
               <label key={key} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginBottom: 6 }}>
@@ -210,12 +213,17 @@ function EditModal({ doc, onClose, onSuccess }: { doc: any; onClose: () => void;
 }
 
 // ── Ack Modal (employee) ─────────────────────────────────────────────────────
-function AckModal({ doc, onClose, onSuccess }: { doc: any; onClose: () => void; onSuccess: () => void }) {
+function AckModal({ doc, onClose, onSuccess, userName }: { doc: any; onClose: () => void; onSuccess: () => void; userName: string }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [nameInput, setNameInput] = useState("")
+  const [viewed, setViewed] = useState(false)
+
+  // Name must match profile name (case-insensitive, trimmed)
+  const nameMatches = nameInput.trim().toLowerCase() === userName.trim().toLowerCase()
 
   const confirm = async () => {
+    if (!nameMatches) { setError(`Name must match your profile name: "${userName}"`); return }
     setLoading(true); setError("")
     const r = await fetch(`/api/documents/${doc.id}/ack`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nameInput }) })
     setLoading(false)
@@ -224,31 +232,83 @@ function AckModal({ doc, onClose, onSuccess }: { doc: any; onClose: () => void; 
   }
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ background: "var(--card)", borderRadius: 16, width: "100%", maxWidth: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", padding: "28px 24px" }}>
-        <div style={{ textAlign: "center", marginBottom: 20 }}>
-          <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(16,185,129,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-            <FileCheck size={24} style={{ color: "#10B981" }} />
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <div style={{ background: "var(--card)", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+        {/* Document preview panel */}
+        {!viewed ? (
+          <>
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>Read Before Acknowledging</div>
+              <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}><X size={16} /></button>
+            </div>
+            <div style={{ height: 420, overflow: "hidden", background: "#111" }}>
+              {doc.mimeType === "application/pdf" ? (
+                // Use object tag with no toolbar — prevents browser download UI
+                <object data={`${doc.fileUrl}#toolbar=0&navpanes=0&scrollbar=1`} type="application/pdf"
+                  style={{ width: "100%", height: "100%", border: "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "white", fontSize: 13 }}>
+                    Preview not available. Please download to read, then return to acknowledge.
+                  </div>
+                </object>
+              ) : doc.mimeType?.startsWith("image/") ? (
+                <img src={doc.fileUrl} alt={doc.title} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 10, color: "white" }}>
+                  <FileText size={36} />
+                  <div style={{ fontSize: 13 }}>{doc.title}</div>
+                </div>
+              )}
+            </div>
+            <div style={{ padding: "14px 22px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+              <Button onClick={() => setViewed(true)}>I have read this document →</Button>
+            </div>
+          </>
+        ) : (
+          <div style={{ padding: "28px 24px" }}>
+            <div style={{ textAlign: "center", marginBottom: 20 }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(16,185,129,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                <FileCheck size={24} style={{ color: "#10B981" }} />
+              </div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: "var(--foreground)", marginBottom: 6 }}>Acknowledge Document</div>
+              <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
+                I confirm I have read and understood <strong>{doc.title}</strong>.
+              </div>
+            </div>
+            <div style={{ marginBottom: 8 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>
+                Type your full name exactly as it appears on your profile
+              </label>
+              <input
+                value={nameInput}
+                onChange={e => { setNameInput(e.target.value); setError("") }}
+                placeholder={userName}
+                autoFocus
+                style={{
+                  width: "100%", padding: "10px 12px", boxSizing: "border-box",
+                  border: `1.5px solid ${nameInput && !nameMatches ? "#EF4444" : nameMatches ? "#10B981" : "var(--border)"}`,
+                  borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)",
+                }}
+              />
+              {nameInput && !nameMatches && (
+                <div style={{ fontSize: 11, color: "#EF4444", marginTop: 4 }}>
+                  Name does not match. Expected: <strong>{userName}</strong>
+                </div>
+              )}
+              {nameMatches && (
+                <div style={{ fontSize: 11, color: "#10B981", marginTop: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                  <CheckCircle size={11} /> Name confirmed
+                </div>
+              )}
+            </div>
+            {error && <div style={{ color: "#EF4444", fontSize: 12, marginBottom: 10, padding: "8px 10px", background: "rgba(239,68,68,0.08)", borderRadius: 6 }}>{error}</div>}
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <Button variant="secondary" onClick={() => setViewed(false)} style={{ flex: 1 }}>← Back</Button>
+              <Button onClick={confirm} disabled={loading || !nameMatches} style={{ flex: 1 }}>
+                {loading ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Confirming…</> : "Confirm & Acknowledge"}
+              </Button>
+            </div>
           </div>
-          <div style={{ fontSize: 17, fontWeight: 800, color: "var(--foreground)", marginBottom: 6 }}>Acknowledge Document</div>
-          <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>I confirm I have read and understood <strong>{doc.title}</strong>.</div>
-        </div>
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>Type your full name to confirm</label>
-          <input
-            value={nameInput}
-            onChange={e => setNameInput(e.target.value)}
-            placeholder="Your full name"
-            style={{ width: "100%", padding: "10px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", boxSizing: "border-box" }}
-          />
-        </div>
-        {error && <div style={{ color: "#EF4444", fontSize: 13, marginBottom: 12 }}>{error}</div>}
-        <div style={{ display: "flex", gap: 8 }}>
-          <Button variant="secondary" onClick={onClose} style={{ flex: 1 }}>Cancel</Button>
-          <Button onClick={confirm} disabled={loading || !nameInput.trim()} style={{ flex: 1 }}>
-            {loading ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Confirming…</> : "Confirm"}
-          </Button>
-        </div>
+        )}
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
@@ -330,7 +390,13 @@ function DocCard({ doc, isAdmin, totalEmployees, onEdit, onDelete, onAck, onView
             background: "var(--primary)", color: "white", border: "none", display: "flex", alignItems: "center", gap: 5,
           }}><Eye size={11} /> View</button>
         )}
-        {(isAdmin || doc.canDownload) && (
+        {isAdmin && (
+          <a href={doc.fileUrl} download style={{
+            fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 8, cursor: "pointer",
+            background: "var(--muted)", color: "var(--foreground)", border: "1px solid var(--border)", textDecoration: "none", display: "flex", alignItems: "center", gap: 5,
+          }}><Download size={11} /> Download</a>
+        )}
+        {!isAdmin && doc.canDownload && (
           <a href={doc.fileUrl} download style={{
             fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 8, cursor: "pointer",
             background: "var(--muted)", color: "var(--foreground)", border: "1px solid var(--border)", textDecoration: "none", display: "flex", alignItems: "center", gap: 5,
@@ -501,26 +567,54 @@ export default function DocumentsPage() {
       {/* Modals */}
       {showUpload && <UploadModal onClose={() => setShowUpload(false)} onSuccess={load} />}
       {editDoc && <EditModal doc={editDoc} onClose={() => setEditDoc(null)} onSuccess={load} />}
-      {ackDoc && <AckModal doc={ackDoc} onClose={() => setAckDoc(null)} onSuccess={load} />}
+      {ackDoc && <AckModal doc={ackDoc} onClose={() => setAckDoc(null)} onSuccess={load} userName={user?.name ?? ""} />}
 
-      {/* View modal (iframe for PDF) */}
+      {/* View modal — no download button for non-admins */}
       {viewDoc && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-          <div style={{ background: "var(--card)", borderRadius: 16, width: "100%", maxWidth: 800, height: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.4)" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "var(--card)", borderRadius: 16, width: "100%", maxWidth: 860, height: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
             <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontWeight: 700, fontSize: 14, color: "var(--foreground)" }}>{viewDoc.title}</div>
-              <button onClick={() => setViewDoc(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}><X size={18} /></button>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                {/* Only admins or canDownload docs get a download button */}
+                {(isAdmin || viewDoc.canDownload) && (
+                  <a href={viewDoc.fileUrl} download
+                    style={{ fontSize: 12, fontWeight: 700, padding: "5px 12px", borderRadius: 7, background: "var(--muted)", color: "var(--foreground)", border: "1px solid var(--border)", textDecoration: "none", display: "flex", alignItems: "center", gap: 5 }}>
+                    <Download size={12} /> Download
+                  </a>
+                )}
+                <button onClick={() => setViewDoc(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}><X size={18} /></button>
+              </div>
             </div>
-            <div style={{ flex: 1, overflow: "hidden" }}>
+            <div
+              style={{ flex: 1, overflow: "hidden", position: "relative", userSelect: !isAdmin && !viewDoc.canCopy ? "none" : "auto" }}
+              onCopy={!isAdmin && !viewDoc.canCopy ? e => e.preventDefault() : undefined}
+              onContextMenu={!isAdmin && !viewDoc.canCopy ? e => e.preventDefault() : undefined}
+            >
+              {/* Screenshot / print overlay for copy-restricted docs */}
+              {!isAdmin && !viewDoc.canCopy && (
+                <div style={{ position: "absolute", inset: 0, zIndex: 10, pointerEvents: "none", background: "transparent" }}
+                  onCopy={e => e.preventDefault()}
+                />
+              )}
               {viewDoc.mimeType === "application/pdf" ? (
-                <iframe src={viewDoc.fileUrl} style={{ width: "100%", height: "100%", border: "none" }} title={viewDoc.title} />
+                // #toolbar=0 suppresses the PDF browser toolbar (and its download button)
+                <object data={`${viewDoc.fileUrl}#toolbar=0&navpanes=0&scrollbar=1`} type="application/pdf"
+                  style={{ width: "100%", height: "100%", border: "none" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 12 }}>
+                    <FileText size={40} style={{ color: "var(--muted-foreground)" }} />
+                    <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Preview not available in your browser.</div>
+                  </div>
+                </object>
               ) : viewDoc.mimeType?.startsWith("image/") ? (
-                <img src={viewDoc.fileUrl} alt={viewDoc.title} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+                <img src={viewDoc.fileUrl} alt={viewDoc.title}
+                  style={{ width: "100%", height: "100%", objectFit: "contain", pointerEvents: !isAdmin && !viewDoc.canCopy ? "none" : "auto" }}
+                  draggable={isAdmin || !!viewDoc.canCopy}
+                />
               ) : (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", flexDirection: "column", gap: 12 }}>
                   <FileText size={40} style={{ color: "var(--muted-foreground)" }} />
                   <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Preview not available for this file type.</div>
-                  <a href={viewDoc.fileUrl} download style={{ fontSize: 13, fontWeight: 600, color: "var(--primary)" }}>Download to view</a>
                 </div>
               )}
             </div>

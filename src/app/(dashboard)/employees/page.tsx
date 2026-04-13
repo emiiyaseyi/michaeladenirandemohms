@@ -41,7 +41,7 @@ function EmployeeViewModal({ employee }: { employee: any }) {
           { label: "Hire Date", value: formatDate(employee.hireDate) },
           { label: "Department", value: employee.department?.name ?? "—" },
           { label: "Manager", value: employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}` : "—" },
-          { label: "Annual Leave Balance", value: `${employee.annualLeaveBalance} days` },
+          { label: "Category", value: employee.category === "TECHNICAL" ? "Technical" : "Non-Technical" },
         ].map(({ label, value }) => (
           <div key={label} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 14px" }}>
             <div style={{ fontSize: 10, color: "var(--muted-foreground)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{label}</div>
@@ -178,6 +178,7 @@ export default function EmployeesPage() {
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Employee</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Department</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Role / Type</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Hire Date</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Actions</th>
@@ -199,6 +200,11 @@ export default function EmployeesPage() {
                     <td style={{ padding: "14px 20px" }}>
                       <div style={{ fontSize: 13 }}>{emp.jobTitle ?? "—"}</div>
                       <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{emp.employmentType?.replace(/_/g," ")}</div>
+                    </td>
+                    <td style={{ padding: "14px 20px" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: emp.category === "TECHNICAL" ? "#EEF2FF" : "#FFFBEB", color: emp.category === "TECHNICAL" ? "#6366F1" : "#F59E0B" }}>
+                        {emp.category === "TECHNICAL" ? "Technical" : "Non-Technical"}
+                      </span>
                     </td>
                     <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{formatDate(emp.hireDate)}</td>
                     <td style={{ padding: "14px 20px" }}><Badge status={emp.employeeStatus} /></td>

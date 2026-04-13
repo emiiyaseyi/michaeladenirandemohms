@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { id } = await params
   const body = await req.json()
-  const { role, isActive, newPassword } = body
+  const { role, additionalRoles, isActive, newPassword } = body
 
   // Prevent super admin from deactivating themselves
   if (id === user.id && isActive === false) {
@@ -20,6 +20,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const updates: Record<string, any> = {}
   if (role !== undefined) updates.role = role
+  // Strip the primary role from additionalRoles to avoid duplication
+  if (Array.isArray(additionalRoles)) updates.additionalRoles = additionalRoles.filter((r: string) => r !== (role ?? body.currentRole))
   if (isActive !== undefined) updates.isActive = isActive
   if (newPassword) updates.password = await bcrypt.hash(newPassword, 12)
 

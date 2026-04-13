@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Card from "@/components/ui/Card"
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
@@ -7,9 +7,114 @@ import Link from "next/link"
 import {
   Building2, UserCheck, Users, CalendarDays, Clock,
   Briefcase, Mail, Phone, MapPin, Banknote, Heart,
-  Edit2, Loader2, AlertCircle, CheckCircle2,
+  Edit2, Loader2, AlertCircle, CheckCircle2, FileText, Upload, CheckCircle, XCircle,
 } from "lucide-react"
 import { roleLabel } from "@/lib/rbac"
+
+const DOC_TYPES = [
+  { key: "SSCE",              label: "SSCE Certificate",         desc: "West African Senior School Certificate" },
+  { key: "FIRST_DEGREE",     label: "First Degree",             desc: "University degree certificate" },
+  { key: "NYSC",             label: "NYSC Certificate",         desc: "National Youth Service Corps discharge certificate" },
+  { key: "PROFESSIONAL_CERT", label: "Professional Certification", desc: "e.g. PMP, CPA, CISSP, etc." },
+  { key: "UTILITY_BILL",     label: "Utility Bill",             desc: "Recent utility bill for address verification" },
+  { key: "OTHER",            label: "Other Document",           desc: "Any other supporting document" },
+]
+
+const DOC_STATUS_META = {
+  PENDING:  { bg: "#FFFBEB", color: "#B45309", icon: Clock,        label: "Pending Review" },
+  APPROVED: { bg: "#E6F4EA", color: "#1A7336", icon: CheckCircle,  label: "Approved" },
+  REJECTED: { bg: "#FEE2E2", color: "#DC2626", icon: XCircle,      label: "Rejected" },
+}
+
+function PersonalDocsSection() {
+  const [docs, setDocs] = useState<Record<string, any>>({})
+  const [uploading, setUploading] = useState<string | null>(null)
+  const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  useEffect(() => {
+    fetch("/api/personal-docs")
+      .then(r => r.ok ? r.json() : { docs: [] })
+      .then(d => {
+        const map: Record<string, any> = {}
+        for (const doc of d.docs ?? []) map[doc.type] = doc
+        setDocs(map)
+      })
+      .catch(() => {})
+  }, [])
+
+  async function handleUpload(type: string, file: File) {
+    setUploading(type)
+    const fd = new FormData()
+    fd.append("file", file)
+    fd.append("type", type)
+    const res = await fetch("/api/personal-docs", { method: "POST", body: fd })
+    if (res.ok) {
+      const d = await res.json()
+      setDocs(prev => ({ ...prev, [type]: d.doc }))
+    }
+    setUploading(null)
+  }
+
+  return (
+    <Card>
+      <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
+        <FileText size={15} style={{ color: "var(--primary)" }} />
+        <div style={{ fontSize: 13, fontWeight: 700 }}>Personal Documents</div>
+      </div>
+      <div style={{ padding: "12px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
+        {DOC_TYPES.map(({ key, label, desc }) => {
+          const doc = docs[key]
+          const statusMeta = doc ? DOC_STATUS_META[doc.status as keyof typeof DOC_STATUS_META] : null
+          const StatusIcon = statusMeta?.icon ?? null
+          const isUploading = uploading === key
+
+          return (
+            <div key={key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: doc ? statusMeta?.bg ?? "var(--muted)" : "var(--background)" }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <FileText size={16} style={{ color: doc ? statusMeta?.color ?? "var(--primary)" : "var(--muted-foreground)" }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{label}</div>
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                  {doc ? (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, color: statusMeta?.color }}>
+                      {StatusIcon && <StatusIcon size={11} />} {statusMeta?.label} · {doc.fileName}
+                    </span>
+                  ) : desc}
+                </div>
+                {doc?.reviewNote && (
+                  <div style={{ fontSize: 11, color: "#78350F", marginTop: 2 }}>Note: {doc.reviewNote}</div>
+                )}
+              </div>
+              <div style={{ flexShrink: 0 }}>
+                <input
+                  type="file"
+                  ref={el => { fileRefs.current[key] = el }}
+                  style={{ display: "none" }}
+                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(key, f); e.target.value = "" }}
+                />
+                <button
+                  onClick={() => fileRefs.current[key]?.click()}
+                  disabled={isUploading}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
+                    border: "1px solid var(--border)", borderRadius: 7, cursor: isUploading ? "not-allowed" : "pointer",
+                    fontSize: 12, fontWeight: 600, background: "var(--background)", color: "var(--foreground)",
+                    opacity: isUploading ? 0.7 : 1,
+                  }}
+                >
+                  {isUploading ? <Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} /> : <Upload size={12} />}
+                  {doc ? "Replace" : "Upload"}
+                </button>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
 
 function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value?: string | null }) {
   if (!value) return null
@@ -187,6 +292,9 @@ export default function SSProfilePage() {
           <InfoRow icon={Banknote} label="Bank"         value={profile.bankName} />
         </div>
       </Card>
+
+      {/* Personal documents */}
+      <PersonalDocsSection />
 
       {/* Active projects */}
       {profile.activeProjects?.length > 0 && (

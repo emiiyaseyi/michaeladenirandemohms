@@ -6,7 +6,8 @@ import { signOut } from "next-auth/react"
 import {
   ChevronRight, Leaf, LogOut, ChevronDown,
   UserCircle, CalendarDays, ShoppingBag, MessageSquare,
-  DoorOpen, ClipboardList, FolderOpen, ChevronLeft, PanelLeftClose, PanelLeftOpen,
+  DoorOpen, ClipboardList, ChevronLeft, PanelLeftClose, PanelLeftOpen,
+  Receipt,
 } from "lucide-react"
 import { getNavForRole, roleLabel, type NavItem } from "@/lib/rbac"
 
@@ -14,6 +15,7 @@ import { getNavForRole, roleLabel, type NavItem } from "@/lib/rbac"
 const SS_SUBITEMS = [
   { label: "Profile",     href: "/self-service/profile",      icon: UserCircle },
   { label: "Leave",       href: "/self-service/leave",        icon: CalendarDays },
+  { label: "Payslips",    href: "/self-service/payslips",     icon: Receipt },
   { label: "Requisition", href: "/self-service/requisitions", icon: ShoppingBag },
   { label: "Grievance",   href: "/self-service/grievance",    icon: MessageSquare },
   { label: "Exit",        href: "/self-service/exit",         icon: DoorOpen },
@@ -55,6 +57,11 @@ export default function Sidebar({ user, extraNav = [] }: { user: any; extraNav?:
   const path = usePathname()
   const baseNav = getNavForRole(user?.role ?? "STAFF")
   const [ssOpen, setSsOpen] = useState(path.startsWith("/self-service"))
+
+  // Auto-expand Self Service accordion when navigating into /self-service
+  useEffect(() => {
+    if (path.startsWith("/self-service")) setSsOpen(true)
+  }, [path])
   const [collapsed, setCollapsed] = useState(false)
 
   // Persist collapse state
@@ -82,7 +89,7 @@ export default function Sidebar({ user, extraNav = [] }: { user: any; extraNav?:
   }
 
   const isSsActive = path.startsWith("/self-service")
-  const ELEVATED = ["SUPER_ADMIN","ADMIN","HR_ADMIN","MANAGER","DEPARTMENT_LEAD","PROJECT_MANAGER","PERFORMANCE_OFFICER","TA_OFFICER","AUDIT"]
+  const ELEVATED = ["SUPER_ADMIN","ADMIN","HR_ADMIN","MANAGER","DEPARTMENT_LEAD","PROJECT_MANAGER","TEAM_LEAD","PROJECT_LEAD","RELIEF_OFFICER","PERFORMANCE_OFFICER","TA_OFFICER","PAYROLL_OFFICER","AUDIT"]
   const isElevated = ELEVATED.includes(user?.role ?? "")
 
   const sidebarWidth = collapsed ? 60 : 240
@@ -135,18 +142,18 @@ export default function Sidebar({ user, extraNav = [] }: { user: any; extraNav?:
         onClick={toggleCollapsed}
         title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         style={{
-          position: "absolute", top: 14, right: collapsed ? 8 : -16,
-          width: 32, height: 32, borderRadius: "50%",
-          background: "var(--primary)", border: "2px solid var(--sidebar-bg)",
+          position: "absolute", top: 14, right: collapsed ? 8 : -22,
+          width: 44, height: 44, borderRadius: "50%",
+          background: "var(--primary)", border: "3px solid var(--sidebar-bg)",
           display: "flex", alignItems: "center", justifyContent: "center",
           cursor: "pointer", color: "white", zIndex: 60,
           transition: "right 0.22s cubic-bezier(.4,0,.2,1)",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+          boxShadow: "0 4px 14px rgba(0,0,0,0.55)",
         }}
-        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1.1)" }}
-        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)" }}
+        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1.1)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(0,0,0,0.65)" }}
+        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 14px rgba(0,0,0,0.55)" }}
       >
-        {collapsed ? <PanelLeftOpen size={15} /> : <PanelLeftClose size={15} />}
+        {collapsed ? <PanelLeftOpen size={22} /> : <PanelLeftClose size={22} />}
       </button>
 
       {/* Scrollable Nav */}
@@ -188,7 +195,7 @@ export default function Sidebar({ user, extraNav = [] }: { user: any; extraNav?:
                 Main Menu
               </div>
             )}
-            {nav.map(({ label, href, icon: Icon }) => {
+            {nav.map(({ label, href, icon: Icon, indent }) => {
               if (href === "/self-service") {
                 return (
                   <div key={href}>
@@ -214,19 +221,19 @@ export default function Sidebar({ user, extraNav = [] }: { user: any; extraNav?:
                       {!collapsed && <span style={{ flex: 1 }}>Self Service</span>}
                       {!collapsed && <ChevronDown size={13} style={{ transform: ssOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0 }} />}
                     </Link>
-                    {ssOpen && !collapsed && (
+                    {(ssOpen || collapsed) && (
                       <div style={{ marginBottom: 4 }}>
                         {SS_SUBITEMS.map(sub => {
                           const subActive = path === sub.href || (sub.href !== "/self-service" && path.startsWith(sub.href))
-                          return <NavLink key={sub.href} href={sub.href} icon={sub.icon} label={sub.label} active={subActive} indent />
+                          return <NavLink key={sub.href} href={sub.href} icon={sub.icon} label={sub.label} active={subActive} indent={!collapsed} collapsed={collapsed} />
                         })}
                       </div>
                     )}
                   </div>
                 )
               }
-              const active = path === href || (href !== "/" && path.startsWith(href + "/"))
-              return <NavLink key={href} href={href} icon={Icon} label={label} active={active} collapsed={collapsed} />
+              const active = path === href || (href !== "/" && path.startsWith(href + "/") && !nav.some(n => n.href !== href && n.href.startsWith(href) && (path === n.href || path.startsWith(n.href + "/"))))
+              return <NavLink key={href} href={href} icon={Icon} label={label} active={active} indent={indent} collapsed={collapsed} />
             })}
           </>
         )}
