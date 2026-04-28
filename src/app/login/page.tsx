@@ -2,14 +2,10 @@
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
-import { Eye, EyeOff, Leaf, ArrowRight, Loader2 } from "lucide-react"
+import Link from "next/link"
+import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
 
-const stats = [["200+","Employees"],["8","Departments"],["36","States"],["7+","Years"]]
-const demos = [
-  ["Super Admin",  "admin@datasciencenigeria.ai",         "Admin@DSN2024!"],
-  ["HR Admin",     "hr@datasciencenigeria.ai",            "dsn-staff"],
-  ["Staff",        "emeka.okonkwo@datasciencenigeria.ai", "dsn-staff"],
-]
+const stats = [["60+","Employees"],["17","Departments"],["36","States"],["7+","Years"]]
 
 export default function LoginPage() {
   const router = useRouter()
@@ -25,7 +21,7 @@ export default function LoginPage() {
     const result = await signIn("credentials", { email, password, redirect: false })
     setLoading(false)
     if (result?.error) setError("Invalid email or password. Please try again.")
-    else { router.push("/dashboard"); router.refresh() }
+    else { router.push("/"); router.refresh() }
   }
 
   return (
@@ -37,18 +33,9 @@ export default function LoginPage() {
         flexDirection: "column", justifyContent: "space-between", padding: "44px 52px",
       }}>
         {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            width: 42, height: 42, borderRadius: 11, background: "var(--primary)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 0 0 4px rgba(11,92,46,0.35)",
-          }}>
-            <Leaf size={20} color="white" />
-          </div>
-          <div>
-            <div style={{ color: "white", fontWeight: 800, fontSize: 18, letterSpacing: "-0.02em" }}>DSN HRMS</div>
-            <div style={{ color: "var(--sidebar-fg)", fontSize: 12 }}>Data Science Nigeria</div>
-          </div>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: 20, color: "white", letterSpacing: "-0.02em" }}>DSN HRMS</div>
+          <div style={{ fontSize: 13, color: "var(--sidebar-fg)" }}>Data Science Nigeria</div>
         </div>
 
         {/* Hero text */}
@@ -81,15 +68,10 @@ export default function LoginPage() {
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div style={{ width: "100%", maxWidth: 420 }}>
 
-          {/* Mobile logo */}
-          <div className="lg-flex" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40, justifyContent: "center" }}>
-            <div style={{ width: 46, height: 46, borderRadius: 12, background: "var(--sidebar-bg)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Leaf size={22} color="var(--primary)" />
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: 18, color: "var(--foreground)", letterSpacing: "-0.02em" }}>DSN HRMS</div>
-              <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Data Science Nigeria</div>
-            </div>
+          {/* Mobile brand — only visible when left panel is hidden (small screens) */}
+          <div className="lg-hide" style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 40 }}>
+            <div style={{ fontWeight: 800, fontSize: 18, color: "var(--foreground)", letterSpacing: "-0.02em" }}>DSN HRMS</div>
+            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Data Science Nigeria</div>
           </div>
 
           {/* Card */}
@@ -194,25 +176,11 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demo credentials */}
-            <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 12, border: "1px solid var(--border)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                <span style={{ display: "inline-block", width: 3, height: 14, background: "var(--accent)", borderRadius: 2 }} />
-                <div style={{ fontSize: 11, fontWeight: 800, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Demo Credentials</div>
-              </div>
-              {demos.map(([role, em, pw]) => (
-                <div
-                  key={role}
-                  style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 4, cursor: "pointer", padding: "7px 8px", borderRadius: 6, transition: "background 0.12s", display: "flex", alignItems: "center", gap: 8 }}
-                  onClick={() => { setEmail(em); setPassword(pw) }}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--border)"}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-                >
-                  <span style={{ fontWeight: 700, color: "var(--accent)", fontSize: 11, minWidth: 72 }}>{role}</span>
-                  <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{em}</span>
-                </div>
-              ))}
-              <p style={{ fontSize: 11, color: "var(--subtle)", margin: "8px 0 0", textAlign: "center" }}>Click a row to auto-fill</p>
+            {/* Forgot password */}
+            <div style={{ textAlign: "center", marginTop: 20 }}>
+              <Link href="/forgot-password" style={{ fontSize: 13, color: "var(--muted-foreground)", textDecoration: "none" }}>
+                Forgotten your password?
+              </Link>
             </div>
           </div>
 

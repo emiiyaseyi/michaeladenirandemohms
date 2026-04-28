@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden } from "@/lib/api-auth"
 
 // Compute net pay from payslip fields
 function calcNetPay(d: any): number {
@@ -13,7 +13,6 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const c = caps(user.role)
   const { searchParams } = req.nextUrl
 
   const status = searchParams.get("status") ?? undefined
@@ -21,7 +20,7 @@ export async function GET(req: NextRequest) {
   const year = searchParams.get("year") ? Number(searchParams.get("year")) : undefined
   const employeeId = searchParams.get("employeeId") ?? undefined
 
-  const isPayrollAdmin = user.role === "SUPER_ADMIN" || user.role === "PAYROLL_OFFICER"
+  const isPayrollAdmin = user.role === "ADMIN"
 
   let where: any = {}
   if (isPayrollAdmin) {
@@ -79,8 +78,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  const isPayrollAdmin2 = user.role === "SUPER_ADMIN" || user.role === "PAYROLL_OFFICER"
-  if (!isPayrollAdmin2) return forbidden()
+  if (user.role !== "ADMIN") return forbidden()
 
   const body = await req.json()
   const {

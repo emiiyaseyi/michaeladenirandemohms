@@ -5,7 +5,7 @@ import { requireAuth, forbidden } from "@/lib/api-auth"
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!["SUPER_ADMIN", "HR_ADMIN", "ADMIN"].includes(user.role)) return forbidden()
+  if (!["ADMIN", "ADMIN", "ADMIN"].includes(user.role)) return forbidden()
 
   const { id } = await params
   const { action, reviewNote } = await req.json() // action: "approve" | "reject"

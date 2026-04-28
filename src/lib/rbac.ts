@@ -1,464 +1,306 @@
 // ─── RBAC — Role-Based Access Control ───────────────────────────────────────
-// Single source of truth for all permission checks in the system.
 
-import {
-  LayoutDashboard, Users, CalendarDays, Briefcase, TrendingUp,
-  UserCheck, UserMinus, GitBranch, BarChart3, Settings, UserCircle,
-  FolderOpen, Layers, Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck, type LucideIcon,
-} from "lucide-react"
+export type SystemRole = "ADMIN" | "TEAM_LEAD" | "STAFF"
 
-export type SystemRole =
-  | "SUPER_ADMIN"
-  | "ADMIN"
-  | "HR_ADMIN"
-  | "MANAGER"
-  | "DEPARTMENT_LEAD"
-  | "PROJECT_MANAGER"
-  | "TEAM_LEAD"
-  | "PROJECT_LEAD"
-  | "RELIEF_OFFICER"
-  | "STAFF"
-  | "INTERN"
-  | "TA_OFFICER"
-  | "PERFORMANCE_OFFICER"
-  | "PAYROLL_OFFICER"
-  | "AUDIT"
-
-// ─── NAV ITEMS ───────────────────────────────────────────────────────────────
+export interface ChildNavItem {
+  label: string
+  href: string
+  excludeRoles?: SystemRole[]
+}
 
 export interface NavItem {
   label: string
-  href: string
-  icon: LucideIcon
+  href?: string
+  icon: string
   roles: SystemRole[]
+  section?: string
+  children?: ChildNavItem[]
   indent?: boolean
 }
 
-export const ALL_ROLES: SystemRole[] = [
-  "SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD",
-  "PROJECT_MANAGER", "TEAM_LEAD", "PROJECT_LEAD", "RELIEF_OFFICER",
-  "STAFF", "INTERN", "TA_OFFICER", "PERFORMANCE_OFFICER", "PAYROLL_OFFICER", "AUDIT",
-]
+export const ALL_ROLES: SystemRole[] = ["ADMIN", "TEAM_LEAD", "STAFF"]
 
 export const NAV_ITEMS: NavItem[] = [
+
+  // ── Top ─────────────────────────────────────────────────────────────────────
+  { label: "Dashboard",       href: "/dashboard",       icon: "LayoutDashboard", roles: ALL_ROLES },
+  { label: "Company Details", href: "/company-details", icon: "Building2",       roles: ["ADMIN"] },
+
+  // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
-    label: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    roles: ALL_ROLES,
+    label: "People", icon: "Users", roles: ["ADMIN", "TEAM_LEAD"], section: "PEOPLE",
+    children: [
+      { label: "Employees",          href: "/people/employees",          excludeRoles: ["TEAM_LEAD"] },
+      { label: "Needs Attention",    href: "/people/needs-attention",    excludeRoles: ["TEAM_LEAD"] },
+      { label: "Departments",        href: "/people/departments",        excludeRoles: ["TEAM_LEAD"] },
+      { label: "Teams",              href: "/people/teams" },
+      { label: "Documents",          href: "/people/documents",          excludeRoles: ["ADMIN"] },
+      { label: "Managers",           href: "/people/managers",           excludeRoles: ["TEAM_LEAD"] },
+      { label: "Custom Groups",      href: "/people/custom-groups",      excludeRoles: ["TEAM_LEAD"] },
+      { label: "Offers",             href: "/people/offers",             excludeRoles: ["TEAM_LEAD"] },
+      { label: "Exits",              href: "/people/exits" },
+      { label: "External Admins",    href: "/people/external-admins",    excludeRoles: ["TEAM_LEAD"] },
+      { label: "Confirmation",       href: "/people/confirmation" },
+      { label: "Org. Chart",         href: "/people/org-chart" },
+      { label: "Job Titles",         href: "/people/job-titles",         excludeRoles: ["TEAM_LEAD"] },
+      { label: "Profile Requests",   href: "/people/profile-requests",   excludeRoles: ["TEAM_LEAD"] },
+      { label: "Personal Documents", href: "/people/personal-docs",      excludeRoles: ["TEAM_LEAD"] },
+    ],
   },
   {
-    label: "Self Service",
-    href: "/self-service",
-    icon: UserCircle,
-    roles: ALL_ROLES,
+    label: "Hiring", icon: "Briefcase", roles: ["ADMIN"],
+    children: [
+      { label: "Overview",   href: "/recruitment" },
+      { label: "Jobs",       href: "/recruitment/jobs" },
+      { label: "Applicants", href: "/recruitment/applicants" },
+      { label: "Settings",   href: "/recruitment/settings" },
+    ],
   },
   {
-    label: "Employees",
-    href: "/employees",
-    icon: Users,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
+    label: "Requests", icon: "Receipt", roles: ALL_ROLES,
+    children: [
+      { label: "Loans",           href: "/requests/loans",           excludeRoles: ["TEAM_LEAD", "STAFF"] },
+      { label: "Salary Advances", href: "/requests/salary-advances", excludeRoles: ["TEAM_LEAD", "STAFF"] },
+      { label: "Leave",           href: "/requests/leave" },
+      { label: "Exits",           href: "/requests/exits",           excludeRoles: ["TEAM_LEAD", "STAFF"] },
+      { label: "Redeployments",   href: "/requests/redeployments",   excludeRoles: ["TEAM_LEAD", "STAFF"] },
+      { label: "Documents",       href: "/requests/documents",       excludeRoles: ["TEAM_LEAD", "STAFF"] },
+    ],
+  },
+  { label: "Surveys",     href: "/surveys",     icon: "ClipboardList", roles: ALL_ROLES },
+  { label: "Documents",   href: "/documents",   icon: "FolderOpen",    roles: ALL_ROLES },
+  { label: "Contractors", href: "/contractors", icon: "Users",         roles: ["ADMIN"] },
+
+  // ── COMPENSATION ─────────────────────────────────────────────────────────────
+  {
+    label: "Payroll", icon: "DollarSign", roles: ["ADMIN"], section: "COMPENSATION",
+    children: [
+      { label: "Overview",       href: "/payroll/overview" },
+      { label: "Changes",        href: "/payroll/changes" },
+      { label: "Records",        href: "/payroll/records" },
+      { label: "Skip Employees", href: "/payroll/skip-employees" },
+      { label: "History",        href: "/payroll/history" },
+      { label: "Configuration",  href: "/payroll/configuration" },
+    ],
   },
   {
-    label: "Teams",
-    href: "/employees/teams",
-    icon: Users,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
-    indent: true,
+    label: "Pay Schedules", icon: "CalendarDays", roles: ["ADMIN"],
+    children: [
+      { label: "Regular",   href: "/pay-schedules/regular" },
+      { label: "Custom",    href: "/pay-schedules/custom" },
+      { label: "Reversals", href: "/pay-schedules/reversals" },
+    ],
   },
   {
-    label: "Profile Requests",
-    href: "/employees/profile-requests",
-    icon: UserCheck,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
-    indent: true,
+    label: "Wallets", icon: "Wallet", roles: ["ADMIN"],
+    children: [
+      { label: "Overview",     href: "/wallets/overview" },
+      { label: "Transfers",    href: "/wallets/transfers" },
+      { label: "Transactions", href: "/wallets/transactions" },
+      { label: "Integration",  href: "/wallets/integration" },
+    ],
   },
   {
-    label: "Personal Documents",
-    href: "/employees/personal-docs",
-    icon: FileCheck,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
-    indent: true,
+    label: "Earned Wage Access", icon: "TrendingUp", roles: ["ADMIN"],
+    children: [
+      { label: "Analytics",         href: "/earned-wage-access/analytics" },
+      { label: "Employees",         href: "/earned-wage-access/employees" },
+      { label: "Withdrawals",       href: "/earned-wage-access/withdrawals" },
+      { label: "Payment",           href: "/earned-wage-access/payment" },
+      { label: "Policy Management", href: "/earned-wage-access/policy-management" },
+    ],
+  },
+  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"] },
+
+  { label: "Job & Pay", href: "/job-pay", icon: "Banknote", roles: ["TEAM_LEAD", "STAFF"], section: "COMPENSATION" },
+  { label: "Benefits",  href: "/benefits", icon: "Gift",    roles: ["TEAM_LEAD", "STAFF"] },
+  {
+    label: "Wallet", icon: "Wallet", roles: ["TEAM_LEAD", "STAFF"],
+    children: [
+      { label: "Overview",          href: "/wallet/overview" },
+      { label: "Transactions",      href: "/wallet/transactions" },
+      { label: "Transfers",         href: "/wallet/transfers" },
+      { label: "Earned Wage Access", href: "/wallet/earned-wage-access" },
+    ],
+  },
+
+  // ── PRODUCTIVITY ─────────────────────────────────────────────────────────────
+  {
+    label: "Performance", icon: "TrendingUp", roles: ALL_ROLES, section: "PRODUCTIVITY",
+    children: [
+      { label: "Overview",      href: "/performance" },
+      { label: "Setup",         href: "/performance/setup",         excludeRoles: ["TEAM_LEAD", "STAFF"] },
+      { label: "Period",        href: "/performance/period",        excludeRoles: ["TEAM_LEAD", "STAFF"] },
+      { label: "Objectives",    href: "/performance/objectives" },
+      { label: "Groups",        href: "/performance/groups",        excludeRoles: ["STAFF"] },
+      { label: "Reviews",       href: "/performance/reviews" },
+      { label: "Ratings",       href: "/performance/ratings",       excludeRoles: ["STAFF"] },
+      { label: "Conversations", href: "/performance/conversations" },
+      { label: "Feedback",      href: "/performance/feedback" },
+    ],
+  },
+  { label: "Projects",    href: "/projects",    icon: "Layers",        roles: ALL_ROLES },
+  { label: "Tasks",       href: "/tasks",       icon: "ClipboardList", roles: ALL_ROLES },
+  { label: "Assets",      href: "/assets",      icon: "Package",       roles: ["TEAM_LEAD", "STAFF"] },
+  {
+    label: "Time Tracking", icon: "Clock", roles: ["ADMIN", "TEAM_LEAD"],
+    children: [
+      { label: "Absence", href: "/time-tracking/absence" },
+    ],
   },
   {
-    // Leave approval/admin view — staff access leave via Self Service
-    label: "Leave",
-    href: "/leave",
-    icon: CalendarDays,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
+    label: "Disciplinary", icon: "Scale", roles: ["ADMIN"],
+    children: [
+      { label: "Suspensions",     href: "/disciplinary/suspensions" },
+      { label: "Violations",      href: "/disciplinary/violations" },
+      { label: "Policies",        href: "/disciplinary/policies" },
+      { label: "Triggers",        href: "/disciplinary/triggers" },
+      { label: "Violation Types", href: "/disciplinary/violation-types" },
+    ],
+  },
+  { label: "Disciplinary", href: "/disciplinary", icon: "Scale",     roles: ["TEAM_LEAD", "STAFF"] },
+  { label: "Onboarding",  href: "/onboarding",  icon: "UserCheck", roles: ["ADMIN"] },
+  { label: "Offboarding", href: "/offboarding", icon: "UserMinus", roles: ["ADMIN"] },
+
+  // ── OTHER ────────────────────────────────────────────────────────────────────
+  {
+    label: "Settings", icon: "Settings", roles: ["ADMIN"], section: "OTHER",
+    children: [
+      { label: "Admins",              href: "/settings/admins" },
+      { label: "HR & Payroll",        href: "/settings/hr-payroll" },
+      { label: "Plan & Billing",      href: "/settings/plan-billing" },
+      { label: "Customization",       href: "/settings/customization" },
+      { label: "Approval Workflows",  href: "/settings/approval-workflows" },
+      { label: "Single Sign-On",      href: "/settings/single-sign-on" },
+      { label: "Roles & Permissions", href: "/settings/roles-permissions" },
+    ],
   },
   {
-    label: "Recruitment",
-    href: "/recruitment",
-    icon: Briefcase,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
+    label: "Reports", icon: "BarChart2", roles: ["ADMIN"],
+    children: [
+      { label: "Payroll Reports",  href: "/reports/payroll-reports" },
+      { label: "Employee Reports", href: "/reports/employee-reports" },
+      { label: "Custom Reports",   href: "/reports/custom-reports" },
+    ],
   },
   {
-    label: "Performance",
-    href: "/performance",
-    icon: TrendingUp,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "PERFORMANCE_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
+    label: "Assets", icon: "Package", roles: ["ADMIN"],
+    children: [
+      { label: "Overview",    href: "/assets/overview" },
+      { label: "Assignments", href: "/assets/assignments" },
+    ],
   },
+  { label: "Rent Documents", href: "/rent-documents", icon: "FileText",  roles: ["ADMIN"] },
+  { label: "Audit Log",      href: "/audit-log",      icon: "FileText",  roles: ["ADMIN"] },
   {
-    label: "Onboarding",
-    href: "/onboarding",
-    icon: UserCheck,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
+    label: "Announcements", icon: "Megaphone", roles: ALL_ROLES,
+    children: [
+      { label: "Overview", href: "/announcements" },
+      { label: "Groups",   href: "/announcements/groups" },
+    ],
   },
+  { label: "Analytics", href: "/analytics", icon: "BarChart3", roles: ["ADMIN"] },
+  { label: "Trash",     href: "/trash",     icon: "Trash2",    roles: ["ADMIN"] },
+
+  // ── EXTRAS ───────────────────────────────────────────────────────────────────
   {
-    label: "Offboarding",
-    href: "/offboarding",
-    icon: UserMinus,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
+    label: "Self Service", icon: "UserCircle", roles: ALL_ROLES, section: "EXTRAS",
+    children: [
+      { label: "Profile",          href: "/self-service/profile" },
+      { label: "Payslips",         href: "/self-service/payslips" },
+      { label: "Requisition",      href: "/self-service/requisitions" },
+      { label: "Grievance",        href: "/self-service/grievance" },
+      { label: "Exit",             href: "/self-service/exit" },
+      { label: "Change Password",  href: "/self-service/change-password" },
+    ],
   },
-  {
-    label: "Projects",
-    href: "/projects",
-    icon: Layers,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
-  },
-  {
-    label: "Departments",
-    href: "/departments",
-    icon: Building2,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
-  },
-  {
-    label: "Documents",
-    href: "/documents",
-    icon: FolderOpen,
-    roles: ALL_ROLES,
-  },
-  {
-    label: "Announcements",
-    href: "/announcements",
-    icon: Megaphone,
-    roles: ALL_ROLES,
-  },
-  {
-    label: "FAQ",
-    href: "/faq",
-    icon: HelpCircle,
-    roles: ALL_ROLES,
-  },
-  {
-    label: "Org Chart",
-    href: "/org-chart",
-    icon: GitBranch,
-    roles: ALL_ROLES,
-  },
-  {
-    label: "Analytics",
-    href: "/analytics",
-    icon: BarChart3,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PERFORMANCE_OFFICER", "AUDIT"],
-  },
-  {
-    label: "Reports",
-    href: "/reports",
-    icon: BarChart2,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
-  },
-  {
-    label: "Payslips",
-    href: "/payslips",
-    icon: Receipt,
-    roles: ["SUPER_ADMIN", "PAYROLL_OFFICER"],
-  },
-  {
-    label: "Trash",
-    href: "/trash",
-    icon: Trash2,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
-  },
-  {
-    label: "Settings",
-    href: "/settings",
-    icon: Settings,
-    roles: ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
-  },
+  { label: "FAQ",      href: "/faq",      icon: "HelpCircle", roles: ALL_ROLES },
+  { label: "Calendar", href: "/calendar", icon: "Calendar",   roles: ALL_ROLES },
 ]
 
-// ─── ROUTE PROTECTION MAP ────────────────────────────────────────────────────
-// Maps route prefixes to allowed roles. Used by middleware.
-
-export const ROUTE_ROLES: Record<string, SystemRole[]> = {
-  "/dashboard":    ALL_ROLES,
-  "/self-service": ALL_ROLES,
-  "/employees":    ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
-  "/leave":        ALL_ROLES,
-  "/recruitment":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "TA_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
-  "/performance":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "PERFORMANCE_OFFICER", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
-  "/onboarding":   ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "STAFF", "INTERN", "AUDIT"],
-  "/offboarding":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "AUDIT"],
-  "/projects":     ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PROJECT_MANAGER", "TA_OFFICER", "PERFORMANCE_OFFICER", "AUDIT"],
-  "/departments":  ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "AUDIT"],
-  "/documents":    ALL_ROLES,
-  "/announcements": ALL_ROLES,
-  "/faq":          ALL_ROLES,
-  "/org-chart":    ALL_ROLES,
-  "/analytics":    ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "MANAGER", "DEPARTMENT_LEAD", "PERFORMANCE_OFFICER", "AUDIT"],
-  "/reports":      ["SUPER_ADMIN", "ADMIN", "HR_ADMIN", "AUDIT"],
-  "/payslips":     ["SUPER_ADMIN", "PAYROLL_OFFICER"],
-  "/trash":        ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
-  "/settings":     ["SUPER_ADMIN", "ADMIN", "HR_ADMIN"],
-}
-
 // ─── CAPABILITY FLAGS ────────────────────────────────────────────────────────
-// Fine-grained capabilities used in API routes and UI components.
 
 export interface RoleCapabilities {
-  // Employees
-  canViewAllEmployees: boolean       // see org-wide employee list
-  canViewTeamEmployees: boolean      // see only own team / dept
+  canViewAllEmployees: boolean
+  canViewTeamEmployees: boolean
   canCreateEmployee: boolean
   canEditAnyEmployee: boolean
-
-  // Leave
-  canViewAllLeave: boolean           // see all leave requests org-wide
-  canViewTeamLeave: boolean          // see only team's leave
+  canViewAllLeave: boolean
+  canViewTeamLeave: boolean
   canApproveLeave: boolean
-  canSubmitLeave: boolean            // submit own leave
-
-  // Recruitment
-  canManageRecruitment: boolean      // create/edit jobs, move candidates
+  canSubmitLeave: boolean
+  canManageRecruitment: boolean
   canViewRecruitment: boolean
-
-  // Performance
   canManagePerformanceCycles: boolean
   canViewAllPerformance: boolean
   canViewTeamPerformance: boolean
   canSubmitOwnKPI: boolean
-  canScoreKPIs: boolean              // manager scoring
-
-  // Onboarding
-  canManageOnboarding: boolean       // create/assign tasks
-  canViewOwnOnboarding: boolean      // see own tasks only
-
-  // Offboarding
+  canScoreKPIs: boolean
+  canManageOnboarding: boolean
+  canViewOwnOnboarding: boolean
   canManageOffboarding: boolean
-
-  // Settings
   canManageSettings: boolean
-
-  // Analytics
   canViewAnalytics: boolean
   canViewTeamAnalytics: boolean
-
-  // Audit
-  isReadOnly: boolean                // AUDIT role: no mutations
-}
-
-const full: RoleCapabilities = {
-  canViewAllEmployees: true, canViewTeamEmployees: true,
-  canCreateEmployee: true, canEditAnyEmployee: true,
-  canViewAllLeave: true, canViewTeamLeave: true,
-  canApproveLeave: true, canSubmitLeave: true,
-  canManageRecruitment: true, canViewRecruitment: true,
-  canManagePerformanceCycles: true, canViewAllPerformance: true,
-  canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
-  canManageOnboarding: true, canViewOwnOnboarding: true,
-  canManageOffboarding: true,
-  canManageSettings: true,
-  canViewAnalytics: true, canViewTeamAnalytics: true,
-  isReadOnly: false,
+  isReadOnly: boolean
 }
 
 export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
-  SUPER_ADMIN: { ...full },
-
   ADMIN: {
-    ...full,
-    canManageSettings: false, // settings limited to SUPER_ADMIN & HR_ADMIN for config
-  },
-
-  HR_ADMIN: {
-    ...full,
-    canManageSettings: true,
-  },
-
-  MANAGER: {
-    canViewAllEmployees: false, canViewTeamEmployees: true,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: true,
-    canApproveLeave: true, canSubmitLeave: true,
-    canManageRecruitment: false, canViewRecruitment: false,
-    canManagePerformanceCycles: false, canViewAllPerformance: false,
-    canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
-    canManageOnboarding: true, canViewOwnOnboarding: true,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: true,
-    isReadOnly: false,
-  },
-
-  DEPARTMENT_LEAD: {
-    canViewAllEmployees: false, canViewTeamEmployees: true,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: true,
-    canApproveLeave: true, canSubmitLeave: true,
-    canManageRecruitment: false, canViewRecruitment: false,
-    canManagePerformanceCycles: false, canViewAllPerformance: false,
-    canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
-    canManageOnboarding: true, canViewOwnOnboarding: true,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: true,
-    isReadOnly: false,
-  },
-
-  PROJECT_MANAGER: {
-    canViewAllEmployees: false, canViewTeamEmployees: true,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: false,
-    canApproveLeave: false, canSubmitLeave: true,
-    canManageRecruitment: false, canViewRecruitment: false,
-    canManagePerformanceCycles: false, canViewAllPerformance: false,
-    canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: false,
-    canManageOnboarding: false, canViewOwnOnboarding: true,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: false,
-    isReadOnly: false,
-  },
-
-  TA_OFFICER: {
-    canViewAllEmployees: false, canViewTeamEmployees: false,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: false,
-    canApproveLeave: false, canSubmitLeave: true,
+    canViewAllEmployees: true,  canViewTeamEmployees: true,
+    canCreateEmployee: true,    canEditAnyEmployee: true,
+    canViewAllLeave: true,      canViewTeamLeave: true,
+    canApproveLeave: true,      canSubmitLeave: true,
     canManageRecruitment: true, canViewRecruitment: true,
-    canManagePerformanceCycles: false, canViewAllPerformance: false,
-    canViewTeamPerformance: false, canSubmitOwnKPI: true, canScoreKPIs: false,
-    canManageOnboarding: false, canViewOwnOnboarding: true,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: false,
-    isReadOnly: false,
-  },
-
-  PERFORMANCE_OFFICER: {
-    canViewAllEmployees: false, canViewTeamEmployees: false,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: false,
-    canApproveLeave: false, canSubmitLeave: true,
-    canManageRecruitment: false, canViewRecruitment: false,
     canManagePerformanceCycles: true, canViewAllPerformance: true,
     canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
-    canManageOnboarding: false, canViewOwnOnboarding: true,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: true, canViewTeamAnalytics: true,
+    canManageOnboarding: true,  canViewOwnOnboarding: true,
+    canManageOffboarding: true,
+    canManageSettings: true,
+    canViewAnalytics: true,     canViewTeamAnalytics: true,
     isReadOnly: false,
   },
-
-  STAFF: {
-    canViewAllEmployees: false, canViewTeamEmployees: false,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: false,
-    canApproveLeave: false, canSubmitLeave: true,
-    canManageRecruitment: false, canViewRecruitment: false,
-    canManagePerformanceCycles: false, canViewAllPerformance: false,
-    canViewTeamPerformance: false, canSubmitOwnKPI: true, canScoreKPIs: false,
-    canManageOnboarding: false, canViewOwnOnboarding: true,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: false,
-    isReadOnly: false,
-  },
-
-  INTERN: {
-    canViewAllEmployees: false, canViewTeamEmployees: false,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: false,
-    canApproveLeave: false, canSubmitLeave: true,
-    canManageRecruitment: false, canViewRecruitment: false,
-    canManagePerformanceCycles: false, canViewAllPerformance: false,
-    canViewTeamPerformance: false, canSubmitOwnKPI: true, canScoreKPIs: false,
-    canManageOnboarding: false, canViewOwnOnboarding: true,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: false,
-    isReadOnly: false,
-  },
-
-  PAYROLL_OFFICER: {
-    canViewAllEmployees: true, canViewTeamEmployees: true,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: false,
-    canApproveLeave: false, canSubmitLeave: true,
-    canManageRecruitment: false, canViewRecruitment: false,
-    canManagePerformanceCycles: false, canViewAllPerformance: false,
-    canViewTeamPerformance: false, canSubmitOwnKPI: true, canScoreKPIs: false,
-    canManageOnboarding: false, canViewOwnOnboarding: true,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: false,
-    isReadOnly: false,
-  },
-
-  AUDIT: {
-    canViewAllEmployees: true, canViewTeamEmployees: true,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: true, canViewTeamLeave: true,
-    canApproveLeave: false, canSubmitLeave: false,
-    canManageRecruitment: false, canViewRecruitment: true,
-    canManagePerformanceCycles: false, canViewAllPerformance: true,
-    canViewTeamPerformance: true, canSubmitOwnKPI: false, canScoreKPIs: false,
-    canManageOnboarding: false, canViewOwnOnboarding: false,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: true, canViewTeamAnalytics: true,
-    isReadOnly: true,
-  },
-
   TEAM_LEAD: {
     canViewAllEmployees: false, canViewTeamEmployees: true,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: true,
-    canApproveLeave: true, canSubmitLeave: true,
+    canCreateEmployee: false,   canEditAnyEmployee: false,
+    canViewAllLeave: false,     canViewTeamLeave: true,
+    canApproveLeave: true,      canSubmitLeave: true,
     canManageRecruitment: false, canViewRecruitment: false,
     canManagePerformanceCycles: false, canViewAllPerformance: false,
     canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
     canManageOnboarding: false, canViewOwnOnboarding: true,
     canManageOffboarding: false,
     canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: true,
+    canViewAnalytics: false,    canViewTeamAnalytics: true,
     isReadOnly: false,
   },
-
-  PROJECT_LEAD: {
-    canViewAllEmployees: false, canViewTeamEmployees: true,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: true,
-    canApproveLeave: true, canSubmitLeave: true,
-    canManageRecruitment: false, canViewRecruitment: false,
-    canManagePerformanceCycles: false, canViewAllPerformance: false,
-    canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
-    canManageOnboarding: false, canViewOwnOnboarding: true,
-    canManageOffboarding: false,
-    canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: true,
-    isReadOnly: false,
-  },
-
-  RELIEF_OFFICER: {
+  STAFF: {
     canViewAllEmployees: false, canViewTeamEmployees: false,
-    canCreateEmployee: false, canEditAnyEmployee: false,
-    canViewAllLeave: false, canViewTeamLeave: false,
-    canApproveLeave: true, canSubmitLeave: true,
+    canCreateEmployee: false,   canEditAnyEmployee: false,
+    canViewAllLeave: false,     canViewTeamLeave: false,
+    canApproveLeave: false,     canSubmitLeave: true,
     canManageRecruitment: false, canViewRecruitment: false,
     canManagePerformanceCycles: false, canViewAllPerformance: false,
     canViewTeamPerformance: false, canSubmitOwnKPI: true, canScoreKPIs: false,
     canManageOnboarding: false, canViewOwnOnboarding: true,
     canManageOffboarding: false,
     canManageSettings: false,
-    canViewAnalytics: false, canViewTeamAnalytics: false,
+    canViewAnalytics: false,    canViewTeamAnalytics: false,
     isReadOnly: false,
   },
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
+// ─── ROLE SLUGS & HELPERS ────────────────────────────────────────────────────
+
+export const ROLE_SLUGS: Record<SystemRole, string> = {
+  ADMIN:     "admin",
+  TEAM_LEAD: "team-lead",
+  STAFF:     "staff",
+}
+
+export function getRoleHome(role: string): string {
+  return `/${ROLE_SLUGS[role as SystemRole] ?? "staff"}`
+}
 
 export function getCapabilities(role: string): RoleCapabilities {
   return ROLE_CAPABILITIES[role as SystemRole] ?? ROLE_CAPABILITIES.STAFF
@@ -468,32 +310,26 @@ export function getNavForRole(role: string): NavItem[] {
   return NAV_ITEMS.filter(item => item.roles.includes(role as SystemRole))
 }
 
-export function canAccessRoute(role: string, pathname: string): boolean {
-  for (const [prefix, roles] of Object.entries(ROUTE_ROLES)) {
-    if (pathname === prefix || pathname.startsWith(prefix + "/")) {
-      return roles.includes(role as SystemRole)
-    }
+export function getNavForRoleWithPrefix(role: SystemRole): NavItem[] {
+  const base = getRoleHome(role)
+  const mapHref = (href: string): string => {
+    if (href === "/dashboard") return base
+    return `${base}${href}`
   }
-  return true // unregistered routes are open
+  return NAV_ITEMS
+    .filter(item => item.roles.includes(role))
+    .map(item => ({
+      ...item,
+      href: item.href ? mapHref(item.href) : undefined,
+      children: item.children?.map(c => ({ ...c, href: mapHref(c.href) })),
+    }))
 }
 
 export function roleLabel(role: string): string {
   const labels: Record<string, string> = {
-    SUPER_ADMIN: "Super Admin",
-    ADMIN: "Admin",
-    HR_ADMIN: "HR Admin",
-    MANAGER: "Manager",
-    DEPARTMENT_LEAD: "Dept Lead",
-    PROJECT_MANAGER: "Project Manager",
-    STAFF: "Staff",
-    INTERN: "Intern",
-    TA_OFFICER: "TA Officer",
-    PERFORMANCE_OFFICER: "Performance Officer",
-    PAYROLL_OFFICER: "Payroll Officer",
+    ADMIN:     "Admin",
     TEAM_LEAD: "Team Lead",
-    PROJECT_LEAD: "Project Lead",
-    RELIEF_OFFICER: "Relief Officer",
-    AUDIT: "Auditor",
+    STAFF:     "Staff",
   }
   return labels[role] ?? role
 }

@@ -9,24 +9,24 @@ const DEFAULT_WORKFLOW = {
     {
       id: "leave", name: "Leave", description: "Leave request approval chain", isSystem: true,
       chain: [
-        { role: "RELIEF_OFFICER", label: "Relief Officer", deadlineHours: 24 },
-        { role: "PROJECT_LEAD",   label: "Project Lead",   deadlineHours: 24 },
+        { role: "STAFF", label: "Relief Officer", deadlineHours: 24 },
+        { role: "TEAM_LEAD",   label: "Project Lead",   deadlineHours: 24 },
         { role: "TEAM_LEAD",      label: "Team Lead",      deadlineHours: 48 },
-        { role: "MANAGER",        label: "Manager",        deadlineHours: 48 },
-        { role: "HR_ADMIN",       label: "HR Admin",       deadlineHours: 72 },
+        { role: "TEAM_LEAD",        label: "Manager",        deadlineHours: 48 },
+        { role: "ADMIN",       label: "HR Admin",       deadlineHours: 72 },
       ],
     },
     {
       id: "performance", name: "Performance Reviews", description: "Appraisal sign-off chain", isSystem: true,
       chain: [
-        { role: "MANAGER",  label: "Manager",  deadlineHours: 72 },
-        { role: "HR_ADMIN", label: "HR Admin", deadlineHours: 72 },
+        { role: "TEAM_LEAD",  label: "Manager",  deadlineHours: 72 },
+        { role: "ADMIN", label: "HR Admin", deadlineHours: 72 },
       ],
     },
     {
       id: "profile_changes", name: "Employee Profile Changes", description: "Profile update requests", isSystem: true,
       chain: [
-        { role: "HR_ADMIN", label: "HR Admin", deadlineHours: 48 },
+        { role: "ADMIN", label: "HR Admin", deadlineHours: 48 },
       ],
     },
   ],

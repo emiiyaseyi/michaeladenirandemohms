@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    const { firstName, lastName, workEmail, phone, jobTitle, hireDate, gender, employmentType, departmentName, managerEmail, teamLeadEmail, grossSalary } = row
+    const { firstName, middleName, lastName, workEmail, phone, jobTitle, hireDate, gender, employmentType, departmentName, teamLeadEmail, grossSalary, category } = row
 
     if (!firstName?.trim() || !lastName?.trim() || !workEmail?.trim()) {
       results.push({ row: i + 2, status: "skipped", error: "Missing required fields" })
@@ -76,13 +76,6 @@ export async function POST(req: NextRequest) {
         departmentId = dept?.id ?? null
       }
 
-      // Look up manager by email
-      let managerId: string | null = null
-      if (managerEmail?.trim()) {
-        const mgr = await prisma.employee.findFirst({ where: { workEmail: managerEmail.trim().toLowerCase() } })
-        managerId = mgr?.id ?? null
-      }
-
       // Look up team lead by email
       let departmentLeadId: string | null = null
       if (teamLeadEmail?.trim()) {
@@ -90,29 +83,33 @@ export async function POST(req: NextRequest) {
         departmentLeadId = lead?.id ?? null
       }
 
+      const mid = middleName?.trim() || null
+      const fullName = `${firstName.trim()}${mid ? " " + mid : ""} ${lastName.trim()}`
       const empId = `DSN${String(nextNum).padStart(4, "0")}`
       nextNum++
 
       const newUser = await prisma.user.create({
-        data: { name: `${firstName.trim()} ${lastName.trim()}`, email: workEmail.trim().toLowerCase(), password: hashedPwd, role: "STAFF" },
+        data: { name: fullName, email: workEmail.trim().toLowerCase(), password: hashedPwd, role: "STAFF" },
       })
 
+      const catUpper = category?.trim().toUpperCase()
       await prisma.employee.create({
         data: {
           userId: newUser.id,
           employeeId: empId,
           firstName: firstName.trim(),
+          middleName: mid,
           lastName: lastName.trim(),
           workEmail: workEmail.trim().toLowerCase(),
           phone: phone?.trim() || null,
           jobTitle: jobTitle?.trim() || null,
           hireDate: hireDate?.trim() ? new Date(hireDate.trim()) : null,
           gender: (gender?.trim().toUpperCase() === "MALE" ? "MALE" : gender?.trim().toUpperCase() === "FEMALE" ? "FEMALE" : null) as any,
-          employmentType: (["FULL_TIME","PART_TIME","CONTRACT","INTERN","NYSC"].includes(employmentType?.trim().toUpperCase() ?? "")
+          employmentType: (["FULL_TIME","PART_TIME","CONTRACT","STAFF","NYSC"].includes(employmentType?.trim().toUpperCase() ?? "")
             ? employmentType!.trim().toUpperCase()
             : "FULL_TIME") as any,
+          category: (catUpper === "TECHNICAL" || catUpper === "NON_TECHNICAL" ? catUpper : "NON_TECHNICAL") as any,
           departmentId,
-          managerId,
           departmentLeadId,
           grossSalary: grossSalary?.trim() ? parseFloat(grossSalary.trim()) || null : null,
         },
@@ -132,14 +129,14 @@ export async function POST(req: NextRequest) {
 // GET: download CSV template
 export async function GET() {
   const headers = [
-    "firstName", "lastName", "workEmail", "phone", "jobTitle",
+    "firstName", "middleName", "lastName", "workEmail", "phone", "jobTitle",
     "hireDate", "gender", "employmentType", "departmentName",
-    "managerEmail", "teamLeadEmail", "grossSalary",
+    "teamLeadEmail", "grossSalary", "category",
   ]
   const example = [
-    "John", "Doe", "john.doe@company.com", "08012345678",
+    "John", "", "Doe", "john.doe@datasciencenigeria.ai", "08012345678",
     "Software Engineer", "2024-01-15", "MALE", "FULL_TIME",
-    "Engineering", "manager@company.com", "lead@company.com", "450000",
+    "Technical Delivery (Service & Consulting)", "lead@datasciencenigeria.ai", "450000", "TECHNICAL",
   ]
   const csv = [headers.join(","), example.join(",")].join("\n")
   return new Response(csv, {

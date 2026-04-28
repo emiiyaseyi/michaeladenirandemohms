@@ -23,11 +23,8 @@ export async function GET() {
   // MANAGER / DEPT_LEAD — scoped to their team
   if (c.canViewTeamEmployees && user.employeeId) {
     let teamFilter: any = {}
-    if (user.role === "MANAGER") {
+    if (user.role === "TEAM_LEAD") {
       teamFilter = { managerId: user.employeeId }
-    } else if (user.role === "DEPARTMENT_LEAD") {
-      const me = await prisma.employee.findUnique({ where: { id: user.employeeId }, select: { departmentId: true } })
-      teamFilter = me?.departmentId ? { departmentId: me.departmentId } : {}
     }
     const [totalEmp, active, onLeave, pending] = await Promise.all([
       prisma.employee.count({ where: teamFilter }),

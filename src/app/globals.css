@@ -154,6 +154,32 @@ button:focus-visible {
   .lg-hide { display: none !important; }
 }
 
+/* ─── Mobile sidebar ──────────────────────────────────────────── */
+@media (max-width: 899px) {
+  .sidebar-shell { transform: translateX(-100%) !important; }
+  body.mobile-nav-open .sidebar-shell { transform: translateX(0) !important; }
+  .content-shell { margin-left: 0 !important; }
+}
+
+/* Overlay shown when mobile nav is open */
+.mobile-nav-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 49;
+  cursor: pointer;
+}
+body.mobile-nav-open .mobile-nav-overlay { display: block; }
+
+/* ─── Responsive header helpers ───────────────────────────────── */
+@media (max-width: 899px)  { .hdr-desktop { display: none !important; } }
+@media (min-width: 900px)  { .hdr-mobile  { display: none !important; } }
+
+/* ─── Table / content overflow ────────────────────────────────── */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+main { min-width: 0; }
+
 /* ─── Announcement animations ─────────────────────────────────── */
 @keyframes marquee {
   0%   { transform: translateX(0) }

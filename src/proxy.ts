@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getToken } from "next-auth/jwt"
-import { canAccessRoute } from "@/lib/rbac"
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Public paths — skip auth check
+  // Static assets and auth API — always pass through
   if (
-    pathname.startsWith("/login") ||
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon")
@@ -15,33 +13,29 @@ export async function proxy(req: NextRequest) {
     return NextResponse.next()
   }
 
+  // Change-password API must be reachable during first-login (before token is refreshed)
+  if (pathname === "/api/auth/change-password") return NextResponse.next()
+
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
 
-  // Not authenticated → redirect to login
+  // Public pages — redirect already-logged-in users away from /login
+  if (pathname.startsWith("/login") || pathname.startsWith("/forgot-password")) {
+    if (token && pathname.startsWith("/login")) {
+      return NextResponse.redirect(new URL("/", req.url))
+    }
+    return NextResponse.next()
+  }
+
+  // Everything else requires authentication
   if (!token) {
     const loginUrl = new URL("/login", req.url)
     loginUrl.searchParams.set("callbackUrl", pathname)
     return NextResponse.redirect(loginUrl)
   }
 
-  const role = token.role as string
-
-  // Check dashboard page access
-  if (pathname.startsWith("/") && !pathname.startsWith("/api/")) {
-    if (!canAccessRoute(role, pathname)) {
-      // Redirect to dashboard with access-denied flag
-      const url = new URL("/dashboard", req.url)
-      url.searchParams.set("denied", "1")
-      return NextResponse.redirect(url)
-    }
-  }
-
-  // API route protection — role check happens inside each route handler
-  // (middleware only ensures authentication for all /api/* except /api/auth/*)
-  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/auth")) {
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+  // If mustChangePassword, only allow /first-login (and its API call above)
+  if ((token as any).mustChangePassword && !pathname.startsWith("/first-login")) {
+    return NextResponse.redirect(new URL("/first-login", req.url))
   }
 
   return NextResponse.next()
@@ -49,6 +43,6 @@ export async function proxy(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico).*)",
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.svg$|.*\\.png$|.*\\.jpg$).*)",
   ],
 }

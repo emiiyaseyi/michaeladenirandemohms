@@ -1,0 +1,42 @@
+import { NextRequest, NextResponse } from "next/server"
+import bcrypt from "bcryptjs"
+import { prisma } from "@/lib/prisma"
+import { requireAuth, forbidden } from "@/lib/api-auth"
+
+// PATCH /api/auth/forgot-password/[id] — admin resolves a reset request
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (user.role !== "ADMIN") return forbidden()
+
+  const { id } = await params
+  const { newPassword } = await req.json()
+
+  if (!newPassword || newPassword.length < 8) {
+    return NextResponse.json({ error: "Password must be at least 8 characters" }, { status: 400 })
+  }
+
+  const request = await prisma.passwordResetRequest.findUnique({ where: { id } })
+  if (!request) return NextResponse.json({ error: "Request not found" }, { status: 404 })
+  if (request.status === "RESOLVED") {
+    return NextResponse.json({ error: "Already resolved" }, { status: 409 })
+  }
+
+  const hashed = await bcrypt.hash(newPassword, 12)
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { email: request.email },
+      data: { password: hashed, mustChangePassword: true },
+    }),
+    prisma.passwordResetRequest.update({
+      where: { id },
+      data: { status: "RESOLVED", resolvedBy: user.id, resolvedAt: new Date() },
+    }),
+  ])
+
+  return NextResponse.json({ success: true })
+}

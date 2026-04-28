@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = caps(user.role).canManageSettings || ["SUPER_ADMIN","ADMIN","HR_ADMIN"].includes(user.role)
+  const isAdmin = caps(user.role).canManageSettings || ["ADMIN","ADMIN","ADMIN"].includes(user.role)
 
   const docs = await prisma.orgDocument.findMany({
     where: { isActive: true },
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["SUPER_ADMIN","ADMIN","HR_ADMIN"].includes(user.role)
+  const isAdmin = ["ADMIN","ADMIN","ADMIN"].includes(user.role)
   if (!isAdmin) return forbidden("Only admins can upload documents")
 
   const formData = await req.formData()
