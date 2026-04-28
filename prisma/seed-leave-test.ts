@@ -19,11 +19,7 @@ async function main() {
 
   const pwd = await bcrypt.hash("Welcome@DSN1", 10)
 
-  // Find or create Engineering dept
-  let dept = await prisma.department.findFirst({ where: { name: "Engineering" } })
-  if (!dept) {
-    dept = await prisma.department.create({ data: { name: "Engineering", description: "Software Development" } })
-  }
+  const dept = await prisma.department.findFirstOrThrow({ where: { name: "Technical Delivery (Service & Consulting)" } })
 
   const count = await prisma.employee.count()
 

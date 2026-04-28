@@ -7,7 +7,7 @@ import { requireAuth, forbidden } from "@/lib/api-auth"
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN") return forbidden("Super Admin only")
+  if (user.role !== "ADMIN") return forbidden("Super Admin only")
 
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
@@ -33,12 +33,12 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN") return forbidden("Super Admin only")
+  if (user.role !== "ADMIN") return forbidden("Super Admin only")
 
   const body = await req.json()
   const {
     email, password, name, role,
-    firstName, lastName, employeeId: empId,
+    firstName, lastName, middleName, employeeId: empId,
     jobTitle, departmentId, employmentType,
   } = body
 
@@ -58,13 +58,12 @@ export async function POST(req: NextRequest) {
   const existingEmp = await prisma.employee.findUnique({ where: { employeeId: generatedEmpId } })
   if (existingEmp) return NextResponse.json({ error: "Employee ID already in use" }, { status: 409 })
 
-  // Default password is "dsn-staff" if none provided
-  const hashedPassword = await bcrypt.hash(password || "dsn-staff", 12)
+  const hashedPassword = await bcrypt.hash(password || process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 12)
 
   const newUser = await prisma.user.create({
     data: {
       email,
-      name: `${firstName} ${lastName}`,
+      name: `${firstName} ${middleName ? middleName + " " : ""}${lastName}`,
       password: hashedPassword,
       role: role ?? "STAFF",
       employee: {
@@ -72,6 +71,7 @@ export async function POST(req: NextRequest) {
           employeeId: generatedEmpId,
           firstName,
           lastName,
+          middleName: middleName || null,
           workEmail: email,
           jobTitle: jobTitle || null,
           departmentId: departmentId || null,

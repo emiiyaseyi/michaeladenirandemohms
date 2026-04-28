@@ -50,6 +50,7 @@ model User {
   password        String?
   role            SystemRole     @default(STAFF)
   isActive        Boolean        @default(true)
+  mustChangePassword Boolean     @default(true)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   lastLoginAt     DateTime?
@@ -63,6 +64,8 @@ model User {
   sessions               Session[]
   profileUpdateReviews   ProfileUpdateRequest[]
   personalDocReviews     PersonalDocument[]    @relation("PersonalDocReviewer")
+  passwordResetRequests  PasswordResetRequest[] @relation("PasswordResetUser")
+  resolvedResetRequests  PasswordResetRequest[] @relation("PasswordResetResolver")
 }
 
 model Division {
@@ -738,21 +741,9 @@ enum OrgDocCategory {
 }
 
 enum SystemRole {
-  SUPER_ADMIN
   ADMIN
-  HR_ADMIN
-  MANAGER
-  DEPARTMENT_LEAD
-  PROJECT_MANAGER
-  STAFF
-  INTERN
-  TA_OFFICER
-  PERFORMANCE_OFFICER
-  AUDIT
-  PAYROLL_OFFICER
   TEAM_LEAD
-  PROJECT_LEAD
-  RELIEF_OFFICER
+  STAFF
 }
 
 enum Gender {
@@ -878,10 +869,7 @@ enum LeaveStatus {
 }
 
 enum ApprovalStage {
-  RELIEF_OFFICER
-  PROJECT_LEAD
   TEAM_LEAD
-  MANAGER
   ADMIN
 }
 
@@ -1011,6 +999,24 @@ enum NotificationType {
   SUCCESS
   WARNING
   DANGER
+}
+
+enum PasswordResetStatus {
+  PENDING
+  RESOLVED
+}
+
+model PasswordResetRequest {
+  id         String              @id @default(cuid())
+  email      String
+  userId     String?
+  status     PasswordResetStatus @default(PENDING)
+  resolvedBy String?
+  resolvedAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  user       User?               @relation("PasswordResetUser", fields: [userId], references: [id])
+  resolver   User?               @relation("PasswordResetResolver", fields: [resolvedBy], references: [id])
 }
 
 enum ProfileUpdateStatus {

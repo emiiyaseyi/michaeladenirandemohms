@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Also update the leave approval record for this stage
   await prisma.leaveApproval.updateMany({
-    where: { leaveRequestId: id, stage: "RELIEF_OFFICER", action: null },
+    where: { leaveRequestId: id, stage: "TEAM_LEAD", action: null },
     data: { action: action === "ACCEPTED" ? "ACCEPTED" : "REJECTED", actedAt: new Date(), comment: comment || null },
   })
 

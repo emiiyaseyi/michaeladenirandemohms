@@ -11,7 +11,7 @@ function calcNetPay(d: any): number {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN" && user.role !== "PAYROLL_OFFICER") return forbidden()
+  if (user.role !== "ADMIN") return forbidden()
 
   const { id } = await params
   const body = await req.json()
@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN" && user.role !== "PAYROLL_OFFICER") return forbidden()
+  if (user.role !== "ADMIN") return forbidden()
 
   const { id } = await params
   const existing = await prisma.payslip.findUnique({ where: { id } })

@@ -7,7 +7,7 @@ import { requireAuth, forbidden } from "@/lib/api-auth"
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN") return forbidden("Super Admin only")
+  if (user.role !== "ADMIN") return forbidden("Super Admin only")
 
   const { id } = await params
   const body = await req.json()
@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN") return forbidden("Super Admin only")
+  if (user.role !== "ADMIN") return forbidden("Super Admin only")
 
   const { id } = await params
 

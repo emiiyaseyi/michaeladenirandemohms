@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["SUPER_ADMIN", "HR_ADMIN", "ADMIN"].includes(user.role)
+  const isAdmin = ["ADMIN", "ADMIN", "ADMIN"].includes(user.role)
   const empIdParam = req.nextUrl.searchParams.get("employeeId")
   const statusParam = req.nextUrl.searchParams.get("status")
 
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
 
   // Notify admins
   const admins = await prisma.user.findMany({
-    where: { role: { in: ["SUPER_ADMIN", "HR_ADMIN", "ADMIN"] as any }, isActive: true },
+    where: { role: { in: ["ADMIN", "ADMIN", "ADMIN"] as any }, isActive: true },
     select: { id: true },
   })
   if (admins.length > 0) {

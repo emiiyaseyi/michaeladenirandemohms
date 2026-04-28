@@ -31,6 +31,7 @@ export const authOptions: NextAuthOptions = {
           additionalRoles: user.additionalRoles ?? [],
           employeeId: user.employee?.id, image: user.employee?.profilePhoto ?? user.image,
           lastLoginAt: new Date().toISOString(),
+          mustChangePassword: user.mustChangePassword,
         }
       },
     }),
@@ -42,6 +43,7 @@ export const authOptions: NextAuthOptions = {
         token.additionalRoles = (user as any).additionalRoles ?? []
         token.employeeId = (user as any).employeeId
         token.lastLoginAt = (user as any).lastLoginAt
+        token.mustChangePassword = (user as any).mustChangePassword ?? false
       }
       return token
     },
@@ -52,6 +54,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).additionalRoles = token.additionalRoles ?? []
         ;(session.user as any).employeeId = token.employeeId
         ;(session.user as any).lastLoginAt = token.lastLoginAt
+        ;(session.user as any).mustChangePassword = token.mustChangePassword ?? false
       }
       return session
     },

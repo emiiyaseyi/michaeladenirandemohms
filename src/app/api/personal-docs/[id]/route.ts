@@ -5,7 +5,7 @@ import { requireAuth, forbidden } from "@/lib/api-auth"
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!["SUPER_ADMIN", "HR_ADMIN", "ADMIN"].includes(user.role)) return forbidden()
+  if (!["ADMIN", "ADMIN", "ADMIN"].includes(user.role)) return forbidden()
 
   const { id } = await params
   const { action, reviewNote } = await req.json()
@@ -50,7 +50,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const doc = await prisma.personalDocument.findUnique({ where: { id }, select: { employeeId: true } })
   if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const isAdmin = ["SUPER_ADMIN", "HR_ADMIN", "ADMIN"].includes(user.role)
+  const isAdmin = ["ADMIN", "ADMIN", "ADMIN"].includes(user.role)
   const isOwner = user.employeeId === doc.employeeId || (await prisma.employee.findFirst({ where: { userId: user.id, id: doc.employeeId } }))
   if (!isAdmin && !isOwner) return forbidden()
 

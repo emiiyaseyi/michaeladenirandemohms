@@ -1,33 +1,34 @@
 "use client"
-import { useState, useEffect } from "react"
-import AnnouncementRenderer from "@/components/AnnouncementRenderer"
+import AnnouncementRenderer from "@/components/layout/AnnouncementRenderer"
 
-const COLLAPSED_KEY = "dsn_sidebar_collapsed"
-
-export default function SidebarAwareLayout({ children, userRole }: { children: React.ReactNode; userRole?: string }) {
-  const [collapsed, setCollapsed] = useState(false)
-
-  useEffect(() => {
-    const check = () => {
-      const saved = localStorage.getItem(COLLAPSED_KEY)
-      setCollapsed(saved === "1")
-    }
-    check()
-    const interval = setInterval(check, 150)
-    return () => clearInterval(interval)
-  }, [])
-
+export default function SidebarAwareLayout({ children, userRole, topBar }: {
+  children: React.ReactNode
+  userRole?: string
+  topBar?: React.ReactNode
+}) {
   return (
-    <div style={{
-      marginLeft: collapsed ? 60 : 240,
-      flex: 1,
-      display: "flex",
-      flexDirection: "column",
-      minHeight: "100vh",
-      transition: "margin-left 0.22s cubic-bezier(.4,0,.2,1)",
-    }}>
-      <AnnouncementRenderer userRole={userRole ?? "STAFF"} />
-      {children}
-    </div>
+    <>
+      <div
+        className="mobile-nav-overlay"
+        onClick={() => document.body.classList.remove("mobile-nav-open")}
+      />
+      <div
+        className="content-shell"
+        style={{
+          marginLeft: 240,
+          flex: 1,
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100vh",
+        }}
+      >
+        <div style={{ position: "sticky", top: 0, zIndex: 40 }}>
+          <AnnouncementRenderer userRole={userRole ?? "STAFF"} />
+          {topBar}
+        </div>
+        {children}
+      </div>
+    </>
   )
 }

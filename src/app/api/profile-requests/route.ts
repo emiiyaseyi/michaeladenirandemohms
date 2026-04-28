@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["SUPER_ADMIN", "HR_ADMIN", "ADMIN"].includes(user.role)
+  const isAdmin = ["ADMIN", "ADMIN", "ADMIN"].includes(user.role)
 
   if (isAdmin) {
     // Admins see all requests

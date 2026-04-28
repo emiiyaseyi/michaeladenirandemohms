@@ -79,14 +79,39 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.firstName || body.lastName) {
     userUpdate.name = `${employee.firstName} ${employee.lastName}`
   }
+
+  let roleChanged = false
+  let previousRole: string | null = null
   if (body.role) {
+    const currentUser = await prisma.user.findUnique({
+      where: { id: employee.userId },
+      select: { role: true },
+    })
+    if (currentUser && currentUser.role !== body.role) {
+      roleChanged = true
+      previousRole = currentUser.role
+    }
     userUpdate.role = body.role
   }
+
   if (Array.isArray(body.additionalRoles)) {
     userUpdate.additionalRoles = body.additionalRoles
   }
   if (Object.keys(userUpdate).length > 0) {
     await prisma.user.update({ where: { id: employee.userId }, data: userUpdate }).catch(() => {})
+  }
+
+  if (roleChanged && previousRole) {
+    const ROLE_LABEL: Record<string, string> = { STAFF: "Staff", TEAM_LEAD: "Team Lead", ADMIN: "Admin" }
+    await prisma.notification.create({
+      data: {
+        userId: employee.userId,
+        title: "Your role has been updated",
+        message: `Your account role has been changed from ${ROLE_LABEL[previousRole] ?? previousRole} to ${ROLE_LABEL[body.role] ?? body.role}. Sign out and back in for the change to take effect.`,
+        type: "INFO",
+        link: "/",
+      },
+    })
   }
 
   return NextResponse.json({ employee })

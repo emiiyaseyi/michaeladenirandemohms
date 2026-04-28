@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["SUPER_ADMIN","ADMIN","HR_ADMIN","MANAGER"].includes(user.role)
+  const isAdmin = ["ADMIN","ADMIN","ADMIN","TEAM_LEAD"].includes(user.role)
   const { searchParams } = req.nextUrl
   const includeAll = searchParams.get("all") === "1"
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["SUPER_ADMIN","ADMIN","HR_ADMIN","MANAGER"].includes(user.role)
+  const isAdmin = ["ADMIN","ADMIN","ADMIN","TEAM_LEAD"].includes(user.role)
   if (!isAdmin) return forbidden("Only admins can create announcements")
 
   const body = await req.json()

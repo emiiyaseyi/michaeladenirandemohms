@@ -6,7 +6,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["SUPER_ADMIN","ADMIN","HR_ADMIN","MANAGER"].includes(user.role)
+  const isAdmin = ["ADMIN","ADMIN","ADMIN","TEAM_LEAD"].includes(user.role)
   if (!isAdmin) return forbidden()
 
   const { id } = await params
@@ -41,7 +41,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["SUPER_ADMIN","ADMIN","HR_ADMIN"].includes(user.role)
+  const isAdmin = ["ADMIN","ADMIN","ADMIN"].includes(user.role)
   if (!isAdmin) return forbidden()
 
   const { id } = await params

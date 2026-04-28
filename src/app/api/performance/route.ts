@@ -16,15 +16,9 @@ export async function GET() {
   if (c.canViewAllPerformance) {
     kpiFilter = {}
   } else if (c.canViewTeamPerformance) {
-    if (user.role === "MANAGER") {
+    if (user.role === "TEAM_LEAD") {
       const reports = await prisma.employee.findMany({ where: { managerId: user.employeeId }, select: { id: true } })
       kpiFilter = { employeeId: { in: [user.employeeId ?? "", ...reports.map(r => r.id)] } }
-    } else if (user.role === "DEPARTMENT_LEAD") {
-      const me = await prisma.employee.findUnique({ where: { id: user.employeeId }, select: { departmentId: true } })
-      const deptMembers = me?.departmentId
-        ? await prisma.employee.findMany({ where: { departmentId: me.departmentId }, select: { id: true } })
-        : []
-      kpiFilter = { employeeId: { in: deptMembers.map(m => m.id) } }
     } else {
       kpiFilter = { employeeId: user.employeeId }
     }

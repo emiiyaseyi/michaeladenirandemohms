@@ -48,7 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Update the RELIEF_OFFICER approval stage
   const reliefApproval = await prisma.leaveApproval.findFirst({
-    where: { leaveRequestId: assignment.leaveRequestId, stage: "RELIEF_OFFICER", action: null },
+    where: { leaveRequestId: assignment.leaveRequestId, stage: "TEAM_LEAD", action: null },
   })
   if (reliefApproval) {
     await prisma.leaveApproval.update({

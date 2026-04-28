@@ -30,7 +30,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN" && user.role !== "HR_ADMIN" && user.role !== "ADMIN") return forbidden()
+  if (user.role !== "ADMIN") return forbidden()
 
   const { name, category, departmentId, headId, description } = await req.json()
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 })

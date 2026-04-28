@@ -31,13 +31,10 @@ export async function GET(req: NextRequest) {
   if (c.canViewAllLeave) {
     scopeFilter = status ? { status: status as any } : {}
   } else if (c.canViewTeamLeave) {
-    if (user.role === "MANAGER") {
+    if (user.role === "TEAM_LEAD") {
       const reports = await prisma.employee.findMany({ where: { managerId: user.employeeId }, select: { id: true } })
       const ids = reports.map(r => r.id)
       scopeFilter = { employeeId: { in: ids }, ...(status ? { status: status as any } : {}) }
-    } else if (user.role === "DEPARTMENT_LEAD") {
-      const me = await prisma.employee.findUnique({ where: { id: user.employeeId }, select: { departmentId: true } })
-      scopeFilter = { ...(me?.departmentId ? { departmentId: me.departmentId } : {}), ...(status ? { status: status as any } : {}) }
     }
   } else {
     scopeFilter = { employeeId: user.employeeId, ...(status ? { status: status as any } : {}) }
@@ -134,7 +131,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < reliefOfficerIds.length; i++) {
       approvalRecords.push({
         employeeId: reliefOfficerIds[i],
-        stage: "RELIEF_OFFICER" as const,
+        stage: "STAFF" as const,
         deadline: addHours(now, 12),
       })
     }
@@ -152,7 +149,7 @@ export async function POST(req: NextRequest) {
     if (skipLeadIds.has(leadId)) continue
     approvalRecords.push({
       employeeId: leadId,
-      stage: "PROJECT_LEAD" as const,
+      stage: "TEAM_LEAD" as const,
       deadline: addHours(now, reliefOfficerIds.length > 0 ? 24 : 12),
     })
   }
@@ -171,7 +168,7 @@ export async function POST(req: NextRequest) {
   if (employee.managerId) {
     approvalRecords.push({
       employeeId: employee.managerId,
-      stage: "MANAGER" as const,
+      stage: "TEAM_LEAD" as const,
       deadline: addHours(now, reliefOfficerIds.length > 0 ? 48 : 36),
     })
   }

@@ -20,14 +20,8 @@ export async function GET(req: NextRequest) {
   // Scope filter for MANAGER / DEPARTMENT_LEAD
   let scopeFilter: any = {}
   if (!c.canViewAllEmployees && c.canViewTeamEmployees) {
-    if (user.role === "MANAGER") {
+    if (user.role === "TEAM_LEAD") {
       scopeFilter = { managerId: user.employeeId }
-    } else if (user.role === "DEPARTMENT_LEAD") {
-      const me = await prisma.employee.findUnique({
-        where: { id: user.employeeId },
-        select: { departmentId: true },
-      })
-      scopeFilter = me?.departmentId ? { departmentId: me.departmentId } : {}
     }
   }
 
@@ -74,10 +68,10 @@ export async function POST(req: NextRequest) {
   if (!caps(user.role).canCreateEmployee) return forbidden()
 
   const body = await req.json()
-  const { firstName, lastName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, gender } = body
+  const { firstName, lastName, middleName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, gender, category, grossSalary, teamLeadEmail } = body
 
-  if (!firstName || !lastName || !workEmail) {
-    return NextResponse.json({ error: "First name, last name and email are required" }, { status: 400 })
+  if (!firstName || !lastName || !workEmail || !phone || !jobTitle || !hireDate || !gender || !departmentId || !category) {
+    return NextResponse.json({ error: "First name, last name, email, phone, job title, hire date, gender, department and category are required" }, { status: 400 })
   }
 
   const existing = await prisma.employee.findFirst({ where: { workEmail } })
@@ -86,7 +80,14 @@ export async function POST(req: NextRequest) {
   const count = await prisma.employee.count()
   const employeeId = `DSN${String(count + 1).padStart(4, "0")}`
 
-  const hashedPwd = await bcrypt.hash("Welcome@DSN1", 10)
+  // Look up team lead by email
+  let departmentLeadId: string | null = null
+  if (teamLeadEmail?.trim()) {
+    const lead = await prisma.employee.findFirst({ where: { workEmail: teamLeadEmail.trim().toLowerCase() } })
+    departmentLeadId = lead?.id ?? null
+  }
+
+  const hashedPwd = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 10)
   // Generate login email as firstname@datasciencenigeria.ai (fallback to workEmail if needed)
   const loginEmail = workEmail.includes("@datasciencenigeria")
     ? workEmail
@@ -99,17 +100,20 @@ export async function POST(req: NextRequest) {
     finalEmail = `${loginEmail.split("@")[0]}${count + 1}@datasciencenigeria.ai`
   }
   const newUser = await prisma.user.create({
-    data: { name: `${firstName} ${lastName}`, email: finalEmail, password: hashedPwd, role: "STAFF" }
+    data: { name: `${firstName} ${middleName ? middleName + " " : ""}${lastName}`, email: finalEmail, password: hashedPwd, role: "STAFF" }
   })
 
   const employee = await prisma.employee.create({
     data: {
-      userId: newUser.id, employeeId, firstName, lastName, workEmail,
+      userId: newUser.id, employeeId, firstName, lastName, middleName: middleName || null, workEmail,
       phone: phone || null, jobTitle: jobTitle || null,
       departmentId: departmentId || null,
       employmentType: (employmentType ?? "FULL_TIME") as any,
       hireDate: hireDate ? new Date(hireDate) : null,
       gender: (gender || null) as any,
+      category: (category || "NON_TECHNICAL") as any,
+      grossSalary: grossSalary ? parseFloat(grossSalary) || null : null,
+      departmentLeadId,
     },
     include: { department: true }
   })

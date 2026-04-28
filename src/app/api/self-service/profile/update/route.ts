@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest) {
 
   // Notify HR/admins
   const hrAdmins = await prisma.user.findMany({
-    where: { role: { in: ["SUPER_ADMIN", "HR_ADMIN", "ADMIN"] as any }, isActive: true },
+    where: { role: { in: ["ADMIN", "ADMIN", "ADMIN"] as any }, isActive: true },
     select: { id: true },
   })
   if (hrAdmins.length > 0) {
