@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < reliefOfficerIds.length; i++) {
       approvalRecords.push({
         employeeId: reliefOfficerIds[i],
-        stage: "STAFF" as const,
+        stage: "TEAM_LEAD" as const,
         deadline: addHours(now, 12),
       })
     }

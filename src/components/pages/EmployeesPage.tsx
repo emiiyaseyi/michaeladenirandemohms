@@ -164,7 +164,7 @@ export default function EmployeesPage() {
 
       {/* Add Employee Modal */}
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add New Employee" width={720}>
-        <AddEmployeeForm departments={departments} onSuccess={() => { setAddOpen(false); load() }} />
+        <AddEmployeeForm departments={departments} onSuccess={() => { setAddOpen(false); load() }} currentUserRole={user?.role} />
       </Modal>
 
       {/* Edit Employee Modal */}
@@ -176,6 +176,7 @@ export default function EmployeesPage() {
             employees={employees}
             onClose={() => setEditTarget(null)}
             onSuccess={load}
+            currentUserRole={user?.role}
           />
         )}
       </Modal>

@@ -2,13 +2,14 @@
 import { useState } from "react"
 import Button from "@/components/ui/Button"
 
-export default function AddEmployeeForm({ departments, onSuccess }: { departments: any[]; onSuccess: () => void }) {
+export default function AddEmployeeForm({ departments, onSuccess, currentUserRole }: { departments: any[]; onSuccess: () => void; currentUserRole?: string }) {
   const [form, setForm] = useState({
     firstName: "", middleName: "", lastName: "",
     workEmail: "", phone: "", jobTitle: "",
     departmentId: "", employmentType: "FULL_TIME",
     hireDate: "", gender: "",
     category: "", teamLeadEmail: "", grossSalary: "",
+    role: "STAFF",
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
@@ -78,6 +79,16 @@ export default function AddEmployeeForm({ departments, onSuccess }: { department
 
         {field("Gross Salary (₦)", "grossSalary", "number", false)}
         {field("Team Lead Email", "teamLeadEmail", "email", false)}
+
+        <div>
+          <label style={labelStyle}>System Role</label>
+          <select value={form.role} onChange={e => set("role", e.target.value)} style={inputStyle}>
+            <option value="STAFF">Staff</option>
+            <option value="TEAM_LEAD">Team Lead</option>
+            {(currentUserRole === "SUPER_ADMIN") && <option value="ADMIN">Admin</option>}
+          </select>
+        </div>
+        <div />
 
         <div style={{ gridColumn: "1 / -1" }}>
           <label style={labelStyle}>Department <span style={{ color: "var(--accent)" }}>*</span></label>

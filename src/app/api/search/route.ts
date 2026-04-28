@@ -2,25 +2,50 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 
-// Static navigation/feature items always available
-const NAV_ITEMS = [
-  { type: "nav", label: "Dashboard",            href: "/dashboard",    desc: "Overview & stats",                  keywords: ["home","overview","stats","summary"] },
-  { type: "nav", label: "Employees",            href: "/employees",    desc: "Manage all staff",                  keywords: ["staff","people","team","headcount","directory"] },
-  { type: "nav", label: "Leave Management",     href: "/leave",        desc: "Leave requests & approvals",        keywords: ["leave","vacation","absence","time off","annual","sick"] },
-  { type: "nav", label: "Recruitment & ATS",    href: "/recruitment",  desc: "Job postings & candidate pipeline", keywords: ["recruitment","hiring","candidates","jobs","ats","interview"] },
-  { type: "nav", label: "Performance",          href: "/performance",  desc: "KPIs, appraisals & cycles",         keywords: ["performance","kpi","appraisal","review","goals","feedback"] },
-  { type: "nav", label: "Onboarding",           href: "/onboarding",   desc: "New hire tasks & checklist",        keywords: ["onboarding","new hire","checklist","induction"] },
-  { type: "nav", label: "Offboarding",          href: "/offboarding",  desc: "Exit interviews & clearance",       keywords: ["offboarding","exit","resignation","termination","clearance"] },
-  { type: "nav", label: "Org Chart",            href: "/org-chart",    desc: "Organisation hierarchy",            keywords: ["org","chart","hierarchy","structure","tree","reporting"] },
-  { type: "nav", label: "Analytics",            href: "/analytics",    desc: "Charts, reports & insights",        keywords: ["analytics","reports","charts","insights","data","trends"] },
-  { type: "nav", label: "Settings",             href: "/settings",     desc: "System configuration",              keywords: ["settings","config","setup","departments","leave types","holidays"] },
-  { type: "nav", label: "Departments",          href: "/settings",     desc: "Manage departments",                keywords: ["department","division","team","unit"] },
-  { type: "nav", label: "Leave Types",          href: "/settings",     desc: "Configure leave categories",        keywords: ["leave type","annual","sick","maternity","paternity","compassionate"] },
-  { type: "nav", label: "Public Holidays",      href: "/settings",     desc: "Nigerian public holidays",          keywords: ["holiday","public","national","calendar"] },
-  { type: "nav", label: "Apply for Leave",      href: "/leave",        desc: "Submit a new leave request",        keywords: ["apply leave","request leave","take leave"] },
-  { type: "nav", label: "Add Employee",         href: "/employees",    desc: "Register a new employee",           keywords: ["add employee","new employee","hire","create staff"] },
-  { type: "nav", label: "Post a Job",           href: "/recruitment",  desc: "Create a job posting",              keywords: ["post job","job opening","vacancy","position"] },
-]
+function navItems(base: string) {
+  const b = base.replace(/\/$/, "")
+  const isAdmin = b === "/admin"
+  const isTeamLead = b === "/team-lead"
+
+  const items: { type: string; label: string; href: string; desc: string; keywords: string[] }[] = [
+    { type: "nav", label: "Dashboard",        href: b,                              desc: "Overview & stats",                  keywords: ["home","overview","stats","summary","dashboard"] },
+    { type: "nav", label: "Leave Requests",   href: `${b}/requests/leave`,          desc: "Leave requests & approvals",        keywords: ["leave","vacation","absence","time off","annual","sick"] },
+    { type: "nav", label: "Performance",      href: `${b}/performance`,             desc: "KPIs, appraisals & cycles",         keywords: ["performance","kpi","appraisal","review","goals","feedback"] },
+    { type: "nav", label: "Calendar",         href: `${b}/calendar`,                desc: "Events & schedule",                 keywords: ["calendar","schedule","events","dates"] },
+    { type: "nav", label: "Announcements",    href: `${b}/announcements`,           desc: "Company announcements",             keywords: ["announcement","news","notice","update"] },
+    { type: "nav", label: "My Profile",       href: `${b}/self-service/profile`,    desc: "Your employee profile",             keywords: ["profile","me","personal","info"] },
+    { type: "nav", label: "My Payslips",      href: `${b}/self-service/payslips`,   desc: "View and download payslips",        keywords: ["payslip","salary","pay","slip"] },
+    { type: "nav", label: "Edit Profile",     href: `${b}/self-service/edit`,       desc: "Update your personal information",  keywords: ["edit","update","change profile","personal"] },
+  ]
+
+  if (isAdmin || isTeamLead) {
+    items.push(
+      { type: "nav", label: "Teams",          href: `${b}/people/teams`,            desc: "Team management",                   keywords: ["team","group","squad"] },
+      { type: "nav", label: "Org Chart",      href: `${b}/people/org-chart`,        desc: "Organisation hierarchy",            keywords: ["org","chart","hierarchy","structure","reporting"] },
+    )
+  }
+
+  if (isAdmin) {
+    items.push(
+      { type: "nav", label: "Employees",      href: `${b}/people/employees`,        desc: "Manage all staff",                  keywords: ["staff","people","team","headcount","directory","employees"] },
+      { type: "nav", label: "Departments",    href: `${b}/people/departments`,      desc: "Manage departments",                keywords: ["department","division","unit"] },
+      { type: "nav", label: "Recruitment",    href: `${b}/recruitment`,             desc: "Job postings & candidate pipeline", keywords: ["recruitment","hiring","candidates","jobs","ats","interview"] },
+      { type: "nav", label: "Profile Requests", href: `${b}/people/profile-requests`, desc: "Password & profile change requests", keywords: ["profile request","password reset","change request"] },
+      { type: "nav", label: "Payroll",        href: `${b}/payroll/overview`,        desc: "Payroll overview & records",        keywords: ["payroll","salary","wages","pay run"] },
+      { type: "nav", label: "Analytics",      href: `${b}/analytics`,               desc: "Charts, reports & insights",        keywords: ["analytics","reports","charts","insights","data","trends"] },
+      { type: "nav", label: "Settings",       href: `${b}/settings`,                desc: "System configuration",              keywords: ["settings","config","setup","holidays"] },
+    )
+  }
+
+  if (!isAdmin) {
+    items.push(
+      { type: "nav", label: "Documents",      href: `${b}/documents`,               desc: "Company documents & policies",      keywords: ["document","policy","sop","files"] },
+      { type: "nav", label: "Projects",       href: `${b}/projects`,                desc: "Active projects",                   keywords: ["projects","work","assignments"] },
+    )
+  }
+
+  return items
+}
 
 function score(item: { label: string; desc: string; keywords?: string[] }, q: string): number {
   const ql = q.toLowerCase()
@@ -45,10 +70,16 @@ export async function GET(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  const role = (session.user as any).role ?? "STAFF"
+  const roleBase = role === "ADMIN" || role === "SUPER_ADMIN" ? "/admin"
+    : role === "TEAM_LEAD" ? "/team-lead"
+    : "/staff"
+
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? ""
   if (q.length < 1) return NextResponse.json({ results: [] })
 
-  // Nav/feature search (always fast)
+  const NAV_ITEMS = navItems(roleBase)
+
   const navResults = NAV_ITEMS
     .map(item => ({ ...item, score: score(item as any, q) }))
     .filter(x => x.score > 0)
@@ -56,8 +87,6 @@ export async function GET(req: NextRequest) {
     .slice(0, 4)
     .map(({ score: _, ...item }) => item)
 
-  // DB searches in parallel
-  const ql = q.toLowerCase()
   const [employees, leave, jobs, departments] = await Promise.all([
     prisma.employee.findMany({
       where: {
@@ -78,7 +107,6 @@ export async function GET(req: NextRequest) {
           { employee: { firstName: { contains: q, mode: "insensitive" } } },
           { employee: { lastName:  { contains: q, mode: "insensitive" } } },
           { leaveType: { name: { contains: q, mode: "insensitive" } } },
-          { reason:   { contains: q, mode: "insensitive" } },
         ],
       },
       include: {
@@ -90,9 +118,8 @@ export async function GET(req: NextRequest) {
     prisma.jobPosting.findMany({
       where: {
         OR: [
-          { title:       { contains: q, mode: "insensitive" } },
-          { department:  { name: { contains: q, mode: "insensitive" } } },
-          { description: { contains: q, mode: "insensitive" } },
+          { title:      { contains: q, mode: "insensitive" } },
+          { department: { name: { contains: q, mode: "insensitive" } } },
         ],
       },
       include: { department: { select: { name: true } } },
@@ -104,44 +131,42 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
+  const employeeBase = role === "ADMIN" || role === "SUPER_ADMIN"
+    ? `${roleBase}/people/employees`
+    : `${roleBase}/people/teams`
+
   const results: any[] = [
-    // People
     ...employees.map(e => ({
       type: "employee",
       label: `${e.firstName} ${e.lastName}`,
       desc: `${e.jobTitle ?? "Staff"} · ${e.department?.name ?? ""}`,
-      href: `/employees`,
+      href: employeeBase,
       meta: e.employeeStatus,
       initials: `${e.firstName[0]}${e.lastName[0]}`.toUpperCase(),
     })),
-    // Leave requests
     ...leave.map(l => ({
       type: "leave",
       label: `${l.employee.firstName} ${l.employee.lastName}`,
       desc: `${l.leaveType.name} · ${l.status}`,
-      href: `/leave`,
+      href: `${roleBase}/requests/leave`,
       meta: l.status,
     })),
-    // Jobs
     ...jobs.map(j => ({
       type: "job",
       label: j.title,
       desc: `${j.department?.name ?? ""} · ${j.employmentType ?? ""}`,
-      href: `/recruitment`,
+      href: role === "ADMIN" || role === "SUPER_ADMIN" ? `${roleBase}/recruitment/jobs` : `${roleBase}/job-pay`,
       meta: j.status,
     })),
-    // Departments
     ...departments.map(d => ({
       type: "department",
       label: d.name,
       desc: "Department",
-      href: `/settings`,
+      href: role === "ADMIN" || role === "SUPER_ADMIN" ? `${roleBase}/people/departments` : `${roleBase}/people/org-chart`,
     })),
-    // Nav features
     ...navResults,
   ]
 
-  // De-duplicate and limit
   const seen = new Set<string>()
   const deduped = results.filter(r => {
     const key = `${r.type}:${r.label}`

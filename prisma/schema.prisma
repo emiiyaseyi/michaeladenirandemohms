@@ -741,6 +741,7 @@ enum OrgDocCategory {
 }
 
 enum SystemRole {
+  SUPER_ADMIN
   ADMIN
   TEAM_LEAD
   STAFF

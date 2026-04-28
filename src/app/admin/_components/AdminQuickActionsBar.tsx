@@ -4,6 +4,7 @@ import Modal from "@/components/ui/Modal"
 import AddEmployeeForm from "@/components/employees/AddEmployeeForm"
 import { Plus, Building2, Users, FileText } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 interface Props {
   departments: { id: string; name: string }[]
@@ -11,6 +12,7 @@ interface Props {
 
 export default function AdminQuickActionsBar({ departments }: Props) {
   const router = useRouter()
+  const { user } = useCurrentUser()
   const [addEmployeeOpen, setAddEmployeeOpen] = useState(false)
 
   const actions: { label: string; icon: React.ElementType; bg: string; color: string; onClick: () => void }[] = [
@@ -26,14 +28,14 @@ export default function AdminQuickActionsBar({ departments }: Props) {
       icon: Building2,
       bg: "#EEF2FF",
       color: "#6366F1",
-      onClick: () => router.push("/admin/departments"),
+      onClick: () => router.push("/admin/people/departments"),
     },
     {
       label: "All Employees",
       icon: Users,
       bg: "#F0FDF4",
       color: "var(--primary)",
-      onClick: () => router.push("/admin/employees"),
+      onClick: () => router.push("/admin/people/employees"),
     },
     {
       label: "Reports",
@@ -73,6 +75,7 @@ export default function AdminQuickActionsBar({ departments }: Props) {
         <AddEmployeeForm
           departments={departments}
           onSuccess={() => { setAddEmployeeOpen(false); router.refresh() }}
+          currentUserRole={user?.role}
         />
       </Modal>
     </>

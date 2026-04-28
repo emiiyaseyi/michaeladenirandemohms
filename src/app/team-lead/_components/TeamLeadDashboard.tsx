@@ -63,7 +63,7 @@ export default async function TeamLeadDashboard() {
     }),
   ])
 
-  const teamLabel = myTeam?.name ?? "Team"
+  const teamLabel = myTeam?.name ?? null
 
   return (
     <div>
@@ -74,7 +74,9 @@ export default async function TeamLeadDashboard() {
           Good {greeting}, {name} 👋
         </h1>
         <p style={{ color: "var(--muted-foreground)", marginTop: 4 }}>
-          Here's an overview of the <strong>{teamLabel}</strong> team.
+          {teamLabel
+            ? <>Here's an overview of the <strong>{teamLabel}</strong> team.</>
+            : <>No team assigned yet — ask admin to create a team and set you as the head.</>}
         </p>
       </div>
 

@@ -311,7 +311,7 @@ function HeroCard({ profile, onTakeTour }: { profile: any; onTakeTour: () => voi
               <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", marginTop:1 }}>Profile</div>
             </div>
           )}
-          <Link href="/self-service/edit" style={{
+          <Link href="/staff/self-service/edit" style={{
             display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px",
             borderRadius:8, background:"rgba(255,255,255,0.1)", border:"1px solid rgba(255,255,255,0.15)",
             color:"white", fontSize:12, fontWeight:600, textDecoration:"none",
@@ -333,12 +333,12 @@ function HeroCard({ profile, onTakeTour }: { profile: any; onTakeTour: () => voi
 
 // ─── Quick Actions ────────────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
-  { label:"Request Leave",   href:"/self-service/leave",        color:"#6366F1", icon:CalendarDays },
-  { label:"View Payslip",    href:"/self-service/payslips",     color:"#10B981", icon:FileText },
-  { label:"Set KPI Goals",   href:"/performance",               color:"#F59E0B", icon:Target },
-  { label:"Take Appraisal",  href:"/performance",               color:"#EC4899", icon:TrendingUp },
-  { label:"My Requisition",  href:"/self-service/requisitions", color:"#0EA5E9", icon:ShoppingBag },
-  { label:"My Documents",    href:"/documents",                 color:"#8B5CF6", icon:ClipboardList },
+  { label:"Request Leave",   href:"/staff/requests/leave",              color:"#6366F1", icon:CalendarDays },
+  { label:"View Payslip",    href:"/staff/self-service/payslips",       color:"#10B981", icon:FileText },
+  { label:"Set KPI Goals",   href:"/staff/performance/objectives",      color:"#F59E0B", icon:Target },
+  { label:"Take Appraisal",  href:"/staff/performance/reviews",         color:"#EC4899", icon:TrendingUp },
+  { label:"My Requisition",  href:"/staff/self-service/requisitions",   color:"#0EA5E9", icon:ShoppingBag },
+  { label:"My Documents",    href:"/staff/documents",                   color:"#8B5CF6", icon:ClipboardList },
 ]
 
 function QuickActionsBar() {
@@ -419,7 +419,7 @@ function LeaveBalancesCard({ leaveBalances }: { leaveBalances: any[] }) {
   if (!leaveBalances?.length) {
     return (
       <Card style={{ animation:"fadeInUp .4s ease .1s both" }}>
-        <SectionHeading title="Leave Balances" action="Request leave" actionHref="/self-service/leave" />
+        <SectionHeading title="Leave Balances" action="Request leave" actionHref="/staff/requests/leave" />
         <EmptyState icon={CalendarDays} message="No leave balances configured" />
       </Card>
     )
@@ -431,7 +431,7 @@ function LeaveBalancesCard({ leaveBalances }: { leaveBalances: any[] }) {
           <div style={{ fontSize:13, fontWeight:700 }}>Leave Balances</div>
           <div style={{ fontSize:11, color:"var(--muted-foreground)", marginTop:1 }}>{leaveBalances.length} type{leaveBalances.length !== 1 ? "s" : ""}</div>
         </div>
-        <Link href="/self-service/leave" style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:"var(--primary)", fontWeight:600, textDecoration:"none" }}>
+        <Link href="/staff/requests/leave" style={{ display:"flex", alignItems:"center", gap:4, fontSize:12, color:"var(--primary)", fontWeight:600, textDecoration:"none" }}>
           Request leave <ChevronRight size={13} />
         </Link>
       </div>
@@ -457,7 +457,7 @@ function ProfileInfoCard({ profile }: { profile: any }) {
 
   return (
     <Card style={{ animation:"fadeInUp .4s ease .1s both" }}>
-      <SectionHeading title="My Profile" action="Edit" actionHref="/self-service/edit" />
+      <SectionHeading title="My Profile" action="Edit" actionHref="/staff/self-service/edit" />
       <div style={{ padding:"12px 18px" }}>
         <div style={{ display:"flex", alignItems:"center", gap:12, padding:"12px 0", marginBottom:4 }}>
           <Avatar name={profile.fullName} photo={profile.profilePhoto} size={48} />

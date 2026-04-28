@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
 // GET /api/settings/users — list all users with employee snapshot
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden("Super Admin only")
+  if (!isAdminRole(user.role)) return forbidden("Admins only")
 
   const users = await prisma.user.findMany({
     orderBy: { createdAt: "desc" },
@@ -33,7 +33,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden("Super Admin only")
+  if (!isAdminRole(user.role)) return forbidden("Admins only")
 
   const body = await req.json()
   const {

@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
   if (!caps(user.role).canCreateEmployee) return forbidden()
 
   const body = await req.json()
-  const { firstName, lastName, middleName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, gender, category, grossSalary, teamLeadEmail } = body
+  const { firstName, lastName, middleName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, gender, category, grossSalary, teamLeadEmail, role: bodyRole } = body
 
   if (!firstName || !lastName || !workEmail || !phone || !jobTitle || !hireDate || !gender || !departmentId || !category) {
     return NextResponse.json({ error: "First name, last name, email, phone, job title, hire date, gender, department and category are required" }, { status: 400 })
@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
     finalEmail = `${loginEmail.split("@")[0]}${count + 1}@datasciencenigeria.ai`
   }
   const newUser = await prisma.user.create({
-    data: { name: `${firstName} ${middleName ? middleName + " " : ""}${lastName}`, email: finalEmail, password: hashedPwd, role: "STAFF" }
+    data: { name: `${firstName} ${middleName ? middleName + " " : ""}${lastName}`, email: finalEmail, password: hashedPwd, role: (bodyRole ?? "STAFF") as any }
   })
 
   const employee = await prisma.employee.create({
