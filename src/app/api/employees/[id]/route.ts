@@ -87,18 +87,23 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id: employee.userId },
       select: { role: true },
     })
-    if (currentUser && currentUser.role !== body.role) {
-      roleChanged = true
-      previousRole = currentUser.role
+    // SUPER_ADMIN's role can only be changed by another SUPER_ADMIN
+    const targetIsSuperAdmin = currentUser?.role === "SUPER_ADMIN"
+    const requesterIsSuperAdmin = user.role === "SUPER_ADMIN"
+    if (!targetIsSuperAdmin || requesterIsSuperAdmin) {
+      if (currentUser && currentUser.role !== body.role) {
+        roleChanged = true
+        previousRole = currentUser.role
+      }
+      userUpdate.role = body.role
     }
-    userUpdate.role = body.role
   }
 
   if (Array.isArray(body.additionalRoles)) {
     userUpdate.additionalRoles = body.additionalRoles
   }
   if (Object.keys(userUpdate).length > 0) {
-    await prisma.user.update({ where: { id: employee.userId }, data: userUpdate }).catch(() => {})
+    await prisma.user.update({ where: { id: employee.userId }, data: userUpdate })
   }
 
   if (roleChanged && previousRole) {
