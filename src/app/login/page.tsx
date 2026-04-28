@@ -15,6 +15,14 @@ export default function LoginPage() {
   const [error, setError]       = useState("")
   const [loading, setLoading]   = useState(false)
 
+  const fill = (e: string, p: string) => { setEmail(e); setPassword(p); setError("") }
+
+  const demos: [string, string, string][] = [
+    ["Admin",     "admin@dsn-hrms.com",    "Admin@DSN2024!"],
+    ["Team Lead", "teamlead@dsn-hrms.com", "dsn-demo"],
+    ["Staff",     "staff@dsn-hrms.com",    "dsn-demo"],
+  ]
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(""); setLoading(true)
@@ -176,8 +184,29 @@ export default function LoginPage() {
               </button>
             </form>
 
+            {/* Demo credentials */}
+            <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 12, border: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
+                <span style={{ display: "inline-block", width: 3, height: 14, background: "var(--accent)", borderRadius: 2 }} />
+                <div style={{ fontSize: 11, fontWeight: 800, color: "var(--foreground)", textTransform: "uppercase", letterSpacing: "0.07em" }}>Demo Credentials</div>
+              </div>
+              {demos.map(([role, em, pw]) => (
+                <div
+                  key={role}
+                  style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 4, cursor: "pointer", padding: "7px 8px", borderRadius: 6, transition: "background 0.12s", display: "flex", alignItems: "center", gap: 8 }}
+                  onClick={() => fill(em, pw)}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--border)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                >
+                  <span style={{ fontWeight: 700, color: "var(--accent)", fontSize: 11, minWidth: 72 }}>{role}</span>
+                  <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{em}</span>
+                </div>
+              ))}
+              <p style={{ fontSize: 11, color: "var(--subtle)", margin: "8px 0 0", textAlign: "center" }}>Click a row to auto-fill</p>
+            </div>
+
             {/* Forgot password */}
-            <div style={{ textAlign: "center", marginTop: 20 }}>
+            <div style={{ textAlign: "center", marginTop: 16 }}>
               <Link href="/forgot-password" style={{ fontSize: 13, color: "var(--muted-foreground)", textDecoration: "none" }}>
                 Forgotten your password?
               </Link>

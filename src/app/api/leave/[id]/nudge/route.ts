@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps } from "@/lib/api-auth"
+import { requireAuth, caps, roleBasePath } from "@/lib/api-auth"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         where: { stage, action: null },
         include: {
           employee: {
-            select: { id: true, firstName: true, lastName: true, userId: true },
+            select: { id: true, firstName: true, lastName: true, userId: true, user: { select: { role: true } } },
           },
         },
       },
@@ -38,15 +38,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const requesterName = `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName}`
 
-  // Create in-app notifications for all pending approvers at this stage
-  const notifications = pendingApprovals.map(approval => ({
-    userId: approval.employee.userId,
-    employeeId: approval.employee.id,
-    title: "Leave Approval Reminder",
-    message: `${requesterName} is waiting for your approval on their ${leaveRequest.leaveType.name} leave request.`,
-    type: "WARNING" as const,
-    link: `/leave?highlight=${id}`,
-  }))
+  const notifications = pendingApprovals.map(approval => {
+    const approverRole = (approval.employee as any).user?.role ?? "STAFF"
+    return {
+      userId: approval.employee.userId,
+      employeeId: approval.employee.id,
+      title: "Leave Approval Reminder",
+      message: `${requesterName} is waiting for your approval on their ${leaveRequest.leaveType.name} leave request.`,
+      type: "WARNING" as const,
+      link: `${roleBasePath(approverRole)}/requests/leave?highlight=${id}`,
+    }
+  })
 
   await prisma.notification.createMany({ data: notifications })
 

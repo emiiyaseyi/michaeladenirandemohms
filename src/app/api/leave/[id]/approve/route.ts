@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, isAdminRole, roleBasePath } from "@/lib/api-auth"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     include: {
       leaveType: { select: { name: true } },
       approvals: { orderBy: { createdAt: "asc" } },
-      employee: { select: { userId: true, firstName: true, lastName: true } },
+      employee: { select: { userId: true, firstName: true, lastName: true, user: { select: { role: true } } } },
     },
   })
   if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -28,17 +28,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const targetStage = requestedStage as string
     const pendingApproval = request.approvals.find(a => a.stage === targetStage && !a.action)
     if (!pendingApproval) return NextResponse.json({ error: "No pending approval for that stage" }, { status: 400 })
-    const approverEmp = await prisma.employee.findUnique({ where: { id: pendingApproval.employeeId }, select: { userId: true, firstName: true, lastName: true } })
+    const approverEmp = await prisma.employee.findUnique({
+      where: { id: pendingApproval.employeeId },
+      select: { userId: true, firstName: true, lastName: true, user: { select: { role: true } } },
+    })
     if (approverEmp) {
+      const approverRole = (approverEmp as any).user?.role ?? "STAFF"
       await prisma.notification.create({
-        data: { userId: approverEmp.userId, employeeId: pendingApproval.employeeId, title: "Reminder: Leave Approval Pending", message: `You have a pending leave request from ${request.employee?.firstName} ${request.employee?.lastName} that requires your action.`, type: "WARNING", link: "/leave" },
+        data: {
+          userId: approverEmp.userId,
+          employeeId: pendingApproval.employeeId,
+          title: "Reminder: Leave Approval Pending",
+          message: `You have a pending leave request from ${request.employee?.firstName} ${request.employee?.lastName} that requires your action.`,
+          type: "WARNING",
+          link: `${roleBasePath(approverRole)}/requests/leave`,
+        },
       })
     }
     return NextResponse.json({ ok: true, message: "Nudge sent" })
   }
 
-  // ADMIN can specify stage explicitly; TEAM_LEAD is always TEAM_LEAD stage
-  const stage: "TEAM_LEAD" | "ADMIN" = user.role === "ADMIN"
+  // ADMIN/SUPER_ADMIN can specify stage explicitly; TEAM_LEAD is always TEAM_LEAD stage
+  const stage: "TEAM_LEAD" | "ADMIN" = isAdminRole(user.role)
     ? ((requestedStage as "TEAM_LEAD" | "ADMIN") ?? "ADMIN")
     : "TEAM_LEAD"
 
@@ -66,6 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   if (request.employee) {
+    const empRole = (request.employee as any).user?.role ?? "STAFF"
     const stageLabel = stage === "ADMIN" ? "Admin" : "Team Lead"
     await prisma.notification.create({
       data: {
@@ -75,7 +87,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           ? stage === "ADMIN" ? `Your leave request has been approved.${comment ? ` Note: ${comment}` : ""}` : `Your leave request was approved at the ${stageLabel} stage and is progressing.`
           : `Your leave request was rejected at the ${stageLabel} stage.${comment ? ` Reason: ${comment}` : ""}`,
         type: isApproval ? "SUCCESS" : "DANGER",
-        link: "/leave",
+        link: `${roleBasePath(empRole)}/requests/leave`,
       },
     })
   }

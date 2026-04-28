@@ -149,7 +149,7 @@ export default function EmployeesPage() {
                     <td style={{ padding: "14px 20px" }}>
                       <div style={{ display: "flex", gap: 4 }}>
                         <button onClick={() => setSelected(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="View"><Eye size={13} /></button>
-                        {user?.caps.canEditAnyEmployee && (
+                        {user?.caps.canEditAnyEmployee && emp.id !== user?.employeeId && (
                           <button onClick={() => setEditTarget(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="Edit"><Edit size={13} /></button>
                         )}
                       </div>

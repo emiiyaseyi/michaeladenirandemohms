@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { getDay, getHours } from "date-fns"
+import { roleBasePath } from "@/lib/api-auth"
 
 // Called by a scheduler (or Vercel cron) every hour on weekdays.
 // Sends in-app notification to pending approvers whose deadline has passed
@@ -23,7 +24,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, skipped: "outside window" })
   }
 
-  // Find all PENDING leave requests with overdue approvals
   const overdueApprovals = await prisma.leaveApproval.findMany({
     where: {
       action: null,
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
       leaveRequest: { status: "PENDING" },
     },
     include: {
-      employee: { select: { id: true, firstName: true, lastName: true, userId: true } },
+      employee: { select: { id: true, firstName: true, lastName: true, userId: true, user: { select: { role: true } } } },
       leaveRequest: {
         include: {
           employee: { select: { firstName: true, lastName: true } },
@@ -48,13 +48,14 @@ export async function POST(req: NextRequest) {
   const notifications = overdueApprovals.map(approval => {
     const requester = `${approval.leaveRequest.employee.firstName} ${approval.leaveRequest.employee.lastName}`
     const leaveTypeName = approval.leaveRequest.leaveType.name
+    const approverRole = (approval.employee as any).user?.role ?? "STAFF"
     return {
       userId: approval.employee.userId,
       employeeId: approval.employee.id,
       title: "Leave Approval Overdue",
       message: `Your approval is overdue for ${requester}'s ${leaveTypeName} leave request. Please review and take action.`,
       type: "WARNING" as const,
-      link: `/leave?highlight=${approval.leaveRequestId}`,
+      link: `${roleBasePath(approverRole)}/requests/leave?highlight=${approval.leaveRequestId}`,
     }
   })
 

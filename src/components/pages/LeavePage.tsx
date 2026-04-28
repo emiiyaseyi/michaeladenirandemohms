@@ -348,7 +348,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
               {errors.relief && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 6 }}>{errors.relief}</div>}
             </div>
             <div style={{ background: "var(--muted)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "var(--muted-foreground)" }}>
-              <strong style={{ color: "var(--foreground)" }}>Approval chain (auto-detected):</strong> Relief Officer(s) → Project Lead → Team Lead / Dept Lead → Manager → HR Admin
+              <strong style={{ color: "var(--foreground)" }}>Approval chain:</strong> Relief Officer(s) → Team Lead → Admin
             </div>
           </div>
         )}
@@ -493,87 +493,120 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
           ))}
         </div>
 
-        {/* Approval chain — always show full pipeline */}
+        {/* Approval chain — Relief Officer → Team Lead → Admin */}
         <div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Approval Progress</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {(["STAFF", "TEAM_LEAD", "TEAM_LEAD", "TEAM_LEAD", "ADMIN"] as const).map(stage => {
-              const STAGE_LABELS: Record<string, string> = { RELIEF_OFFICER: "Relief Officer(s)", PROJECT_LEAD: "Project Lead(s)", TEAM_LEAD: "Team Lead", MANAGER: "Manager", ADMIN: "HR / Admin" }
-              const stageApprovals: any[] = req.approvals?.filter((x: any) => x.stage === stage) ?? []
-              const a = stageApprovals[0]
-              // For RELIEF_OFFICER and PROJECT_LEAD: skip if no records (not assigned)
-              if ((stage === "STAFF" || stage === "TEAM_LEAD") && stageApprovals.length === 0) return null
-              // For TEAM_LEAD/MANAGER/ADMIN: always show (even if no record yet — "Not yet reached")
-              const allDone = stageApprovals.length > 0 && stageApprovals.every((sa: any) => sa.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(sa.action))
-              const anyRej = stageApprovals.some((sa: any) => sa.action === "REJECTED")
-              const anyPending = stageApprovals.some((sa: any) => !sa.action)
-              const done = allDone
-              const rej = anyRej
-              const pending = stageApprovals.length > 0 && anyPending && !anyRej
-              const notReached = stageApprovals.length === 0
-              // Get person name from approval record
-              const personName = stageApprovals.length === 1 && a?.employee
-                ? `${a.employee.firstName} ${a.employee.lastName}`
-                : null
+            {/* ── Relief Officers (from reliefOfficersList) ── */}
+            {(req.reliefOfficersList?.length ?? 0) > 0 && (() => {
+              const officers: any[] = req.reliefOfficersList ?? []
+              const allAccepted = officers.every((o: any) => o.status === "ACCEPTED")
+              const anyDeclined = officers.some((o: any) => o.status === "DECLINED")
+              const anyPending  = officers.some((o: any) => o.status === "PENDING")
+              const bg = anyDeclined ? "var(--danger-bg)" : allAccepted ? "var(--success-bg)" : anyPending ? "#FFFBEB" : "var(--muted)"
               return (
-                <div key={stage} style={{
-                  display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8,
-                  background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)",
-                  opacity: notReached ? 0.5 : 1,
-                }}>
+                <div key="relief" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: bg }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
-                      {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: anyDeclined ? "var(--accent)" : allAccepted ? "var(--success)" : "#F59E0B" }}>
+                      {allAccepted ? <Check size={11} color="white" /> : anyDeclined ? <X size={11} color="white" /> : <Clock size={11} color="white" />}
                     </div>
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 12, fontWeight: 700 }}>{STAGE_LABELS[stage]}</span>
-                      {personName && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {personName}</span>}
-                      {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
-                      {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
-                    </div>
-                    {stageApprovals.length === 1 && a?.action && <Badge status={a.action ?? "PENDING"} />}
-                    {stageApprovals.length === 1 && pending && a?.deadline && <CountdownTimer deadline={a.deadline} />}
-                    {isAdmin && pending && (
-                      <button
-                        onClick={() => nudgeStage(stage)}
-                        disabled={nudging === stage || nudged[stage]}
-                        title="Send reminder to approver"
-                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged[stage] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged[stage] ? "var(--success)" : "var(--warning)", cursor: nudging === stage ? "wait" : nudged[stage] ? "default" : "pointer", flexShrink: 0 }}
-                      >
-                        <Bell size={10} />
-                        {nudged[stage] ? "Sent!" : nudging === stage ? "…" : "Nudge"}
-                      </button>
-                    )}
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>Relief Officer{officers.length > 1 ? "s" : ""}</span>
+                    {anyPending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
                   </div>
-                  {/* Multiple approvers — show each row */}
-                  {stageApprovals.length > 1 && (
+                  {officers.length > 1 && (
                     <div style={{ marginLeft: 32, display: "flex", flexDirection: "column", gap: 3 }}>
-                      {stageApprovals.map((sa: any, i: number) => {
-                        const saDone = sa.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(sa.action)
-                        const saRej = sa.action === "REJECTED"
-                        const saPending = !sa.action
+                      {officers.map((o: any) => {
+                        const oDone = o.status === "ACCEPTED"; const oRej = o.status === "DECLINED"
                         return (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-                            <div style={{ width: 14, height: 14, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: saRej ? "var(--accent)" : saDone ? "var(--success)" : "#F59E0B" }}>
-                              {saDone ? <Check size={8} color="white" /> : saRej ? <X size={8} color="white" /> : <Clock size={8} color="white" />}
+                          <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                            <div style={{ width: 14, height: 14, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: oRej ? "var(--accent)" : oDone ? "var(--success)" : "#F59E0B" }}>
+                              {oDone ? <Check size={8} color="white" /> : oRej ? <X size={8} color="white" /> : <Clock size={8} color="white" />}
                             </div>
-                            <span style={{ fontWeight: 600, color: "var(--foreground)" }}>
-                              {sa.employee ? `${sa.employee.firstName} ${sa.employee.lastName}` : "—"}
+                            <span style={{ fontWeight: 600 }}>{o.employee ? `${o.employee.firstName} ${o.employee.lastName}` : "—"}</span>
+                            <span style={{ color: oDone ? "var(--success)" : oRej ? "var(--accent)" : "#F59E0B", fontWeight: 700 }}>
+                              {oDone ? "Accepted" : oRej ? "Declined" : "Pending"}
                             </span>
-                            <span style={{ color: saDone ? "var(--success)" : saRej ? "var(--accent)" : "#F59E0B", fontWeight: 700 }}>
-                              {saDone ? "Accepted" : saRej ? "Declined" : "Pending"}
-                            </span>
-                            {sa?.comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{sa.comment}"</span>}
-                            {saPending && sa?.deadline && <CountdownTimer deadline={sa.deadline} />}
+                            {o.comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{o.comment}"</span>}
                           </div>
                         )
                       })}
                     </div>
                   )}
-                  {stageApprovals.length === 1 && a?.comment && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic", marginLeft: 32 }}>"{a.comment}"</span>}
+                  {officers.length === 1 && (
+                    <div style={{ marginLeft: 32, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontWeight: 600 }}>{officers[0].employee ? `${officers[0].employee.firstName} ${officers[0].employee.lastName}` : "—"}</span>
+                      {officers[0].comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{officers[0].comment}"</span>}
+                    </div>
+                  )}
                 </div>
               )
-            })}
+            })()}
+
+            {/* ── Team Lead ── */}
+            {(() => {
+              const tlApprovals: any[] = req.approvals?.filter((x: any) => x.stage === "TEAM_LEAD") ?? []
+              const a = tlApprovals[0]
+              const done = tlApprovals.length > 0 && tlApprovals.every((sa: any) => sa.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(sa.action))
+              const rej  = tlApprovals.some((sa: any) => sa.action === "REJECTED")
+              const pending = tlApprovals.length > 0 && tlApprovals.some((sa: any) => !sa.action) && !rej
+              const notReached = tlApprovals.length === 0
+              return (
+                <div key="TEAM_LEAD" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)", opacity: notReached ? 0.5 : 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
+                      {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
+                    </div>
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>Team Lead</span>
+                      {tlApprovals.length === 1 && a?.employee && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {a.employee.firstName} {a.employee.lastName}</span>}
+                      {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
+                      {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
+                    </div>
+                    {tlApprovals.length === 1 && a?.action && <Badge status={a.action} />}
+                    {pending && a?.deadline && <CountdownTimer deadline={a.deadline} />}
+                    {isAdmin && pending && (
+                      <button onClick={() => nudgeStage("TEAM_LEAD")} disabled={nudging === "TEAM_LEAD" || nudged["TEAM_LEAD"]}
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["TEAM_LEAD"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["TEAM_LEAD"] ? "var(--success)" : "var(--warning)", cursor: nudging === "TEAM_LEAD" ? "wait" : "pointer", flexShrink: 0 }}>
+                        <Bell size={10} />{nudged["TEAM_LEAD"] ? "Sent!" : nudging === "TEAM_LEAD" ? "…" : "Nudge"}
+                      </button>
+                    )}
+                  </div>
+                  {tlApprovals.length === 1 && a?.comment && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic", marginLeft: 32 }}>"{a.comment}"</span>}
+                </div>
+              )
+            })()}
+
+            {/* ── Admin ── */}
+            {(() => {
+              const adminApprovals: any[] = req.approvals?.filter((x: any) => x.stage === "ADMIN") ?? []
+              const a = adminApprovals[0]
+              const done = adminApprovals.length > 0 && !!a?.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action)
+              const rej  = adminApprovals.some((sa: any) => sa.action === "REJECTED")
+              const pending = adminApprovals.length > 0 && !a?.action && !rej
+              const notReached = adminApprovals.length === 0
+              return (
+                <div key="ADMIN" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)", opacity: notReached ? 0.5 : 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
+                      {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
+                    </div>
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>Admin</span>
+                      {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
+                      {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
+                    </div>
+                    {a?.action && <Badge status={a.action} />}
+                    {isAdmin && pending && (
+                      <button onClick={() => nudgeStage("ADMIN")} disabled={nudging === "ADMIN" || nudged["ADMIN"]}
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["ADMIN"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["ADMIN"] ? "var(--success)" : "var(--warning)", cursor: nudging === "ADMIN" ? "wait" : "pointer", flexShrink: 0 }}>
+                        <Bell size={10} />{nudged["ADMIN"] ? "Sent!" : nudging === "ADMIN" ? "…" : "Nudge"}
+                      </button>
+                    )}
+                  </div>
+                  {a?.comment && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic", marginLeft: 32 }}>"{a.comment}"</span>}
+                </div>
+              )
+            })()}
           </div>
         </div>
 

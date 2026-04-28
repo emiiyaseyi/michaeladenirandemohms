@@ -24,7 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── Top ─────────────────────────────────────────────────────────────────────
   { label: "Dashboard",       href: "/dashboard",       icon: "LayoutDashboard", roles: ALL_ROLES },
-  { label: "Company Details", href: "/company-details", icon: "Building2",       roles: ["ADMIN"] },
+  { label: "Company Details", href: "/company-details", icon: "Building2", roles: ["SUPER_ADMIN"] },
 
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
@@ -333,7 +333,7 @@ export function getNavForRoleWithPrefix(role: SystemRole): NavItem[] {
     return `${base}${href}`
   }
   return NAV_ITEMS
-    .filter(item => item.roles.includes(navRole))
+    .filter(item => item.roles.includes(navRole) || (role === "SUPER_ADMIN" && item.roles.includes("SUPER_ADMIN")))
     .map(item => ({
       ...item,
       href: item.href ? mapHref(item.href) : undefined,

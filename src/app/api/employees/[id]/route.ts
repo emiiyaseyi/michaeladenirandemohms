@@ -36,6 +36,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!caps(user.role).canEditAnyEmployee) return forbidden("Insufficient permissions to edit employees")
 
   const { id } = await params
+
+  if (id === user.employeeId) {
+    return forbidden("You cannot edit your own employee record")
+  }
+
   const body = await req.json()
 
   const ALLOWED_FIELDS = [
