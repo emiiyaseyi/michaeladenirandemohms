@@ -1110,11 +1110,16 @@ export default function LeavePage() {
 
   // Sync status tab from mainTab
   useEffect(() => {
-    if (mainTab !== "RELIEF") setTab(mainTab as Tab)
+    if (mainTab !== "RELIEF" && mainTab !== "RATINGS") setTab(mainTab as Tab)
   }, [mainTab])
 
   const load = useCallback(async () => {
     setLoading(true)
+    // Skip API call for RATINGS tab (view-only)
+    if (mainTab === "RATINGS") {
+      setLoading(false)
+      return
+    }
     // Fetch leave data; profile fetch is best-effort (admins may not have employee profile)
     const [leaveRes] = await Promise.all([
       fetch(`/api/leave?status=${tab === "ALL" ? "" : tab}`),
