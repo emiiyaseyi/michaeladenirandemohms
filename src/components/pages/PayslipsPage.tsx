@@ -463,9 +463,10 @@ export default function PayslipsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                {["Employee", "Dept", "Period", "Gross", "Deductions", "Net Pay", "Status", "Actions"].map(h => (
+                {["Employee", "Dept", "Period", "Gross", "Deductions", "Net Pay", "Status"].map(h => (
                   <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
+                <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", position: "sticky", right: 0, background: "var(--card)", zIndex: 2, boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", minWidth: 140 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -495,7 +496,7 @@ export default function PayslipsPage() {
                     <td style={{ padding: "12px 16px" }}>
                       <span style={{ fontSize: 11, fontWeight: 700, background: st.bg, color: st.color, borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap" }}>{st.label}</span>
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td style={{ padding: "12px 16px", position: "sticky", right: 0, background: "var(--card)", boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", zIndex: 1 }}>
                       <div style={{ display: "flex", gap: 5 }}>
                         <button onClick={() => setViewEntry(p)}
                           title="View payslip"

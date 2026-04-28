@@ -35,6 +35,7 @@ export function statusColor(status: string): { bg: string; text: string } {
     PENDING_ADMIN: { bg: "var(--info-bg)", text: "var(--info)" },
     REJECTED: { bg: "var(--danger-bg)", text: "var(--danger)" },
     CANCELLED: { bg: "var(--muted)", text: "var(--muted-foreground)" },
+    CANCELLED_BY_ADMIN: { bg: "var(--muted)", text: "var(--muted-foreground)" },
     TERMINATED: { bg: "var(--danger-bg)", text: "var(--danger)" },
     ON_LEAVE: { bg: "var(--info-bg)", text: "var(--info)" },
     DRAFT: { bg: "var(--muted)", text: "var(--muted-foreground)" },

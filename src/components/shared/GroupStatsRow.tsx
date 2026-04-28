@@ -13,7 +13,7 @@ interface Props {
 
 export default function GroupStatsRow({ groupSize, active, onLeave, pendingLeave, kpisToScore, groupLabel = "Team" }: Props) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, marginBottom: 24 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 150px), 1fr))", gap: 16, marginBottom: 24 }}>
       <StatCard label={`${groupLabel} Size`} value={groupSize} icon={Users} color="var(--primary)" />
       <StatCard label="Active" value={active} icon={UserCheck} color="var(--success)" />
       <StatCard label="On Leave" value={onLeave} icon={CalendarDays} color="var(--warning)" />

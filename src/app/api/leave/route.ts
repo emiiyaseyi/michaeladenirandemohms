@@ -23,6 +23,7 @@ async function calcDays(startDate: Date, endDate: Date, leaveTypeId: string) {
 function computeStage(req: any): string {
   if (req.status === "APPROVED") return "APPROVED"
   if (req.status === "REJECTED") return "REJECTED"
+  if (req.status === "CANCELLED" || req.status === "CANCELLED_BY_ADMIN") return req.status
   const relief = (req.reliefOfficersList ?? []) as any[]
   if (relief.length > 0 && relief.some((r: any) => r.status === "PENDING")) return "AWAITING_RELIEF"
   const tlApproval = (req.approvals ?? []).find((a: any) => a.stage === "TEAM_LEAD")

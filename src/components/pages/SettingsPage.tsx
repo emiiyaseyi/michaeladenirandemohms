@@ -645,9 +645,10 @@ export default function SettingsPage() {
                     <table style={{ width: "100%", borderCollapse: "collapse" }}>
                       <thead>
                         <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                          {["User", "Employee ID", "Department", "Role", "Status", "Actions"].map(h => (
+                          {["User", "Employee ID", "Department", "Role", "Status"].map(h => (
                             <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
                           ))}
+                          <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", position: "sticky", right: 0, background: "var(--card)", zIndex: 2, boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", minWidth: 160 }}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -684,7 +685,7 @@ export default function SettingsPage() {
                                 {u.isActive ? "Active" : "Inactive"}
                               </span>
                             </td>
-                            <td style={{ padding: "14px 20px" }}>
+                            <td style={{ padding: "14px 20px", position: "sticky", right: 0, background: "var(--card)", boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", zIndex: 1 }}>
                               <div style={{ display: "flex", gap: 6 }}>
                                 {/* Edit role */}
                                 <button
