@@ -211,11 +211,15 @@ export default function EditEmployeeModal({ employee, departments, employees: al
 
           {section("System Access")}
           <F label="Role">
-            <select value={form.role ?? "STAFF"} onChange={set("role")} style={fi}>
-              <option value="STAFF">Staff</option>
-              <option value="TEAM_LEAD">Team Lead</option>
-              {currentUserRole === "SUPER_ADMIN" && <option value="ADMIN">Admin</option>}
-            </select>
+            {form.role === "SUPER_ADMIN" ? (
+              <input value="Super Admin" disabled style={{ ...fi, opacity: 0.6, cursor: "not-allowed" }} />
+            ) : (
+              <select value={form.role ?? "STAFF"} onChange={set("role")} style={fi}>
+                <option value="STAFF">Staff</option>
+                <option value="TEAM_LEAD">Team Lead</option>
+                {currentUserRole === "SUPER_ADMIN" && <option value="ADMIN">Admin</option>}
+              </select>
+            )}
           </F>
           <div />
 
