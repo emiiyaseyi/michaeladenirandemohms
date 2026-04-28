@@ -43,3 +43,7 @@ export function caps(role: SystemRole) {
 export function forbidden(msg = "Forbidden") {
   return NextResponse.json({ error: msg }, { status: 403 })
 }
+
+export function isAdminRole(role: string): boolean {
+  return role === "ADMIN" || role === "SUPER_ADMIN"
+}

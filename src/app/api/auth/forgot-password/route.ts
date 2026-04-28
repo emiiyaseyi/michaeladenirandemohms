@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
 // GET /api/auth/forgot-password — admin: list all reset requests
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden()
+  if (!isAdminRole(user.role)) return forbidden()
 
   const requests = await prisma.passwordResetRequest.findMany({
     orderBy: { createdAt: "desc" },
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
       // Notify all admins
       const admins = await prisma.user.findMany({
-        where: { role: "ADMIN", isActive: true },
+        where: { role: { in: ["ADMIN", "SUPER_ADMIN"] as any }, isActive: true },
         select: { id: true },
       })
       if (admins.length > 0) {

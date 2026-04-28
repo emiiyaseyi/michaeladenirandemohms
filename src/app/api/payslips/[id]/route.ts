@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
 function calcNetPay(d: any): number {
   const earnings = (d.basicSalary ?? 0) + (d.housing ?? 0) + (d.transport ?? 0) + (d.meal ?? 0) + (d.otherAllowances ?? 0)
@@ -11,7 +11,7 @@ function calcNetPay(d: any): number {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden()
+  if (!isAdminRole(user.role)) return forbidden()
 
   const { id } = await params
   const body = await req.json()
@@ -81,7 +81,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden()
+  if (!isAdminRole(user.role)) return forbidden()
 
   const { id } = await params
   const existing = await prisma.payslip.findUnique({ where: { id } })

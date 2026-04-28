@@ -14,8 +14,8 @@ const F = ({ label, required, children }: { label: string; required?: boolean; c
   </div>
 )
 
-export default function EditEmployeeModal({ employee, departments, employees: allEmployees, onClose, onSuccess }: {
-  employee: any; departments: any[]; employees: any[]; onClose: () => void; onSuccess: () => void
+export default function EditEmployeeModal({ employee, departments, employees: allEmployees, onClose, onSuccess, currentUserRole }: {
+  employee: any; departments: any[]; employees: any[]; onClose: () => void; onSuccess: () => void; currentUserRole?: string
 }) {
   const [form, setForm] = useState<Record<string, any>>({})
   const [loading, setLoading] = useState(false)
@@ -210,7 +210,13 @@ export default function EditEmployeeModal({ employee, departments, employees: al
           )}
 
           {section("System Access")}
-          {sel("Role", "role", [["STAFF", "Staff"], ["TEAM_LEAD", "Team Lead"]])}
+          <F label="Role">
+            <select value={form.role ?? "STAFF"} onChange={set("role")} style={fi}>
+              <option value="STAFF">Staff</option>
+              <option value="TEAM_LEAD">Team Lead</option>
+              {currentUserRole === "SUPER_ADMIN" && <option value="ADMIN">Admin</option>}
+            </select>
+          </F>
           <div />
 
           {section("Next of Kin")}

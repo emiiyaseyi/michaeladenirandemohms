@@ -1,6 +1,6 @@
 // ─── RBAC — Role-Based Access Control ───────────────────────────────────────
 
-export type SystemRole = "ADMIN" | "TEAM_LEAD" | "STAFF"
+export type SystemRole = "SUPER_ADMIN" | "ADMIN" | "TEAM_LEAD" | "STAFF"
 
 export interface ChildNavItem {
   label: string
@@ -18,7 +18,7 @@ export interface NavItem {
   indent?: boolean
 }
 
-export const ALL_ROLES: SystemRole[] = ["ADMIN", "TEAM_LEAD", "STAFF"]
+export const ALL_ROLES: SystemRole[] = ["SUPER_ADMIN", "ADMIN", "TEAM_LEAD", "STAFF"]
 
 export const NAV_ITEMS: NavItem[] = [
 
@@ -246,6 +246,20 @@ export interface RoleCapabilities {
 }
 
 export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
+  SUPER_ADMIN: {
+    canViewAllEmployees: true,  canViewTeamEmployees: true,
+    canCreateEmployee: true,    canEditAnyEmployee: true,
+    canViewAllLeave: true,      canViewTeamLeave: true,
+    canApproveLeave: true,      canSubmitLeave: true,
+    canManageRecruitment: true, canViewRecruitment: true,
+    canManagePerformanceCycles: true, canViewAllPerformance: true,
+    canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
+    canManageOnboarding: true,  canViewOwnOnboarding: true,
+    canManageOffboarding: true,
+    canManageSettings: true,
+    canViewAnalytics: true,     canViewTeamAnalytics: true,
+    isReadOnly: false,
+  },
   ADMIN: {
     canViewAllEmployees: true,  canViewTeamEmployees: true,
     canCreateEmployee: true,    canEditAnyEmployee: true,
@@ -293,9 +307,10 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
 // ─── ROLE SLUGS & HELPERS ────────────────────────────────────────────────────
 
 export const ROLE_SLUGS: Record<SystemRole, string> = {
-  ADMIN:     "admin",
-  TEAM_LEAD: "team-lead",
-  STAFF:     "staff",
+  SUPER_ADMIN: "admin",
+  ADMIN:       "admin",
+  TEAM_LEAD:   "team-lead",
+  STAFF:       "staff",
 }
 
 export function getRoleHome(role: string): string {
@@ -311,13 +326,14 @@ export function getNavForRole(role: string): NavItem[] {
 }
 
 export function getNavForRoleWithPrefix(role: SystemRole): NavItem[] {
+  const navRole: SystemRole = role === "SUPER_ADMIN" ? "ADMIN" : role
   const base = getRoleHome(role)
   const mapHref = (href: string): string => {
     if (href === "/dashboard") return base
     return `${base}${href}`
   }
   return NAV_ITEMS
-    .filter(item => item.roles.includes(role))
+    .filter(item => item.roles.includes(navRole))
     .map(item => ({
       ...item,
       href: item.href ? mapHref(item.href) : undefined,
@@ -327,9 +343,10 @@ export function getNavForRoleWithPrefix(role: SystemRole): NavItem[] {
 
 export function roleLabel(role: string): string {
   const labels: Record<string, string> = {
-    ADMIN:     "Admin",
-    TEAM_LEAD: "Team Lead",
-    STAFF:     "Staff",
+    SUPER_ADMIN: "Super Admin",
+    ADMIN:       "Admin",
+    TEAM_LEAD:   "Team Lead",
+    STAFF:       "Staff",
   }
   return labels[role] ?? role
 }

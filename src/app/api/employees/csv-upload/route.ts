@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    const { firstName, middleName, lastName, workEmail, phone, jobTitle, hireDate, gender, employmentType, departmentName, teamLeadEmail, grossSalary, category } = row
+    const { firstName, middleName, lastName, workEmail, phone, jobTitle, hireDate, gender, employmentType, departmentName, teamLeadEmail, grossSalary, category, role: rowRole } = row
 
     if (!firstName?.trim() || !lastName?.trim() || !workEmail?.trim()) {
       results.push({ row: i + 2, status: "skipped", error: "Missing required fields" })
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       nextNum++
 
       const newUser = await prisma.user.create({
-        data: { name: fullName, email: workEmail.trim().toLowerCase(), password: hashedPwd, role: "STAFF" },
+        data: { name: fullName, email: workEmail.trim().toLowerCase(), password: hashedPwd, role: (["STAFF","TEAM_LEAD","ADMIN"].includes(rowRole?.trim().toUpperCase() ?? "") ? rowRole!.trim().toUpperCase() : "STAFF") as any },
       })
 
       const catUpper = category?.trim().toUpperCase()
@@ -131,12 +131,12 @@ export async function GET() {
   const headers = [
     "firstName", "middleName", "lastName", "workEmail", "phone", "jobTitle",
     "hireDate", "gender", "employmentType", "departmentName",
-    "teamLeadEmail", "grossSalary", "category",
+    "teamLeadEmail", "grossSalary", "category", "role",
   ]
   const example = [
     "John", "", "Doe", "john.doe@datasciencenigeria.ai", "08012345678",
     "Software Engineer", "2024-01-15", "MALE", "FULL_TIME",
-    "Technical Delivery (Service & Consulting)", "lead@datasciencenigeria.ai", "450000", "TECHNICAL",
+    "Technical Delivery (Service & Consulting)", "lead@datasciencenigeria.ai", "450000", "TECHNICAL", "STAFF",
   ]
   const csv = [headers.join(","), example.join(",")].join("\n")
   return new Response(csv, {

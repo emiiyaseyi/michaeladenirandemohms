@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
 // Compute net pay from payslip fields
 function calcNetPay(d: any): number {
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden()
+  if (!isAdminRole(user.role)) return forbidden()
 
   const body = await req.json()
   const {

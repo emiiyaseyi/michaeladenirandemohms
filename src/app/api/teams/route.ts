@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
 const TEAM_INCLUDE = {
   department: { select: { id: true, name: true } },
@@ -30,7 +30,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden()
+  if (!isAdminRole(user.role)) return forbidden()
 
   const { name, category, departmentId, headId, description } = await req.json()
   if (!name) return NextResponse.json({ error: "name is required" }, { status: 400 })

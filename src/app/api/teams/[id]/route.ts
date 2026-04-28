@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
 const TEAM_INCLUDE = {
   department: { select: { id: true, name: true } },
@@ -19,7 +19,7 @@ const TEAM_INCLUDE = {
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden()
+  if (!isAdminRole(user.role)) return forbidden()
 
   const { id } = await params
   const { name, category, departmentId, headId, description, addMemberId, removeMemberId } = await req.json()
@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden()
+  if (!isAdminRole(user.role)) return forbidden()
 
   const { id } = await params
   // Remove team assignment from all members first

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
 // PATCH /api/settings/users/[id] — update role, status, or reset password
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden("Super Admin only")
+  if (!isAdminRole(user.role)) return forbidden("Admins only")
 
   const { id } = await params
   const body = await req.json()
@@ -51,7 +51,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "ADMIN") return forbidden("Super Admin only")
+  if (!isAdminRole(user.role)) return forbidden("Admins only")
 
   const { id } = await params
 
