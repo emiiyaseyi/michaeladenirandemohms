@@ -160,7 +160,7 @@ async function main() {
     create: { userId: demoAdmin.id, employeeId: "DSN-D001", firstName: "DSN", lastName: "Admin", workEmail: "admin@dsn-hrms.com", jobTitle: "System Administrator", departmentId: adminFacility.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-01-01"), grossSalary: 800000 },
   })
 
-  await prisma.user.upsert({
+  const demoTeamLead = await prisma.user.upsert({
     where: { email: "teamlead@dsn-hrms.com" },
     update: { mustChangePassword: false },
     create: { name: "Demo Team Lead", email: "teamlead@dsn-hrms.com", password: hash("dsn-demo"), role: "TEAM_LEAD", mustChangePassword: false },
@@ -177,7 +177,7 @@ async function main() {
   }).then(u => prisma.employee.upsert({
     where: { workEmail: "staff@dsn-hrms.com" },
     update: {},
-    create: { userId: u.id, employeeId: "DSN-D003", firstName: "Demo", lastName: "Staff", workEmail: "staff@dsn-hrms.com", jobTitle: "Staff", departmentId: equalyzai.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: 380000 },
+    create: { userId: u.id, employeeId: "DSN-D003", firstName: "Demo", lastName: "Staff", workEmail: "staff@dsn-hrms.com", jobTitle: "Staff", departmentId: techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: 380000, managerId: demoTeamLead.id, departmentLeadId: demoTeamLead.id },
   }))
 
   // 12 sample employees

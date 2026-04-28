@@ -476,7 +476,7 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
             <div style={{ fontWeight: 700, fontSize: 15 }}>{req.employee?.firstName} {req.employee?.lastName}</div>
             <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{req.employee?.department?.name ?? "—"}</div>
           </div>
-          <div style={{ marginLeft: "auto" }}><Badge status={req.status} /></div>
+          <div style={{ marginLeft: "auto" }}><Badge status={req.currentStage ?? req.status} /></div>
         </div>
 
         {/* Key details */}
@@ -1294,7 +1294,7 @@ export default function LeavePage() {
                       <td style={{ padding: "11px 14px", fontSize: 13 }}>{req.leaveType?.name}</td>
                       <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
                       <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
-                      <td style={{ padding: "11px 14px" }}><Badge status={req.status} /></td>
+                      <td style={{ padding: "11px 14px" }}><Badge status={req.currentStage ?? req.status} /></td>
                       <td style={{ padding: "11px 14px" }}>
                         {req.approvals?.length > 0 && <StageBar approvals={req.approvals} />}
                         {req.status === "PENDING" && req.approvals?.find((a: any) => !a.action) && (

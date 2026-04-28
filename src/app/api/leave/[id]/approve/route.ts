@@ -92,5 +92,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
   }
 
+  // After team lead approves, notify all admins for final review
+  if (isApproval && stage === "TEAM_LEAD") {
+    const adminEmps = await prisma.employee.findMany({
+      where: { user: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } },
+      select: { id: true, userId: true },
+    })
+    for (const admin of adminEmps) {
+      await prisma.notification.create({
+        data: {
+          userId: admin.userId,
+          employeeId: admin.id,
+          title: "Leave Request Pending Final Approval",
+          message: `${request.employee?.firstName} ${request.employee?.lastName}'s ${request.leaveType?.name ?? "leave"} request has been approved by the team lead and awaits your final approval.`,
+          type: "WARNING",
+          link: "/admin/requests/leave",
+        },
+      })
+    }
+  }
+
   return NextResponse.json({ request: updated })
 }

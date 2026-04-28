@@ -20,6 +20,18 @@ async function calcDays(startDate: Date, endDate: Date, leaveTypeId: string) {
   }).length
 }
 
+function computeStage(req: any): string {
+  if (req.status === "APPROVED") return "APPROVED"
+  if (req.status === "REJECTED") return "REJECTED"
+  const relief = (req.reliefOfficersList ?? []) as any[]
+  if (relief.length > 0 && relief.some((r: any) => r.status === "PENDING")) return "AWAITING_RELIEF"
+  const tlApproval = (req.approvals ?? []).find((a: any) => a.stage === "TEAM_LEAD")
+  if (!tlApproval?.action) return "PENDING_TEAM_LEAD"
+  const adminApproval = (req.approvals ?? []).find((a: any) => a.stage === "ADMIN")
+  if (!adminApproval?.action) return "PENDING_ADMIN"
+  return "APPROVED"
+}
+
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -61,7 +73,8 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  return NextResponse.json({ requests, leaveTypes, employees })
+  const enriched = requests.map(r => ({ ...r, currentStage: computeStage(r) }))
+  return NextResponse.json({ requests: enriched, leaveTypes, employees })
 }
 
 export async function POST(req: NextRequest) {

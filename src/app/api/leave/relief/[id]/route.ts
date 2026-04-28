@@ -73,5 +73,33 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
   }
 
+  // When all relief officers have accepted, notify the team lead to review
+  if (action === "ACCEPTED") {
+    const allAssignments = await prisma.leaveReliefOfficer.findMany({
+      where: { leaveRequestId: assignment.leaveRequestId },
+      select: { status: true },
+    })
+    if (allAssignments.every(a => a.status === "ACCEPTED")) {
+      const tlApproval = await prisma.leaveApproval.findFirst({
+        where: { leaveRequestId: assignment.leaveRequestId, stage: "TEAM_LEAD", action: null },
+        include: { employee: { select: { userId: true, user: { select: { role: true } } } } },
+      })
+      if (tlApproval?.employee) {
+        const tlRole = (tlApproval.employee as any).user?.role ?? "TEAM_LEAD"
+        const applicantName = req2.employee ? `${req2.employee.firstName} ${req2.employee.lastName}` : "An employee"
+        await prisma.notification.create({
+          data: {
+            userId: tlApproval.employee.userId,
+            employeeId: tlApproval.employeeId,
+            title: "Leave Request Pending Your Approval",
+            message: `All relief officers have accepted. ${applicantName}'s ${req2.leaveType?.name ?? "leave"} request is ready for your review.`,
+            type: "WARNING",
+            link: `${roleBasePath(tlRole)}/requests/leave`,
+          },
+        })
+      }
+    }
+  }
+
   return NextResponse.json({ ok: true })
 }
