@@ -6,21 +6,41 @@ import { subMonths, startOfMonth, format } from "date-fns"
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canViewAnalytics && !caps(user.role).canViewTeamAnalytics) {
+  const c = caps(user.role)
+  if (!c.canViewAnalytics && !c.canViewTeamAnalytics) {
     return forbidden("No access to analytics")
   }
+
+  // Team leads only see their own team's data
+  const isTeamScoped = !c.canViewAnalytics && c.canViewTeamAnalytics
+  let teamIds: string[] | null = null
+  if (isTeamScoped) {
+    const reports = await prisma.employee.findMany({ where: { managerId: user.employeeId }, select: { id: true } })
+    teamIds = reports.map(r => r.id)
+  }
+  const empFilter = teamIds ? { id: { in: teamIds } } : {}
+
   const [total, active, onLeave, openJobs, byDept, byType, allLeave, recruitment] = await Promise.all([
-    prisma.employee.count(),
-    prisma.employee.count({ where: { employeeStatus: "ACTIVE" } }),
-    prisma.employee.count({ where: { employeeStatus: "ON_LEAVE" } }),
-    prisma.jobPosting.count({ where: { status: "OPEN" } }),
-    prisma.department.findMany({ include: { _count: { select: { employees: true } } }, orderBy: { name: "asc" } }),
-    prisma.employee.groupBy({ by: ["employmentType"], _count: true }),
-    prisma.leaveRequest.findMany({ where: { createdAt: { gte: subMonths(new Date(), 6) } }, select: { createdAt: true, status: true } }),
-    prisma.jobApplication.groupBy({ by: ["stage"], _count: true }),
+    prisma.employee.count({ where: empFilter }),
+    prisma.employee.count({ where: { ...empFilter, employeeStatus: "ACTIVE" } }),
+    prisma.employee.count({ where: { ...empFilter, employeeStatus: "ON_LEAVE" } }),
+    isTeamScoped ? Promise.resolve(0) : prisma.jobPosting.count({ where: { status: "OPEN" } }),
+    isTeamScoped
+      ? prisma.employee.groupBy({ by: ["departmentId"], where: empFilter, _count: true }).then(rows =>
+          rows.map(r => ({ name: r.departmentId ?? "—", count: r._count }))
+        )
+      : prisma.department.findMany({ include: { _count: { select: { employees: true } } }, orderBy: { name: "asc" } }),
+    prisma.employee.groupBy({ by: ["employmentType"], where: empFilter, _count: true }),
+    prisma.leaveRequest.findMany({
+      where: { createdAt: { gte: subMonths(new Date(), 6) }, ...(teamIds ? { employeeId: { in: teamIds } } : {}) },
+      select: { createdAt: true, status: true },
+    }),
+    isTeamScoped ? Promise.resolve([]) : prisma.jobApplication.groupBy({ by: ["stage"], _count: true }),
   ])
 
-  const byDepartment = byDept.map(d => ({ name: d.name.length > 12 ? d.name.slice(0,12)+"…" : d.name, count: d._count.employees }))
+  const byDepartment = isTeamScoped
+    ? (byDept as any[]).map(d => ({ name: d.name ?? "—", count: d.count }))
+    : (byDept as any[]).map(d => ({ name: d.name.length > 12 ? d.name.slice(0,12)+"…" : d.name, count: d._count.employees }))
   const byTypeFormatted = byType.map(t => ({ type: t.employmentType.replace(/_/g," "), count: t._count }))
 
   // Build 6-month leave trend

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!["ADMIN", "ADMIN", "ADMIN"].includes(user.role)) return forbidden()
+  if (!isAdminRole(user.role)) return forbidden()
 
   const { id } = await params
   const { action, reviewNote } = await req.json()
@@ -50,9 +50,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const doc = await prisma.personalDocument.findUnique({ where: { id }, select: { employeeId: true } })
   if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const isAdmin = ["ADMIN", "ADMIN", "ADMIN"].includes(user.role)
-  const isOwner = user.employeeId === doc.employeeId || (await prisma.employee.findFirst({ where: { userId: user.id, id: doc.employeeId } }))
-  if (!isAdmin && !isOwner) return forbidden()
+  const isOwner = user.employeeId === doc.employeeId
+  if (!isAdminRole(user.role) && !isOwner) return forbidden()
 
   await prisma.personalDocument.delete({ where: { id } })
   return NextResponse.json({ ok: true })
