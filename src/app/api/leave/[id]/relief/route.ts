@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const reliefRecord = await prisma.leaveReliefOfficer.findUnique({
     where: { leaveRequestId_employeeId: { leaveRequestId: id, employeeId: user.employeeId } },
-    include: { leaveRequest: { include: { employee: true, leaveType: true } } },
+    include: { leaveRequest: { include: { employee: { include: { user: { select: { role: true } } } }, leaveType: true } } },
   })
 
   if (!reliefRecord) return NextResponse.json({ error: "No relief officer assignment found" }, { status: 404 })
@@ -33,16 +33,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   })
 
-  // Also update the leave approval record for this stage
-  await prisma.leaveApproval.updateMany({
-    where: { leaveRequestId: id, stage: "TEAM_LEAD", action: null },
-    data: { action: action === "ACCEPTED" ? "ACCEPTED" : "REJECTED", actedAt: new Date(), comment: comment || null },
-  })
-
   const req_data = reliefRecord.leaveRequest
   const applicant = req_data.employee
 
+  // If relief officer declined, reject the leave request immediately
+  if (action === "DECLINED") {
+    await prisma.leaveRequest.update({ where: { id }, data: { status: "REJECTED" } })
+  }
+
   // Notify the leave applicant
+  const appRole = (applicant as any).user?.role ?? "STAFF"
+  const appBase = appRole === "ADMIN" || appRole === "SUPER_ADMIN" ? "/admin" : appRole === "TEAM_LEAD" ? "/team-lead" : "/staff"
   await prisma.notification.create({
     data: {
       userId: applicant.userId,
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ? `Your relief officer has accepted the role for your ${req_data.leaveType.name} leave (${format(req_data.startDate, "MMM d")} – ${format(req_data.endDate, "MMM d")}).`
         : `Your relief officer declined. Please update your leave request with a new relief officer.${comment ? ` Reason: ${comment}` : ""}`,
       type: action === "ACCEPTED" ? "SUCCESS" : "WARNING",
-      link: "/leave",
+      link: `${appBase}/requests/leave`,
     },
   })
 
@@ -63,10 +64,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // Notify team lead/manager it's their turn
     const request = await prisma.leaveRequest.findUnique({
       where: { id },
-      include: { approvals: { where: { stage: "TEAM_LEAD", action: null }, include: { employee: { select: { userId: true } } } } },
+      include: { approvals: { where: { stage: "TEAM_LEAD", action: null }, include: { employee: { select: { userId: true, user: { select: { role: true } } } } } } },
     })
     const teamLeadApproval = request?.approvals[0]
     if (teamLeadApproval?.employee) {
+      const tlRole = (teamLeadApproval.employee as any).user?.role ?? "TEAM_LEAD"
+      const tlBase = tlRole === "ADMIN" || tlRole === "SUPER_ADMIN" ? "/admin" : tlRole === "TEAM_LEAD" ? "/team-lead" : "/staff"
       await prisma.notification.create({
         data: {
           userId: teamLeadApproval.employee.userId,
@@ -74,7 +77,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           title: "Leave Request Ready for Review",
           message: `${applicant.firstName} ${applicant.lastName}'s leave request is ready for your approval (all relief officers accepted).`,
           type: "INFO",
-          link: "/leave",
+          link: `${tlBase}/requests/leave`,
         },
       })
     }

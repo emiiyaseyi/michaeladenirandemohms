@@ -30,8 +30,12 @@ export function statusColor(status: string): { bg: string; text: string } {
     ACTIVE: { bg: "var(--success-bg)", text: "var(--success)" },
     APPROVED: { bg: "var(--success-bg)", text: "var(--success)" },
     PENDING: { bg: "var(--warning-bg)", text: "var(--warning)" },
+    AWAITING_RELIEF: { bg: "var(--warning-bg)", text: "var(--warning)" },
+    PENDING_TEAM_LEAD: { bg: "var(--warning-bg)", text: "var(--warning)" },
+    PENDING_ADMIN: { bg: "var(--info-bg)", text: "var(--info)" },
     REJECTED: { bg: "var(--danger-bg)", text: "var(--danger)" },
     CANCELLED: { bg: "var(--muted)", text: "var(--muted-foreground)" },
+    CANCELLED_BY_ADMIN: { bg: "var(--muted)", text: "var(--muted-foreground)" },
     TERMINATED: { bg: "var(--danger-bg)", text: "var(--danger)" },
     ON_LEAVE: { bg: "var(--info-bg)", text: "var(--info)" },
     DRAFT: { bg: "var(--muted)", text: "var(--muted-foreground)" },
@@ -50,7 +54,7 @@ export function statusColor(status: string): { bg: string; text: string } {
 export function roleLabel(role: string) {
   const map: Record<string, string> = {
     SUPER_ADMIN: "Super Admin", ADMIN: "Admin", HR_ADMIN: "HR Admin",
-    MANAGER: "Manager", DEPARTMENT_LEAD: "Dept. Lead",
+    TEAM_LEAD: "Team Lead", MANAGER: "Manager", DEPARTMENT_LEAD: "Dept. Lead",
     PROJECT_MANAGER: "Project Manager", STAFF: "Staff", INTERN: "Intern",
     TA_OFFICER: "TA Officer", PERFORMANCE_OFFICER: "Perf. Officer", AUDIT: "Audit",
   }

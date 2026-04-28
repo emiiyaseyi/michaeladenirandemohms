@@ -91,7 +91,7 @@ function ProjectForm({ employees, initial, onSubmit, onClose, loading }: { emplo
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Description</label>
           <textarea value={form.description} onChange={e => set("description", e.target.value)} rows={3} style={{ ...fi, resize: "vertical" }} placeholder="Brief project description…" />
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: 12 }}>
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Start Date</label>
             <input type="date" value={form.startDate} onChange={e => set("startDate", e.target.value)} style={fi} />

@@ -92,7 +92,7 @@ function UploadModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (
             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)", display: "block", marginBottom: 5 }}>Document Title <span style={{ color: "var(--accent)" }}>*</span></label>
             <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Employee Handbook 2025" style={fi} />
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)", display: "block", marginBottom: 5 }}>Category</label>
               <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={fi}>

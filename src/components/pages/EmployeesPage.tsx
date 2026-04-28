@@ -119,7 +119,7 @@ export default function EmployeesPage() {
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Hire Date</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Actions</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", position: "sticky", right: 0, background: "var(--card)", zIndex: 2, boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", minWidth: 120 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -146,10 +146,10 @@ export default function EmployeesPage() {
                     </td>
                     <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{formatDate(emp.hireDate)}</td>
                     <td style={{ padding: "14px 20px" }}><Badge status={emp.employeeStatus} /></td>
-                    <td style={{ padding: "14px 20px" }}>
+                    <td style={{ padding: "14px 20px", position: "sticky", right: 0, background: "var(--card)", boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", zIndex: 1 }}>
                       <div style={{ display: "flex", gap: 4 }}>
                         <button onClick={() => setSelected(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="View"><Eye size={13} /></button>
-                        {user?.caps.canEditAnyEmployee && (
+                        {user?.caps.canEditAnyEmployee && emp.id !== user?.employeeId && (
                           <button onClick={() => setEditTarget(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="Edit"><Edit size={13} /></button>
                         )}
                       </div>

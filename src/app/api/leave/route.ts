@@ -20,6 +20,19 @@ async function calcDays(startDate: Date, endDate: Date, leaveTypeId: string) {
   }).length
 }
 
+function computeStage(req: any): string {
+  if (req.status === "APPROVED") return "APPROVED"
+  if (req.status === "REJECTED") return "REJECTED"
+  if (req.status === "CANCELLED" || req.status === "CANCELLED_BY_ADMIN") return req.status
+  const relief = (req.reliefOfficersList ?? []) as any[]
+  if (relief.length > 0 && relief.some((r: any) => r.status === "PENDING")) return "AWAITING_RELIEF"
+  const tlApproval = (req.approvals ?? []).find((a: any) => a.stage === "TEAM_LEAD")
+  if (!tlApproval?.action) return "PENDING_TEAM_LEAD"
+  const adminApproval = (req.approvals ?? []).find((a: any) => a.stage === "ADMIN")
+  if (!adminApproval?.action) return "PENDING_ADMIN"
+  return "APPROVED"
+}
+
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -61,7 +74,8 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  return NextResponse.json({ requests, leaveTypes, employees })
+  const enriched = requests.map(r => ({ ...r, currentStage: computeStage(r) }))
+  return NextResponse.json({ requests: enriched, leaveTypes, employees })
 }
 
 export async function POST(req: NextRequest) {
@@ -102,74 +116,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Leave is frozen during this period: "${freeze.name}"` }, { status: 400 })
   }
 
-  // Find active projects where employee is a member but NOT the project owner
-  const memberAssignments = await prisma.projectAssignment.findMany({
-    where: { employeeId },
-    select: { projectId: true },
-  })
-  const projectLeadEmployeeIds: string[] = []
-  if (memberAssignments.length > 0) {
-    const activeProjects = await prisma.project.findMany({
-      where: { id: { in: memberAssignments.map(a => a.projectId) }, status: "ACTIVE" },
-      select: { id: true, ownerId: true },
-    })
-    for (const proj of activeProjects) {
-      const ownerId = proj.ownerId
-      if (!ownerId || ownerId === employeeId) continue
-      if (!projectLeadEmployeeIds.includes(ownerId)) {
-        projectLeadEmployeeIds.push(ownerId)
-      }
-    }
-  }
-
-  // Build approval records
+  // Build approval records: Relief Officer(s) → Team Lead → Admin
+  // Relief officers are tracked via reliefOfficersList (not in approvals table)
   const approvalRecords: any[] = []
   const now = new Date()
 
-  // 1. Relief officer records (one per officer, each at RELIEF_OFFICER stage)
-  if (reliefOfficerIds.length > 0) {
-    for (let i = 0; i < reliefOfficerIds.length; i++) {
-      approvalRecords.push({
-        employeeId: reliefOfficerIds[i],
-        stage: "TEAM_LEAD" as const,
-        deadline: addHours(now, 12),
-      })
-    }
-  }
+  const tlDeadlineHours = reliefOfficerIds.length > 0 ? 36 : 24
 
-  // 2. Project lead records (PROJECT_LEAD stage) - skip if project lead is also manager/dept lead
-  const skipLeadIds = new Set([
-    employee.managerId,
-    employee.departmentLeadId,
-    employeeId,
-    ...(teamLeadIds as string[]),
-  ].filter(Boolean))
-
-  for (const leadId of projectLeadEmployeeIds) {
-    if (skipLeadIds.has(leadId)) continue
-    approvalRecords.push({
-      employeeId: leadId,
-      stage: "TEAM_LEAD" as const,
-      deadline: addHours(now, reliefOfficerIds.length > 0 ? 24 : 12),
-    })
-  }
-
-  // 3. Team lead
-  if (employee.departmentLeadId || teamLeadIds.length > 0) {
-    const tlId = teamLeadIds[0] || employee.departmentLeadId || employeeId
+  // Team lead (one record — dept lead or team head)
+  const tlId = (teamLeadIds as string[])[0] || employee.departmentLeadId || null
+  if (tlId) {
     approvalRecords.push({
       employeeId: tlId,
       stage: "TEAM_LEAD" as const,
-      deadline: addHours(now, reliefOfficerIds.length > 0 ? 36 : 24),
-    })
-  }
-
-  // 4. Manager
-  if (employee.managerId) {
-    approvalRecords.push({
-      employeeId: employee.managerId,
-      stage: "TEAM_LEAD" as const,
-      deadline: addHours(now, reliefOfficerIds.length > 0 ? 48 : 36),
+      deadline: addHours(now, tlDeadlineHours),
     })
   }
 
@@ -198,8 +158,13 @@ export async function POST(req: NextRequest) {
 
   // Notify all relief officers
   for (const rid of reliefOfficerIds) {
-    const reliefEmp = await prisma.employee.findUnique({ where: { id: rid }, select: { userId: true } })
+    const reliefEmp = await prisma.employee.findUnique({
+      where: { id: rid },
+      select: { userId: true, user: { select: { role: true } } },
+    })
     if (reliefEmp) {
+      const rRole = reliefEmp.user?.role ?? "STAFF"
+      const rBase = rRole === "ADMIN" || rRole === "SUPER_ADMIN" ? "/admin" : rRole === "TEAM_LEAD" ? "/team-lead" : "/staff"
       await prisma.notification.create({
         data: {
           userId: reliefEmp.userId,
@@ -207,42 +172,29 @@ export async function POST(req: NextRequest) {
           title: "Relief Officer Request",
           message: `${employee.firstName} ${employee.lastName} has selected you as a relief officer for their ${request.days}-day leave (${format(start, "MMM d")} – ${format(end, "MMM d")}). Please accept or decline within 12 hours.`,
           type: "INFO",
-          link: "/leave?tab=relief",
+          link: `${rBase}/requests/leave?tab=relief`,
         },
       })
     }
   }
 
-  // Notify project leads
-  for (const leadId of projectLeadEmployeeIds) {
-    if (skipLeadIds.has(leadId)) continue
-    const leadEmp = await prisma.employee.findUnique({ where: { id: leadId }, select: { userId: true } })
-    if (leadEmp) {
+  // Notify team lead immediately only if there are no relief officers (otherwise notified after all accept)
+  if (reliefOfficerIds.length === 0 && tlId) {
+    const tlEmp = await prisma.employee.findUnique({
+      where: { id: tlId },
+      select: { userId: true, user: { select: { role: true } } },
+    })
+    if (tlEmp) {
+      const tlRole = tlEmp.user?.role ?? "TEAM_LEAD"
+      const tlBase = tlRole === "ADMIN" || tlRole === "SUPER_ADMIN" ? "/admin" : tlRole === "TEAM_LEAD" ? "/team-lead" : "/staff"
       await prisma.notification.create({
         data: {
-          userId: leadEmp.userId,
-          employeeId: leadId,
-          title: "Leave Approval Required (Project Lead)",
-          message: `${employee.firstName} ${employee.lastName}, a member of your project, submitted a ${request.days}-day leave request requiring your approval.`,
-          type: "WARNING",
-          link: "/leave",
-        },
-      })
-    }
-  }
-
-  // Notify manager
-  if (employee.managerId) {
-    const manager = await prisma.employee.findUnique({ where: { id: employee.managerId }, select: { userId: true } })
-    if (manager) {
-      await prisma.notification.create({
-        data: {
-          userId: manager.userId,
-          employeeId: employee.managerId,
+          userId: tlEmp.userId,
+          employeeId: tlId,
           title: "Leave Request Pending Approval",
           message: `${employee.firstName} ${employee.lastName} submitted a ${request.days}-day leave request awaiting your approval.`,
           type: "WARNING",
-          link: "/leave",
+          link: `${tlBase}/requests/leave`,
         },
       })
     }

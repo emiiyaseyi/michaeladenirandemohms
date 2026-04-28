@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import Card from "@/components/ui/Card"
 import Badge from "@/components/ui/Badge"
 import Avatar from "@/components/ui/Avatar"
@@ -52,19 +52,18 @@ function BalanceCard({ lb }: { lb: any }) {
 }
 
 function StageBar({ approvals }: { approvals: any[] }) {
-  const stages = ["STAFF", "TEAM_LEAD", "TEAM_LEAD", "TEAM_LEAD", "ADMIN"]
-  const labels: Record<string, string> = { RELIEF_OFFICER: "Relief", PROJECT_LEAD: "Proj Lead", TEAM_LEAD: "Team Lead", MANAGER: "Manager", ADMIN: "HR/Admin" }
+  const STAGE_ORDER = ["TEAM_LEAD", "ADMIN"]
+  const labels: Record<string, string> = { TEAM_LEAD: "Team Lead", ADMIN: "HR/Admin" }
+  const stages = STAGE_ORDER.filter(s => approvals.some(a => a.stage === s))
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
       {stages.map((s, i) => {
         const stageApprovals = approvals.filter(x => x.stage === s)
-        if (stageApprovals.length === 0) return null
-        const allDone = stageApprovals.every(a => a.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(a.action))
-        const anyRej = stageApprovals.some(a => a.action === "REJECTED")
-        const anyPend = stageApprovals.some(a => !a.action)
-        const done = allDone; const rej = anyRej; const pend = anyPend && !anyRej
+        const done = stageApprovals.every(a => a.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action))
+        const rej = stageApprovals.some(a => a.action === "REJECTED")
+        const pend = stageApprovals.some(a => !a.action) && !rej
         return (
-          <div key={s} style={{ display: "flex", alignItems: "center" }}>
+          <div key={`${s}-${i}`} style={{ display: "flex", alignItems: "center" }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
               <div style={{ width: 20, height: 20, borderRadius: "50%", border: "2px solid", display: "flex", alignItems: "center", justifyContent: "center", borderColor: rej ? "var(--accent)" : done ? "var(--success)" : pend ? "var(--warning)" : "var(--border)", background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pend ? "var(--warning-bg)" : "var(--muted)" }}>
                 {done ? <Check size={10} style={{ color: "var(--success)" }} /> : rej ? <X size={10} style={{ color: "var(--accent)" }} /> : pend ? <Clock size={10} style={{ color: "var(--warning)" }} /> : <div style={{ width: 5, height: 5, borderRadius: "50%", background: "var(--border)" }} />}
@@ -262,7 +261,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Select Leave Type <span style={{ color: "var(--accent)" }}>*</span></label>
               {visibleTypes.length === 0 && <div style={{ fontSize: 13, color: "var(--muted-foreground)", padding: 16, textAlign: "center" }}>No leave types available</div>}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 10 }}>
                 {visibleTypes.map(lt => {
                   const bal = balances.find(b => b.leaveTypeId === lt.id)
                   const sel = form.leaveTypeId === lt.id
@@ -298,7 +297,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
                 This leave requires {selType.waitingDays} working days notice. The earliest start date is <strong style={{ marginLeft: 4 }}>{formatDate(getMinDate())}</strong>.
               </div>
             )}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Start Date <span style={{ color: "var(--accent)" }}>*</span></label>
                 <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} min={getMinDate()} style={fi} />
@@ -348,7 +347,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
               {errors.relief && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 6 }}>{errors.relief}</div>}
             </div>
             <div style={{ background: "var(--muted)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "var(--muted-foreground)" }}>
-              <strong style={{ color: "var(--foreground)" }}>Approval chain (auto-detected):</strong> Relief Officer(s) → Project Lead → Team Lead / Dept Lead → Manager → HR Admin
+              <strong style={{ color: "var(--foreground)" }}>Approval chain:</strong> Relief Officer(s) → Team Lead → Admin
             </div>
           </div>
         )}
@@ -363,7 +362,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
             </div>
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                Handover Notes <span style={{ color: "var(--accent)" }}>*</span>
+                Handover Notes
                 <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}> — to be shared with relief officer(s)</span>
               </label>
               <textarea value={form.handoverNotes} onChange={e => setForm(f => ({ ...f, handoverNotes: e.target.value }))} rows={4} placeholder="Describe your responsibilities, ongoing tasks, and what the relief officer needs to know…" style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
@@ -476,11 +475,11 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
             <div style={{ fontWeight: 700, fontSize: 15 }}>{req.employee?.firstName} {req.employee?.lastName}</div>
             <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{req.employee?.department?.name ?? "—"}</div>
           </div>
-          <div style={{ marginLeft: "auto" }}><Badge status={req.status} /></div>
+          <div style={{ marginLeft: "auto" }}><Badge status={req.currentStage ?? req.status} /></div>
         </div>
 
         {/* Key details */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 10 }}>
           {[
             { label: "Leave Type", value: req.leaveType?.name },
             { label: "Duration", value: `${req.days} day${req.days !== 1 ? "s" : ""}` },
@@ -493,87 +492,120 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
           ))}
         </div>
 
-        {/* Approval chain — always show full pipeline */}
+        {/* Approval chain — Relief Officer → Team Lead → Admin */}
         <div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Approval Progress</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {(["STAFF", "TEAM_LEAD", "TEAM_LEAD", "TEAM_LEAD", "ADMIN"] as const).map(stage => {
-              const STAGE_LABELS: Record<string, string> = { RELIEF_OFFICER: "Relief Officer(s)", PROJECT_LEAD: "Project Lead(s)", TEAM_LEAD: "Team Lead", MANAGER: "Manager", ADMIN: "HR / Admin" }
-              const stageApprovals: any[] = req.approvals?.filter((x: any) => x.stage === stage) ?? []
-              const a = stageApprovals[0]
-              // For RELIEF_OFFICER and PROJECT_LEAD: skip if no records (not assigned)
-              if ((stage === "STAFF" || stage === "TEAM_LEAD") && stageApprovals.length === 0) return null
-              // For TEAM_LEAD/MANAGER/ADMIN: always show (even if no record yet — "Not yet reached")
-              const allDone = stageApprovals.length > 0 && stageApprovals.every((sa: any) => sa.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(sa.action))
-              const anyRej = stageApprovals.some((sa: any) => sa.action === "REJECTED")
-              const anyPending = stageApprovals.some((sa: any) => !sa.action)
-              const done = allDone
-              const rej = anyRej
-              const pending = stageApprovals.length > 0 && anyPending && !anyRej
-              const notReached = stageApprovals.length === 0
-              // Get person name from approval record
-              const personName = stageApprovals.length === 1 && a?.employee
-                ? `${a.employee.firstName} ${a.employee.lastName}`
-                : null
+            {/* ── Relief Officers (from reliefOfficersList) ── */}
+            {(req.reliefOfficersList?.length ?? 0) > 0 && (() => {
+              const officers: any[] = req.reliefOfficersList ?? []
+              const allAccepted = officers.every((o: any) => o.status === "ACCEPTED")
+              const anyDeclined = officers.some((o: any) => o.status === "DECLINED")
+              const anyPending  = officers.some((o: any) => o.status === "PENDING")
+              const bg = anyDeclined ? "var(--danger-bg)" : allAccepted ? "var(--success-bg)" : anyPending ? "#FFFBEB" : "var(--muted)"
               return (
-                <div key={stage} style={{
-                  display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8,
-                  background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)",
-                  opacity: notReached ? 0.5 : 1,
-                }}>
+                <div key="relief" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: bg }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
-                      {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: anyDeclined ? "var(--accent)" : allAccepted ? "var(--success)" : "#F59E0B" }}>
+                      {allAccepted ? <Check size={11} color="white" /> : anyDeclined ? <X size={11} color="white" /> : <Clock size={11} color="white" />}
                     </div>
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 12, fontWeight: 700 }}>{STAGE_LABELS[stage]}</span>
-                      {personName && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {personName}</span>}
-                      {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
-                      {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
-                    </div>
-                    {stageApprovals.length === 1 && a?.action && <Badge status={a.action ?? "PENDING"} />}
-                    {stageApprovals.length === 1 && pending && a?.deadline && <CountdownTimer deadline={a.deadline} />}
-                    {isAdmin && pending && (
-                      <button
-                        onClick={() => nudgeStage(stage)}
-                        disabled={nudging === stage || nudged[stage]}
-                        title="Send reminder to approver"
-                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged[stage] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged[stage] ? "var(--success)" : "var(--warning)", cursor: nudging === stage ? "wait" : nudged[stage] ? "default" : "pointer", flexShrink: 0 }}
-                      >
-                        <Bell size={10} />
-                        {nudged[stage] ? "Sent!" : nudging === stage ? "…" : "Nudge"}
-                      </button>
-                    )}
+                    <span style={{ fontSize: 12, fontWeight: 700 }}>Relief Officer{officers.length > 1 ? "s" : ""}</span>
+                    {anyPending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
                   </div>
-                  {/* Multiple approvers — show each row */}
-                  {stageApprovals.length > 1 && (
+                  {officers.length > 1 && (
                     <div style={{ marginLeft: 32, display: "flex", flexDirection: "column", gap: 3 }}>
-                      {stageApprovals.map((sa: any, i: number) => {
-                        const saDone = sa.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(sa.action)
-                        const saRej = sa.action === "REJECTED"
-                        const saPending = !sa.action
+                      {officers.map((o: any) => {
+                        const oDone = o.status === "ACCEPTED"; const oRej = o.status === "DECLINED"
                         return (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-                            <div style={{ width: 14, height: 14, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: saRej ? "var(--accent)" : saDone ? "var(--success)" : "#F59E0B" }}>
-                              {saDone ? <Check size={8} color="white" /> : saRej ? <X size={8} color="white" /> : <Clock size={8} color="white" />}
+                          <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                            <div style={{ width: 14, height: 14, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: oRej ? "var(--accent)" : oDone ? "var(--success)" : "#F59E0B" }}>
+                              {oDone ? <Check size={8} color="white" /> : oRej ? <X size={8} color="white" /> : <Clock size={8} color="white" />}
                             </div>
-                            <span style={{ fontWeight: 600, color: "var(--foreground)" }}>
-                              {sa.employee ? `${sa.employee.firstName} ${sa.employee.lastName}` : "—"}
+                            <span style={{ fontWeight: 600 }}>{o.employee ? `${o.employee.firstName} ${o.employee.lastName}` : "—"}</span>
+                            <span style={{ color: oDone ? "var(--success)" : oRej ? "var(--accent)" : "#F59E0B", fontWeight: 700 }}>
+                              {oDone ? "Accepted" : oRej ? "Declined" : "Pending"}
                             </span>
-                            <span style={{ color: saDone ? "var(--success)" : saRej ? "var(--accent)" : "#F59E0B", fontWeight: 700 }}>
-                              {saDone ? "Accepted" : saRej ? "Declined" : "Pending"}
-                            </span>
-                            {sa?.comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{sa.comment}"</span>}
-                            {saPending && sa?.deadline && <CountdownTimer deadline={sa.deadline} />}
+                            {o.comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{o.comment}"</span>}
                           </div>
                         )
                       })}
                     </div>
                   )}
-                  {stageApprovals.length === 1 && a?.comment && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic", marginLeft: 32 }}>"{a.comment}"</span>}
+                  {officers.length === 1 && (
+                    <div style={{ marginLeft: 32, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ fontWeight: 600 }}>{officers[0].employee ? `${officers[0].employee.firstName} ${officers[0].employee.lastName}` : "—"}</span>
+                      {officers[0].comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{officers[0].comment}"</span>}
+                    </div>
+                  )}
                 </div>
               )
-            })}
+            })()}
+
+            {/* ── Team Lead ── */}
+            {(() => {
+              const tlApprovals: any[] = req.approvals?.filter((x: any) => x.stage === "TEAM_LEAD") ?? []
+              const a = tlApprovals[0]
+              const done = tlApprovals.length > 0 && tlApprovals.every((sa: any) => sa.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(sa.action))
+              const rej  = tlApprovals.some((sa: any) => sa.action === "REJECTED")
+              const pending = tlApprovals.length > 0 && tlApprovals.some((sa: any) => !sa.action) && !rej
+              const notReached = tlApprovals.length === 0
+              return (
+                <div key="TEAM_LEAD" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)", opacity: notReached ? 0.5 : 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
+                      {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
+                    </div>
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>Team Lead</span>
+                      {tlApprovals.length === 1 && a?.employee && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {a.employee.firstName} {a.employee.lastName}</span>}
+                      {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
+                      {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
+                    </div>
+                    {tlApprovals.length === 1 && a?.action && <Badge status={a.action} />}
+                    {pending && a?.deadline && <CountdownTimer deadline={a.deadline} />}
+                    {isAdmin && pending && (
+                      <button onClick={() => nudgeStage("TEAM_LEAD")} disabled={nudging === "TEAM_LEAD" || nudged["TEAM_LEAD"]}
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["TEAM_LEAD"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["TEAM_LEAD"] ? "var(--success)" : "var(--warning)", cursor: nudging === "TEAM_LEAD" ? "wait" : "pointer", flexShrink: 0 }}>
+                        <Bell size={10} />{nudged["TEAM_LEAD"] ? "Sent!" : nudging === "TEAM_LEAD" ? "…" : "Nudge"}
+                      </button>
+                    )}
+                  </div>
+                  {tlApprovals.length === 1 && a?.comment && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic", marginLeft: 32 }}>"{a.comment}"</span>}
+                </div>
+              )
+            })()}
+
+            {/* ── Admin ── */}
+            {(() => {
+              const adminApprovals: any[] = req.approvals?.filter((x: any) => x.stage === "ADMIN") ?? []
+              const a = adminApprovals[0]
+              const done = adminApprovals.length > 0 && !!a?.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action)
+              const rej  = adminApprovals.some((sa: any) => sa.action === "REJECTED")
+              const pending = adminApprovals.length > 0 && !a?.action && !rej
+              const notReached = adminApprovals.length === 0
+              return (
+                <div key="ADMIN" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)", opacity: notReached ? 0.5 : 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
+                      {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
+                    </div>
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>Admin</span>
+                      {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
+                      {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
+                    </div>
+                    {a?.action && <Badge status={a.action} />}
+                    {isAdmin && pending && (
+                      <button onClick={() => nudgeStage("ADMIN")} disabled={nudging === "ADMIN" || nudged["ADMIN"]}
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["ADMIN"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["ADMIN"] ? "var(--success)" : "var(--warning)", cursor: nudging === "ADMIN" ? "wait" : "pointer", flexShrink: 0 }}>
+                        <Bell size={10} />{nudged["ADMIN"] ? "Sent!" : nudging === "ADMIN" ? "…" : "Nudge"}
+                      </button>
+                    )}
+                  </div>
+                  {a?.comment && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic", marginLeft: 32 }}>"{a.comment}"</span>}
+                </div>
+              )
+            })()}
           </div>
         </div>
 
@@ -659,7 +691,7 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin }: { req: any; onClose: 
             Admin override — relief officer has already responded but you can still make changes.
           </div>
         )}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Start Date</label>
             <input type="date" disabled={locked} value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} style={{ ...fi, opacity: locked ? 0.6 : 1 }} />
@@ -793,7 +825,7 @@ function RatingsPanel({ isAdmin }: { isAdmin: boolean }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Average score card */}
       {!isAdmin && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
           <Card style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: "#FEF3C7", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Star size={22} style={{ color: "#F59E0B" }} />
@@ -1045,6 +1077,7 @@ export default function LeavePage() {
   const { user } = useCurrentUser()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const pathname = usePathname()
   const [requests, setRequests] = useState<any[]>([])
   const [leaveTypes, setLeaveTypes] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
@@ -1062,10 +1095,12 @@ export default function LeavePage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editLeave, setEditLeave] = useState<any | null>(null)
   const [viewLeave, setViewLeave] = useState<any | null>(null)
+  const [cancelTargetId, setCancelTargetId] = useState<string | null>(null)
 
   const canApprove = user?.caps?.canApproveLeave
   const canSubmit = user?.caps?.canSubmitLeave
   const isAdmin = user?.caps?.canViewAllLeave
+  const isSuperAdmin = user?.role === "SUPER_ADMIN"
 
   // Sync mainTab from URL ?tab=relief
   useEffect(() => {
@@ -1075,11 +1110,16 @@ export default function LeavePage() {
 
   // Sync status tab from mainTab
   useEffect(() => {
-    if (mainTab !== "RELIEF") setTab(mainTab as Tab)
+    if (mainTab !== "RELIEF" && mainTab !== "RATINGS") setTab(mainTab as Tab)
   }, [mainTab])
 
   const load = useCallback(async () => {
     setLoading(true)
+    // Skip API call for RATINGS tab (view-only)
+    if (mainTab === "RATINGS") {
+      setLoading(false)
+      return
+    }
     // Fetch leave data; profile fetch is best-effort (admins may not have employee profile)
     const [leaveRes] = await Promise.all([
       fetch(`/api/leave?status=${tab === "ALL" ? "" : tab}`),
@@ -1115,14 +1155,17 @@ export default function LeavePage() {
   }
 
   const nudge = async (id: string, stage: string) => {
-    const res = await fetch(`/api/leave/${id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "NUDGE", stage }) })
+    const res = await fetch(`/api/leave/${id}/nudge`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) })
     const d = await res.json()
-    if (d.ok) alert("Reminder sent to approver")
+    if (d.ok) alert("Reminder sent")
   }
 
-  const cancel = async (id: string) => {
-    if (!confirm("Cancel this leave request?")) return
-    await fetch(`/api/leave/${id}/cancel`, { method: "POST" })
+  const cancel = (id: string) => setCancelTargetId(id)
+
+  const confirmCancel = async () => {
+    if (!cancelTargetId) return
+    await fetch(`/api/leave/${cancelTargetId}/cancel`, { method: "POST" })
+    setCancelTargetId(null)
     load()
   }
 
@@ -1163,7 +1206,7 @@ export default function LeavePage() {
         ].map(({ key, label, icon: Icon }) => {
           const activeActual = mainTab === key
           return (
-            <button key={key} onClick={() => { setMainTab(key as MainTab); if (key !== "RELIEF") router.replace("/leave") }}
+            <button key={key} onClick={() => { setMainTab(key as MainTab); if (key !== "RELIEF") router.replace(pathname) }}
               style={{
                 padding: "10px 18px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: activeActual ? 700 : 500,
                 background: "transparent", color: activeActual ? "var(--primary)" : "var(--muted-foreground)",
@@ -1237,9 +1280,10 @@ export default function LeavePage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Employee", "Leave Type", "Days", "Dates", "Status", "Approval", "Actions"].map(h => (
+                  {["Employee", "Leave Type", "Days", "Dates", "Status", "Approval"].map(h => (
                     <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
+                  <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", position: "sticky", right: 0, background: "var(--card)", zIndex: 2, boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", minWidth: 160 }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1260,46 +1304,82 @@ export default function LeavePage() {
                       <td style={{ padding: "11px 14px", fontSize: 13 }}>{req.leaveType?.name}</td>
                       <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
                       <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
-                      <td style={{ padding: "11px 14px" }}><Badge status={req.status} /></td>
+                      <td style={{ padding: "11px 14px" }}><Badge status={req.currentStage ?? req.status} /></td>
                       <td style={{ padding: "11px 14px" }}>
-                        {req.approvals?.length > 0 && <StageBar approvals={req.approvals} />}
-                        {req.status === "PENDING" && req.approvals?.find((a: any) => !a.action) && (
-                          <div style={{ marginTop: 3 }}><CountdownTimer deadline={req.approvals.find((a: any) => !a.action)?.deadline} /></div>
+                        {req.currentStage === "AWAITING_RELIEF" ? (
+                          <div style={{ fontSize: 11, color: "var(--warning)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+                            <Clock size={11} />
+                            {(req.reliefOfficersList ?? []).filter((r: any) => r.status === "PENDING").length} relief pending
+                          </div>
+                        ) : (
+                          <>
+                            {req.approvals?.length > 0 && <StageBar approvals={req.approvals} />}
+                            {req.status === "PENDING" && req.approvals?.find((a: any) => !a.action) && (
+                              <div style={{ marginTop: 3 }}><CountdownTimer deadline={req.approvals.find((a: any) => !a.action)?.deadline} /></div>
+                            )}
+                          </>
                         )}
                       </td>
-                      <td style={{ padding: "11px 14px" }}>
+                      <td style={{ padding: "11px 14px", position: "sticky", right: 0, background: "var(--card)", boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", zIndex: 1 }}>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                          {req.status === "PENDING" && canApprove && (
-                            <>
-                              {/* Admin: stage-aware approve — show pending stages as options */}
-                              {isAdmin && req.approvals?.length > 0 ? (
-                                <>
-                                  {req.approvals.filter((a: any) => !a.action).map((a: any) => (
-                                    <div key={a.id} style={{ display: "flex", gap: 3 }}>
-                                      <button onClick={() => approve(req.id, a.stage)} title={`Approve ${a.stage} stage`} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                        <Check size={10} /> {a.stage.replace(/_/g, " ")}
-                                      </button>
-                                      <button onClick={() => nudge(req.id, a.stage)} title="Send reminder" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", fontSize: 10, fontWeight: 700 }}>
-                                        ↑
-                                      </button>
-                                    </div>
-                                  ))}
-                                  <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /></button>
-                                </>
-                              ) : (
-                                <>
-                                  <button onClick={() => approve(req.id)} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
-                                  <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
-                                </>
+                          {req.status === "PENDING" && canApprove && (<>
+
+                            {/* SUPER ADMIN: bypass any stage */}
+                            {isSuperAdmin && req.currentStage !== "AWAITING_RELIEF" && req.approvals?.filter((a: any) => !a.action).map((a: any) => (
+                              <div key={a.id} style={{ display: "flex", gap: 3 }}>
+                                <button onClick={() => approve(req.id, a.stage)} title={`Bypass — approve ${a.stage} stage`} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                                  <Check size={10} /> {a.stage.replace(/_/g, " ")}
+                                </button>
+                              </div>
+                            ))}
+                            {isSuperAdmin && req.currentStage !== "AWAITING_RELIEF" && req.approvals?.some((a: any) => !a.action) && (
+                              <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center" }}><X size={11} /></button>
+                            )}
+
+                            {/* ADMIN (not super): nudge only for non-admin stages; approve+reject only their own stage */}
+                            {isAdmin && !isSuperAdmin && (<>
+                              {req.currentStage === "AWAITING_RELIEF" && (
+                                <button onClick={() => nudge(req.id, "RELIEF")} title="Remind relief officers" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                                  <Bell size={10} /> Remind Relief
+                                </button>
                               )}
-                            </>
-                          )}
-                          {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) && (
+                              {req.currentStage === "PENDING_TEAM_LEAD" && (
+                                <button onClick={() => nudge(req.id, "TEAM_LEAD")} title="Remind team lead" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                                  <Bell size={10} /> Remind TL
+                                </button>
+                              )}
+                              {req.currentStage === "PENDING_ADMIN" && (<>
+                                <button onClick={() => approve(req.id, "ADMIN")} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
+                                <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
+                              </>)}
+                            </>)}
+
+                            {/* TEAM LEAD: approve/reject only at their stage; nudge elsewhere */}
+                            {!isAdmin && (<>
+                              {req.currentStage === "AWAITING_RELIEF" && (
+                                <button onClick={() => nudge(req.id, "RELIEF")} title="Remind relief officers" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                                  <Bell size={10} /> Remind Relief
+                                </button>
+                              )}
+                              {req.currentStage === "PENDING_TEAM_LEAD" && (<>
+                                <button onClick={() => approve(req.id)} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
+                                <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
+                              </>)}
+                              {req.currentStage === "PENDING_ADMIN" && (
+                                <button onClick={() => nudge(req.id, "ADMIN")} title="Remind admin" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                                  <Bell size={10} /> Remind Admin
+                                </button>
+                              )}
+                            </>)}
+                          </>)}
+
+                          {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) &&
+                            (isAdmin || !(req.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING")) && (
                             <button onClick={() => setEditLeave(req)} title="Edit request" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }}>
                               <Edit3 size={12} />
                             </button>
                           )}
-                          {["PENDING", "APPROVED"].includes(req.status) && (req.employeeId === user?.employeeId || isAdmin) && (
+                          {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) && (
                             <button onClick={() => cancel(req.id)} title="Cancel request" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }}>
                               <Trash2 size={12} />
                             </button>
@@ -1322,6 +1402,20 @@ export default function LeavePage() {
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
       {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} onClose={() => setEditLeave(null)} onDone={load} />}
       {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} />}
+
+      {/* Cancel confirmation modal */}
+      <Modal open={!!cancelTargetId} onClose={() => setCancelTargetId(null)} title="Cancel Leave Request" width={400}>
+        <div style={{ padding: "20px 24px" }}>
+          <p style={{ fontSize: 14, color: "var(--muted-foreground)", marginBottom: 24, lineHeight: 1.6 }}>
+            Are you sure you want to cancel this leave request? This action cannot be undone.
+          </p>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <Button variant="secondary" size="sm" onClick={() => setCancelTargetId(null)}>Keep Request</Button>
+            <Button variant="danger" size="sm" onClick={confirmCancel}>Yes, Cancel</Button>
+          </div>
+        </div>
+      </Modal>
+
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )

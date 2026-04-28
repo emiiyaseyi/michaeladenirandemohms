@@ -52,7 +52,7 @@ export default function PerformancePage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Performance Management</h1>
           <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>KPIs, appraisals and performance cycles</p>
@@ -62,7 +62,7 @@ export default function PerformancePage() {
         )}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 24 }}>
         <StatCard label="Total KPIs" value={totalKPIs} icon={Target} color="var(--primary)" />
         <StatCard label="Approved" value={approved} icon={CheckCircle2} color="var(--success)" />
         <StatCard label="Pending Review" value={pending} icon={Clock} color="var(--warning)" />
@@ -82,6 +82,7 @@ export default function PerformancePage() {
           {loading ? <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)" }}>Loading...</div>
           : kpis.length === 0 ? <EmptyState icon={Target} title="No KPIs yet" description="KPIs will appear here once performance cycles are created." />
           : (
+            <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -117,6 +118,7 @@ export default function PerformancePage() {
                 ))}
               </tbody>
             </table>
+            </div>
           )}
         </Card>
       )}

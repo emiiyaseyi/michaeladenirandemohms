@@ -391,7 +391,7 @@ export default function PayslipsPage() {
       </div>
 
       {/* ── Stats ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 24 }}>
         {[
           { label: "Total", value: stats.total, icon: Receipt, color: "var(--primary)" },
           { label: "Released", value: stats.released, icon: CheckCircle, color: "var(--success, #1A7336)" },
@@ -463,9 +463,10 @@ export default function PayslipsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                {["Employee", "Dept", "Period", "Gross", "Deductions", "Net Pay", "Status", "Actions"].map(h => (
+                {["Employee", "Dept", "Period", "Gross", "Deductions", "Net Pay", "Status"].map(h => (
                   <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
+                <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", position: "sticky", right: 0, background: "var(--card)", zIndex: 2, boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", minWidth: 140 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -495,7 +496,7 @@ export default function PayslipsPage() {
                     <td style={{ padding: "12px 16px" }}>
                       <span style={{ fontSize: 11, fontWeight: 700, background: st.bg, color: st.color, borderRadius: 999, padding: "3px 10px", whiteSpace: "nowrap" }}>{st.label}</span>
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td style={{ padding: "12px 16px", position: "sticky", right: 0, background: "var(--card)", boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", zIndex: 1 }}>
                       <div style={{ display: "flex", gap: 5 }}>
                         <button onClick={() => setViewEntry(p)}
                           title="View payslip"
@@ -595,7 +596,7 @@ export default function PayslipsPage() {
           )}
 
           {/* Month / Year */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
             <div>
               <label style={labelStyle}>Month *</label>
               <select value={form.month} onChange={e => setForm(f => ({ ...f, month: Number(e.target.value) }))} style={{ ...inp, cursor: "pointer" }}>
@@ -619,7 +620,7 @@ export default function PayslipsPage() {
           {/* Earnings breakdown */}
           <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--primary)", marginBottom: 14 }}>Earnings Breakdown</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
               {[
                 { key: "basicSalary", label: "Basic Salary *" },
                 { key: "housing", label: "Housing Allowance" },
@@ -644,7 +645,7 @@ export default function PayslipsPage() {
           {/* Deductions breakdown */}
           <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: "#DC2626", marginBottom: 14 }}>Deductions</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
               {[
                 { key: "payeTax", label: "PAYE Tax" },
                 { key: "pension", label: "Pension (8%)" },
@@ -673,7 +674,7 @@ export default function PayslipsPage() {
           </div>
 
           {/* Notes & status */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
             <div>
               <label style={labelStyle}>Notes</label>
               <input value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} style={inp} placeholder="Optional" />
@@ -719,7 +720,7 @@ export default function PayslipsPage() {
             </div>
 
             {/* Earnings / Deductions columns */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 16, marginBottom: 16 }}>
               <div style={{ background: "var(--muted)", borderRadius: 10, padding: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--success, #1A7336)", marginBottom: 10 }}>Earnings</div>
                 {[
@@ -771,7 +772,7 @@ export default function PayslipsPage() {
             {(viewEntry.employee.bankName || viewEntry.employee.bankAccountNo) && (
               <div style={{ background: "var(--muted)", borderRadius: 10, padding: 14 }}>
                 <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--muted-foreground)", marginBottom: 8 }}>Payment Details</div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 10 }}>
                   {viewEntry.employee.bankName && <div><div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Bank</div><div style={{ fontSize: 12, fontWeight: 600 }}>{viewEntry.employee.bankName}</div></div>}
                   {viewEntry.employee.bankAccountNo && <div><div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Account No.</div><div style={{ fontSize: 12, fontWeight: 600 }}>{viewEntry.employee.bankAccountNo}</div></div>}
                   {viewEntry.employee.bankAccountName && <div><div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>Account Name</div><div style={{ fontSize: 12, fontWeight: 600 }}>{viewEntry.employee.bankAccountName}</div></div>}

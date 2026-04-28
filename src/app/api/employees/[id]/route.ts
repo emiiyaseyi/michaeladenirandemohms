@@ -7,9 +7,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return error
   const { id } = await params
 
-  // Allow own profile or admins
-  if (user.employeeId !== id && !caps(user.role).canViewAllEmployees && !caps(user.role).canViewTeamEmployees) {
-    return forbidden()
+  // Own profile is always allowed
+  if (user.employeeId !== id) {
+    const c = caps(user.role)
+    if (c.canViewAllEmployees) {
+      // admin — full access
+    } else if (c.canViewTeamEmployees) {
+      // team lead — only their direct reports
+      const isReport = await prisma.employee.findFirst({ where: { id, managerId: user.employeeId }, select: { id: true } })
+      if (!isReport) return forbidden("You can only view profiles of your direct reports")
+    } else {
+      return forbidden()
+    }
   }
 
   const employee = await prisma.employee.findUnique({
@@ -36,6 +45,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!caps(user.role).canEditAnyEmployee) return forbidden("Insufficient permissions to edit employees")
 
   const { id } = await params
+
+  if (id === user.employeeId) {
+    return forbidden("You cannot edit your own employee record")
+  }
+
   const body = await req.json()
 
   const ALLOWED_FIELDS = [

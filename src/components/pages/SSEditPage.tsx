@@ -170,7 +170,7 @@ export default function EditProfilePage() {
       <Card>
         <div style={{ padding: "20px 24px" }}>
           <SectionTitle icon={User} title="Personal Information" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: 16 }}>
             <Field label="Date of Birth">
               <input type="date" value={form.dateOfBirth ?? ""} onChange={set("dateOfBirth")} style={fi} />
             </Field>
@@ -204,7 +204,7 @@ export default function EditProfilePage() {
       <Card>
         <div style={{ padding: "20px 24px" }}>
           <SectionTitle icon={Phone} title="Contact Information" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: 16 }}>
             <Field label="Phone Number" required>
               <input type="tel" value={form.phone ?? ""} onChange={set("phone")} placeholder="e.g. 08012345678" style={fi} />
             </Field>
@@ -226,7 +226,7 @@ export default function EditProfilePage() {
             <Field label="Street Address" required>
               <input type="text" value={form.address ?? ""} onChange={set("address")} placeholder="House number and street" style={fi} />
             </Field>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 12 }}>
               <Field label="City" required>
                 <input type="text" value={form.city ?? ""} onChange={set("city")} placeholder="City" style={fi} />
               </Field>
@@ -245,7 +245,7 @@ export default function EditProfilePage() {
       <Card>
         <div style={{ padding: "20px 24px" }}>
           <SectionTitle icon={Heart} title="Next of Kin" />
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: 16 }}>
             <Field label="Full Name" required>
               <input type="text" value={form.nokName ?? ""} onChange={set("nokName")} placeholder="Full name" style={fi} />
             </Field>
@@ -273,7 +273,7 @@ export default function EditProfilePage() {
             <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
             Bank details changes are reviewed by HR before taking effect on payroll.
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))", gap: 16 }}>
             <Field label="Bank Name" required>
               <input type="text" value={form.bankName ?? ""} onChange={set("bankName")} placeholder="e.g. Access Bank" style={fi} />
             </Field>

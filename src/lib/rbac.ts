@@ -24,7 +24,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── Top ─────────────────────────────────────────────────────────────────────
   { label: "Dashboard",       href: "/dashboard",       icon: "LayoutDashboard", roles: ALL_ROLES },
-  { label: "Company Details", href: "/company-details", icon: "Building2",       roles: ["ADMIN"] },
+  { label: "Company Details", href: "/company-details", icon: "Building2", roles: ["SUPER_ADMIN"] },
 
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
@@ -166,6 +166,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Settings", icon: "Settings", roles: ["ADMIN"], section: "OTHER",
     children: [
+      { label: "Overview",            href: "/settings" },
       { label: "Admins",              href: "/settings/admins" },
       { label: "HR & Payroll",        href: "/settings/hr-payroll" },
       { label: "Plan & Billing",      href: "/settings/plan-billing" },
@@ -178,6 +179,7 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Reports", icon: "BarChart2", roles: ["ADMIN"],
     children: [
+      { label: "Overview",         href: "/reports" },
       { label: "Payroll Reports",  href: "/reports/payroll-reports" },
       { label: "Employee Reports", href: "/reports/employee-reports" },
       { label: "Custom Reports",   href: "/reports/custom-reports" },
@@ -333,7 +335,7 @@ export function getNavForRoleWithPrefix(role: SystemRole): NavItem[] {
     return `${base}${href}`
   }
   return NAV_ITEMS
-    .filter(item => item.roles.includes(navRole))
+    .filter(item => item.roles.includes(navRole) || (role === "SUPER_ADMIN" && item.roles.includes("SUPER_ADMIN")))
     .map(item => ({
       ...item,
       href: item.href ? mapHref(item.href) : undefined,
