@@ -8,16 +8,44 @@ export async function GET(req: NextRequest) {
   if (error) return error
 
   const c = caps(user.role)
-  if (!c.canViewAllEmployees && !c.canViewTeamEmployees) {
-    return forbidden("You do not have access to the employee directory")
-  }
+  const isStaff = !c.canViewAllEmployees && !c.canViewTeamEmployees
 
   const { searchParams } = req.nextUrl
   const search = searchParams.get("search") ?? ""
   const status = searchParams.get("status") ?? ""
   const dept = searchParams.get("dept") ?? ""
 
-  // Scope filter for MANAGER / DEPARTMENT_LEAD
+  // Staff get a limited public directory — no salary, bank, or sensitive fields
+  if (isStaff) {
+    try {
+      const employees = await prisma.employee.findMany({
+        where: {
+          employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] },
+          ...(search ? { OR: [
+            { firstName: { contains: search, mode: "insensitive" } },
+            { lastName: { contains: search, mode: "insensitive" } },
+            { jobTitle: { contains: search, mode: "insensitive" } },
+          ]} : {}),
+          ...(dept ? { departmentId: dept } : {}),
+        },
+        select: {
+          id: true, firstName: true, lastName: true, jobTitle: true,
+          profilePhoto: true, gender: true, employeeId: true,
+          employeeStatus: true,
+          departmentId: true, department: { select: { id: true, name: true } },
+          managerId: true, departmentLeadId: true,
+          user: { select: { role: true } },
+        },
+        orderBy: { firstName: "asc" },
+      })
+      return NextResponse.json({ employees, departments: [] })
+    } catch (e: any) {
+      console.error("[GET /api/employees staff]", e)
+      return NextResponse.json({ employees: [], departments: [] })
+    }
+  }
+
+  // Scope filter for TEAM_LEAD
   let scopeFilter: any = {}
   if (!c.canViewAllEmployees && c.canViewTeamEmployees) {
     if (user.role === "TEAM_LEAD") {

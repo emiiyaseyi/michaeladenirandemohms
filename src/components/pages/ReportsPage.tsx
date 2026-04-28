@@ -148,10 +148,10 @@ export default function ReportsPage() {
         <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Generate, schedule and export reports</p>
       </div>
 
-      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
 
         {/* ── Left sidebar: categories ── */}
-        <div style={{ width: 220, flexShrink: 0 }}>
+        <div style={{ flex: "1 1 200px", minWidth: 180, maxWidth: 240 }}>
           <Card style={{ padding: 8 }}>
             {CATEGORIES.map(cat => {
               const Icon = cat.icon
@@ -211,7 +211,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Filters grid */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 20 }}>
               <div>
                 <label style={labelStyle}>Date From</label>
                 <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inp} />

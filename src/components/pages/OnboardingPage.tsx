@@ -27,7 +27,7 @@ export default function OnboardingPage() {
         <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Track new employee onboarding progress</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 16, marginBottom: 24 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: 16, marginBottom: 24 }}>
         <StatCard label="Pending Tasks" value={pending} icon={Clock} color="var(--warning)" />
         <StatCard label="In Progress" value={inProgress} icon={AlertCircle} color="var(--info)" />
         <StatCard label="Completed" value={completed} icon={CheckCircle2} color="var(--success)" />
@@ -37,6 +37,7 @@ export default function OnboardingPage() {
         {loading ? <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)" }}>Loading...</div>
         : tasks.length === 0 ? <EmptyState icon={UserCheck} title="No onboarding tasks" description="Onboarding tasks are created when new employees are added via the ATS or manually." />
         : (
+          <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)" }}>
@@ -63,6 +64,7 @@ export default function OnboardingPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>

@@ -172,7 +172,7 @@ function PayslipDetailModal({ ps, onClose, onPrint }: { ps: Payslip; onClose: ()
 
         <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
           {/* Employee info */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
             {[
               ["Department", emp.department?.name],
               ["Job Title", emp.jobTitle],

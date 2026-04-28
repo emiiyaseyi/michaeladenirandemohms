@@ -37,7 +37,7 @@ export default function OffboardingPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Offboarding</h1>
           <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Manage employee exits systematically</p>
@@ -50,6 +50,7 @@ export default function OffboardingPage() {
         {loading ? <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)" }}>Loading...</div>
         : offboardings.length === 0 ? <EmptyState icon={UserMinus} title="No active offboardings" description="Initiate an exit process for a departing employee." action={user?.caps.canManageOffboarding ? <Button onClick={() => setAddOpen(true)}><Plus size={14} /> Initiate Exit</Button> : undefined} />
         : (
+          <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr style={{ borderBottom: "1px solid var(--border)" }}>
               {["Employee","Exit Type","Last Day","Status","Progress"].map(h => (
@@ -90,6 +91,7 @@ export default function OffboardingPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Initiate Exit Process" width={500}>

@@ -513,9 +513,9 @@ export default function SettingsPage() {
         <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Configure your HRMS</p>
       </div>
 
-      <div style={{ display: "flex", gap: 20 }}>
+      <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
         {/* Sidebar nav */}
-        <div style={{ width: 200, flexShrink: 0 }}>
+        <div style={{ flex: "1 1 180px", minWidth: 160, maxWidth: 220 }}>
           <Card style={{ padding: 8 }}>
             {TABS.map(({ key, label, icon: Icon }) => (
               <button key={key} onClick={() => setTab(key)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: tab === key ? "var(--primary-50, #EBF3FF)" : "transparent", color: tab === key ? "var(--primary)" : "var(--muted-foreground)", fontWeight: tab === key ? 700 : 400, fontSize: 13, textAlign: "left" }}>
@@ -609,7 +609,7 @@ export default function SettingsPage() {
           {tab === "users" && isSuperAdmin && (
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Stats row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 12 }}>
                 {[
                   { label: "Total Users", value: sysUsers.length, color: "var(--primary)" },
                   { label: "Active", value: sysUsers.filter(u => u.isActive).length, color: "var(--success)" },
@@ -976,7 +976,7 @@ export default function SettingsPage() {
                   <button onClick={() => setNewRoleOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}><X size={16} /></button>
                 </div>
                 <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 14 }}>
                     <div>
                       <label style={labelStyle}>Role Name <span style={{ color: "var(--accent)" }}>*</span></label>
                       <input value={newRoleForm.name} onChange={e => setNewRoleForm(f => ({ ...f, name: e.target.value }))} style={inp} placeholder="e.g. Payslip Officer" />
@@ -1005,7 +1005,7 @@ export default function SettingsPage() {
                               {grp.duties.every(d => newRoleForm.duties.includes(d.key)) ? "Deselect all" : "Select all"}
                             </button>
                           </div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: 4 }}>
                             {grp.duties.map(duty => {
                               const selected = newRoleForm.duties.includes(duty.key)
                               return (
@@ -1078,7 +1078,7 @@ export default function SettingsPage() {
                     />
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))", gap: 20 }}>
                     {/* Font */}
                     <div>
                       <label style={labelStyle}>System Font</label>
@@ -1176,7 +1176,7 @@ export default function SettingsPage() {
           <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
             {settingsError && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{settingsError}</div>}
             <div><label style={labelStyle}>Name <span style={{ color: "var(--accent)" }}>*</span></label><input required value={leaveForm.name} onChange={e => setLeaveForm(f => ({...f, name: e.target.value}))} style={inp} /></div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
               <div><label style={labelStyle}>Default Days</label><input type="number" value={leaveForm.defaultDays} onChange={e => setLeaveForm(f => ({...f, defaultDays: e.target.value}))} style={inp} /></div>
               <div><label style={labelStyle}>Notice Period (days)</label><input type="number" value={leaveForm.waitingDays} onChange={e => setLeaveForm(f => ({...f, waitingDays: e.target.value}))} style={inp} /></div>
             </div>
@@ -1216,7 +1216,7 @@ export default function SettingsPage() {
               <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{userError}</div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
               <div><label style={labelStyle}>First Name <span style={{ color: "var(--accent)" }}>*</span></label><input required value={userForm.firstName} onChange={e => setUserForm(f => ({...f, firstName: e.target.value}))} style={inp} /></div>
               <div><label style={labelStyle}>Last Name <span style={{ color: "var(--accent)" }}>*</span></label><input required value={userForm.lastName} onChange={e => setUserForm(f => ({...f, lastName: e.target.value}))} style={inp} /></div>
             </div>
@@ -1229,7 +1229,7 @@ export default function SettingsPage() {
               <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Leave blank to use default <strong>dsn-staff</strong></div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
               <div>
                 <label style={labelStyle}>System Role <span style={{ color: "var(--accent)" }}>*</span></label>
                 <select value={userForm.role} onChange={e => setUserForm(f => ({...f, role: e.target.value as SystemRole}))} style={inp}>
@@ -1247,7 +1247,7 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
               <div>
                 <label style={labelStyle}>Job Title</label>
                 <input value={userForm.jobTitle} onChange={e => setUserForm(f => ({...f, jobTitle: e.target.value}))} style={inp} placeholder="e.g. Software Engineer" />

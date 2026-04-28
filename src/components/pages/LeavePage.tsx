@@ -1,6 +1,6 @@
 "use client"
 import React, { useState, useEffect, useCallback, useRef } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import Card from "@/components/ui/Card"
 import Badge from "@/components/ui/Badge"
 import Avatar from "@/components/ui/Avatar"
@@ -262,7 +262,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 8 }}>Select Leave Type <span style={{ color: "var(--accent)" }}>*</span></label>
               {visibleTypes.length === 0 && <div style={{ fontSize: 13, color: "var(--muted-foreground)", padding: 16, textAlign: "center" }}>No leave types available</div>}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 10 }}>
                 {visibleTypes.map(lt => {
                   const bal = balances.find(b => b.leaveTypeId === lt.id)
                   const sel = form.leaveTypeId === lt.id
@@ -298,7 +298,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
                 This leave requires {selType.waitingDays} working days notice. The earliest start date is <strong style={{ marginLeft: 4 }}>{formatDate(getMinDate())}</strong>.
               </div>
             )}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Start Date <span style={{ color: "var(--accent)" }}>*</span></label>
                 <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} min={getMinDate()} style={fi} />
@@ -480,7 +480,7 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
         </div>
 
         {/* Key details */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 10 }}>
           {[
             { label: "Leave Type", value: req.leaveType?.name },
             { label: "Duration", value: `${req.days} day${req.days !== 1 ? "s" : ""}` },
@@ -692,7 +692,7 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin }: { req: any; onClose: 
             Admin override — relief officer has already responded but you can still make changes.
           </div>
         )}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Start Date</label>
             <input type="date" disabled={locked} value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} style={{ ...fi, opacity: locked ? 0.6 : 1 }} />
@@ -826,7 +826,7 @@ function RatingsPanel({ isAdmin }: { isAdmin: boolean }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Average score card */}
       {!isAdmin && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
           <Card style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ width: 48, height: 48, borderRadius: 12, background: "#FEF3C7", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <Star size={22} style={{ color: "#F59E0B" }} />
@@ -1078,6 +1078,7 @@ export default function LeavePage() {
   const { user } = useCurrentUser()
   const searchParams = useSearchParams()
   const router = useRouter()
+  const pathname = usePathname()
   const [requests, setRequests] = useState<any[]>([])
   const [leaveTypes, setLeaveTypes] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
@@ -1196,7 +1197,7 @@ export default function LeavePage() {
         ].map(({ key, label, icon: Icon }) => {
           const activeActual = mainTab === key
           return (
-            <button key={key} onClick={() => { setMainTab(key as MainTab); if (key !== "RELIEF") router.replace("/leave") }}
+            <button key={key} onClick={() => { setMainTab(key as MainTab); if (key !== "RELIEF") router.replace(pathname) }}
               style={{
                 padding: "10px 18px", border: "none", cursor: "pointer", fontSize: 13, fontWeight: activeActual ? 700 : 500,
                 background: "transparent", color: activeActual ? "var(--primary)" : "var(--muted-foreground)",
@@ -1327,7 +1328,8 @@ export default function LeavePage() {
                               )}
                             </>
                           )}
-                          {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) && (
+                          {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) &&
+                            (isAdmin || !(req.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING")) && (
                             <button onClick={() => setEditLeave(req)} title="Edit request" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }}>
                               <Edit3 size={12} />
                             </button>

@@ -371,7 +371,7 @@ export default function TeamsPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 12, marginBottom: 20 }}>
         {stats.map(s => (
           <Card key={s.label} style={{ padding: "16px 20px" }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 4 }}>{s.label}</div>
@@ -422,7 +422,7 @@ export default function TeamsPage() {
         <Card style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>Loading…</Card>
       ) : view === "roster" ? (
         /* ── ROSTER: all employees grouped by category ── */
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20, alignItems: "start" }}>
           {(catFilter ? [catFilter] : ["TECHNICAL", "NON_TECHNICAL"] as const).map(cat => {
             const meta = CAT_META[cat as keyof typeof CAT_META]
             const Icon = meta.icon
@@ -479,7 +479,7 @@ export default function TeamsPage() {
             </div>
           </Card>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 380px), 1fr))", gap: 16 }}>
             {filteredTeams.map(team => (
               <TeamCard
                 key={team.id}
