@@ -37,10 +37,8 @@ export const NAV_ITEMS: NavItem[] = [
     label: "People", icon: "Users", roles: ["ADMIN", "TEAM_LEAD"], section: "PEOPLE",
     children: [
       { label: "Employees",          href: "/people/employees",          excludeRoles: ["TEAM_LEAD"] },
-      { label: "Needs Attention",    href: "/people/needs-attention",    excludeRoles: ["TEAM_LEAD"] },
       { label: "Departments",        href: "/people/departments",        excludeRoles: ["TEAM_LEAD"] },
       { label: "Teams",              href: "/people/teams" },
-      { label: "Documents",          href: "/people/documents",          excludeRoles: ["ADMIN"] },
       { label: "Managers",           href: "/people/managers",           excludeRoles: ["TEAM_LEAD"] },
       { label: "Custom Groups",      href: "/people/custom-groups",      excludeRoles: ["TEAM_LEAD"] },
       { label: "Offers",             href: "/people/offers",             excludeRoles: ["TEAM_LEAD"] },
