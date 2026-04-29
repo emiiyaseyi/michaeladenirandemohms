@@ -14,7 +14,6 @@ export async function PATCH(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  // Look up employeeId from DB in case token is stale
   let empId = user.employeeId
   if (!empId) {
     const emp = await prisma.employee.findFirst({ where: { userId: user.id }, select: { id: true } })
@@ -33,7 +32,13 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
   }
 
-  // Cancel any existing PENDING request before submitting a new one
+  // SUPER_ADMIN: apply directly, no approval needed
+  if (user.role === "SUPER_ADMIN") {
+    await prisma.employee.update({ where: { id: empId }, data: changes })
+    return NextResponse.json({ direct: true, message: "Profile updated" })
+  }
+
+  // Cancel any existing PENDING request before creating a new one
   await prisma.profileUpdateRequest.deleteMany({
     where: { employeeId: empId, status: "PENDING" },
   })
@@ -42,21 +47,23 @@ export async function PATCH(req: NextRequest) {
     data: { employeeId: empId, changes },
   })
 
-  // Notify HR/admins
-  const hrAdmins = await prisma.user.findMany({
-    where: { role: { in: ["ADMIN", "ADMIN", "ADMIN"] as any }, isActive: true },
+  // ADMIN requests → notify only SUPER_ADMIN
+  // Staff/TL requests → notify ADMIN + SUPER_ADMIN (excluding submitter)
+  const targetRoles: string[] = user.role === "ADMIN" ? ["SUPER_ADMIN"] : ["ADMIN", "SUPER_ADMIN"]
+  const reviewers = await prisma.user.findMany({
+    where: { role: { in: targetRoles as any }, isActive: true, NOT: { id: user.id } },
     select: { id: true },
   })
-  if (hrAdmins.length > 0) {
+  if (reviewers.length > 0) {
     const emp = await prisma.employee.findUnique({ where: { id: empId }, select: { firstName: true, lastName: true } })
     await prisma.notification.createMany({
-      data: hrAdmins.map(a => ({
+      data: reviewers.map(a => ({
         userId: a.id,
         employeeId: empId!,
         title: "Profile Update Request",
         message: `${emp?.firstName} ${emp?.lastName} has submitted a profile update request for review.`,
         type: "INFO" as const,
-        link: "/employees/profile-requests",
+        link: "/admin/people/profile-requests",
       })),
     })
   }

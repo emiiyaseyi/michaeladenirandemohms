@@ -9,6 +9,7 @@ import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
 import PayrollHistoryChart from "./PayrollHistoryChart"
 import AttritionTrendChart from "./AttritionTrendChart"
 import HeadcountPieChart from "./HeadcountPieChart"
+import CelebrationsCard from "@/components/shared/CelebrationsCard"
 
 const MONTH_LABELS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
 
@@ -170,6 +171,7 @@ export default async function AdminDashboard() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap: 20 }}>
         <RecentEmployeesPanel employees={recentEmployees} viewAllHref="/admin/people/employees" />
         <PendingLeavePanel leaveRequests={pendingLeaveRequests} viewAllHref="/admin/requests/leave" />
+        <CelebrationsCard />
       </div>
     </div>
   )

@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
   const year = searchParams.get("year") ? Number(searchParams.get("year")) : undefined
   const employeeId = searchParams.get("employeeId") ?? undefined
 
-  const isPayrollAdmin = user.role === "ADMIN"
+  const selfService = searchParams.get("self") === "true"
+  const isPayrollAdmin = user.role === "ADMIN" && !selfService
 
   let where: any = {}
   if (isPayrollAdmin) {

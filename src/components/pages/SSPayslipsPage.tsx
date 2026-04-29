@@ -251,6 +251,7 @@ export default function SSPayslipsPage() {
   useEffect(() => {
     const params = new URLSearchParams()
     if (filterYear) params.set("year", filterYear)
+    params.set("self", "true")
     fetch(`/api/payslips?${params}`)
       .then(r => r.json())
       .then(d => { if (d.error) setError(d.error); else setPayslips(d.payslips ?? []); setLoading(false) })

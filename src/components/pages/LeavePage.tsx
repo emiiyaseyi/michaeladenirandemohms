@@ -238,7 +238,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
               <div style={{ width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: step > s.n ? "var(--success)" : step === s.n ? "var(--primary)" : "var(--muted)", color: step >= s.n ? "white" : "var(--muted-foreground)", transition: "all .2s" }}>
                 {step > s.n ? <Check size={12} /> : s.n}
               </div>
-              <span style={{ fontSize: 10, fontWeight: 600, color: step === s.n ? "var(--primary)" : "var(--muted-foreground)", whiteSpace: "nowrap" }}>{s.l}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: step === s.n ? "var(--primary)" : "var(--muted-foreground)", textAlign: "center", maxWidth: 60, lineHeight: 1.2 }}>{s.l}</span>
             </div>
             {i < steps.length - 1 && <div style={{ flex: 1, height: 2, background: step > s.n ? "var(--success)" : "var(--border)", margin: "0 4px 14px", transition: "background .2s" }} />}
           </div>
@@ -557,7 +557,12 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
                     </div>
                     <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 12, fontWeight: 700 }}>Team Lead</span>
-                      {tlApprovals.length === 1 && a?.employee && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {a.employee.firstName} {a.employee.lastName}</span>}
+                      {tlApprovals.length === 1 && a?.employee && a?.action && (
+                        <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                          · {["APPROVED","APPROVED_WITH_COMMENT","ACCEPTED"].includes(a.action) ? "Approved by" : "Rejected by"} <strong>{a.employee.firstName} {a.employee.lastName}</strong>
+                        </span>
+                      )}
+                      {tlApprovals.length === 1 && a?.employee && !a?.action && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {a.employee.firstName} {a.employee.lastName}</span>}
                       {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
                       {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
                     </div>
@@ -591,6 +596,11 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
                     </div>
                     <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 12, fontWeight: 700 }}>Admin</span>
+                      {a?.employee && a?.action && (
+                        <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                          · {["APPROVED","APPROVED_WITH_COMMENT"].includes(a.action) ? "Approved by" : "Rejected by"} <strong>{a.employee.firstName} {a.employee.lastName}</strong>
+                        </span>
+                      )}
                       {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
                       {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
                     </div>

@@ -26,6 +26,12 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard",       href: "/dashboard",       icon: "LayoutDashboard", roles: ALL_ROLES },
   { label: "Company Details", href: "/company-details", icon: "Building2", roles: ["SUPER_ADMIN"] },
 
+  // Self-service items for STAFF/TEAM_LEAD — standalone at top
+  { label: "My Profile",       href: "/self-service/profile",          icon: "UserCircle",   roles: ["TEAM_LEAD", "STAFF"] },
+  { label: "My Payslips",      href: "/self-service/payslips",         icon: "Receipt",      roles: ["TEAM_LEAD", "STAFF"] },
+  { label: "Grievance",        href: "/self-service/grievance",        icon: "MessageSquare", roles: ["TEAM_LEAD", "STAFF"] },
+  { label: "Change Password",  href: "/self-service/change-password",  icon: "Settings",     roles: ["TEAM_LEAD", "STAFF"] },
+
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
     label: "People", icon: "Users", roles: ["ADMIN", "TEAM_LEAD"], section: "PEOPLE",
@@ -62,6 +68,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Loans",           href: "/requests/loans",           excludeRoles: ["TEAM_LEAD", "STAFF"] },
       { label: "Salary Advances", href: "/requests/salary-advances", excludeRoles: ["TEAM_LEAD", "STAFF"] },
       { label: "Leave",           href: "/requests/leave" },
+      { label: "Exit",            href: "/self-service/exit",        excludeRoles: ["ADMIN", "SUPER_ADMIN"] },
       { label: "Exits",           href: "/requests/exits",           excludeRoles: ["TEAM_LEAD", "STAFF"] },
       { label: "Redeployments",   href: "/requests/redeployments",   excludeRoles: ["TEAM_LEAD", "STAFF"] },
       { label: "Documents",       href: "/requests/documents",       excludeRoles: ["TEAM_LEAD", "STAFF"] },
@@ -92,15 +99,6 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   {
-    label: "Wallets", icon: "Wallet", roles: ["ADMIN"],
-    children: [
-      { label: "Overview",     href: "/wallets/overview" },
-      { label: "Transfers",    href: "/wallets/transfers" },
-      { label: "Transactions", href: "/wallets/transactions" },
-      { label: "Integration",  href: "/wallets/integration" },
-    ],
-  },
-  {
     label: "Earned Wage Access", icon: "TrendingUp", roles: ["ADMIN"],
     children: [
       { label: "Analytics",         href: "/earned-wage-access/analytics" },
@@ -114,15 +112,6 @@ export const NAV_ITEMS: NavItem[] = [
 
   { label: "Job & Pay", href: "/job-pay", icon: "Banknote", roles: ["TEAM_LEAD", "STAFF"], section: "COMPENSATION" },
   { label: "Benefits",  href: "/benefits", icon: "Gift",    roles: ["TEAM_LEAD", "STAFF"] },
-  {
-    label: "Wallet", icon: "Wallet", roles: ["TEAM_LEAD", "STAFF"],
-    children: [
-      { label: "Overview",          href: "/wallet/overview" },
-      { label: "Transactions",      href: "/wallet/transactions" },
-      { label: "Transfers",         href: "/wallet/transfers" },
-      { label: "Earned Wage Access", href: "/wallet/earned-wage-access" },
-    ],
-  },
 
   // ── PRODUCTIVITY ─────────────────────────────────────────────────────────────
   {
@@ -176,15 +165,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Roles & Permissions", href: "/settings/roles-permissions" },
     ],
   },
-  {
-    label: "Reports", icon: "BarChart2", roles: ["ADMIN"],
-    children: [
-      { label: "Overview",         href: "/reports" },
-      { label: "Payroll Reports",  href: "/reports/payroll-reports" },
-      { label: "Employee Reports", href: "/reports/employee-reports" },
-      { label: "Custom Reports",   href: "/reports/custom-reports" },
-    ],
-  },
+  { label: "Reports", href: "/reports", icon: "BarChart2", roles: ["ADMIN"] },
   {
     label: "Assets", icon: "Package", roles: ["ADMIN"],
     children: [
@@ -206,7 +187,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── EXTRAS ───────────────────────────────────────────────────────────────────
   {
-    label: "Self Service", icon: "UserCircle", roles: ALL_ROLES, section: "EXTRAS",
+    label: "Self Service", icon: "UserCircle", roles: ["SUPER_ADMIN", "ADMIN"], section: "EXTRAS",
     children: [
       { label: "Profile",          href: "/self-service/profile" },
       { label: "Payslips",         href: "/self-service/payslips" },
@@ -217,7 +198,7 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   { label: "FAQ",      href: "/faq",      icon: "HelpCircle", roles: ALL_ROLES },
-  { label: "Calendar", href: "/calendar", icon: "Calendar",   roles: ALL_ROLES },
+  { label: "Calendar", href: "/calendar", icon: "Calendar",   roles: ["SUPER_ADMIN", "ADMIN"] },
 ]
 
 // ─── CAPABILITY FLAGS ────────────────────────────────────────────────────────

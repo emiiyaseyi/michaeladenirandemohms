@@ -91,7 +91,7 @@ export async function GET() {
     departmentId
       ? prisma.employee.findMany({
           where: { id: { not: user.employeeId }, departmentId },
-          select: { id: true, firstName: true, lastName: true, dateOfBirth: true, hireDate: true, profilePhoto: true, jobTitle: true },
+          select: { id: true, firstName: true, lastName: true, dateOfBirth: true, hireDate: true, profilePhoto: true, jobTitle: true, employeeStatus: true },
           take: 50,
         })
       : Promise.resolve([]),
@@ -135,8 +135,11 @@ export async function GET() {
   // Upcoming celebrations (60 days)
   const today = new Date()
   const in60 = new Date(today); in60.setDate(today.getDate() + 60)
-  const upcomingEvents = (deptMembers as any[]).flatMap(m => {
+  const allEvents = (deptMembers as any[]).flatMap(m => {
     const events: any[] = []
+    if (m.employeeStatus === "ON_LEAVE") {
+      events.push({ type: "onLeave", employeeId: m.id, name: `${m.firstName} ${m.lastName}`, jobTitle: m.jobTitle, profilePhoto: m.profilePhoto })
+    }
     if (m.dateOfBirth) {
       const bday = new Date(m.dateOfBirth)
       const thisYear = new Date(today.getFullYear(), bday.getMonth(), bday.getDate())
@@ -153,7 +156,10 @@ export async function GET() {
       }
     }
     return events
-  }).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  })
+  const dated = allEvents.filter(e => e.date).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+  const undated = allEvents.filter(e => !e.date)
+  const upcomingEvents = [...dated, ...undated]
 
   return NextResponse.json({
     profile: {

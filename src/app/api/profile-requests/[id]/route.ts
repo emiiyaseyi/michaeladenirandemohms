@@ -1,24 +1,32 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, roleBasePath } from "@/lib/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!["ADMIN", "ADMIN", "ADMIN"].includes(user.role)) return forbidden()
+  if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) return forbidden()
 
   const { id } = await params
   const { action, reviewNote } = await req.json() // action: "approve" | "reject"
 
   const req_ = await prisma.profileUpdateRequest.findUnique({
     where: { id },
-    include: { employee: { select: { id: true, firstName: true, lastName: true, userId: true } } },
+    include: { employee: { select: { id: true, firstName: true, lastName: true, userId: true, user: { select: { role: true } } } } },
   })
   if (!req_) return NextResponse.json({ error: "Not found" }, { status: 404 })
   if (req_.status !== "PENDING") return NextResponse.json({ error: "Already reviewed" }, { status: 409 })
 
+  // ADMIN cannot approve requests submitted by other admins — only SUPER_ADMIN can
+  const submitterRole = (req_.employee as any).user?.role
+  if (user.role === "ADMIN" && ["ADMIN", "SUPER_ADMIN"].includes(submitterRole)) {
+    return NextResponse.json({ error: "Only a Super Admin can review admin profile requests" }, { status: 403 })
+  }
+
+  const empRole = (req_.employee as any).user?.role ?? "STAFF"
+  const empBase = roleBasePath(empRole)
+
   if (action === "approve") {
-    // Apply the changes to the employee profile
     const changes = req_.changes as Record<string, any>
     await prisma.employee.update({ where: { id: req_.employeeId }, data: changes })
 
@@ -27,7 +35,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data: { status: "APPROVED", reviewedBy: user.id, reviewNote: reviewNote || null, reviewedAt: new Date() },
     })
 
-    // Notify the employee
     await prisma.notification.create({
       data: {
         userId: req_.employee.userId,
@@ -35,7 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         title: "Profile Update Approved",
         message: "Your profile update request has been approved and your profile has been updated.",
         type: "SUCCESS",
-        link: "/self-service/profile",
+        link: `${empBase}/self-service/profile`,
       },
     })
   } else {
@@ -51,7 +58,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         title: "Profile Update Not Approved",
         message: `Your profile update request was not approved.${reviewNote ? ` Reason: ${reviewNote}` : ""}`,
         type: "WARNING",
-        link: "/self-service/edit",
+        link: `${empBase}/self-service/edit`,
       },
     })
   }

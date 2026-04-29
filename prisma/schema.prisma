@@ -66,6 +66,7 @@ model User {
   personalDocReviews     PersonalDocument[]    @relation("PersonalDocReviewer")
   passwordResetRequests  PasswordResetRequest[] @relation("PasswordResetUser")
   resolvedResetRequests  PasswordResetRequest[] @relation("PasswordResetResolver")
+  exitRequestReviews     ExitRequest[]
 }
 
 model Division {
@@ -182,6 +183,7 @@ model Employee {
   reliefFor          LeaveRequest[]       @relation("ReliefOfficer")
   notifications      Notification[]       @relation("EmployeeNotifications")
   offboarding        Offboarding?
+  exitRequests       ExitRequest[]
   onboardingTasks    OnboardingTask[]
   projectAssignments ProjectAssignment[]
   successionRoles    SuccessionPlan[]     @relation("CurrentRoleEmployee")
@@ -651,6 +653,22 @@ model ExitInterview {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   offboarding   Offboarding @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
+}
+
+model ExitRequest {
+  id              String    @id @default(cuid())
+  employeeId      String
+  exitType        ExitType
+  intendedLastDay DateTime
+  reason          String?
+  status          String    @default("PENDING")
+  reviewedById    String?
+  reviewedAt      DateTime?
+  declineReason   String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  reviewedBy      User?     @relation(fields: [reviewedById], references: [id])
 }
 
 model SuccessionPlan {

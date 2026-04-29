@@ -1,7 +1,43 @@
 "use client"
 import { useState } from "react"
 import Card from "@/components/ui/Card"
-import { Eye, EyeOff, KeyRound, Loader2, CheckCircle2 } from "lucide-react"
+import { Eye, EyeOff, KeyRound, Loader2, CheckCircle2, Circle } from "lucide-react"
+
+const RULES = [
+  { key: "len",   label: "At least 8 characters",       test: (p: string) => p.length >= 8 },
+  { key: "upper", label: "At least one uppercase letter", test: (p: string) => /[A-Z]/.test(p) },
+  { key: "num",   label: "At least one number",          test: (p: string) => /[0-9]/.test(p) },
+  { key: "sym",   label: "At least one symbol",          test: (p: string) => /[^A-Za-z0-9]/.test(p) },
+  { key: "space", label: "No spaces",                    test: (p: string) => p.length > 0 && !/\s/.test(p) },
+]
+
+function validatePassword(pw: string): string | null {
+  if (/\s/.test(pw)) return "Password must not contain spaces."
+  if (pw.length < 8) return "Password must be at least 8 characters."
+  if (!/[A-Z]/.test(pw)) return "Password must contain at least one uppercase letter."
+  if (!/[0-9]/.test(pw)) return "Password must contain at least one number."
+  if (!/[^A-Za-z0-9]/.test(pw)) return "Password must contain at least one symbol (e.g. !@#$%)."
+  return null
+}
+
+function PasswordRules({ password }: { password: string }) {
+  if (!password) return null
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "10px 12px", background: "var(--muted)", borderRadius: 8, marginTop: 6 }}>
+      {RULES.map(r => {
+        const ok = r.test(password)
+        return (
+          <div key={r.key} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12 }}>
+            {ok
+              ? <CheckCircle2 size={13} style={{ color: "var(--success, #16a34a)", flexShrink: 0 }} />
+              : <Circle size={13} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />}
+            <span style={{ color: ok ? "var(--success, #16a34a)" : "var(--muted-foreground)" }}>{r.label}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
 
 export default function ChangePasswordPage() {
   const [currentPw, setCurrentPw]   = useState("")
@@ -17,7 +53,8 @@ export default function ChangePasswordPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError("")
-    if (newPw.length < 8) { setError("New password must be at least 8 characters."); return }
+    const pwError = validatePassword(newPw)
+    if (pwError) { setError(pwError); return }
     if (newPw !== confirm) { setError("Passwords do not match."); return }
 
     setLoading(true)
@@ -92,7 +129,10 @@ export default function ChangePasswordPage() {
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             {field("Current Password", currentPw, setCurrentPw, showCurr, () => setShowCurr(v => !v), "Enter your current password")}
-            {field("New Password", newPw, setNewPw, showNew, () => setShowNew(v => !v), "Min. 8 characters")}
+            <div>
+              {field("New Password", newPw, setNewPw, showNew, () => setShowNew(v => !v), "Min. 8 characters")}
+              <PasswordRules password={newPw} />
+            </div>
             {field("Confirm New Password", confirm, setConfirm, showConf, () => setShowConf(v => !v), "Repeat your new password")}
 
             {error && (

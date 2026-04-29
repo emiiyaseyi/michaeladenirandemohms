@@ -57,6 +57,7 @@ export default function EditEmployeeModal({ employee, departments, employees: al
       managerId: employee.managerId ?? "",
       departmentLeadId: employee.departmentLeadId ?? "",
       teamId: employee.teamId ?? "",
+      category: employee.category ?? "TECHNICAL",
       grossSalary: employee.grossSalary ?? "",
       annualLeaveBalance: employee.annualLeaveBalance ?? 21,
       sickLeaveBalance: employee.sickLeaveBalance ?? 14,
@@ -174,6 +175,7 @@ export default function EditEmployeeModal({ employee, departments, employees: al
           {sel("Status", "employeeStatus", [["ACTIVE","Active"],["ON_LEAVE","On Leave"],["SUSPENDED","Suspended"],["TERMINATED","Terminated"],["RESIGNED","Resigned"]])}
           {inp("Hire Date", "hireDate", "date")}
           {inp("Confirmation Date", "confirmationDate", "date")}
+          {sel("Category", "category", [["TECHNICAL", "Technical"], ["NON_TECHNICAL", "Non-Technical"]])}
           {inp("Gross Salary (₦)", "grossSalary", "number")}
           {inp("Annual Leave Balance", "annualLeaveBalance", "number")}
           {inp("Sick Leave Balance", "sickLeaveBalance", "number")}

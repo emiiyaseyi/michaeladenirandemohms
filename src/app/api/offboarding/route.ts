@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, roleBasePath } from "@/lib/api-auth"
 
 export async function GET() {
   const { user, error } = await requireAuth()
@@ -41,21 +41,21 @@ export async function POST(req: NextRequest) {
     include: { tasks: true }
   })
 
-  const emp = await prisma.employee.update({
+  const emp = await prisma.employee.findUnique({
     where: { id: employeeId },
-    data: { employeeStatus: exitType === "RESIGNATION" ? "RESIGNED" : "TERMINATED" },
-    select: { userId: true, firstName: true, lastName: true },
+    select: { userId: true, firstName: true, lastName: true, user: { select: { role: true } } },
   })
+  if (!emp) return NextResponse.json({ offboarding: ob }, { status: 201 })
 
-  // Notify the employee that offboarding has been initiated
+  const empBase = roleBasePath((emp as any).user?.role ?? "STAFF")
   await prisma.notification.create({
     data: {
       userId: emp.userId,
       employeeId,
       title: "Offboarding Process Initiated",
-      message: `Your offboarding process has been initiated (${exitType.toLowerCase().replace("_", " ")}). Please complete all assigned offboarding tasks.`,
+      message: `Your offboarding process has been initiated (${exitType.toLowerCase().replace(/_/g, " ")}). Please review your offboarding checklist.`,
       type: "WARNING",
-      link: "/offboarding",
+      link: `${empBase}/self-service/exit`,
     },
   })
 

@@ -94,7 +94,7 @@ export default function EditProfilePage() {
       const d = await r.json()
       if (r.ok) {
         setSaved(true)
-        setPendingRequest(d.request)
+        setPendingRequest(d.direct ? null : (d.request ?? null))
         setTimeout(() => setSaved(false), 3000)
       } else {
         setError(d.error ?? "Failed to submit")
@@ -116,20 +116,20 @@ export default function EditProfilePage() {
   return (
     <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 24 }}>
       {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={() => router.back()} style={{ background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--foreground)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+          <button onClick={() => router.back()} style={{ background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, padding: "7px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--foreground)", flexShrink: 0, marginTop: 2 }}>
             <ArrowLeft size={14} /> Back
           </button>
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 800 }}>Edit Profile</h1>
-            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Changes require HR approval before taking effect. Fields like name and role are managed by HR.</p>
+            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 3, lineHeight: 1.5 }}>Changes require HR approval before taking effect.</p>
           </div>
         </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {error && <span style={{ fontSize: 12, color: "var(--accent)", display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={13} />{error}</span>}
-          {saved && <span style={{ fontSize: 12, color: "var(--success)", display: "flex", alignItems: "center", gap: 4 }}><CheckCircle size={13} />Submitted for review!</span>}
-          <Button onClick={save} disabled={saving}>
+          {saved && <span style={{ fontSize: 12, color: "var(--success)", display: "flex", alignItems: "center", gap: 4 }}><CheckCircle size={13} />{pendingRequest ? "Submitted for review!" : "Profile updated!"}</span>}
+          <Button size="sm" onClick={save} disabled={saving}>
             {saving ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : <><Save size={13} /> Save Changes</>}
           </Button>
         </div>
@@ -147,9 +147,9 @@ export default function EditProfilePage() {
           <div>
             <div style={{ fontSize: 16, fontWeight: 700 }}>{profile?.fullName}</div>
             <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{profile?.jobTitle} · {profile?.department}</div>
-            <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 6, display: "flex", gap: 4 }}>
-              <span style={{ background: "var(--muted)", borderRadius: 4, padding: "2px 7px" }}>Employee ID: {profile?.employeeId}</span>
-              <span style={{ background: "var(--muted)", borderRadius: 4, padding: "2px 7px" }}>Profile: {profile?.completeness}% complete</span>
+            <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
+              <span style={{ background: "var(--muted)", borderRadius: 4, padding: "2px 7px" }}>ID: {profile?.employeeId}</span>
+              <span style={{ background: "var(--muted)", borderRadius: 4, padding: "2px 7px" }}>{profile?.completeness}% complete</span>
             </div>
           </div>
         </div>
@@ -288,9 +288,9 @@ export default function EditProfilePage() {
       </Card>
 
       {/* Sticky save bar */}
-      <div style={{ position: "sticky", bottom: 0, background: "var(--card)", borderTop: "1px solid var(--border)", padding: "14px 0", display: "flex", justifyContent: "flex-end", gap: 12 }}>
-        <Button variant="secondary" onClick={() => router.back()}>Cancel</Button>
-        <Button onClick={save} disabled={saving}>
+      <div style={{ position: "sticky", bottom: 0, background: "var(--card)", borderTop: "1px solid var(--border)", padding: "12px 0", display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <Button variant="secondary" size="sm" onClick={() => router.back()}>Cancel</Button>
+        <Button size="sm" onClick={save} disabled={saving}>
           {saving ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : <><Save size={13} /> Save Changes</>}
         </Button>
       </div>

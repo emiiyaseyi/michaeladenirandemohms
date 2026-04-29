@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
               { employeeId: { contains: search, mode: "insensitive" } },
               { jobTitle: { contains: search, mode: "insensitive" } },
             ]} : {},
-            status ? { employeeStatus: status as any } : {},
+            (status && status !== "ALL") ? { employeeStatus: status as any } : {},
             dept ? { departmentId: dept } : {},
           ]
         },
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
   if (!caps(user.role).canCreateEmployee) return forbidden()
 
   const body = await req.json()
-  const { firstName, lastName, middleName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, gender, category, grossSalary, teamLeadEmail, role: bodyRole } = body
+  const { firstName, lastName, middleName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, dateOfBirth, gender, category, grossSalary, teamLeadEmail, role: bodyRole } = body
 
   if (!firstName || !lastName || !workEmail || !phone || !jobTitle || !hireDate || !gender || !departmentId || !category) {
     return NextResponse.json({ error: "First name, last name, email, phone, job title, hire date, gender, department and category are required" }, { status: 400 })
@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
       departmentId: departmentId || null,
       employmentType: (employmentType ?? "FULL_TIME") as any,
       hireDate: hireDate ? new Date(hireDate) : null,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       gender: (gender || null) as any,
       category: (category || "NON_TECHNICAL") as any,
       grossSalary: grossSalary ? parseFloat(grossSalary) || null : null,

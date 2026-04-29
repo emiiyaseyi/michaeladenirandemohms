@@ -6,19 +6,24 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["ADMIN", "ADMIN", "ADMIN"].includes(user.role)
+  const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(user.role)
 
   if (isAdmin) {
-    // Admins see all requests
     const status = req.nextUrl.searchParams.get("status") ?? undefined
+    const isSuperAdmin = user.role === "SUPER_ADMIN"
+
+    // SUPER_ADMIN sees all requests; ADMIN only sees requests from non-admin employees
+    const roleFilter = isSuperAdmin ? {} : { employee: { user: { role: { notIn: ["ADMIN", "SUPER_ADMIN"] as any } } } }
+
     const requests = await prisma.profileUpdateRequest.findMany({
-      where: status ? { status: status as any } : {},
+      where: { ...(status ? { status: status as any } : {}), ...roleFilter },
       include: {
         employee: {
           select: {
             id: true, firstName: true, lastName: true, employeeId: true,
             jobTitle: true, profilePhoto: true,
             department: { select: { name: true } },
+            user: { select: { role: true } },
           },
         },
         reviewer: { select: { name: true } },

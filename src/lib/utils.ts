@@ -42,6 +42,7 @@ export function statusColor(status: string): { bg: string; text: string } {
     OPEN: { bg: "var(--success-bg)", text: "var(--success)" },
     CLOSED: { bg: "var(--muted)", text: "var(--muted-foreground)" },
     HIRED: { bg: "var(--success-bg)", text: "var(--success)" },
+    INITIATED: { bg: "var(--warning-bg)", text: "var(--warning)" },
     IN_PROGRESS: { bg: "var(--info-bg)", text: "var(--info)" },
     COMPLETED: { bg: "var(--success-bg)", text: "var(--success)" },
     SUBMITTED: { bg: "var(--info-bg)", text: "var(--info)" },

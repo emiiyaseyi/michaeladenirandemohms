@@ -7,7 +7,7 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
     firstName: "", middleName: "", lastName: "",
     workEmail: "", phone: "", jobTitle: "",
     departmentId: "", employmentType: "FULL_TIME",
-    hireDate: "", gender: "",
+    hireDate: "", dateOfBirth: "", gender: "",
     category: "", teamLeadEmail: "", grossSalary: "",
     role: "STAFF",
   })
@@ -47,6 +47,7 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
         {field("Phone", "phone", "tel")}
         {field("Job Title", "jobTitle")}
         {field("Hire Date", "hireDate", "date")}
+        {field("Date of Birth", "dateOfBirth", "date", false)}
 
         <div>
           <label style={labelStyle}>Gender <span style={{ color: "var(--accent)" }}>*</span></label>

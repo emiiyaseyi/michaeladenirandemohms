@@ -6,6 +6,7 @@ import TeamLeadQuickActionsBar from "./TeamLeadQuickActionsBar"
 import RecentEmployeesPanel from "@/components/shared/RecentEmployeesPanel"
 import PendingLeavePanel from "@/components/shared/PendingLeavePanel"
 import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
+import CelebrationsCard from "@/components/shared/CelebrationsCard"
 
 export default async function TeamLeadDashboard() {
   const session = await auth()
@@ -100,6 +101,7 @@ export default async function TeamLeadDashboard() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap: 20 }}>
         <RecentEmployeesPanel employees={teamMembers} viewAllHref="/team-lead/people/teams" />
         <PendingLeavePanel leaveRequests={pendingLeaveRequests} viewAllHref="/team-lead/requests/leave" />
+        <CelebrationsCard />
       </div>
     </div>
   )

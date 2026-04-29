@@ -8,8 +8,8 @@ import {
   LayoutDashboard, UserCircle, Users, CalendarDays, Briefcase, TrendingUp,
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, FolderOpen, Layers,
   Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck,
-  ClipboardList, DollarSign, Wallet, Gift, Clock, Scale, Package, FileText,
-  Calendar, ShoppingBag, MessageSquare, DoorOpen,
+  ClipboardList, DollarSign, Gift, Clock, Scale, Package, FileText,
+  Calendar, ShoppingBag, MessageSquare,
   type LucideIcon,
 } from "lucide-react"
 import { roleLabel, type NavItem } from "@/lib/rbac"
@@ -18,8 +18,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   LayoutDashboard, UserCircle, Users, CalendarDays, Briefcase, TrendingUp,
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, FolderOpen, Layers,
   Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck,
-  ClipboardList, DollarSign, Wallet, Gift, Clock, Scale, Package, FileText,
-  Calendar, ShoppingBag, MessageSquare, DoorOpen,
+  ClipboardList, DollarSign, Gift, Clock, Scale, Package, FileText,
+  Calendar, ShoppingBag, MessageSquare,
 }
 
 function resolveIcon(name: string): LucideIcon {
@@ -174,7 +174,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
                 {isOpen && (
                   <div style={{ marginBottom: 4 }}>
                     {visible.map(child => {
-                      const childActive = path === child.href || path.startsWith(child.href + "/")
+                      const childActive = path === child.href
                       return (
                         <NavLink key={child.href} href={child.href} label={child.label} active={childActive} indent />
                       )

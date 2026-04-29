@@ -12,11 +12,12 @@ import {
   Gift, Megaphone, ChevronLeft,
   Target, ClipboardList, Globe, Building,
   Map, X, ArrowRight, ArrowLeft, Sparkles,
-  LayoutDashboard, FolderOpen, Zap,
+  LayoutDashboard, FolderOpen, Zap, CalendarOff,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { roleLabel } from "@/lib/rbac"
 import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
+import CelebrationsCard from "@/components/shared/CelebrationsCard"
 
 // ─── Keyframes injected once ─────────────────────────────────────────────────
 const GLOBAL_STYLE = `
@@ -588,20 +589,20 @@ function DeptOrgLeaveCard({ teamOnLeave }: { teamOnLeave: any[] }) {
 
 // ─── Upcoming Celebrations Card ───────────────────────────────────────────────
 function CelebrationsTabs({ upcomingEvents }: { upcomingEvents: any[] }) {
-  const [tab, setTab] = useState<"birthday"|"anniversary"|"work">("birthday")
+  const [tab, setTab] = useState<"birthday"|"anniversary"|"onLeave">("birthday")
 
   const birthdays     = (upcomingEvents ?? []).filter(e => e.type === "birthday")
   const anniversaries = (upcomingEvents ?? []).filter(e => e.type === "anniversary")
-  const work          = (upcomingEvents ?? []).filter(e => e.type === "workAnniversary")
-  const counts: Record<string, number> = { birthday: birthdays.length, anniversary: anniversaries.length, work: work.length }
+  const onLeave       = (upcomingEvents ?? []).filter(e => e.type === "onLeave")
+  const counts: Record<string, number> = { birthday: birthdays.length, anniversary: anniversaries.length, onLeave: onLeave.length }
 
   const TABS = [
-    { key:"birthday",    label:"Birthdays",   icon:Cake,  color:"#EC4899" },
-    { key:"anniversary", label:"Anniversaries", icon:Gift, color:"#F59E0B" },
-    { key:"work",        label:"Work Anniv.", icon:Award, color:"#6366F1" },
+    { key:"birthday",    label:"Birthdays",    icon:Cake,        color:"#EC4899" },
+    { key:"anniversary", label:"Anniversaries", icon:Gift,        color:"#F59E0B" },
+    { key:"onLeave",     label:"On Leave",      icon:CalendarOff, color:"#6366F1" },
   ] as const
 
-  const items  = tab === "birthday" ? birthdays : tab === "anniversary" ? anniversaries : work
+  const items  = tab === "birthday" ? birthdays : tab === "anniversary" ? anniversaries : onLeave
   const accent = TABS.find(t => t.key === tab)!.color
 
   return (
@@ -631,12 +632,17 @@ function CelebrationsTabs({ upcomingEvents }: { upcomingEvents: any[] }) {
         ))}
       </div>
       {items.length === 0 ? (
-        <EmptyState icon={Star} message={`No upcoming ${tab === "birthday" ? "birthdays" : tab === "anniversary" ? "anniversaries" : "work anniversaries"} in the next 60 days`} />
+        <EmptyState icon={Star} message={
+          tab === "birthday"    ? "No upcoming birthdays in the next 60 days" :
+          tab === "anniversary" ? "No upcoming anniversaries in the next 60 days" :
+          "No one is currently on leave"
+        } />
       ) : (
         <div>
           {items.slice(0, 6).map((ev: any, i: number) => {
-            const daysUntil = Math.ceil((new Date(ev.date).getTime() - Date.now()) / 86400000)
-            const label = daysUntil === 0 ? "Today!" : daysUntil === 1 ? "Tomorrow" : `${daysUntil}d`
+            const isLeave = tab === "onLeave"
+            const daysUntil = isLeave ? null : Math.ceil((new Date(ev.date).getTime() - Date.now()) / 86400000)
+            const label = isLeave ? "On Leave" : daysUntil === 0 ? "Today!" : daysUntil === 1 ? "Tomorrow" : `${daysUntil}d`
             return (
               <div key={i} style={{
                 display:"flex", alignItems:"center", gap:12, padding:"11px 18px",
@@ -815,7 +821,7 @@ export default function StaffDashboard() {
 
       {/* 5. Celebrations + All Employees */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 420px), 1fr))", gap:20 }}>
-        <CelebrationsTabs upcomingEvents={upcomingEvents} />
+        <CelebrationsCard />
         <AllEmployeesMini />
       </div>
     </div>
