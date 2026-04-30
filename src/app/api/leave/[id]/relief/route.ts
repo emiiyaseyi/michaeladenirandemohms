@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Notify the leave applicant
   const appRole = (applicant as any).user?.role ?? "STAFF"
-  const appBase = appRole === "ADMIN" || appRole === "SUPER_ADMIN" ? "/admin" : appRole === "TEAM_LEAD" ? "/team-lead" : "/staff"
+  const appBase = appRole === "ADMIN" || appRole === "SUPER_ADMIN" ? "/admin" : appRole === "PROJECT_LEAD" ? "/project-lead" : "/staff"
   await prisma.notification.create({
     data: {
       userId: applicant.userId,
@@ -61,19 +61,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const allOfficers = await prisma.leaveReliefOfficer.findMany({ where: { leaveRequestId: id } })
   const allAccepted = allOfficers.every(o => o.status === "ACCEPTED")
   if (allAccepted) {
-    // Notify team lead/manager it's their turn
+    // Notify project lead/manager it's their turn
     const request = await prisma.leaveRequest.findUnique({
       where: { id },
-      include: { approvals: { where: { stage: "TEAM_LEAD", action: null }, include: { employee: { select: { userId: true, user: { select: { role: true } } } } } } },
+      include: { approvals: { where: { stage: "PROJECT_LEAD", action: null }, include: { employee: { select: { userId: true, user: { select: { role: true } } } } } } },
     })
-    const teamLeadApproval = request?.approvals[0]
-    if (teamLeadApproval?.employee) {
-      const tlRole = (teamLeadApproval.employee as any).user?.role ?? "TEAM_LEAD"
-      const tlBase = tlRole === "ADMIN" || tlRole === "SUPER_ADMIN" ? "/admin" : tlRole === "TEAM_LEAD" ? "/team-lead" : "/staff"
+    const plApproval = request?.approvals[0]
+    if (plApproval?.employee) {
+      const tlRole = (plApproval.employee as any).user?.role ?? "PROJECT_LEAD"
+      const tlBase = tlRole === "ADMIN" || tlRole === "SUPER_ADMIN" ? "/admin" : tlRole === "PROJECT_LEAD" ? "/project-lead" : "/staff"
       await prisma.notification.create({
         data: {
-          userId: teamLeadApproval.employee.userId,
-          employeeId: teamLeadApproval.employeeId,
+          userId: plApproval.employee.userId,
+          employeeId: plApproval.employeeId,
           title: "Leave Request Ready for Review",
           message: `${applicant.firstName} ${applicant.lastName}'s leave request is ready for your approval (all relief officers accepted).`,
           type: "INFO",

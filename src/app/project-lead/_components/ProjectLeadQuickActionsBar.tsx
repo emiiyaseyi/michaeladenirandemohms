@@ -2,14 +2,14 @@
 import { Users, CalendarDays, TrendingUp, UserCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 
-export default function TeamLeadQuickActionsBar() {
+export default function ProjectLeadQuickActionsBar() {
   const router = useRouter()
 
   const actions: { label: string; icon: React.ElementType; bg: string; color: string; href: string }[] = [
-    { label: "My Team", icon: Users, bg: "#F0FDF4", color: "var(--primary)", href: "/team-lead/people/teams" },
-    { label: "Leave Requests", icon: CalendarDays, bg: "#FFFBEB", color: "#D97706", href: "/team-lead/requests/leave" },
-    { label: "Performance", icon: TrendingUp, bg: "#F5F3FF", color: "#7C3AED", href: "/team-lead/performance" },
-    { label: "Self Service", icon: UserCircle, bg: "#EFF6FF", color: "#3B82F6", href: "/team-lead/self-service/profile" },
+    { label: "My Team", icon: Users, bg: "#F0FDF4", color: "var(--primary)", href: "/project-lead/people/teams" },
+    { label: "Leave Requests", icon: CalendarDays, bg: "#FFFBEB", color: "#D97706", href: "/project-lead/requests/leave" },
+    { label: "Performance", icon: TrendingUp, bg: "#F5F3FF", color: "#7C3AED", href: "/project-lead/performance" },
+    { label: "Self Service", icon: UserCircle, bg: "#EFF6FF", color: "#3B82F6", href: "/project-lead/self-service/profile" },
   ]
 
   return (

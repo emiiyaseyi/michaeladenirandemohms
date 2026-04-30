@@ -8,7 +8,7 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
     workEmail: "", phone: "", jobTitle: "",
     departmentId: "", employmentType: "FULL_TIME",
     hireDate: "", dateOfBirth: "", gender: "",
-    category: "", teamLeadEmail: "", grossSalary: "",
+    category: "", projectLeadEmail: "", grossSalary: "",
     role: "STAFF",
   })
   const [loading, setLoading] = useState(false)
@@ -79,13 +79,13 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
         </div>
 
         {field("Gross Salary (₦)", "grossSalary", "number", false)}
-        {field("Team Lead Email", "teamLeadEmail", "email", false)}
+        {field("Project Lead Email", "projectLeadEmail", "email", false)}
 
         <div>
           <label style={labelStyle}>System Role</label>
           <select value={form.role} onChange={e => set("role", e.target.value)} style={inputStyle}>
             <option value="STAFF">Staff</option>
-            <option value="TEAM_LEAD">Team Lead</option>
+            <option value="PROJECT_LEAD">Project Lead</option>
             {(currentUserRole === "SUPER_ADMIN") && <option value="ADMIN">Admin</option>}
           </select>
         </div>

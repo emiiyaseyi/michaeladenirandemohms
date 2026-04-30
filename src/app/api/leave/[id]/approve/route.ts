@@ -1,116 +1,175 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden, isAdminRole, roleBasePath } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, isHRAdmin, roleBasePath } from "@/lib/api-auth"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canApproveLeave) return forbidden("You are not authorised to approve leave")
 
   const { id } = await params
-  const { action, comment, stage: requestedStage } = await req.json()
+  const { action, comment } = await req.json()
+
+  const isApproval = action === "APPROVED" || action === "APPROVED_WITH_COMMENT"
+  const isRejected = action === "REJECTED"
+  const isHR = isHRAdmin(user.role)
+  const isAdminOnly = user.role === "ADMIN"
+  const isPL = caps(user.role).canApproveLeave && !isAdminOnly && !isHR
+
+  if (isAdminOnly) return forbidden("Admins can only view and remind — use /nudge to send reminders")
+  if (!isPL && !isHR) return forbidden("You are not authorised to approve leave")
 
   const request = await prisma.leaveRequest.findUnique({
     where: { id },
     include: {
       leaveType: { select: { name: true } },
       approvals: { orderBy: { createdAt: "asc" } },
-      employee: { select: { userId: true, firstName: true, lastName: true, user: { select: { role: true } } } },
+      employee: {
+        select: {
+          id: true, userId: true, firstName: true, lastName: true,
+          user: { select: { role: true } },
+        },
+      },
     },
   })
   if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const isApproval = action === "APPROVED" || action === "APPROVED_WITH_COMMENT"
-  const isRejected = action === "REJECTED"
-  const isNudge    = action === "NUDGE"
+  const stage: "PROJECT_LEAD" | "HR_ADMIN" = isHR ? "HR_ADMIN" : "PROJECT_LEAD"
 
-  if (isNudge) {
-    const targetStage = requestedStage as string
-    const pendingApproval = request.approvals.find(a => a.stage === targetStage && !a.action)
-    if (!pendingApproval) return NextResponse.json({ error: "No pending approval for that stage" }, { status: 400 })
-    const approverEmp = await prisma.employee.findUnique({
-      where: { id: pendingApproval.employeeId },
-      select: { userId: true, firstName: true, lastName: true, user: { select: { role: true } } },
-    })
-    if (approverEmp) {
-      const approverRole = (approverEmp as any).user?.role ?? "STAFF"
-      await prisma.notification.create({
-        data: {
-          userId: approverEmp.userId,
-          employeeId: pendingApproval.employeeId,
-          title: "Reminder: Leave Approval Pending",
-          message: `You have a pending leave request from ${request.employee?.firstName} ${request.employee?.lastName} that requires your action.`,
-          type: "WARNING",
-          link: `${roleBasePath(approverRole)}/requests/leave`,
-        },
-      })
-    }
-    return NextResponse.json({ ok: true, message: "Nudge sent" })
+  if (stage === "HR_ADMIN") {
+    const plApprovals = request.approvals.filter(a => a.stage === "PROJECT_LEAD")
+    const allPLsDone = plApprovals.length === 0 || plApprovals.every(a =>
+      a.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action as string)
+    )
+    if (!allPLsDone) return NextResponse.json({ error: "All Project Leads must approve first" }, { status: 409 })
   }
 
-  // ADMIN/SUPER_ADMIN can specify stage explicitly; TEAM_LEAD is always TEAM_LEAD stage
-  const stage: "TEAM_LEAD" | "ADMIN" = isAdminRole(user.role)
-    ? ((requestedStage as "TEAM_LEAD" | "ADMIN") ?? "ADMIN")
-    : "TEAM_LEAD"
-
-  const existingApproval = request.approvals.find(a => a.stage === stage && !a.action)
-  if (existingApproval) {
-    await prisma.leaveApproval.update({ where: { id: existingApproval.id }, data: { action: action as any, comment: comment || null, actedAt: new Date() } })
-  } else {
-    await prisma.leaveApproval.create({
-      data: { leaveRequestId: id, employeeId: user.employeeId!, stage, action: action as any, comment: comment || null, actedAt: new Date(), deadline: new Date() },
+  if (stage === "PROJECT_LEAD") {
+    if (!user.employeeId) return forbidden("No employee profile")
+    const myApproval = request.approvals.find(a => a.stage === "PROJECT_LEAD" && a.employeeId === user.employeeId && !a.action)
+    if (!myApproval) return NextResponse.json({ error: "No pending approval assigned to you" }, { status: 403 })
+    await prisma.leaveApproval.update({
+      where: { id: myApproval.id },
+      data: { action: action as any, comment: comment || null, actedAt: new Date() },
     })
+  } else {
+    const existing = request.approvals.find(a => a.stage === "HR_ADMIN" && !a.action)
+    if (existing) {
+      await prisma.leaveApproval.update({ where: { id: existing.id }, data: { action: action as any, comment: comment || null, actedAt: new Date() } })
+    } else {
+      await prisma.leaveApproval.create({
+        data: { leaveRequestId: id, employeeId: user.employeeId!, stage: "HR_ADMIN", action: action as any, comment: comment || null, actedAt: new Date(), deadline: new Date() },
+      })
+    }
   }
 
   let newStatus: string | undefined
   if (isRejected) newStatus = "REJECTED"
-  else if (isApproval && stage === "ADMIN") newStatus = "APPROVED"
+  else if (isApproval && stage === "HR_ADMIN") newStatus = "APPROVED"
 
-  const updated = await prisma.leaveRequest.update({
-    where: { id },
-    data: { status: newStatus as any ?? undefined, updatedAt: new Date() },
-    include: { leaveType: { select: { name: true } } },
-  })
-
-  if (newStatus === "APPROVED") {
-    await prisma.employee.update({ where: { id: request.employeeId }, data: { employeeStatus: "ON_LEAVE" } })
+  if (newStatus) {
+    await prisma.leaveRequest.update({ where: { id }, data: { status: newStatus as any, updatedAt: new Date() } })
   }
 
   if (request.employee) {
     const empRole = (request.employee as any).user?.role ?? "STAFF"
-    const stageLabel = stage === "ADMIN" ? "Admin" : "Team Lead"
+    const stageLabel = stage === "HR_ADMIN" ? "HR Admin" : "Project Lead"
+
+    let approvedMessage = ""
+    if (isApproval && stage === "HR_ADMIN") {
+      // Fetch confirmed relief officers to include in the notification
+      const reliefList = await prisma.leaveReliefOfficer.findMany({
+        where: { leaveRequestId: id },
+        include: { employee: { select: { firstName: true, lastName: true } } },
+      })
+      const reliefNames = reliefList.map(r => `${r.employee.firstName} ${r.employee.lastName}`)
+      const reliefSentence = reliefNames.length > 0
+        ? ` ${reliefNames.join(" and ")} will cover your tasks during your absence.`
+        : ""
+      approvedMessage = `Your ${request.leaveType?.name} leave request has been fully approved.${reliefSentence}${comment ? ` Note: ${comment}` : ""}`
+    }
+
     await prisma.notification.create({
       data: {
-        userId: request.employee.userId, employeeId: request.employeeId,
-        title: isApproval ? (stage === "ADMIN" ? "Leave Request Approved" : "Leave Progressing") : "Leave Request Rejected",
+        userId: request.employee.userId,
+        employeeId: request.employee.id,
+        title: isApproval ? (stage === "HR_ADMIN" ? "Leave Request Approved" : "Leave Progressing") : "Leave Request Rejected",
         message: isApproval
-          ? stage === "ADMIN" ? `Your leave request has been approved.${comment ? ` Note: ${comment}` : ""}` : `Your leave request was approved at the ${stageLabel} stage and is progressing.`
-          : `Your leave request was rejected at the ${stageLabel} stage.${comment ? ` Reason: ${comment}` : ""}`,
+          ? stage === "HR_ADMIN"
+            ? approvedMessage
+            : `Your leave request was approved by a Project Lead and is progressing to HR Admin for final approval.`
+          : `Your leave request was rejected by ${stageLabel}.${comment ? ` Reason: ${comment}` : ""}`,
         type: isApproval ? "SUCCESS" : "DANGER",
         link: `${roleBasePath(empRole)}/requests/leave`,
       },
     })
   }
 
-  // After team lead approves, notify all admins for final review
-  if (isApproval && stage === "TEAM_LEAD") {
-    const adminEmps = await prisma.employee.findMany({
-      where: { user: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } },
-      select: { id: true, userId: true },
+  // After PL approves — check if ALL PLs done
+  if (isApproval && stage === "PROJECT_LEAD") {
+    const refreshed = await prisma.leaveApproval.findMany({ where: { leaveRequestId: id, stage: "PROJECT_LEAD" } })
+    const allDone = refreshed.length > 0 && refreshed.every(a => a.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action as string))
+    if (allDone) {
+      // Create relief officer records silently — notifications sent only after HR Admin approves
+      if (request.handoverNotes) {
+        let handoverData: any[] = []
+        try { handoverData = JSON.parse(request.handoverNotes as string) } catch {}
+        const uniqueRelief = [...new Map(
+          handoverData.filter((h: any) => h.relieverId).map((h: any) => [h.relieverId, h])
+        ).values()]
+        for (const h of uniqueRelief) {
+          const existing = await prisma.leaveReliefOfficer.findFirst({ where: { leaveRequestId: id, employeeId: h.relieverId } })
+          if (!existing) {
+            await prisma.leaveReliefOfficer.create({
+              data: { leaveRequestId: id, employeeId: h.relieverId, status: "ACCEPTED" },
+            })
+          }
+        }
+      }
+
+      // Notify HR Admins for final approval
+      const hrAdmins = await prisma.employee.findMany({
+        where: { user: { role: "SUPER_ADMIN" } },
+        select: { id: true, userId: true },
+      })
+      for (const hr of hrAdmins) {
+        await prisma.notification.create({
+          data: {
+            userId: hr.userId,
+            employeeId: hr.id,
+            title: "Leave — Final Approval Needed",
+            message: `${request.employee?.firstName} ${request.employee?.lastName}'s ${request.leaveType?.name} leave has been approved by all Project Leads and awaits your final approval.`,
+            type: "WARNING",
+            link: `/admin/requests/leave`,
+          },
+        })
+      }
+    }
+  }
+
+  // After HR Admin approves — notify all confirmed relief officers
+  if (isApproval && stage === "HR_ADMIN") {
+    const reliefList = await prisma.leaveReliefOfficer.findMany({
+      where: { leaveRequestId: id },
+      include: { employee: { select: { userId: true, user: { select: { role: true } } } } },
     })
-    for (const admin of adminEmps) {
+    let handoverData: any[] = []
+    try { handoverData = JSON.parse(request.handoverNotes as string ?? "[]") } catch {}
+    for (const relief of reliefList) {
+      const handoverEntries = handoverData.filter((h: any) => h.relieverId === relief.employeeId)
+      const taskNames = handoverEntries.map((h: any) => h.taskName).filter(Boolean)
+      const taskLabel = taskNames.length > 0 ? ` for task${taskNames.length > 1 ? "s" : ""}: ${taskNames.join(", ")}` : ""
       await prisma.notification.create({
         data: {
-          userId: admin.userId,
-          employeeId: admin.id,
-          title: "Leave Request Pending Final Approval",
-          message: `${request.employee?.firstName} ${request.employee?.lastName}'s ${request.leaveType?.name ?? "leave"} request has been approved by the team lead and awaits your final approval.`,
-          type: "WARNING",
-          link: "/admin/requests/leave",
+          userId: relief.employee.userId,
+          employeeId: relief.employeeId,
+          title: "Relief Duty Confirmed",
+          message: `${request.employee?.firstName} ${request.employee?.lastName}'s ${request.leaveType?.name} leave has been fully approved. You are confirmed as relief officer${taskLabel}.`,
+          type: "SUCCESS",
+          link: `${roleBasePath((relief.employee.user?.role as string) ?? "STAFF")}/requests/leave?tab=relief`,
         },
       })
     }
   }
 
-  return NextResponse.json({ request: updated })
+  return NextResponse.json({ success: true, stage, action })
 }

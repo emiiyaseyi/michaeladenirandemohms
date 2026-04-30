@@ -14,16 +14,16 @@ export async function GET(req: NextRequest) {
     },
   })
 
-  // Find department leads: an employee whose departmentLeadId is set and belongs to each dept
-  // The lead is the employee referenced by departmentLeadId of dept members
+  // Find department leads: an employee whose projectLeadId is set and belongs to each dept
+  // The lead is the employee referenced by projectLeadId of dept members
   const deptIds = departments.map(d => d.id)
-  // Find one representative employee per dept who has a departmentLeadId
+  // Find one representative employee per dept who has a projectLeadId
   const repEmployees = await prisma.employee.findMany({
-    where: { departmentId: { in: deptIds }, departmentLeadId: { not: null } },
-    select: { departmentId: true, departmentLeadId: true },
+    where: { departmentId: { in: deptIds }, projectLeadId: { not: null } },
+    select: { departmentId: true, projectLeadId: true },
     distinct: ["departmentId"],
   })
-  const leadIds = [...new Set(repEmployees.map(e => e.departmentLeadId).filter(Boolean))] as string[]
+  const leadIds = [...new Set(repEmployees.map(e => e.projectLeadId).filter(Boolean))] as string[]
   const leads = leadIds.length > 0 ? await prisma.employee.findMany({
     where: { id: { in: leadIds } },
     select: { id: true, firstName: true, lastName: true, profilePhoto: true, jobTitle: true },
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   for (const lead of leads) leadMap[lead.id] = lead
   const deptLeadIdMap: Record<string, string> = {}
   for (const e of repEmployees) {
-    if (e.departmentId && e.departmentLeadId) deptLeadIdMap[e.departmentId] = e.departmentLeadId
+    if (e.departmentId && e.projectLeadId) deptLeadIdMap[e.departmentId] = e.projectLeadId
   }
 
   const deptsWithLeads = departments.map(d => ({
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
   if (leadId) {
     await prisma.employee.updateMany({
       where: { departmentId: dept.id },
-      data: { departmentLeadId: leadId },
+      data: { projectLeadId: leadId },
     })
   }
 
@@ -75,7 +75,7 @@ export async function PATCH(req: NextRequest) {
   if (leadId !== undefined) {
     await prisma.employee.updateMany({
       where: { departmentId: id },
-      data: { departmentLeadId: leadId || null },
+      data: { projectLeadId: leadId || null },
     })
   }
 

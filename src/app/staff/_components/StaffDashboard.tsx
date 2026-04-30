@@ -450,7 +450,7 @@ function ProfileInfoCard({ profile }: { profile: any }) {
   const items = [
     { icon:Building2,    label:"Department",      value:profile.department },
     { icon:UserCheck,    label:"Manager",         value:profile.supervisor?.name },
-    { icon:Users,        label:"Dept. Lead",      value:profile.departmentLead?.name },
+    { icon:Users,        label:"Dept. Lead",      value:profile.projectLead?.name },
     { icon:CalendarDays, label:"Work Anniversary", value:profile.workAnniversary },
     { icon:Clock,        label:"Time in Company", value:profile.timeInCompany },
     { icon:Briefcase,    label:"Role",            value:roleLabel(profile.role) },

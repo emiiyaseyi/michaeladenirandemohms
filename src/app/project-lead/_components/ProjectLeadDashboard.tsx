@@ -2,13 +2,13 @@ import { prisma } from "@/lib/prisma"
 import { auth } from "@/lib/auth"
 import GroupStatsRow from "@/components/shared/GroupStatsRow"
 import GroupAlerts from "@/components/shared/GroupAlerts"
-import TeamLeadQuickActionsBar from "./TeamLeadQuickActionsBar"
+import ProjectLeadQuickActionsBar from "./ProjectLeadQuickActionsBar"
 import RecentEmployeesPanel from "@/components/shared/RecentEmployeesPanel"
 import PendingLeavePanel from "@/components/shared/PendingLeavePanel"
 import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
 import CelebrationsCard from "@/components/shared/CelebrationsCard"
 
-export default async function TeamLeadDashboard() {
+export default async function ProjectLeadDashboard() {
   const session = await auth()
   const name = session?.user?.name?.split(" ")[0] ?? "Lead"
   const employeeId = (session?.user as any)?.employeeId as string | undefined
@@ -38,7 +38,10 @@ export default async function TeamLeadDashboard() {
     prisma.employee.count({ where: { ...memberFilter, employeeStatus: "ACTIVE" } }),
     prisma.employee.count({ where: { ...memberFilter, employeeStatus: "ON_LEAVE" } }),
     prisma.leaveRequest.count({
-      where: { status: "PENDING", employee: memberFilter },
+      where: {
+        status: "PENDING",
+        approvals: { some: { employeeId: employeeId ?? "none", stage: "PROJECT_LEAD", action: null } },
+      },
     }),
     prisma.kPI.count({
       where: { status: "SUBMITTED", employee: memberFilter },
@@ -54,7 +57,10 @@ export default async function TeamLeadDashboard() {
       },
     }),
     prisma.leaveRequest.findMany({
-      where: { status: "PENDING", employee: memberFilter },
+      where: {
+        status: "PENDING",
+        approvals: { some: { employeeId: employeeId ?? "none", stage: "PROJECT_LEAD", action: null } },
+      },
       take: 6,
       orderBy: { createdAt: "asc" },
       include: {
@@ -96,11 +102,11 @@ export default async function TeamLeadDashboard() {
         groupLabel="Team"
       />
 
-      <TeamLeadQuickActionsBar />
+      <ProjectLeadQuickActionsBar />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap: 20 }}>
-        <RecentEmployeesPanel employees={teamMembers} viewAllHref="/team-lead/people/teams" />
-        <PendingLeavePanel leaveRequests={pendingLeaveRequests} viewAllHref="/team-lead/requests/leave" />
+        <RecentEmployeesPanel employees={teamMembers} viewAllHref="/project-lead/people/teams" />
+        <PendingLeavePanel leaveRequests={pendingLeaveRequests} viewAllHref="/project-lead/requests/leave" />
         <CelebrationsCard />
       </div>
     </div>

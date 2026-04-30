@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (c.canViewAllEmployees) {
       // admin — full access
     } else if (c.canViewTeamEmployees) {
-      // team lead — only their direct reports
+      // project lead — only their direct reports
       const isReport = await prisma.employee.findFirst({ where: { id, managerId: user.employeeId }, select: { id: true } })
       if (!isReport) return forbidden("You can only view profiles of your direct reports")
     } else {
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     include: {
       department: true,
       manager: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
-      departmentLead: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+      projectLead: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
       projectAssignments: {
         include: { project: { select: { id: true, name: true, status: true } } },
         where: { project: { status: "ACTIVE" } },
@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     "address", "city", "state", "country", "postalCode",
     "departmentId", "jobTitle", "employmentType", "employeeStatus",
     "hireDate", "confirmationDate", "endDate",
-    "managerId", "departmentLeadId", "teamId",
+    "managerId", "projectLeadId", "teamId",
     "bankName", "bankAccountNo", "bankAccountName", "pensionPin", "tin", "nhfNo",
     "grossSalary", "onProbation", "probationEndDate",
     "nokName", "nokPhone", "nokRelationship", "nokAddress",
@@ -121,7 +121,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (roleChanged && previousRole) {
-    const ROLE_LABEL: Record<string, string> = { STAFF: "Staff", TEAM_LEAD: "Team Lead", ADMIN: "Admin" }
+    const ROLE_LABEL: Record<string, string> = { STAFF: "Staff", PROJECT_LEAD: "Project Lead", ADMIN: "Admin" }
     await prisma.notification.create({
       data: {
         userId: employee.userId,

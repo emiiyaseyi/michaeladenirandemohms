@@ -139,9 +139,11 @@ model Employee {
   hireDate           DateTime?
   confirmationDate   DateTime?
   endDate            DateTime?
-  managerId          String?
-  departmentLeadId   String?
-  teamId             String?
+  managerId                 String?
+  projectLeadId             String?
+  secondaryProjectLeadIds   String[]  @default([])
+  secondaryDepartmentIds    String[]  @default([])
+  teamId                    String?
   bankName           String?
   bankAccountNo      String?
   bankAccountName    String?
@@ -163,8 +165,8 @@ model Employee {
   docAcks            DocAck[]
   documents          Document[]
   department         Department?          @relation(fields: [departmentId], references: [id])
-  departmentLead     Employee?            @relation("DeptLeadRelation", fields: [departmentLeadId], references: [id])
-  deptLeadOf         Employee[]           @relation("DeptLeadRelation")
+  projectLead        Employee?            @relation("ProjectLeadRelation", fields: [projectLeadId], references: [id])
+  projectLeadOf      Employee[]           @relation("ProjectLeadRelation")
   manager            Employee?            @relation("ManagerRelation", fields: [managerId], references: [id])
   directReports      Employee[]           @relation("ManagerRelation")
   team               Team?                @relation("TeamMembership", fields: [teamId], references: [id])
@@ -450,7 +452,7 @@ model LeaveRequest {
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   ratingPromptShown  Boolean              @default(false)
-  teamLeadIds        String?
+  projectLeadIds     String?
   approvals          LeaveApproval[]
   reliefOfficersList LeaveReliefOfficer[]
   department         Department?          @relation(fields: [departmentId], references: [id])
@@ -761,7 +763,7 @@ enum OrgDocCategory {
 enum SystemRole {
   SUPER_ADMIN
   ADMIN
-  TEAM_LEAD
+  PROJECT_LEAD
   STAFF
 }
 
@@ -888,8 +890,8 @@ enum LeaveStatus {
 }
 
 enum ApprovalStage {
-  TEAM_LEAD
-  ADMIN
+  PROJECT_LEAD
+  HR_ADMIN
 }
 
 enum ApprovalAction {

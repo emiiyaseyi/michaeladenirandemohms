@@ -16,7 +16,7 @@ export async function GET() {
   if (c.canViewAllPerformance) {
     kpiFilter = {}
   } else if (c.canViewTeamPerformance) {
-    if (user.role === "TEAM_LEAD") {
+    if (user.role === "PROJECT_LEAD") {
       const reports = await prisma.employee.findMany({ where: { managerId: user.employeeId }, select: { id: true } })
       kpiFilter = { employeeId: { in: [user.employeeId ?? "", ...reports.map(r => r.id)] } }
     } else {

@@ -5,7 +5,7 @@ import { auth } from "@/lib/auth"
 function navItems(base: string) {
   const b = base.replace(/\/$/, "")
   const isAdmin = b === "/admin"
-  const isTeamLead = b === "/team-lead"
+  const isProjectLead = b === "/project-lead"
 
   const items: { type: string; label: string; href: string; desc: string; keywords: string[] }[] = [
     { type: "nav", label: "Dashboard",        href: b,                              desc: "Overview & stats",                  keywords: ["home","overview","stats","summary","dashboard"] },
@@ -18,7 +18,7 @@ function navItems(base: string) {
     { type: "nav", label: "Edit Profile",     href: `${b}/self-service/edit`,       desc: "Update your personal information",  keywords: ["edit","update","change profile","personal"] },
   ]
 
-  if (isAdmin || isTeamLead) {
+  if (isAdmin || isProjectLead) {
     items.push(
       { type: "nav", label: "Teams",          href: `${b}/people/teams`,            desc: "Team management",                   keywords: ["team","group","squad"] },
       { type: "nav", label: "Org Chart",      href: `${b}/people/org-chart`,        desc: "Organisation hierarchy",            keywords: ["org","chart","hierarchy","structure","reporting"] },
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
 
   const role = (session.user as any).role ?? "STAFF"
   const roleBase = role === "ADMIN" || role === "SUPER_ADMIN" ? "/admin"
-    : role === "TEAM_LEAD" ? "/team-lead"
+    : role === "PROJECT_LEAD" ? "/project-lead"
     : "/staff"
 
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? ""
