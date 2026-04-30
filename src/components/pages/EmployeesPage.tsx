@@ -113,12 +113,14 @@ export default function EmployeesPage() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Employee</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Department</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Role / Type</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Employee Name</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>ID</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Work Email</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Role / Type</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Hire Date</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Department</th>
+                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
                   <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", position: "sticky", right: 0, background: "var(--card)", zIndex: 2, boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", minWidth: 120 }}>Actions</th>
                 </tr>
@@ -129,24 +131,23 @@ export default function EmployeesPage() {
                     <td style={{ padding: "14px 20px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <Avatar name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} size={36} />
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{emp.firstName} {emp.lastName}</div>
-                          <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{emp.employeeId} · {emp.workEmail}</div>
-                        </div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{emp.firstName} {emp.lastName}</div>
                       </div>
                     </td>
-                    <td style={{ padding: "14px 20px", fontSize: 13 }}>{emp.department?.name ?? "—"}</td>
+                    <td style={{ padding: "14px 20px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{emp.employeeId}</td>
+                    <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{emp.workEmail ?? "—"}</td>
+                    <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{emp.phone ?? "—"}</td>
                     <td style={{ padding: "14px 20px" }}>
                       <div style={{ fontSize: 13 }}>{emp.jobTitle ?? "—"}</div>
                       <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{emp.employmentType?.replace(/_/g," ")}</div>
                     </td>
+                    <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{formatDate(emp.hireDate)}</td>
+                    <td style={{ padding: "14px 20px", fontSize: 13 }}>{emp.department?.name ?? "—"}</td>
                     <td style={{ padding: "14px 20px" }}>
                       <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: emp.category === "TECHNICAL" ? "#EEF2FF" : "#FFFBEB", color: emp.category === "TECHNICAL" ? "#6366F1" : "#F59E0B" }}>
                         {emp.category === "TECHNICAL" ? "Technical" : "Non-Technical"}
                       </span>
                     </td>
-                    <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{emp.phone ?? "—"}</td>
-                    <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{formatDate(emp.hireDate)}</td>
                     <td style={{ padding: "14px 20px" }}><Badge status={emp.employeeStatus} /></td>
                     <td style={{ padding: "14px 20px", position: "sticky", right: 0, background: "var(--card)", boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", zIndex: 1 }}>
                       <div style={{ display: "flex", gap: 4 }}>
