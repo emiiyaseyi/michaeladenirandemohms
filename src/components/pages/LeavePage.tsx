@@ -783,8 +783,8 @@ function LeaveDetailModal({ req, onClose, isAdmin, currentUserEmployeeId }: { re
 
 // ── Edit Leave Modal ──────────────────────────────────────────────────────────
 
-function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, employees = [], currentUserEmployeeId }: {
-  req: any; onClose: () => void; onDone: () => void; isAdmin: boolean; isPLEdit?: boolean; employees?: any[]; currentUserEmployeeId?: string
+function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, employees = [], currentUserEmployeeId, noReliefWarning }: {
+  req: any; onClose: () => void; onDone: () => void; isAdmin: boolean; isPLEdit?: boolean; employees?: any[]; currentUserEmployeeId?: string; noReliefWarning?: string
 }) {
   const [form, setForm] = useState({
     startDate: req.startDate ? req.startDate.split("T")[0] : "",
@@ -868,6 +868,12 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, emplo
   return (
     <Modal open onClose={onClose} title={isPLEdit ? "Review Leave Request" : "Edit Leave Request"} width={560}>
       <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+        {isPLEdit && noReliefWarning && (
+          <div style={{ background: "var(--danger-bg)", border: "1px solid var(--accent)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--accent)", display: "flex", gap: 8, fontWeight: 600 }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            {noReliefWarning}
+          </div>
+        )}
         {isPLEdit && (
           <div style={{ background: "var(--info-bg)", border: "1px solid var(--info)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--info)", display: "flex", gap: 8 }}>
             <Info size={14} style={{ flexShrink: 0 }} />
@@ -1269,6 +1275,7 @@ export default function LeavePage() {
   const [sentNudges, setSentNudges] = useState<Set<string>>(new Set())
   const [approveTarget, setApproveTarget] = useState<{ id: string; stage?: string; req: any } | null>(null)
   const [approving, setApproving] = useState(false)
+  const [editLeaveWarning, setEditLeaveWarning] = useState("")
 
   const canApprove = user?.caps?.canApproveLeave
   const canSubmit = user?.caps?.canSubmitLeave
@@ -1446,6 +1453,9 @@ export default function LeavePage() {
               <tbody>
                 {requests.map((req: any) => {
                   const canEditAsPL = !isAdmin && !!canApprove && req.currentStage === "PENDING_PROJECT_LEAD"
+                  const plAlreadyActed = !isAdmin && !!canApprove && req.approvals?.some((a: any) =>
+                    a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !!a.action
+                  )
                   return <React.Fragment key={req.id}>
                     <tr style={{ borderBottom: "1px solid var(--border)" }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
@@ -1510,10 +1520,25 @@ export default function LeavePage() {
 
                             {/* PROJECT LEAD: approve/reject at their stage, remind admin while waiting */}
                             {!isAdmin && (<>
-                              {req.currentStage === "PENDING_PROJECT_LEAD" && (<>
-                                <button onClick={() => setApproveTarget({ id: req.id, req })} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
+                              {req.currentStage === "PENDING_PROJECT_LEAD" && !plAlreadyActed && (<>
+                                <button onClick={() => {
+                                  let handover: any[] = []
+                                  try { handover = JSON.parse(req.handoverNotes ?? "[]") } catch {}
+                                  const myEntry = handover.find((e: any) => e.projectLeadId === user?.employeeId)
+                                  if (myEntry && !myEntry.relieverId) {
+                                    setEditLeaveWarning("You must assign a relief officer before you can approve.")
+                                    setEditLeave(req)
+                                  } else {
+                                    setApproveTarget({ id: req.id, req })
+                                  }
+                                }} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
                                 <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
                               </>)}
+                              {req.currentStage === "PENDING_PROJECT_LEAD" && plAlreadyActed && (
+                                <span style={{ fontSize: 11, color: "var(--success)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+                                  <Check size={11} /> Approved · awaiting others
+                                </span>
+                              )}
                               {req.currentStage === "PENDING_ADMIN" && (
                                 <button onClick={() => nudge(req.id, "ADMIN")} style={{ background: sentNudges.has(`${req.id}:ADMIN`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:ADMIN`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
                                   <Bell size={10} /> {sentNudges.has(`${req.id}:ADMIN`) ? "Sent" : "Remind HR"}
@@ -1551,7 +1576,7 @@ export default function LeavePage() {
 
       <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
-      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={!isAdmin && !!canApprove && editLeave?.currentStage === "PENDING_PROJECT_LEAD"} onClose={() => setEditLeave(null)} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} />}
+      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={!isAdmin && !!canApprove && editLeave?.currentStage === "PENDING_PROJECT_LEAD"} onClose={() => { setEditLeave(null); setEditLeaveWarning("") }} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} noReliefWarning={editLeaveWarning} />}
       {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />}
 
       {/* Approve confirmation modal */}
