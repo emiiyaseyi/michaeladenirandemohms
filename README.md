@@ -8,7 +8,7 @@ Human Resource Management System for Data Science Nigeria — built with Next.js
 - PostgreSQL database
 - Git
 
-## First-time setup
+## First-time setup guide
 
 ### 1. Clone and install dependencies
 
