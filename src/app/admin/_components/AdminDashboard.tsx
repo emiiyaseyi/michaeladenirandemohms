@@ -6,7 +6,6 @@ import AdminQuickActionsBar from "./AdminQuickActionsBar"
 import RecentEmployeesPanel from "@/components/shared/RecentEmployeesPanel"
 import PendingLeavePanel from "@/components/shared/PendingLeavePanel"
 import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
-import PayrollHistoryChart from "./PayrollHistoryChart"
 import AttritionTrendChart from "./AttritionTrendChart"
 import HeadcountPieChart from "./HeadcountPieChart"
 import CelebrationsCard from "@/components/shared/CelebrationsCard"
@@ -52,40 +51,13 @@ async function getHeadcountData() {
   return { total, male, female }
 }
 
-async function getPayrollHistory() {
-  const now = new Date()
-  const months: { month: number; year: number; label: string }[] = []
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    months.push({ month: d.getMonth() + 1, year: d.getFullYear(), label: MONTH_LABELS[d.getMonth()] })
-  }
-
-  const results = await Promise.all(
-    months.map(async ({ month, year, label }) => {
-      const [total, disbursed] = await Promise.all([
-        prisma.payslip.aggregate({ where: { month, year }, _sum: { grossSalary: true } }),
-        prisma.payslip.aggregate({ where: { month, year, status: "RELEASED" }, _sum: { netPay: true } }),
-      ])
-      const totalVal     = (total._sum.grossSalary ?? 0) / 1_000_000
-      const disbursedVal = (disbursed._sum.netPay    ?? 0) / 1_000_000
-      return {
-        label,
-        totalPayroll: Math.min(parseFloat(totalVal.toFixed(3)),     1.0),
-        disbursed:    Math.min(parseFloat(disbursedVal.toFixed(3)), 1.0),
-      }
-    })
-  )
-  return results
-}
-
 export default async function AdminDashboard() {
   const session = await auth()
   const name = session?.user?.name?.split(" ")[0] ?? "Admin"
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"
 
-  const [payrollHistory, attritionData, headcount] = await Promise.all([
-    getPayrollHistory(),
+  const [attritionData, headcount] = await Promise.all([
     getAttritionData(),
     getHeadcountData(),
   ])
@@ -158,10 +130,6 @@ export default async function AdminDashboard() {
       <AlertsBanner pendingLeave={pendingLeaveCount} pendingKPIs={pendingKPIs} />
 
       <AdminQuickActionsBar departments={departments} />
-
-      <div style={{ marginBottom: 20 }}>
-        <PayrollHistoryChart data={payrollHistory} />
-      </div>
 
       <div style={{ display: "flex", gap: 20, marginBottom: 20, alignItems: "stretch", flexWrap: "wrap" }}>
         <AttritionTrendChart data={attritionData} />

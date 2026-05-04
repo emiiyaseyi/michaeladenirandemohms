@@ -48,8 +48,12 @@ export function isAdminRole(role: string): boolean {
   return role === "ADMIN" || role === "SUPER_ADMIN"
 }
 
+export function isHRAdmin(role: string): boolean {
+  return role === "SUPER_ADMIN"
+}
+
 export function roleBasePath(role: string): string {
   if (role === "ADMIN" || role === "SUPER_ADMIN") return "/admin"
-  if (role === "TEAM_LEAD") return "/team-lead"
+  if (role === "PROJECT_LEAD") return "/project-lead"
   return "/staff"
 }

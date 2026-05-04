@@ -6,7 +6,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["ADMIN","ADMIN","ADMIN","TEAM_LEAD"].includes(user.role)
+  const isAdmin = ["ADMIN","ADMIN","ADMIN","PROJECT_LEAD"].includes(user.role)
   if (!isAdmin) return forbidden()
 
   const { id } = await params

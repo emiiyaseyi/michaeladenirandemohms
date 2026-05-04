@@ -3,13 +3,13 @@ import { redirect } from "next/navigation"
 import DashboardShell from "@/components/layout/DashboardShell"
 import { getNavForRoleWithPrefix, getRoleHome } from "@/lib/rbac"
 
-export default async function TeamLeadLayout({ children }: { children: React.ReactNode }) {
+export default async function ProjectLeadLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
   const role = (session.user as any).role ?? "STAFF"
-  if (role !== "TEAM_LEAD") redirect(getRoleHome(role))
+  if (role !== "PROJECT_LEAD") redirect(getRoleHome(role))
   return (
-    <DashboardShell user={session.user} nav={getNavForRoleWithPrefix("TEAM_LEAD")} homeUrl="/team-lead">
+    <DashboardShell user={session.user} nav={getNavForRoleWithPrefix("PROJECT_LEAD")} homeUrl="/project-lead">
       {children}
     </DashboardShell>
   )

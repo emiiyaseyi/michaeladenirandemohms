@@ -55,7 +55,7 @@ export default function EditEmployeeModal({ employee, departments, employees: al
       hireDate: employee.hireDate ? employee.hireDate.split("T")[0] : "",
       confirmationDate: employee.confirmationDate ? employee.confirmationDate.split("T")[0] : "",
       managerId: employee.managerId ?? "",
-      departmentLeadId: employee.departmentLeadId ?? "",
+      projectLeadId: employee.projectLeadId ?? "",
       teamId: employee.teamId ?? "",
       category: employee.category ?? "TECHNICAL",
       grossSalary: employee.grossSalary ?? "",
@@ -78,10 +78,10 @@ export default function EditEmployeeModal({ employee, departments, employees: al
 
       if (k === "departmentId" && value) {
         const deptEmps = allEmployees.filter((emp: any) => emp.departmentId === value && emp.id !== employee?.id)
-        const mgr = deptEmps.find((emp: any) => emp.user?.role === "TEAM_LEAD" || emp.user?.role === "TEAM_LEAD")
-        const lead = deptEmps.find((emp: any) => emp.user?.role === "TEAM_LEAD")
-        const mgrAny = deptEmps.find((emp: any) => emp.user?.role === "TEAM_LEAD")
-        if (lead) updated.departmentLeadId = lead.id
+        const mgr = deptEmps.find((emp: any) => emp.user?.role === "PROJECT_LEAD" || emp.user?.role === "PROJECT_LEAD")
+        const lead = deptEmps.find((emp: any) => emp.user?.role === "PROJECT_LEAD")
+        const mgrAny = deptEmps.find((emp: any) => emp.user?.role === "PROJECT_LEAD")
+        if (lead) updated.projectLeadId = lead.id
         if (mgrAny) updated.managerId = mgrAny.id
         else if (mgr) updated.managerId = mgr.id
       }
@@ -92,8 +92,8 @@ export default function EditEmployeeModal({ employee, departments, employees: al
           if (team.department?.id) updated.departmentId = team.department.id
           if (team.head?.id) updated.managerId = team.head.id
           const deptEmps = allEmployees.filter((emp: any) => emp.departmentId === team.department?.id && emp.id !== employee?.id)
-          const lead = deptEmps.find((emp: any) => emp.user?.role === "TEAM_LEAD")
-          if (lead) updated.departmentLeadId = lead.id
+          const lead = deptEmps.find((emp: any) => emp.user?.role === "PROJECT_LEAD")
+          if (lead) updated.projectLeadId = lead.id
         }
       }
 
@@ -199,12 +199,12 @@ export default function EditEmployeeModal({ employee, departments, employees: al
             </select>
           </F>
           <F label="Department Lead">
-            <select value={form.departmentLeadId ?? ""} onChange={set("departmentLeadId")} style={fi}>
+            <select value={form.projectLeadId ?? ""} onChange={set("projectLeadId")} style={fi}>
               <option value="">None</option>
               {reportingOptions.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </F>
-          {(form.managerId || form.departmentLeadId) && (
+          {(form.managerId || form.projectLeadId) && (
             <div style={{ gridColumn: "1/-1", fontSize: 11, color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 4 }}>
               <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success, #1A7336)", display: "inline-block" }} />
               Auto-filled from team/department. Adjust manually if needed.
@@ -218,7 +218,7 @@ export default function EditEmployeeModal({ employee, departments, employees: al
             ) : (
               <select value={form.role ?? "STAFF"} onChange={set("role")} style={fi}>
                 <option value="STAFF">Staff</option>
-                <option value="TEAM_LEAD">Team Lead</option>
+                <option value="PROJECT_LEAD">Project Lead</option>
                 {currentUserRole === "SUPER_ADMIN" && <option value="ADMIN">Admin</option>}
               </select>
             )}

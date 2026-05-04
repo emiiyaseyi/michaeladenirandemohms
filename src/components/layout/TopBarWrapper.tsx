@@ -37,7 +37,7 @@ const SECTION_TITLES: Record<string, string> = {
   "self-service/preferences":  "Preferences",
 }
 
-const ROLE_SLUGS = ["admin", "team-lead", "staff"]
+const ROLE_SLUGS = ["admin", "project-lead", "staff"]
 
 export default function TopBarWrapper({ user }: { user: any }) {
   const path = usePathname()

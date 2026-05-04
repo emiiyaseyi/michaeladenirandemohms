@@ -47,27 +47,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ ok: true, nudged: relief.length })
   }
 
-  // Nudge admin: no approval record exists until admin acts, so notify by role
-  if (stage === "ADMIN") {
-    const admins = await prisma.employee.findMany({
-      where: { user: { role: { in: ["ADMIN", "SUPER_ADMIN"] } } },
+  // Nudge HR Admin (Super Admin)
+  if (stage === "HR_ADMIN") {
+    const hrAdmins = await prisma.employee.findMany({
+      where: { user: { role: "SUPER_ADMIN" } },
       select: { id: true, userId: true },
     })
-    if (admins.length === 0) return NextResponse.json({ error: "No admin users found" }, { status: 400 })
+    if (hrAdmins.length === 0) return NextResponse.json({ error: "No HR Admin found" }, { status: 400 })
     await prisma.notification.createMany({
-      data: admins.map(a => ({
+      data: hrAdmins.map(a => ({
         userId: a.userId,
         employeeId: a.id,
         title: "Leave Approval Reminder",
-        message: `${requesterName} is waiting for admin approval on their ${leaveName} leave request.`,
+        message: `${requesterName} is waiting for your final HR approval on their ${leaveName} leave request.`,
         type: "WARNING" as const,
-        link: `${roleBasePath("ADMIN")}/requests/leave?highlight=${id}`,
+        link: `/admin/requests/leave?highlight=${id}`,
       })),
     })
-    return NextResponse.json({ ok: true, nudged: admins.length })
+    return NextResponse.json({ ok: true, nudged: hrAdmins.length })
   }
 
-  // Nudge TEAM_LEAD (approval record created at submission)
+  // Nudge PROJECT_LEAD (approval record created at submission)
   const pendingApprovals = await prisma.leaveApproval.findMany({
     where: { leaveRequestId: id, stage: stage as any, action: null },
     include: {

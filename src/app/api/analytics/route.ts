@@ -11,7 +11,7 @@ export async function GET() {
     return forbidden("No access to analytics")
   }
 
-  // Team leads only see their own team's data
+  // Project leads only see their own team's data
   const isTeamScoped = !c.canViewAnalytics && c.canViewTeamAnalytics
   let teamIds: string[] | null = null
   if (isTeamScoped) {

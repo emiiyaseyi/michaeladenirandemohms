@@ -41,7 +41,7 @@ export async function GET() {
     where: { id: user.employeeId },
     include: {
       department: true,
-      departmentLead: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+      projectLead: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
       manager: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
       projectAssignments: {
         where: { project: { status: "ACTIVE" } },
@@ -170,8 +170,8 @@ export async function GET() {
       fullName: `${employee.firstName} ${employee.lastName}`,
       jobTitle: employee.jobTitle,
       department: employee.department?.name ?? null,
-      departmentLead: employee.departmentLead
-        ? { id: employee.departmentLead.id, name: `${employee.departmentLead.firstName} ${employee.departmentLead.lastName}`, jobTitle: employee.departmentLead.jobTitle }
+      projectLead: employee.projectLead
+        ? { id: employee.projectLead.id, name: `${employee.projectLead.firstName} ${employee.projectLead.lastName}`, jobTitle: employee.projectLead.jobTitle }
         : null,
       supervisor: employee.manager
         ? { id: employee.manager.id, name: `${employee.manager.firstName} ${employee.manager.lastName}`, jobTitle: employee.manager.jobTitle }

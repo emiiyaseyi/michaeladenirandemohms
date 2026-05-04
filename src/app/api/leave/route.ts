@@ -24,12 +24,13 @@ function computeStage(req: any): string {
   if (req.status === "APPROVED") return "APPROVED"
   if (req.status === "REJECTED") return "REJECTED"
   if (req.status === "CANCELLED" || req.status === "CANCELLED_BY_ADMIN") return req.status
-  const relief = (req.reliefOfficersList ?? []) as any[]
-  if (relief.length > 0 && relief.some((r: any) => r.status === "PENDING")) return "AWAITING_RELIEF"
-  const tlApproval = (req.approvals ?? []).find((a: any) => a.stage === "TEAM_LEAD")
-  if (!tlApproval?.action) return "PENDING_TEAM_LEAD"
-  const adminApproval = (req.approvals ?? []).find((a: any) => a.stage === "ADMIN")
-  if (!adminApproval?.action) return "PENDING_ADMIN"
+  const plApprovals = (req.approvals ?? []).filter((a: any) => a.stage === "PROJECT_LEAD")
+  if (plApprovals.length > 0) {
+    if (plApprovals.some((a: any) => a.action === "REJECTED")) return "REJECTED"
+    if (plApprovals.some((a: any) => !a.action)) return "PENDING_PROJECT_LEAD"
+  }
+  const hrApproval = (req.approvals ?? []).find((a: any) => a.stage === "HR_ADMIN")
+  if (!hrApproval?.action) return "PENDING_HR_ADMIN"
   return "APPROVED"
 }
 
@@ -44,10 +45,14 @@ export async function GET(req: NextRequest) {
   if (c.canViewAllLeave) {
     scopeFilter = status ? { status: status as any } : {}
   } else if (c.canViewTeamLeave) {
-    if (user.role === "TEAM_LEAD") {
-      const reports = await prisma.employee.findMany({ where: { managerId: user.employeeId }, select: { id: true } })
-      const ids = reports.map(r => r.id)
-      scopeFilter = { employeeId: { in: ids }, ...(status ? { status: status as any } : {}) }
+    if (user.role === "PROJECT_LEAD") {
+      // Show requests where this PL has an approval record assigned to them
+      const myApprovals = await prisma.leaveApproval.findMany({
+        where: { employeeId: user.employeeId, stage: "PROJECT_LEAD" },
+        select: { leaveRequestId: true },
+      })
+      const leaveIds = myApprovals.map(a => a.leaveRequestId)
+      scopeFilter = { id: { in: leaveIds }, ...(status ? { status: status as any } : {}) }
     }
   } else {
     scopeFilter = { employeeId: user.employeeId, ...(status ? { status: status as any } : {}) }
@@ -69,7 +74,7 @@ export async function GET(req: NextRequest) {
     prisma.employee.findMany({
       where: { employeeStatus: "ACTIVE" },
       orderBy: { firstName: "asc" },
-      select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true, gender: true, userId: true },
+      select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true, gender: true, userId: true, projectLeadId: true, secondaryProjectLeadIds: true },
       distinct: ["userId"],
     }),
   ])
@@ -84,7 +89,8 @@ export async function POST(req: NextRequest) {
   if (!caps(user.role).canSubmitLeave) return forbidden()
 
   const body = await req.json()
-  const { leaveTypeId, startDate, endDate, reason, handoverNotes, reliefOfficerIds = [], teamLeadIds = [], documentUrl } = body
+  // projectLeads: [{ employeeId, taskName, taskDescription?, relieverId? }]
+  const { leaveTypeId, startDate, endDate, reason, projectLeads = [], documentUrl } = body
   let { employeeId } = body
 
   const c = caps(user.role)
@@ -92,6 +98,11 @@ export async function POST(req: NextRequest) {
     return forbidden("You can only submit leave for yourself")
   }
   if (!employeeId) employeeId = user.employeeId
+
+  // HR Admin (SUPER_ADMIN) cannot apply for leave for themselves
+  if (user.role === "SUPER_ADMIN" && employeeId === user.employeeId) {
+    return forbidden("HR Admin cannot apply for leave")
+  }
 
   if (!employeeId || !leaveTypeId || !startDate || !endDate || !reason) {
     return NextResponse.json({ error: "All required fields must be provided" }, { status: 400 })
@@ -105,7 +116,7 @@ export async function POST(req: NextRequest) {
 
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
-    include: { department: true, manager: true, departmentLead: true },
+    include: { department: true, manager: true },
   })
   if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
 
@@ -116,22 +127,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Leave is frozen during this period: "${freeze.name}"` }, { status: 400 })
   }
 
-  // Build approval records: Relief Officer(s) → Team Lead → Admin
-  // Relief officers are tracked via reliefOfficersList (not in approvals table)
-  const approvalRecords: any[] = []
   const now = new Date()
+  const plIds: string[] = (projectLeads as any[]).map((pl: any) => pl.employeeId).filter(Boolean)
 
-  const tlDeadlineHours = reliefOfficerIds.length > 0 ? 36 : 24
+  // Auto-fill from employee's saved project leads if none supplied; deduplicate
+  const effectivePLIds = [...new Set(
+    plIds.length > 0
+      ? plIds
+      : [employee.projectLeadId, ...employee.secondaryProjectLeadIds].filter(Boolean) as string[]
+  )]
 
-  // Team lead (one record — dept lead or team head)
-  const tlId = (teamLeadIds as string[])[0] || employee.departmentLeadId || null
-  if (tlId) {
-    approvalRecords.push({
-      employeeId: tlId,
-      stage: "TEAM_LEAD" as const,
-      deadline: addHours(now, tlDeadlineHours),
-    })
-  }
+  // Build one approval record per project lead
+  const approvalRecords: any[] = effectivePLIds.map(plId => ({
+    employeeId: plId,
+    stage: "PROJECT_LEAD" as const,
+    deadline: addHours(now, 24),
+  }))
+
+  // Store relief suggestions (handover) as JSON in handoverNotes
+  const handoverData = (projectLeads as any[]).map((pl: any) => ({
+    projectLeadId: pl.employeeId,
+    taskName: pl.taskName,
+    taskDescription: pl.taskDescription ?? null,
+    relieverId: pl.relieverId ?? null,
+  }))
 
   const request = await prisma.leaveRequest.create({
     data: {
@@ -141,63 +160,55 @@ export async function POST(req: NextRequest) {
       endDate: end,
       days,
       reason,
-      handoverNotes: handoverNotes || null,
+      handoverNotes: handoverData.length > 0 ? JSON.stringify(handoverData) : null,
       documentUrl: documentUrl || null,
       departmentId: employee.departmentId,
       status: "PENDING",
-      teamLeadIds: teamLeadIds.length > 0 ? JSON.stringify(teamLeadIds) : null,
-      reliefOfficersList: reliefOfficerIds.length > 0 ? {
-        create: reliefOfficerIds.map((rid: string) => ({ employeeId: rid, status: "PENDING" })),
-      } : undefined,
-      approvals: {
-        create: approvalRecords,
-      },
+      projectLeadIds: effectivePLIds.length > 0 ? JSON.stringify(effectivePLIds) : null,
+      // Relief officers are NOT created on submission — they are created and notified
+      // only after all Project Leads have approved (see approve/route.ts)
+      approvals: { create: approvalRecords },
     },
     include: { employee: true, leaveType: true },
   })
 
-  // Notify all relief officers
-  for (const rid of reliefOfficerIds) {
-    const reliefEmp = await prisma.employee.findUnique({
-      where: { id: rid },
+  // Notify all project leads
+  for (const plId of effectivePLIds) {
+    const plEmp = await prisma.employee.findUnique({
+      where: { id: plId },
       select: { userId: true, user: { select: { role: true } } },
     })
-    if (reliefEmp) {
-      const rRole = reliefEmp.user?.role ?? "STAFF"
-      const rBase = rRole === "ADMIN" || rRole === "SUPER_ADMIN" ? "/admin" : rRole === "TEAM_LEAD" ? "/team-lead" : "/staff"
+    if (plEmp) {
+      const plRole = (plEmp.user?.role as string) ?? "PROJECT_LEAD"
       await prisma.notification.create({
         data: {
-          userId: reliefEmp.userId,
-          employeeId: rid,
-          title: "Relief Officer Request",
-          message: `${employee.firstName} ${employee.lastName} has selected you as a relief officer for their ${request.days}-day leave (${format(start, "MMM d")} – ${format(end, "MMM d")}). Please accept or decline within 12 hours.`,
-          type: "INFO",
-          link: `${rBase}/requests/leave?tab=relief`,
+          userId: plEmp.userId,
+          employeeId: plId,
+          title: "Leave Request — Your Approval Needed",
+          message: `${employee.firstName} ${employee.lastName} submitted a ${request.days}-day ${request.leaveType.name} leave request (${format(start, "MMM d")} – ${format(end, "MMM d")}) and requires your approval.`,
+          type: "WARNING",
+          link: `${plRole === "ADMIN" || plRole === "SUPER_ADMIN" ? "/admin" : plRole === "PROJECT_LEAD" ? "/project-lead" : "/staff"}/requests/leave`,
         },
       })
     }
   }
 
-  // Notify team lead immediately only if there are no relief officers (otherwise notified after all accept)
-  if (reliefOfficerIds.length === 0 && tlId) {
-    const tlEmp = await prisma.employee.findUnique({
-      where: { id: tlId },
-      select: { userId: true, user: { select: { role: true } } },
+  // Notify all admins
+  const admins = await prisma.user.findMany({
+    where: { role: { in: ["ADMIN", "SUPER_ADMIN"] }, isActive: true },
+    select: { id: true, employee: { select: { id: true } } },
+  })
+  for (const admin of admins) {
+    await prisma.notification.create({
+      data: {
+        userId: admin.id,
+        employeeId: admin.employee?.id ?? null,
+        title: "New Leave Request Submitted",
+        message: `${employee.firstName} ${employee.lastName} submitted a ${request.days}-day leave request pending Project Lead approval.`,
+        type: "INFO",
+        link: `/admin/requests/leave`,
+      },
     })
-    if (tlEmp) {
-      const tlRole = tlEmp.user?.role ?? "TEAM_LEAD"
-      const tlBase = tlRole === "ADMIN" || tlRole === "SUPER_ADMIN" ? "/admin" : tlRole === "TEAM_LEAD" ? "/team-lead" : "/staff"
-      await prisma.notification.create({
-        data: {
-          userId: tlEmp.userId,
-          employeeId: tlId,
-          title: "Leave Request Pending Approval",
-          message: `${employee.firstName} ${employee.lastName} submitted a ${request.days}-day leave request awaiting your approval.`,
-          type: "WARNING",
-          link: `${tlBase}/requests/leave`,
-        },
-      })
-    }
   }
 
   return NextResponse.json({ request }, { status: 201 })

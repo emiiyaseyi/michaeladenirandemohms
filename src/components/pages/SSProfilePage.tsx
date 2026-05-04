@@ -249,7 +249,7 @@ export default function SSProfilePage() {
             <InfoRow icon={Briefcase}    label="Job Title"       value={profile.jobTitle} />
             <InfoRow icon={Building2}    label="Department"      value={profile.department} />
             <InfoRow icon={UserCheck}    label="Manager"         value={profile.supervisor?.name} />
-            <InfoRow icon={Users}        label="Dept. Lead"      value={profile.departmentLead?.name} />
+            <InfoRow icon={Users}        label="Dept. Lead"      value={profile.projectLead?.name} />
             <InfoRow icon={CalendarDays} label="Work Anniversary" value={profile.workAnniversary} />
           </div>
         </Card>

@@ -12,11 +12,11 @@ import { roleLabel, ALL_ROLES, type SystemRole } from "@/lib/rbac"
 // ─── Approval workflow: available approver roles ──────────────────────────────
 const APPROVER_ROLES = [
   { key: "STAFF",      label: "Relief Officer" },
-  { key: "TEAM_LEAD",        label: "Project Lead" },
-  { key: "TEAM_LEAD",           label: "Team Lead" },
-  { key: "TEAM_LEAD",     label: "Department Lead" },
-  { key: "TEAM_LEAD",             label: "Manager" },
-  { key: "TEAM_LEAD",     label: "Project Manager" },
+  { key: "PROJECT_LEAD",        label: "Project Lead" },
+  { key: "PROJECT_LEAD",           label: "Project Lead" },
+  { key: "PROJECT_LEAD",     label: "Department Lead" },
+  { key: "PROJECT_LEAD",             label: "Manager" },
+  { key: "PROJECT_LEAD",     label: "Project Manager" },
   { key: "ADMIN", label: "Performance Officer" },
   { key: "ADMIN",            label: "HR Admin" },
   { key: "ADMIN",               label: "Admin" },
@@ -28,16 +28,16 @@ const DEFAULT_WF_CATEGORIES = [
     id: "leave", name: "Leave", description: "Leave request approval chain", isSystem: true,
     chain: [
       { role: "STAFF", label: "Relief Officer", deadlineHours: 24 },
-      { role: "TEAM_LEAD",   label: "Project Lead",   deadlineHours: 24 },
-      { role: "TEAM_LEAD",      label: "Team Lead",      deadlineHours: 48 },
-      { role: "TEAM_LEAD",        label: "Manager",        deadlineHours: 48 },
+      { role: "PROJECT_LEAD",   label: "Project Lead",   deadlineHours: 24 },
+      { role: "PROJECT_LEAD",      label: "Project Lead",      deadlineHours: 48 },
+      { role: "PROJECT_LEAD",        label: "Manager",        deadlineHours: 48 },
       { role: "ADMIN",       label: "HR Admin",       deadlineHours: 72 },
     ],
   },
   {
     id: "performance", name: "Performance Reviews", description: "Appraisal sign-off chain", isSystem: true,
     chain: [
-      { role: "TEAM_LEAD",  label: "Manager",  deadlineHours: 72 },
+      { role: "PROJECT_LEAD",  label: "Manager",  deadlineHours: 72 },
       { role: "ADMIN", label: "HR Admin", deadlineHours: 72 },
     ],
   },

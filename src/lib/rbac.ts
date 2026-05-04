@@ -1,6 +1,6 @@
 // ─── RBAC — Role-Based Access Control ───────────────────────────────────────
 
-export type SystemRole = "SUPER_ADMIN" | "ADMIN" | "TEAM_LEAD" | "STAFF"
+export type SystemRole = "SUPER_ADMIN" | "ADMIN" | "PROJECT_LEAD" | "STAFF"
 
 export interface ChildNavItem {
   label: string
@@ -18,7 +18,7 @@ export interface NavItem {
   indent?: boolean
 }
 
-export const ALL_ROLES: SystemRole[] = ["SUPER_ADMIN", "ADMIN", "TEAM_LEAD", "STAFF"]
+export const ALL_ROLES: SystemRole[] = ["SUPER_ADMIN", "ADMIN", "PROJECT_LEAD", "STAFF"]
 
 export const NAV_ITEMS: NavItem[] = [
 
@@ -26,29 +26,29 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard",       href: "/dashboard",       icon: "LayoutDashboard", roles: ALL_ROLES },
   { label: "Company Details", href: "/company-details", icon: "Building2", roles: ["SUPER_ADMIN"] },
 
-  // Self-service items for STAFF/TEAM_LEAD — standalone at top
-  { label: "My Profile",       href: "/self-service/profile",          icon: "UserCircle",   roles: ["TEAM_LEAD", "STAFF"] },
-  { label: "My Payslips",      href: "/self-service/payslips",         icon: "Receipt",      roles: ["TEAM_LEAD", "STAFF"] },
-  { label: "Grievance",        href: "/self-service/grievance",        icon: "MessageSquare", roles: ["TEAM_LEAD", "STAFF"] },
-  { label: "Change Password",  href: "/self-service/change-password",  icon: "Settings",     roles: ["TEAM_LEAD", "STAFF"] },
+  // Self-service items for STAFF/PROJECT_LEAD — standalone at top
+  { label: "My Profile",       href: "/self-service/profile",          icon: "UserCircle",   roles: ["PROJECT_LEAD", "STAFF"] },
+  { label: "My Payslips",      href: "/self-service/payslips",         icon: "Receipt",      roles: ["PROJECT_LEAD", "STAFF"] },
+  { label: "Grievance",        href: "/self-service/grievance",        icon: "MessageSquare", roles: ["PROJECT_LEAD", "STAFF"] },
+  { label: "Change Password",  href: "/self-service/change-password",  icon: "Settings",     roles: ["PROJECT_LEAD", "STAFF"] },
 
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
-    label: "People", icon: "Users", roles: ["ADMIN", "TEAM_LEAD"], section: "PEOPLE",
+    label: "People", icon: "Users", roles: ["ADMIN", "PROJECT_LEAD"], section: "PEOPLE",
     children: [
-      { label: "Employees",          href: "/people/employees",          excludeRoles: ["TEAM_LEAD"] },
-      { label: "Departments",        href: "/people/departments",        excludeRoles: ["TEAM_LEAD"] },
+      { label: "Employees",          href: "/people/employees",          excludeRoles: ["PROJECT_LEAD"] },
+      { label: "Departments",        href: "/people/departments",        excludeRoles: ["PROJECT_LEAD"] },
       { label: "Teams",              href: "/people/teams" },
-      { label: "Managers",           href: "/people/managers",           excludeRoles: ["TEAM_LEAD"] },
-      { label: "Custom Groups",      href: "/people/custom-groups",      excludeRoles: ["TEAM_LEAD"] },
-      { label: "Offers",             href: "/people/offers",             excludeRoles: ["TEAM_LEAD"] },
+      { label: "Managers",           href: "/people/managers",           excludeRoles: ["PROJECT_LEAD"] },
+      { label: "Custom Groups",      href: "/people/custom-groups",      excludeRoles: ["PROJECT_LEAD"] },
+      { label: "Offers",             href: "/people/offers",             excludeRoles: ["PROJECT_LEAD"] },
       { label: "Exits",              href: "/people/exits" },
-      { label: "External Admins",    href: "/people/external-admins",    excludeRoles: ["TEAM_LEAD"] },
+      { label: "External Admins",    href: "/people/external-admins",    excludeRoles: ["PROJECT_LEAD"] },
       { label: "Confirmation",       href: "/people/confirmation" },
       { label: "Org. Chart",         href: "/people/org-chart" },
-      { label: "Job Titles",         href: "/people/job-titles",         excludeRoles: ["TEAM_LEAD"] },
-      { label: "Profile Requests",   href: "/people/profile-requests",   excludeRoles: ["TEAM_LEAD"] },
-      { label: "Personal Documents", href: "/people/personal-docs",      excludeRoles: ["TEAM_LEAD"] },
+      { label: "Job Titles",         href: "/people/job-titles",         excludeRoles: ["PROJECT_LEAD"] },
+      { label: "Profile Requests",   href: "/people/profile-requests",   excludeRoles: ["PROJECT_LEAD"] },
+      { label: "Personal Documents", href: "/people/personal-docs",      excludeRoles: ["PROJECT_LEAD"] },
     ],
   },
   {
@@ -63,74 +63,42 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Requests", icon: "Receipt", roles: ALL_ROLES,
     children: [
-      { label: "Loans",           href: "/requests/loans",           excludeRoles: ["TEAM_LEAD", "STAFF"] },
-      { label: "Salary Advances", href: "/requests/salary-advances", excludeRoles: ["TEAM_LEAD", "STAFF"] },
+      { label: "Loans",           href: "/requests/loans",           excludeRoles: ["PROJECT_LEAD", "STAFF"] },
+      { label: "Salary Advances", href: "/requests/salary-advances", excludeRoles: ["PROJECT_LEAD", "STAFF"] },
       { label: "Leave",           href: "/requests/leave" },
       { label: "Exit",            href: "/self-service/exit",        excludeRoles: ["ADMIN", "SUPER_ADMIN"] },
-      { label: "Exits",           href: "/requests/exits",           excludeRoles: ["TEAM_LEAD", "STAFF"] },
-      { label: "Redeployments",   href: "/requests/redeployments",   excludeRoles: ["TEAM_LEAD", "STAFF"] },
-      { label: "Documents",       href: "/requests/documents",       excludeRoles: ["TEAM_LEAD", "STAFF"] },
+      { label: "Exits",           href: "/requests/exits",           excludeRoles: ["PROJECT_LEAD", "STAFF"] },
+      { label: "Redeployments",   href: "/requests/redeployments",   excludeRoles: ["PROJECT_LEAD", "STAFF"] },
+      { label: "Documents",       href: "/requests/documents",       excludeRoles: ["PROJECT_LEAD", "STAFF"] },
     ],
   },
-  { label: "Surveys",     href: "/surveys",     icon: "ClipboardList", roles: ALL_ROLES },
-  { label: "Documents",   href: "/documents",   icon: "FolderOpen",    roles: ALL_ROLES },
-  { label: "Contractors", href: "/contractors", icon: "Users",         roles: ["ADMIN"] },
+  { label: "Surveys",   href: "/surveys",   icon: "ClipboardList", roles: ALL_ROLES },
+  { label: "Documents", href: "/documents", icon: "FolderOpen",    roles: ALL_ROLES },
 
   // ── COMPENSATION ─────────────────────────────────────────────────────────────
-  {
-    label: "Payroll", icon: "DollarSign", roles: ["ADMIN"], section: "COMPENSATION",
-    children: [
-      { label: "Overview",       href: "/payroll/overview" },
-      { label: "Changes",        href: "/payroll/changes" },
-      { label: "Records",        href: "/payroll/records" },
-      { label: "Skip Employees", href: "/payroll/skip-employees" },
-      { label: "History",        href: "/payroll/history" },
-      { label: "Configuration",  href: "/payroll/configuration" },
-    ],
-  },
-  {
-    label: "Pay Schedules", icon: "CalendarDays", roles: ["ADMIN"],
-    children: [
-      { label: "Regular",   href: "/pay-schedules/regular" },
-      { label: "Custom",    href: "/pay-schedules/custom" },
-      { label: "Reversals", href: "/pay-schedules/reversals" },
-    ],
-  },
-  {
-    label: "Earned Wage Access", icon: "TrendingUp", roles: ["ADMIN"],
-    children: [
-      { label: "Analytics",         href: "/earned-wage-access/analytics" },
-      { label: "Employees",         href: "/earned-wage-access/employees" },
-      { label: "Withdrawals",       href: "/earned-wage-access/withdrawals" },
-      { label: "Payment",           href: "/earned-wage-access/payment" },
-      { label: "Policy Management", href: "/earned-wage-access/policy-management" },
-    ],
-  },
-  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"] },
+  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"], section: "COMPENSATION" },
 
-  { label: "Job & Pay", href: "/job-pay", icon: "Banknote", roles: ["TEAM_LEAD", "STAFF"], section: "COMPENSATION" },
-  { label: "Benefits",  href: "/benefits", icon: "Gift",    roles: ["TEAM_LEAD", "STAFF"] },
+  { label: "Job & Pay", href: "/job-pay", icon: "Banknote", roles: ["PROJECT_LEAD", "STAFF"], section: "COMPENSATION" },
+  { label: "Benefits",  href: "/benefits", icon: "Gift",    roles: ["PROJECT_LEAD", "STAFF"] },
 
   // ── PRODUCTIVITY ─────────────────────────────────────────────────────────────
   {
     label: "Performance", icon: "TrendingUp", roles: ALL_ROLES, section: "PRODUCTIVITY",
     children: [
       { label: "Overview",      href: "/performance" },
-      { label: "Setup",         href: "/performance/setup",         excludeRoles: ["TEAM_LEAD", "STAFF"] },
-      { label: "Period",        href: "/performance/period",        excludeRoles: ["TEAM_LEAD", "STAFF"] },
+      { label: "Setup",         href: "/performance/setup",         excludeRoles: ["PROJECT_LEAD", "STAFF"] },
+      { label: "Period",        href: "/performance/period",        excludeRoles: ["PROJECT_LEAD", "STAFF"] },
       { label: "Objectives",    href: "/performance/objectives" },
       { label: "Groups",        href: "/performance/groups",        excludeRoles: ["STAFF"] },
       { label: "Reviews",       href: "/performance/reviews" },
-      { label: "Ratings",       href: "/performance/ratings",       excludeRoles: ["STAFF"] },
       { label: "Conversations", href: "/performance/conversations" },
       { label: "Feedback",      href: "/performance/feedback" },
     ],
   },
   { label: "Projects",    href: "/projects",    icon: "Layers",        roles: ALL_ROLES },
-  { label: "Tasks",       href: "/tasks",       icon: "ClipboardList", roles: ALL_ROLES },
-  { label: "Assets",      href: "/assets",      icon: "Package",       roles: ["TEAM_LEAD", "STAFF"] },
+  { label: "Assets",      href: "/assets",      icon: "Package",       roles: ["PROJECT_LEAD", "STAFF"] },
   {
-    label: "Time Tracking", icon: "Clock", roles: ["ADMIN", "TEAM_LEAD"],
+    label: "Time Tracking", icon: "Clock", roles: ["ADMIN", "PROJECT_LEAD"],
     children: [
       { label: "Absence", href: "/time-tracking/absence" },
     ],
@@ -145,7 +113,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Violation Types", href: "/disciplinary/violation-types" },
     ],
   },
-  { label: "Disciplinary", href: "/disciplinary", icon: "Scale",     roles: ["TEAM_LEAD", "STAFF"] },
+  { label: "Disciplinary", href: "/disciplinary", icon: "Scale",     roles: ["PROJECT_LEAD", "STAFF"] },
   { label: "Onboarding",  href: "/onboarding",  icon: "UserCheck", roles: ["ADMIN"] },
   { label: "Offboarding", href: "/offboarding", icon: "UserMinus", roles: ["ADMIN"] },
 
@@ -255,7 +223,7 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
     canViewAnalytics: true,     canViewTeamAnalytics: true,
     isReadOnly: false,
   },
-  TEAM_LEAD: {
+  PROJECT_LEAD: {
     canViewAllEmployees: false, canViewTeamEmployees: true,
     canCreateEmployee: false,   canEditAnyEmployee: false,
     canViewAllLeave: false,     canViewTeamLeave: true,
@@ -290,7 +258,7 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
 export const ROLE_SLUGS: Record<SystemRole, string> = {
   SUPER_ADMIN: "admin",
   ADMIN:       "admin",
-  TEAM_LEAD:   "team-lead",
+  PROJECT_LEAD:   "project-lead",
   STAFF:       "staff",
 }
 
@@ -326,7 +294,7 @@ export function roleLabel(role: string): string {
   const labels: Record<string, string> = {
     SUPER_ADMIN: "Super Admin",
     ADMIN:       "Admin",
-    TEAM_LEAD:   "Team Lead",
+    PROJECT_LEAD:   "Project Lead",
     STAFF:       "Staff",
   }
   return labels[role] ?? role

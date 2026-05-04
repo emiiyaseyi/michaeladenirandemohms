@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    const { firstName, middleName, lastName, workEmail, phone, jobTitle, hireDate, dateOfBirth, gender, employmentType, departmentName, teamLeadEmail, grossSalary, category, role: rowRole } = row
+    const { firstName, middleName, lastName, workEmail, phone, jobTitle, hireDate, dateOfBirth, gender, employmentType, departmentName, projectLeadEmail, grossSalary, category, role: rowRole } = row
 
     if (!firstName?.trim() || !lastName?.trim() || !workEmail?.trim()) {
       results.push({ row: i + 2, status: "skipped", error: "Missing required fields" })
@@ -76,11 +76,11 @@ export async function POST(req: NextRequest) {
         departmentId = dept?.id ?? null
       }
 
-      // Look up team lead by email
-      let departmentLeadId: string | null = null
-      if (teamLeadEmail?.trim()) {
-        const lead = await prisma.employee.findFirst({ where: { workEmail: teamLeadEmail.trim().toLowerCase() } })
-        departmentLeadId = lead?.id ?? null
+      // Look up project lead by email
+      let projectLeadId: string | null = null
+      if (projectLeadEmail?.trim()) {
+        const lead = await prisma.employee.findFirst({ where: { workEmail: projectLeadEmail.trim().toLowerCase() } })
+        projectLeadId = lead?.id ?? null
       }
 
       const mid = middleName?.trim() || null
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       nextNum++
 
       const newUser = await prisma.user.create({
-        data: { name: fullName, email: workEmail.trim().toLowerCase(), password: hashedPwd, role: (["STAFF","TEAM_LEAD","ADMIN"].includes(rowRole?.trim().toUpperCase() ?? "") ? rowRole!.trim().toUpperCase() : "STAFF") as any },
+        data: { name: fullName, email: workEmail.trim().toLowerCase(), password: hashedPwd, role: (["STAFF","PROJECT_LEAD","ADMIN"].includes(rowRole?.trim().toUpperCase() ?? "") ? rowRole!.trim().toUpperCase() : "STAFF") as any },
       })
 
       const catUpper = category?.trim().toUpperCase()
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
             : "FULL_TIME") as any,
           category: (catUpper === "TECHNICAL" || catUpper === "NON_TECHNICAL" ? catUpper : "NON_TECHNICAL") as any,
           departmentId,
-          departmentLeadId,
+          projectLeadId,
           grossSalary: grossSalary?.trim() ? parseFloat(grossSalary.trim()) || null : null,
         },
       })
@@ -132,7 +132,7 @@ export async function GET() {
   const headers = [
     "firstName", "middleName", "lastName", "workEmail", "phone", "jobTitle",
     "hireDate", "dateOfBirth", "gender", "employmentType", "departmentName",
-    "teamLeadEmail", "grossSalary", "category", "role",
+    "projectLeadEmail", "grossSalary", "category", "role",
   ]
   const example = [
     "John", "", "Doe", "john.doe@datasciencenigeria.ai", "08012345678",

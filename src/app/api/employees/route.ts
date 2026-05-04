@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
           profilePhoto: true, gender: true, employeeId: true,
           employeeStatus: true,
           departmentId: true, department: { select: { id: true, name: true } },
-          managerId: true, departmentLeadId: true,
+          managerId: true, projectLeadId: true,
           user: { select: { role: true } },
         },
         orderBy: { firstName: "asc" },
@@ -45,10 +45,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Scope filter for TEAM_LEAD
+  // Scope filter for PROJECT_LEAD
   let scopeFilter: any = {}
   if (!c.canViewAllEmployees && c.canViewTeamEmployees) {
-    if (user.role === "TEAM_LEAD") {
+    if (user.role === "PROJECT_LEAD") {
       scopeFilter = { managerId: user.employeeId }
     }
   }
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
   if (!caps(user.role).canCreateEmployee) return forbidden()
 
   const body = await req.json()
-  const { firstName, lastName, middleName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, dateOfBirth, gender, category, grossSalary, teamLeadEmail, role: bodyRole } = body
+  const { firstName, lastName, middleName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, dateOfBirth, gender, category, grossSalary, projectLeadEmail, role: bodyRole } = body
 
   if (!firstName || !lastName || !workEmail || !phone || !jobTitle || !hireDate || !gender || !departmentId || !category) {
     return NextResponse.json({ error: "First name, last name, email, phone, job title, hire date, gender, department and category are required" }, { status: 400 })
@@ -108,11 +108,11 @@ export async function POST(req: NextRequest) {
   const count = await prisma.employee.count()
   const employeeId = `DSN${String(count + 1).padStart(4, "0")}`
 
-  // Look up team lead by email
-  let departmentLeadId: string | null = null
-  if (teamLeadEmail?.trim()) {
-    const lead = await prisma.employee.findFirst({ where: { workEmail: teamLeadEmail.trim().toLowerCase() } })
-    departmentLeadId = lead?.id ?? null
+  // Look up project lead by email
+  let projectLeadId: string | null = null
+  if (projectLeadEmail?.trim()) {
+    const lead = await prisma.employee.findFirst({ where: { workEmail: projectLeadEmail.trim().toLowerCase() } })
+    projectLeadId = lead?.id ?? null
   }
 
   const hashedPwd = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 10)
@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       gender: (gender || null) as any,
       category: (category || "NON_TECHNICAL") as any,
       grossSalary: grossSalary ? parseFloat(grossSalary) || null : null,
-      departmentLeadId,
+      projectLeadId,
     },
     include: { department: true }
   })

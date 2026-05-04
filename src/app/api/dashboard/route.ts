@@ -23,7 +23,7 @@ export async function GET() {
   // MANAGER / DEPT_LEAD — scoped to their team
   if (c.canViewTeamEmployees && user.employeeId) {
     let teamFilter: any = {}
-    if (user.role === "TEAM_LEAD") {
+    if (user.role === "PROJECT_LEAD") {
       teamFilter = { managerId: user.employeeId }
     }
     const [totalEmp, active, onLeave, pending] = await Promise.all([

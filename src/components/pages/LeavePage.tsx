@@ -10,7 +10,7 @@ import EmptyState from "@/components/ui/EmptyState"
 import {
   CalendarDays, Plus, Check, X, Clock, ChevronRight, ChevronLeft,
   AlertCircle, Users, Loader2, Info, Eye, Search, Trash2, Edit3,
-  CalendarCheck, ArrowLeft, ShieldCheck, MessageSquare, Star, Bell,
+  CalendarCheck, ArrowLeft, ShieldCheck, MessageSquare, Bell,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
@@ -52,8 +52,8 @@ function BalanceCard({ lb }: { lb: any }) {
 }
 
 function StageBar({ approvals }: { approvals: any[] }) {
-  const STAGE_ORDER = ["TEAM_LEAD", "ADMIN"]
-  const labels: Record<string, string> = { TEAM_LEAD: "Team Lead", ADMIN: "HR/Admin" }
+  const STAGE_ORDER = ["PROJECT_LEAD", "ADMIN"]
+  const labels: Record<string, string> = { PROJECT_LEAD: "Project Lead", HR_ADMIN: "HR/Admin" }
   const stages = STAGE_ORDER.filter(s => approvals.some(a => a.stage === s))
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
@@ -147,9 +147,11 @@ function ReliefOfficerSearch({ employees, selected, onChange }: { employees: any
 
 // ── Apply Form (multi-step) ───────────────────────────────────────────────────
 
-function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, employeeGender, onSuccess, userCaps, isAdmin }: {
+type PLEntry = { employeeId: string; taskName: string; taskDescription: string; relieverId: string }
+
+function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, employeeGender, onSuccess, userCaps, isAdmin, currentUserEmployeeId }: {
   open: boolean; onClose: () => void; leaveTypes: any[]; employees: any[];
-  balances: any[]; employeeGender?: string; onSuccess: () => void; userCaps: any; isAdmin: boolean
+  balances: any[]; employeeGender?: string; onSuccess: () => void; userCaps: any; isAdmin: boolean; currentUserEmployeeId?: string
 }) {
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
@@ -157,35 +159,55 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
   const [calcDays, setCalcDays] = useState(0)
   const [holidays, setHolidays] = useState<any[]>([])
   const [docUploading, setDocUploading] = useState(false)
-  const [form, setForm] = useState({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", handoverNotes: "", reliefOfficerIds: [] as string[], documentUrl: "" })
+  const [plSearch, setPLSearch] = useState("")
+  const [plDropOpen, setPLDropOpen] = useState(false)
+  const plSearchRef = useRef<HTMLDivElement>(null)
+  const [form, setForm] = useState({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", documentUrl: "", projectLeads: [] as PLEntry[] })
 
   const selType = leaveTypes.find(t => t.id === form.leaveTypeId)
   const selBal = balances.find(b => b.leaveTypeId === form.leaveTypeId)
 
-  // Gender-filtered leave types
   const visibleTypes = leaveTypes.filter(lt => {
     if (!lt.genderSpecific) return true
-    const empGender = form.employeeId
-      ? employees.find(e => e.id === form.employeeId)?.gender
-      : employeeGender
+    const empGender = form.employeeId ? employees.find((e: any) => e.id === form.employeeId)?.gender : employeeGender
     if (!empGender) return true
     return lt.genderSpecific === empGender
   })
 
-  // Minimum start date (notice period)
   const getMinDate = () => {
     if (!selType?.waitingDays || isAdmin) return format(new Date(), "yyyy-MM-dd")
-    const min = addBusinessDays(new Date(), selType.waitingDays)
-    return format(min, "yyyy-MM-dd")
+    return format(addBusinessDays(new Date(), selType.waitingDays), "yyyy-MM-dd")
   }
 
   useEffect(() => {
     if (!form.startDate || !form.endDate || !form.leaveTypeId) { setCalcDays(0); return }
     fetch(`/api/leave/calculate-days?start=${form.startDate}&end=${form.endDate}&leaveTypeId=${form.leaveTypeId}`)
-      .then(r => r.json())
-      .then(d => { setCalcDays(d.days ?? 0); setHolidays(d.holidays ?? []) })
-      .catch(() => {})
+      .then(r => r.json()).then(d => { setCalcDays(d.days ?? 0); setHolidays(d.holidays ?? []) }).catch(() => {})
   }, [form.startDate, form.endDate, form.leaveTypeId])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => { if (!plSearchRef.current?.contains(e.target as Node)) setPLDropOpen(false) }
+    document.addEventListener("mousedown", handler); return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const updatePL = (i: number, field: keyof PLEntry, value: string) => {
+    setForm(f => { const pls = [...f.projectLeads]; pls[i] = { ...pls[i], [field]: value }; return { ...f, projectLeads: pls } })
+    if (field === "taskName") setErrors(e => { const n = { ...e }; delete n[`taskName_${i}`]; return n })
+  }
+  const removePL = (i: number) => setForm(f => ({ ...f, projectLeads: f.projectLeads.filter((_, idx) => idx !== i) }))
+  const addPL = (empId: string) => {
+    if (form.projectLeads.some(p => p.employeeId === empId)) return
+    setForm(f => ({ ...f, projectLeads: [...f.projectLeads, { employeeId: empId, taskName: "", taskDescription: "", relieverId: "" }] }))
+    setErrors(e => { const n = { ...e }; delete n.pl; return n })
+    setPLSearch(""); setPLDropOpen(false)
+  }
+
+  const applicantId = form.employeeId || currentUserEmployeeId
+  const selectedPLIds = form.projectLeads.map(p => p.employeeId)
+  const filteredPLs = employees.filter((e: any) =>
+    e.id !== applicantId && !selectedPLIds.includes(e.id) &&
+    `${e.firstName} ${e.lastName}`.toLowerCase().includes(plSearch.toLowerCase())
+  )
 
   const fi = { width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)" } as const
 
@@ -195,21 +217,29 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
     if (step === 2) {
       if (!form.startDate) e.startDate = "Required"
       if (!form.endDate) e.endDate = "Required"
+      if (form.startDate && isWeekend(parseISO(form.startDate))) e.startDate = "Start date cannot be a weekend"
+      if (form.endDate && isWeekend(parseISO(form.endDate))) e.endDate = "End date cannot be a weekend"
       if (form.startDate && form.endDate && form.endDate < form.startDate) e.endDate = "End date must be after start date"
+      if (form.startDate && form.endDate && !e.startDate && !e.endDate && calcDays === 0) e.endDate = "No working days in this range (all weekends or holidays)"
     }
-    if (step === 3 && form.reliefOfficerIds.length === 0) e.relief = "At least one relief officer required"
+    if (step === 3) {
+      if (form.projectLeads.length === 0) e.pl = "At least one Project Lead is required"
+      form.projectLeads.forEach((pl, i) => { if (!pl.taskName.trim()) e[`taskName_${i}`] = "Task name required" })
+    }
     if (step === 4) {
       if (!form.reason.trim()) e.reason = "Required"
-      if (selType?.requiresDoc && calcDays >= selType.minDocDays && !form.documentUrl) {
-        e.doc = "A supporting document is required for this leave type"
-      }
+      if (selType?.requiresDoc && calcDays >= selType.minDocDays && !form.documentUrl) e.doc = "A supporting document is required"
     }
-    setErrors(e)
-    return Object.keys(e).length === 0
+    setErrors(e); return Object.keys(e).length === 0
   }
 
   const next = () => { if (validate()) setStep(s => Math.min(5, s + 1)) }
   const prev = () => setStep(s => Math.max(1, s - 1))
+
+  const reset = () => {
+    setStep(1); setCalcDays(0); setHolidays([]); setErrors({}); setPLSearch("")
+    setForm({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", documentUrl: "", projectLeads: [] })
+  }
 
   const submit = async () => {
     if (!validate()) return
@@ -217,19 +247,14 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
     const body = { ...form, days: calcDays, bypassWaitingPeriod: isAdmin }
     const r = await fetch("/api/leave", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
     setSubmitting(false)
-    if (r.ok) {
-      onClose(); setStep(1)
-      setForm({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", handoverNotes: "", reliefOfficerIds: [], documentUrl: "" })
-      onSuccess()
-    } else {
-      const d = await r.json(); setErrors({ submit: d.error ?? "Submission failed" })
-    }
+    if (r.ok) { onClose(); reset(); onSuccess() }
+    else { const d = await r.json(); setErrors({ submit: d.error ?? "Submission failed" }) }
   }
 
-  const steps = [{ n: 1, l: "Leave Type" }, { n: 2, l: "Dates" }, { n: 3, l: "Relief Officer" }, { n: 4, l: "Details" }, { n: 5, l: "Review" }]
+  const steps = [{ n: 1, l: "Leave Type" }, { n: 2, l: "Dates" }, { n: 3, l: "Project Lead(s)" }, { n: 4, l: "Handover" }, { n: 5, l: "Review" }]
 
   return (
-    <Modal open={open} onClose={onClose} title="Apply for Leave" width={640}>
+    <Modal open={open} onClose={() => { onClose(); reset() }} title="Apply for Leave" width={640}>
       {/* Step bar */}
       <div style={{ display: "flex", padding: "14px 24px 0", gap: 0 }}>
         {steps.map((s, i) => (
@@ -238,21 +263,21 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
               <div style={{ width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: step > s.n ? "var(--success)" : step === s.n ? "var(--primary)" : "var(--muted)", color: step >= s.n ? "white" : "var(--muted-foreground)", transition: "all .2s" }}>
                 {step > s.n ? <Check size={12} /> : s.n}
               </div>
-              <span style={{ fontSize: 10, fontWeight: 600, color: step === s.n ? "var(--primary)" : "var(--muted-foreground)", textAlign: "center", maxWidth: 60, lineHeight: 1.2 }}>{s.l}</span>
+              <span style={{ fontSize: 10, fontWeight: 600, color: step === s.n ? "var(--primary)" : "var(--muted-foreground)", textAlign: "center", maxWidth: 65, lineHeight: 1.2 }}>{s.l}</span>
             </div>
             {i < steps.length - 1 && <div style={{ flex: 1, height: 2, background: step > s.n ? "var(--success)" : "var(--border)", margin: "0 4px 14px", transition: "background .2s" }} />}
           </div>
         ))}
       </div>
 
-      <div style={{ padding: 24, minHeight: 300 }}>
+      <div style={{ padding: 24, minHeight: 300, overflowY: "auto", maxHeight: "60vh" }}>
         {/* Step 1: Leave type */}
         {step === 1 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {userCaps?.canViewAllLeave && (
               <div>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Applying for</label>
-                <select value={form.employeeId} onChange={e => setForm(f => ({ ...f, employeeId: e.target.value }))} style={fi}>
+                <select value={form.employeeId} onChange={e => setForm(f => ({ ...f, employeeId: e.target.value, projectLeads: [] }))} style={fi}>
                   <option value="">Myself</option>
                   {employees.map((e: any) => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
                 </select>
@@ -264,14 +289,15 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 10 }}>
                 {visibleTypes.map(lt => {
                   const bal = balances.find(b => b.leaveTypeId === lt.id)
+                  const exhausted = bal ? bal.remaining <= 0 : false
                   const sel = form.leaveTypeId === lt.id
                   return (
-                    <button key={lt.id} onClick={() => setForm(f => ({ ...f, leaveTypeId: lt.id }))}
-                      style={{ padding: "12px 14px", borderRadius: 10, border: `2px solid ${sel ? "var(--primary)" : "var(--border)"}`, background: sel ? "var(--primary-50)" : "var(--background)", cursor: "pointer", textAlign: "left", transition: "all .15s" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: sel ? "var(--primary)" : "var(--foreground)" }}>{lt.name}</div>
-                      {bal && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 3 }}>{bal.remaining} days remaining of {lt.defaultDays}</div>}
-                      {lt.waitingDays > 0 && !isAdmin && <div style={{ fontSize: 10, color: "var(--warning)", marginTop: 3 }}>⚠ {lt.waitingDays} working days notice required</div>}
-                      {lt.genderSpecific && <div style={{ fontSize: 10, color: "var(--info)", marginTop: 2 }}>{lt.genderSpecific === "FEMALE" ? "Female staff only" : "Male staff only"}</div>}
+                    <button key={lt.id} disabled={exhausted} onClick={() => !exhausted && setForm(f => ({ ...f, leaveTypeId: lt.id }))}
+                      style={{ padding: "12px 14px", borderRadius: 10, border: `2px solid ${exhausted ? "var(--border)" : sel ? "var(--primary)" : "var(--border)"}`, background: exhausted ? "var(--muted)" : sel ? "var(--primary-50)" : "var(--background)", cursor: exhausted ? "not-allowed" : "pointer", textAlign: "left", transition: "all .15s", opacity: exhausted ? 0.6 : 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: exhausted ? "var(--muted-foreground)" : sel ? "var(--primary)" : "var(--foreground)" }}>{lt.name}</div>
+                      {bal && <div style={{ fontSize: 11, color: exhausted ? "var(--accent)" : "var(--muted-foreground)", marginTop: 3, fontWeight: exhausted ? 700 : 400 }}>{exhausted ? "Balance exhausted" : `${bal.remaining} days remaining of ${lt.defaultDays}`}</div>}
+                      {lt.waitingDays > 0 && !isAdmin && !exhausted && <div style={{ fontSize: 10, color: "var(--warning)", marginTop: 3 }}>⚠ {lt.waitingDays} working days notice required</div>}
+                      {lt.genderSpecific && !exhausted && <div style={{ fontSize: 10, color: "var(--info)", marginTop: 2 }}>{lt.genderSpecific === "FEMALE" ? "Female staff only" : "Male staff only"}</div>}
                     </button>
                   )
                 })}
@@ -328,50 +354,144 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
           </div>
         )}
 
-        {/* Step 3: Relief officers */}
+        {/* Step 3: Project Leads & Tasks */}
         {step === 3 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: "var(--info-bg)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--info)", display: "flex", gap: 8 }}>
-              <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-              All selected relief officers must accept before your request proceeds to approval. They have 12 hours to respond.
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {/* Approval chain visual */}
+            <div style={{ background: "var(--muted)", borderRadius: 10, padding: "12px 16px" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Approval Chain</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <Users size={15} color="white" />
+                  </div>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "var(--primary)" }}>You</span>
+                </div>
+                <ChevronRight size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+                {form.projectLeads.length === 0 ? (
+                  <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>No leads selected</span>
+                ) : (
+                  <>
+                    {form.projectLeads.map(pl => {
+                      const plEmp = employees.find((e: any) => e.id === pl.employeeId)
+                      return plEmp ? (
+                        <div key={pl.employeeId} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                          <Avatar name={`${plEmp.firstName} ${plEmp.lastName}`} photo={plEmp.profilePhoto} size={34} />
+                          <span style={{ fontSize: 9, fontWeight: 600, maxWidth: 48, textAlign: "center", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{plEmp.firstName}</span>
+                        </div>
+                      ) : null
+                    })}
+                    <ChevronRight size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+                  </>
+                )}
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--success)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <ShieldCheck size={15} color="white" />
+                  </div>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: "var(--success)" }}>HR Admin</span>
+                </div>
+              </div>
             </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
-                Relief Officer(s) <span style={{ color: "var(--accent)" }}>*</span>
-              </label>
-              <ReliefOfficerSearch
-                employees={employees.filter((e: any) => e.id !== form.employeeId)}
-                selected={form.reliefOfficerIds}
-                onChange={ids => setForm(f => ({ ...f, reliefOfficerIds: ids }))}
-              />
-              {errors.relief && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 6 }}>{errors.relief}</div>}
+
+            {form.projectLeads.map((pl, i) => {
+              const plEmp = employees.find((e: any) => e.id === pl.employeeId)
+              return (
+                <div key={pl.employeeId || i} style={{ border: `1px solid ${errors[`taskName_${i}`] ? "var(--accent)" : "var(--border)"}`, borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <Avatar name={plEmp ? `${plEmp.firstName} ${plEmp.lastName}` : "?"} photo={plEmp?.profilePhoto} size={38} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{plEmp ? `${plEmp.firstName} ${plEmp.lastName}` : "Unknown"}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{plEmp?.jobTitle ?? "Project Lead"}</div>
+                    </div>
+                    {form.projectLeads.length > 1 && (
+                      <button onClick={() => removePL(i)} style={{ background: "var(--danger-bg)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", color: "var(--accent)", display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700 }}>
+                        <X size={11} /> Remove
+                      </button>
+                    )}
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Task / Project Name <span style={{ color: "var(--accent)" }}>*</span></label>
+                    <input placeholder="What task or project are you handing over?" value={pl.taskName} onChange={e => updatePL(i, "taskName", e.target.value)} style={fi} />
+                    {errors[`taskName_${i}`] && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 4 }}>{errors[`taskName_${i}`]}</div>}
+                  </div>
+                </div>
+              )
+            })}
+
+            <div ref={plSearchRef} style={{ position: "relative" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px dashed var(--border)", borderRadius: 8, padding: "9px 12px", background: "var(--background)" }}>
+                <Plus size={14} style={{ color: "var(--primary)", flexShrink: 0 }} />
+                <input value={plSearch} onChange={e => { setPLSearch(e.target.value); setPLDropOpen(true) }} onFocus={() => setPLDropOpen(true)}
+                  placeholder={form.projectLeads.length === 0 ? "Add a Project Lead…" : "Add another Project Lead…"}
+                  style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, flex: 1, color: "var(--foreground)" }} />
+              </div>
+              {plDropOpen && filteredPLs.length > 0 && (
+                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+                  {filteredPLs.slice(0, 8).map((e: any) => (
+                    <button key={e.id} onClick={() => addPL(e.id)}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                      onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                      onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = "transparent"}>
+                      <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={28} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
+                        {e.jobTitle && <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle}</div>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <div style={{ background: "var(--muted)", borderRadius: 8, padding: "12px 14px", fontSize: 12, color: "var(--muted-foreground)" }}>
-              <strong style={{ color: "var(--foreground)" }}>Approval chain:</strong> Relief Officer(s) → Team Lead → Admin
-            </div>
+            {errors.pl && <div style={{ fontSize: 11, color: "var(--accent)" }}>{errors.pl}</div>}
           </div>
         )}
 
-        {/* Step 4: Details */}
+        {/* Step 4: Handover & Details */}
         {step === 4 && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            {form.projectLeads.map((pl, i) => {
+              const plEmp = employees.find((e: any) => e.id === pl.employeeId)
+              return (
+                <div key={pl.employeeId || i} style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, paddingBottom: 10, borderBottom: "1px solid var(--border)" }}>
+                    <Avatar name={plEmp ? `${plEmp.firstName} ${plEmp.lastName}` : "?"} photo={plEmp?.profilePhoto} size={28} />
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{plEmp ? `${plEmp.firstName} ${plEmp.lastName}` : "Project Lead"}</div>
+                    {pl.taskName && <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 600, background: "var(--primary-50)", padding: "2px 8px", borderRadius: 20, marginLeft: "auto" }}>{pl.taskName}</div>}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Relief Officer <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)" }}>(optional)</span></label>
+                      <select value={pl.relieverId} onChange={e => updatePL(i, "relieverId", e.target.value)} style={fi}>
+                        <option value="">No relief needed</option>
+                        {employees.filter((e: any) => e.id !== applicantId).map((e: any) => (
+                          <option key={e.id} value={e.id}>{e.firstName} {e.lastName}{e.jobTitle ? ` — ${e.jobTitle}` : ""}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Task Description <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)" }}>(optional)</span></label>
+                      <textarea value={pl.taskDescription} onChange={e => updatePL(i, "taskDescription", e.target.value)} rows={2}
+                        placeholder="Describe what the relief officer needs to know about this task…"
+                        style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+
             <div>
               <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Leave Description <span style={{ color: "var(--accent)" }}>*</span></label>
-              <textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={3} placeholder="Brief reason for your leave…" style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
+              <textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={3}
+                placeholder="Brief reason for your leave…"
+                style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
               {errors.reason && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 4 }}>{errors.reason}</div>}
             </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>
-                Handover Notes
-                <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}> — to be shared with relief officer(s)</span>
-              </label>
-              <textarea value={form.handoverNotes} onChange={e => setForm(f => ({ ...f, handoverNotes: e.target.value }))} rows={4} placeholder="Describe your responsibilities, ongoing tasks, and what the relief officer needs to know…" style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
-            </div>
+
             {selType?.requiresDoc && calcDays >= selType.minDocDays && (
               <div>
                 <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8, marginBottom: 10 }}>
                   <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                  A supporting document (e.g. doctor's report) is required for {selType.name} of {selType.minDocDays}+ days.
+                  A supporting document is required for {selType.name} of {selType.minDocDays}+ days.
                 </div>
                 {form.documentUrl ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--success-bg)", border: "1px solid var(--success)", borderRadius: 8, padding: "10px 14px" }}>
@@ -413,15 +533,30 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
                 ["Leave Type", selType?.name],
                 ["Duration", `${calcDays} working day${calcDays !== 1 ? "s" : ""}`],
                 ["Dates", form.startDate && form.endDate ? `${formatDate(form.startDate)} → ${formatDate(form.endDate)}` : "—"],
-                ["Relief Officer(s)", `${form.reliefOfficerIds.length} selected`],
+                ["Project Lead(s)", form.projectLeads.map(pl => { const e = employees.find((x: any) => x.id === pl.employeeId); return e ? `${e.firstName} ${e.lastName}` : "—" }).join(", ") || "—"],
                 ...(form.documentUrl ? [["Supporting Document", "Attached ✓"]] : []),
               ].map(([label, value]) => (
                 <div key={label as string} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "6px 0", borderBottom: "1px solid var(--border)" }}>
                   <span style={{ color: "var(--muted-foreground)" }}>{label}</span>
-                  <span style={{ fontWeight: 600 }}>{value ?? "—"}</span>
+                  <span style={{ fontWeight: 600, textAlign: "right", maxWidth: "60%" }}>{value ?? "—"}</span>
                 </div>
               ))}
             </div>
+            {form.projectLeads.some(pl => pl.taskName) && (
+              <div style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 14px" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 8 }}>Handover Summary</div>
+                {form.projectLeads.map((pl, i) => {
+                  const plEmp = employees.find((e: any) => e.id === pl.employeeId)
+                  const reliefEmp = pl.relieverId ? employees.find((e: any) => e.id === pl.relieverId) : null
+                  return (
+                    <div key={i} style={{ fontSize: 12, paddingBottom: i < form.projectLeads.length - 1 ? 8 : 0, marginBottom: i < form.projectLeads.length - 1 ? 8 : 0, borderBottom: i < form.projectLeads.length - 1 ? "1px solid var(--border)" : "none" }}>
+                      <div style={{ fontWeight: 700 }}>{plEmp ? `${plEmp.firstName} ${plEmp.lastName}` : "—"} — <span style={{ color: "var(--primary)" }}>{pl.taskName}</span></div>
+                      {reliefEmp && <div style={{ color: "var(--muted-foreground)", marginTop: 2 }}>Relief: {reliefEmp.firstName} {reliefEmp.lastName}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
             {form.reason && (
               <div style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 14px" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", marginBottom: 4 }}>Description</div>
@@ -434,7 +569,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
       </div>
 
       <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-        <Button variant="secondary" onClick={step === 1 ? onClose : prev}>{step === 1 ? "Cancel" : <><ChevronLeft size={13} /> Back</>}</Button>
+        <Button variant="secondary" onClick={step === 1 ? () => { onClose(); reset() } : prev}>{step === 1 ? "Cancel" : <><ChevronLeft size={13} /> Back</>}</Button>
         {step < 5
           ? <Button onClick={next}>Next <ChevronRight size={13} /></Button>
           : <Button onClick={submit} disabled={submitting}>{submitting ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Submitting…</> : "Submit Request"}</Button>
@@ -446,7 +581,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
 
 // ── Leave Detail Popup ────────────────────────────────────────────────────────
 
-function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => void; isAdmin?: boolean }) {
+function LeaveDetailModal({ req, onClose, isAdmin, currentUserEmployeeId }: { req: any; onClose: () => void; isAdmin?: boolean; currentUserEmployeeId?: string }) {
   const [nudging, setNudging] = useState<string | null>(null)
   const [nudged, setNudged] = useState<Record<string, boolean>>({})
 
@@ -492,110 +627,76 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
           ))}
         </div>
 
-        {/* Approval chain — Relief Officer → Team Lead → Admin */}
+        {/* Approval chain — Relief Officer → Project Lead → Admin */}
         <div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Approval Progress</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            {/* ── Relief Officers (from reliefOfficersList) ── */}
-            {(req.reliefOfficersList?.length ?? 0) > 0 && (() => {
-              const officers: any[] = req.reliefOfficersList ?? []
-              const allAccepted = officers.every((o: any) => o.status === "ACCEPTED")
-              const anyDeclined = officers.some((o: any) => o.status === "DECLINED")
-              const anyPending  = officers.some((o: any) => o.status === "PENDING")
-              const bg = anyDeclined ? "var(--danger-bg)" : allAccepted ? "var(--success-bg)" : anyPending ? "#FFFBEB" : "var(--muted)"
+            {/* ── Project Lead ── */}
+            {(() => {
+              const plApprovals: any[] = req.approvals?.filter((x: any) => x.stage === "PROJECT_LEAD") ?? []
+              const done = plApprovals.length > 0 && plApprovals.every((a: any) => a.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action))
+              const rej  = plApprovals.some((a: any) => a.action === "REJECTED")
+              const pending = plApprovals.length > 0 && plApprovals.some((a: any) => !a.action) && !rej
+              const notReached = plApprovals.length === 0
               return (
-                <div key="relief" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: bg }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)", opacity: notReached ? 0.5 : 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: anyDeclined ? "var(--accent)" : allAccepted ? "var(--success)" : "#F59E0B" }}>
-                      {allAccepted ? <Check size={11} color="white" /> : anyDeclined ? <X size={11} color="white" /> : <Clock size={11} color="white" />}
+                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
+                      {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
                     </div>
-                    <span style={{ fontSize: 12, fontWeight: 700 }}>Relief Officer{officers.length > 1 ? "s" : ""}</span>
-                    {anyPending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>Project Lead{plApprovals.length > 1 ? "s" : ""}</span>
+                      {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
+                      {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
+                    </div>
+                    {pending && plApprovals[0]?.deadline && <CountdownTimer deadline={plApprovals.find((a: any) => !a.action)?.deadline} />}
+                    {isAdmin && pending && (
+                      <button onClick={() => nudgeStage("PROJECT_LEAD")} disabled={nudging === "PROJECT_LEAD" || nudged["PROJECT_LEAD"]}
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["PROJECT_LEAD"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["PROJECT_LEAD"] ? "var(--success)" : "var(--warning)", cursor: nudging === "PROJECT_LEAD" ? "wait" : "pointer", flexShrink: 0 }}>
+                        <Bell size={10} />{nudged["PROJECT_LEAD"] ? "Sent!" : nudging === "PROJECT_LEAD" ? "…" : "Nudge"}
+                      </button>
+                    )}
                   </div>
-                  {officers.length > 1 && (
+                  {plApprovals.length > 0 && (
                     <div style={{ marginLeft: 32, display: "flex", flexDirection: "column", gap: 3 }}>
-                      {officers.map((o: any) => {
-                        const oDone = o.status === "ACCEPTED"; const oRej = o.status === "DECLINED"
+                      {plApprovals.map((a: any) => {
+                        const approved = a.action && ["APPROVED","APPROVED_WITH_COMMENT"].includes(a.action)
+                        const rejected = a.action === "REJECTED"
                         return (
-                          <div key={o.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
-                            <div style={{ width: 14, height: 14, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: oRej ? "var(--accent)" : oDone ? "var(--success)" : "#F59E0B" }}>
-                              {oDone ? <Check size={8} color="white" /> : oRej ? <X size={8} color="white" /> : <Clock size={8} color="white" />}
+                          <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                            <div style={{ width: 14, height: 14, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rejected ? "var(--accent)" : approved ? "var(--success)" : "#F59E0B" }}>
+                              {approved ? <Check size={8} color="white" /> : rejected ? <X size={8} color="white" /> : <Clock size={8} color="white" />}
                             </div>
-                            <span style={{ fontWeight: 600 }}>{o.employee ? `${o.employee.firstName} ${o.employee.lastName}` : "—"}</span>
-                            <span style={{ color: oDone ? "var(--success)" : oRej ? "var(--accent)" : "#F59E0B", fontWeight: 700 }}>
-                              {oDone ? "Accepted" : oRej ? "Declined" : "Pending"}
+                            <span style={{ fontWeight: 600 }}>{a.employee ? `${a.employee.firstName} ${a.employee.lastName}` : "—"}</span>
+                            <span style={{ color: approved ? "var(--success)" : rejected ? "var(--accent)" : "#F59E0B", fontWeight: 700 }}>
+                              {approved ? "Approved" : rejected ? "Rejected" : "Pending"}
                             </span>
-                            {o.comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{o.comment}"</span>}
+                            {a.comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{a.comment}"</span>}
                           </div>
                         )
                       })}
                     </div>
                   )}
-                  {officers.length === 1 && (
-                    <div style={{ marginLeft: 32, fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontWeight: 600 }}>{officers[0].employee ? `${officers[0].employee.firstName} ${officers[0].employee.lastName}` : "—"}</span>
-                      {officers[0].comment && <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>"{officers[0].comment}"</span>}
-                    </div>
-                  )}
                 </div>
               )
             })()}
 
-            {/* ── Team Lead ── */}
+            {/* ── HR Admin ── */}
             {(() => {
-              const tlApprovals: any[] = req.approvals?.filter((x: any) => x.stage === "TEAM_LEAD") ?? []
-              const a = tlApprovals[0]
-              const done = tlApprovals.length > 0 && tlApprovals.every((sa: any) => sa.action && ["APPROVED", "APPROVED_WITH_COMMENT", "ACCEPTED"].includes(sa.action))
-              const rej  = tlApprovals.some((sa: any) => sa.action === "REJECTED")
-              const pending = tlApprovals.length > 0 && tlApprovals.some((sa: any) => !sa.action) && !rej
-              const notReached = tlApprovals.length === 0
+              const hrApprovals: any[] = req.approvals?.filter((x: any) => x.stage === "HR_ADMIN") ?? []
+              const a = hrApprovals[0]
+              const done = !!a?.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action)
+              const rej  = !!a?.action && a.action === "REJECTED"
+              const pending = hrApprovals.length > 0 && !a?.action
+              const notReached = hrApprovals.length === 0
               return (
-                <div key="TEAM_LEAD" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)", opacity: notReached ? 0.5 : 1 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)", opacity: notReached ? 0.5 : 1 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
                       {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
                     </div>
                     <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 12, fontWeight: 700 }}>Team Lead</span>
-                      {tlApprovals.length === 1 && a?.employee && a?.action && (
-                        <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                          · {["APPROVED","APPROVED_WITH_COMMENT","ACCEPTED"].includes(a.action) ? "Approved by" : "Rejected by"} <strong>{a.employee.firstName} {a.employee.lastName}</strong>
-                        </span>
-                      )}
-                      {tlApprovals.length === 1 && a?.employee && !a?.action && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {a.employee.firstName} {a.employee.lastName}</span>}
-                      {pending && <span style={{ fontSize: 11, color: "#F59E0B", fontWeight: 600 }}>Awaiting action</span>}
-                      {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
-                    </div>
-                    {tlApprovals.length === 1 && a?.action && <Badge status={a.action} />}
-                    {pending && a?.deadline && <CountdownTimer deadline={a.deadline} />}
-                    {isAdmin && pending && (
-                      <button onClick={() => nudgeStage("TEAM_LEAD")} disabled={nudging === "TEAM_LEAD" || nudged["TEAM_LEAD"]}
-                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["TEAM_LEAD"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["TEAM_LEAD"] ? "var(--success)" : "var(--warning)", cursor: nudging === "TEAM_LEAD" ? "wait" : "pointer", flexShrink: 0 }}>
-                        <Bell size={10} />{nudged["TEAM_LEAD"] ? "Sent!" : nudging === "TEAM_LEAD" ? "…" : "Nudge"}
-                      </button>
-                    )}
-                  </div>
-                  {tlApprovals.length === 1 && a?.comment && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic", marginLeft: 32 }}>"{a.comment}"</span>}
-                </div>
-              )
-            })()}
-
-            {/* ── Admin ── */}
-            {(() => {
-              const adminApprovals: any[] = req.approvals?.filter((x: any) => x.stage === "ADMIN") ?? []
-              const a = adminApprovals[0]
-              const done = adminApprovals.length > 0 && !!a?.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action)
-              const rej  = adminApprovals.some((sa: any) => sa.action === "REJECTED")
-              const pending = adminApprovals.length > 0 && !a?.action && !rej
-              const notReached = adminApprovals.length === 0
-              return (
-                <div key="ADMIN" style={{ display: "flex", flexDirection: "column", gap: 4, padding: "8px 12px", borderRadius: 8, background: rej ? "var(--danger-bg)" : done ? "var(--success-bg)" : pending ? "#FFFBEB" : "var(--muted)", opacity: notReached ? 0.5 : 1 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, background: rej ? "var(--accent)" : done ? "var(--success)" : pending ? "#F59E0B" : "var(--border)" }}>
-                      {done ? <Check size={11} color="white" /> : rej ? <X size={11} color="white" /> : pending ? <Clock size={11} color="white" /> : <div style={{ width:7, height:7, borderRadius:"50%", background:"var(--muted-foreground)", opacity:0.4 }} />}
-                    </div>
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 12, fontWeight: 700 }}>Admin</span>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>HR Admin</span>
                       {a?.employee && a?.action && (
                         <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
                           · {["APPROVED","APPROVED_WITH_COMMENT"].includes(a.action) ? "Approved by" : "Rejected by"} <strong>{a.employee.firstName} {a.employee.lastName}</strong>
@@ -606,9 +707,9 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
                     </div>
                     {a?.action && <Badge status={a.action} />}
                     {isAdmin && pending && (
-                      <button onClick={() => nudgeStage("ADMIN")} disabled={nudging === "ADMIN" || nudged["ADMIN"]}
-                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["ADMIN"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["ADMIN"] ? "var(--success)" : "var(--warning)", cursor: nudging === "ADMIN" ? "wait" : "pointer", flexShrink: 0 }}>
-                        <Bell size={10} />{nudged["ADMIN"] ? "Sent!" : nudging === "ADMIN" ? "…" : "Nudge"}
+                      <button onClick={() => nudgeStage("HR_ADMIN")} disabled={nudging === "HR_ADMIN" || nudged["HR_ADMIN"]}
+                        style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["HR_ADMIN"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["HR_ADMIN"] ? "var(--success)" : "var(--warning)", cursor: nudging === "HR_ADMIN" ? "wait" : "pointer", flexShrink: 0 }}>
+                        <Bell size={10} />{nudged["HR_ADMIN"] ? "Sent!" : nudging === "HR_ADMIN" ? "…" : "Nudge"}
                       </button>
                     )}
                   </div>
@@ -626,12 +727,44 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
             <div style={{ fontSize: 13, background: "var(--muted)", borderRadius: 8, padding: "10px 14px", lineHeight: 1.5 }}>{req.reason}</div>
           </div>
         )}
-        {req.handoverNotes && (
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>Handover Notes</div>
-            <div style={{ fontSize: 13, background: "var(--muted)", borderRadius: 8, padding: "10px 14px", lineHeight: 1.5 }}>{req.handoverNotes}</div>
-          </div>
-        )}
+        {req.handoverNotes && (() => {
+          let entries: any[] = []
+          try { entries = JSON.parse(req.handoverNotes) } catch { return null }
+          if (!Array.isArray(entries) || entries.length === 0) return null
+          const isOwner = req.employeeId === currentUserEmployeeId
+          const visibleEntries = isAdmin || isOwner
+            ? entries
+            : entries.filter((entry: any) => entry.projectLeadId === currentUserEmployeeId)
+          if (visibleEntries.length === 0) return null
+          return (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 8 }}>Handover</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {visibleEntries.map((entry: any, i: number) => {
+                  const plApproval = (req.approvals ?? []).find((a: any) => a.employeeId === entry.projectLeadId)
+                  const plName = plApproval?.employee ? `${plApproval.employee.firstName} ${plApproval.employee.lastName}` : "Project Lead"
+                  const reliefRecord = entry.relieverId ? (req.reliefOfficersList ?? []).find((r: any) => r.employeeId === entry.relieverId) : null
+                  const reliefName = reliefRecord?.employee ? `${reliefRecord.employee.firstName} ${reliefRecord.employee.lastName}` : null
+                  return (
+                    <div key={i} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 14px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: reliefName || entry.taskDescription ? 6 : 0 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700 }}>{plName}</span>
+                        <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>→</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--primary)" }}>{entry.taskName}</span>
+                      </div>
+                      {entry.taskDescription && (
+                        <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: reliefName ? 4 : 0 }}>{entry.taskDescription}</div>
+                      )}
+                      {reliefName && (
+                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Relief: <strong>{reliefName}</strong></div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
         {req.documentUrl && (
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>Supporting Document</div>
@@ -650,13 +783,19 @@ function LeaveDetailModal({ req, onClose, isAdmin }: { req: any; onClose: () => 
 
 // ── Edit Leave Modal ──────────────────────────────────────────────────────────
 
-function EditLeaveModal({ req, onClose, onDone, isAdmin }: { req: any; onClose: () => void; onDone: () => void; isAdmin: boolean }) {
+function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, employees = [], currentUserEmployeeId, noReliefWarning }: {
+  req: any; onClose: () => void; onDone: () => void; isAdmin: boolean; isPLEdit?: boolean; employees?: any[]; currentUserEmployeeId?: string; noReliefWarning?: string
+}) {
   const [form, setForm] = useState({
     startDate: req.startDate ? req.startDate.split("T")[0] : "",
     endDate: req.endDate ? req.endDate.split("T")[0] : "",
     reason: req.reason ?? "",
-    handoverNotes: req.handoverNotes ?? "",
   })
+  const [handover, setHandover] = useState<any[]>(() => {
+    try { return JSON.parse(req.handoverNotes ?? "[]") } catch { return [] }
+  })
+  const [reliefSearch, setReliefSearch] = useState("")
+  const [reliefDropOpen, setReliefDropOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [calcDays, setCalcDays] = useState(req.days ?? 0)
@@ -670,14 +809,54 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin }: { req: any; onClose: 
   }, [form.startDate, form.endDate, req.leaveTypeId])
 
   const anyReliefActed = (req.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING")
-  const locked = anyReliefActed && !isAdmin
+  const locked = anyReliefActed && !isAdmin && !isPLEdit
+
+  // PL's own handover entry
+  const myEntryIdx = isPLEdit ? handover.findIndex((e: any) => e.projectLeadId === currentUserEmployeeId) : -1
+  const myEntry = myEntryIdx >= 0 ? handover[myEntryIdx] : null
+
+  const setReliever = (employeeId: string) => {
+    if (myEntryIdx < 0) return
+    setHandover(prev => {
+      const next = [...prev]
+      next[myEntryIdx] = { ...next[myEntryIdx], relieverId: employeeId }
+      return next
+    })
+    setReliefSearch(""); setReliefDropOpen(false)
+  }
+  const clearReliever = () => {
+    if (myEntryIdx < 0) return
+    setHandover(prev => { const next = [...prev]; next[myEntryIdx] = { ...next[myEntryIdx], relieverId: "" }; return next })
+  }
+
+  const currentRelieverId = myEntry?.relieverId ?? ""
+  const currentReliever = currentRelieverId ? employees.find((e: any) => e.id === currentRelieverId) : null
+  const currentRelieverIsMe = currentRelieverId === currentUserEmployeeId
+
+  const meEmployee = currentUserEmployeeId ? employees.find((e: any) => e.id === currentUserEmployeeId) : null
+  const meMatchesSearch = !reliefSearch || "me".includes(reliefSearch.toLowerCase()) ||
+    (meEmployee && `${meEmployee.firstName} ${meEmployee.lastName}`.toLowerCase().includes(reliefSearch.toLowerCase()))
+
+  const othersFiltered = employees.filter((e: any) =>
+    e.id !== req.employeeId && e.id !== currentUserEmployeeId &&
+    `${e.firstName} ${e.lastName}`.toLowerCase().includes(reliefSearch.toLowerCase())
+  )
+  const filteredRelief: Array<any & { __isMe?: boolean }> = [
+    ...(meEmployee && meMatchesSearch ? [{ ...meEmployee, __isMe: true }] : []),
+    ...othersFiltered,
+  ]
 
   const save = async () => {
+    if (isPLEdit && myEntry && !currentRelieverId) {
+      setError("You must assign a relief officer before saving."); return
+    }
     setLoading(true); setError("")
+    const body: any = { ...form }
+    if (isPLEdit || isAdmin) body.handoverNotes = handover.length > 0 ? JSON.stringify(handover) : null
     const r = await fetch(`/api/leave/${req.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(body),
     })
     setLoading(false)
     if (!r.ok) { const d = await r.json(); setError(d.error ?? "Failed to save"); return }
@@ -687,20 +866,34 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin }: { req: any; onClose: 
   const fi = { width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)" } as const
 
   return (
-    <Modal open onClose={onClose} title="Edit Leave Request" width={540}>
+    <Modal open onClose={onClose} title={isPLEdit ? "Review Leave Request" : "Edit Leave Request"} width={560}>
       <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
-        {locked && (
+        {isPLEdit && noReliefWarning && (
+          <div style={{ background: "var(--danger-bg)", border: "1px solid var(--accent)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--accent)", display: "flex", gap: 8, fontWeight: 600 }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            {noReliefWarning}
+          </div>
+        )}
+        {isPLEdit && (
+          <div style={{ background: "var(--info-bg)", border: "1px solid var(--info)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--info)", display: "flex", gap: 8 }}>
+            <Info size={14} style={{ flexShrink: 0 }} />
+            Review the leave dates and confirm or change who will cover your tasks. Relief officers are only notified after you approve.
+          </div>
+        )}
+        {!isPLEdit && locked && (
           <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8 }}>
             <AlertCircle size={14} style={{ flexShrink: 0 }} />
             A relief officer has already responded. This request is locked for editing. Contact HR/Admin for changes.
           </div>
         )}
-        {isAdmin && anyReliefActed && (
+        {!isPLEdit && isAdmin && anyReliefActed && (
           <div style={{ background: "var(--info-bg)", border: "1px solid var(--info)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--info)", display: "flex", gap: 8 }}>
             <Info size={14} style={{ flexShrink: 0 }} />
             Admin override — relief officer has already responded but you can still make changes.
           </div>
         )}
+
+        {/* Dates */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Start Date</label>
@@ -717,16 +910,83 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin }: { req: any; onClose: 
             <strong>{calcDays} days</strong>
           </div>
         )}
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Reason</label>
-          <textarea disabled={locked} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={3}
-            style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical", opacity: locked ? 0.6 : 1 }} />
-        </div>
-        <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Handover Notes</label>
-          <textarea disabled={locked} value={form.handoverNotes} onChange={e => setForm(f => ({ ...f, handoverNotes: e.target.value }))} rows={3}
-            style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical", opacity: locked ? 0.6 : 1 }} />
-        </div>
+
+        {/* PL: relief officer section */}
+        {isPLEdit && myEntry && (
+          <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)" }}>Your Task Coverage</div>
+            <div style={{ background: "var(--muted)", borderRadius: 8, padding: "8px 12px" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}>{myEntry.taskName}</div>
+              {myEntry.taskDescription && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{myEntry.taskDescription}</div>}
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Relief Officer <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>(who will cover this task)</span></label>
+              {currentReliever ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--primary-50)", border: "1px solid var(--primary)", borderRadius: 8, padding: "8px 12px" }}>
+                  <Avatar name={`${currentReliever.firstName} ${currentReliever.lastName}`} photo={currentReliever.profilePhoto ?? undefined} size={28} />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600 }}>
+                      {currentRelieverIsMe ? "Me" : `${currentReliever.firstName} ${currentReliever.lastName}`}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                      {currentRelieverIsMe ? `${currentReliever.firstName} ${currentReliever.lastName} · You` : (currentReliever.jobTitle ?? "—")}
+                    </div>
+                  </div>
+                  <button onClick={clearReliever} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 4, display: "flex", borderRadius: 4 }} title="Remove">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div style={{ position: "relative" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px dashed var(--border)", borderRadius: 8, padding: "9px 12px", background: "var(--background)" }}>
+                    <Search size={13} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+                    <input
+                      value={reliefSearch}
+                      onChange={e => { setReliefSearch(e.target.value); setReliefDropOpen(true) }}
+                      onFocus={() => setReliefDropOpen(true)}
+                      placeholder="Search for a relief officer…"
+                      style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, flex: 1, color: "var(--foreground)" }}
+                    />
+                  </div>
+                  {reliefDropOpen && filteredRelief.length > 0 && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: 180, overflowY: "auto", marginTop: 4 }}>
+                      {filteredRelief.slice(0, 8).map((e: any) => (
+                        <div key={e.id} onClick={() => setReliever(e.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", cursor: "pointer", borderBottom: "1px solid var(--border-light, #f5f7fa)" }}
+                          onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                          onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = ""}>
+                          <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto ?? undefined} size={26} />
+                          <div>
+                            <div style={{ fontSize: 12, fontWeight: 600 }}>{e.__isMe ? "Me" : `${e.firstName} ${e.lastName}`}</div>
+                            <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                              {e.__isMe ? `${e.firstName} ${e.lastName}` : (e.jobTitle ?? "—")}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 5 }}>
+                {currentReliever
+                  ? currentRelieverIsMe
+                    ? "You will cover this task yourself. You'll be notified once you approve."
+                    : "This person will be notified once you approve the leave."
+                  : "A relief officer is required — search above to assign someone."}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Admin: reason field */}
+        {!isPLEdit && (
+          <div>
+            <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Reason</label>
+            <textarea disabled={locked} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={3}
+              style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical", opacity: locked ? 0.6 : 1 }} />
+          </div>
+        )}
+
         {error && (
           <div style={{ background: "var(--danger-bg)", color: "var(--accent)", padding: "10px 14px", borderRadius: 8, fontSize: 13, display: "flex", gap: 8 }}>
             <AlertCircle size={14} />{error}
@@ -770,131 +1030,9 @@ function RejectModal({ id, onClose, onDone }: { id: string; onClose: () => void;
   )
 }
 
-// ── Star Rating display ───────────────────────────────────────────────────────
-
-function StarRating({ value, max = 5 }: { value: number; max?: number }) {
-  return (
-    <div style={{ display: "flex", gap: 2 }}>
-      {Array.from({ length: max }, (_, i) => (
-        <Star key={i} size={14} fill={i < value ? "#F59E0B" : "none"} style={{ color: i < value ? "#F59E0B" : "var(--border)" }} />
-      ))}
-    </div>
-  )
-}
-
-// ── Ratings Panel ─────────────────────────────────────────────────────────────
-
-const PLACEHOLDER_RATINGS = {
-  given: [
-    { id: "r1", name: "Emeka Okonkwo", jobTitle: "Senior Engineer", leaveType: "Annual Leave", period: "Feb 3 – Feb 14", rating: 5, comment: "Excellent cover, handled all tasks perfectly", date: "2026-02-15" },
-    { id: "r2", name: "Ngozi Eze", jobTitle: "Frontend Developer", leaveType: "Sick Leave", period: "Jan 10 – Jan 12", rating: 4, comment: "Good communication, minor delays on reports", date: "2026-01-13" },
-  ],
-  received: [
-    { id: "r3", name: "Fatima Musa", jobTitle: "HR Specialist", leaveType: "Annual Leave", period: "Mar 1 – Mar 7", rating: 5, comment: "Thorough handover notes made it easy to cover", date: "2026-03-02" },
-    { id: "r4", name: "Chidi Nwosu", jobTitle: "Data Analyst", leaveType: "Compassionate Leave", period: "Dec 20 – Dec 22", rating: 3, comment: "Handover notes could have been more detailed", date: "2025-12-21" },
-  ],
-}
-
-function RatingsPanel({ isAdmin }: { isAdmin: boolean }) {
-  const [tab, setTab] = useState<"given" | "received" | "all">(isAdmin ? "all" : "given")
-
-  const RatingRow = ({ r, dir }: { r: any; dir: "given" | "received" }) => (
-    <tr style={{ borderBottom: "1px solid var(--border)" }}
-      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
-      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
-      <td style={{ padding: "11px 16px" }}>
-        <div style={{ fontWeight: 600, fontSize: 13 }}>{r.name}</div>
-        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{r.jobTitle}</div>
-      </td>
-      <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)" }}>{r.leaveType} · {r.period}</td>
-      <td style={{ padding: "11px 16px" }}><StarRating value={r.rating} /></td>
-      <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)", maxWidth: 200 }}>{r.comment || "—"}</td>
-      <td style={{ padding: "11px 16px", fontSize: 11, color: "var(--muted-foreground)" }}>{formatDate(r.date, "MMM d, yyyy")}</td>
-      <td style={{ padding: "11px 16px" }}>
-        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: dir === "given" ? "var(--primary-50)" : "var(--success-bg)", color: dir === "given" ? "var(--primary)" : "var(--success)" }}>
-          {dir === "given" ? "Given" : "Received"}
-        </span>
-      </td>
-    </tr>
-  )
-
-  const allRatings = [
-    ...PLACEHOLDER_RATINGS.given.map(r => ({ ...r, dir: "given" as const })),
-    ...PLACEHOLDER_RATINGS.received.map(r => ({ ...r, dir: "received" as const })),
-  ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-
-  const avgReceived = PLACEHOLDER_RATINGS.received.length
-    ? (PLACEHOLDER_RATINGS.received.reduce((s, r) => s + r.rating, 0) / PLACEHOLDER_RATINGS.received.length).toFixed(1)
-    : "—"
-
-  const displayTabs = isAdmin
-    ? [{ key: "all", label: "All Ratings" }, { key: "given", label: "Given" }, { key: "received", label: "Received" }]
-    : [{ key: "given", label: "Ratings I Gave" }, { key: "received", label: "My Ratings (Relief)" }]
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Average score card */}
-      {!isAdmin && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
-          <Card style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: "#FEF3C7", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Star size={22} style={{ color: "#F59E0B" }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 2 }}>Avg Rating as Relief</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: "#F59E0B" }}>{avgReceived}</div>
-              <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{PLACEHOLDER_RATINGS.received.length} relief assignment{PLACEHOLDER_RATINGS.received.length !== 1 ? "s" : ""}</div>
-            </div>
-          </Card>
-          <Card style={{ padding: "16px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--primary-50)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <Star size={22} style={{ color: "var(--primary)" }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 2 }}>Ratings I've Given</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: "var(--primary)" }}>{PLACEHOLDER_RATINGS.given.length}</div>
-              <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>to relief officers</div>
-            </div>
-          </Card>
-        </div>
-      )}
-
-      {/* Tab bar */}
-      <div style={{ display: "flex", gap: 3, background: "var(--muted)", borderRadius: 7, padding: 3, alignSelf: "flex-start" }}>
-        {displayTabs.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key as any)}
-            style={{ padding: "5px 14px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: tab === t.key ? "var(--card)" : "transparent", color: tab === t.key ? "var(--foreground)" : "var(--muted-foreground)", transition: "all .15s" }}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      <Card style={{ padding: 0 }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid var(--border)" }}>
-              {["Person", "Leave", "Rating", "Comment", "Date", "Direction"].map(h => (
-                <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {tab === "given" && PLACEHOLDER_RATINGS.given.map(r => <RatingRow key={r.id} r={r} dir="given" />)}
-            {tab === "received" && PLACEHOLDER_RATINGS.received.map(r => <RatingRow key={r.id} r={r} dir="received" />)}
-            {tab === "all" && allRatings.map(r => <RatingRow key={r.id} r={r} dir={r.dir} />)}
-          </tbody>
-        </table>
-        <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border)", fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>
-          Ratings are submitted 24 hours after leave starts (relief officer rates applicant) and 24 hours after return (applicant rates relief officers). Placeholder data shown.
-        </div>
-      </Card>
-    </div>
-  )
-}
-
 // ── Relief Duties Panel ───────────────────────────────────────────────────────
 
-function ReliefDutiesPanel() {
+function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: string }) {
   const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [respondingId, setRespondingId] = useState<string | null>(null)
@@ -966,12 +1104,24 @@ function ReliefDutiesPanel() {
                             {formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")} · <strong>{req.days}</strong> days
                           </span>
                         </div>
-                        {req.handoverNotes && (
-                          <div style={{ marginTop: 8, background: "var(--muted)", borderRadius: 8, padding: "8px 12px", fontSize: 12, maxWidth: 420 }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 3 }}>Handover Notes</div>
-                            {req.handoverNotes}
-                          </div>
-                        )}
+                        {(() => {
+                          if (!req.handoverNotes) return null
+                          let entries: any[] = []
+                          try { entries = JSON.parse(req.handoverNotes) } catch { return null }
+                          const myEntries = entries.filter((e: any) => e.relieverId === currentUserEmployeeId)
+                          if (myEntries.length === 0) return null
+                          return (
+                            <div style={{ marginTop: 8, background: "var(--muted)", borderRadius: 8, padding: "8px 12px", fontSize: 12, maxWidth: 420 }}>
+                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>Your Task{myEntries.length > 1 ? "s" : ""}</div>
+                              {myEntries.map((e: any, idx: number) => (
+                                <div key={idx} style={idx > 0 ? { marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--border)" } : {}}>
+                                  <div style={{ fontWeight: 700 }}>{e.taskName}</div>
+                                  {e.taskDescription && <div style={{ color: "var(--muted-foreground)", marginTop: 2 }}>{e.taskDescription}</div>}
+                                </div>
+                              ))}
+                            </div>
+                          )
+                        })()}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -1010,7 +1160,7 @@ function ReliefDutiesPanel() {
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Employee", "Leave Type", "Period", "Days", "Status", "Comment"].map(h => (
+                  {["Employee", "Leave Type", "Task", "Period", "Days", "Status", "Comment"].map(h => (
                     <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
@@ -1033,6 +1183,22 @@ function ReliefDutiesPanel() {
                         </div>
                       </td>
                       <td style={{ padding: "11px 16px", fontSize: 13 }}>{req.leaveType?.name}</td>
+                      <td style={{ padding: "11px 16px", fontSize: 12 }}>
+                        {(() => {
+                          if (!req.handoverNotes) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
+                          let entries: any[] = []
+                          try { entries = JSON.parse(req.handoverNotes) } catch { return <span style={{ color: "var(--muted-foreground)" }}>—</span> }
+                          const myEntries = entries.filter((e: any) => e.relieverId === currentUserEmployeeId)
+                          if (myEntries.length === 0) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
+                          return (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                              {myEntries.map((e: any, idx: number) => (
+                                <div key={idx} style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
+                              ))}
+                            </div>
+                          )
+                        })()}
+                      </td>
                       <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
                       <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
                       <td style={{ padding: "11px 16px" }}>
@@ -1081,7 +1247,7 @@ function ReliefDutiesPanel() {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 type Tab = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED"
-type MainTab = Tab | "RELIEF" | "RATINGS"
+type MainTab = Tab | "RELIEF"
 
 export default function LeavePage() {
   const { user } = useCurrentUser()
@@ -1106,6 +1272,10 @@ export default function LeavePage() {
   const [editLeave, setEditLeave] = useState<any | null>(null)
   const [viewLeave, setViewLeave] = useState<any | null>(null)
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null)
+  const [sentNudges, setSentNudges] = useState<Set<string>>(new Set())
+  const [approveTarget, setApproveTarget] = useState<{ id: string; stage?: string; req: any } | null>(null)
+  const [approving, setApproving] = useState(false)
+  const [editLeaveWarning, setEditLeaveWarning] = useState("")
 
   const canApprove = user?.caps?.canApproveLeave
   const canSubmit = user?.caps?.canSubmitLeave
@@ -1120,16 +1290,11 @@ export default function LeavePage() {
 
   // Sync status tab from mainTab
   useEffect(() => {
-    if (mainTab !== "RELIEF" && mainTab !== "RATINGS") setTab(mainTab as Tab)
+    if (mainTab !== "RELIEF") setTab(mainTab as Tab)
   }, [mainTab])
 
   const load = useCallback(async () => {
     setLoading(true)
-    // Skip API call for RATINGS tab (view-only)
-    if (mainTab === "RATINGS") {
-      setLoading(false)
-      return
-    }
     // Fetch leave data; profile fetch is best-effort (admins may not have employee profile)
     const [leaveRes] = await Promise.all([
       fetch(`/api/leave?status=${tab === "ALL" ? "" : tab}`),
@@ -1160,14 +1325,18 @@ export default function LeavePage() {
   useEffect(() => { load() }, [load])
 
   const approve = async (id: string, stage?: string) => {
+    setApproving(true)
     await fetch(`/api/leave/${id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "APPROVED", stage }) })
+    setApproving(false)
+    setApproveTarget(null)
     load()
   }
 
   const nudge = async (id: string, stage: string) => {
-    const res = await fetch(`/api/leave/${id}/nudge`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) })
-    const d = await res.json()
-    if (d.ok) alert("Reminder sent")
+    const key = `${id}:${stage}`
+    await fetch(`/api/leave/${id}/nudge`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ stage }) })
+    setSentNudges(prev => new Set(prev).add(key))
+    setTimeout(() => setSentNudges(prev => { const n = new Set(prev); n.delete(key); return n }), 2000)
   }
 
   const cancel = (id: string) => setCancelTargetId(id)
@@ -1192,18 +1361,7 @@ export default function LeavePage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {!isAdmin && (
-            <div style={{ display:"flex", alignItems:"center", gap:6, background:"#FEF3C7", borderRadius:8, padding:"6px 14px", border:"1px solid #F59E0B44" }}>
-              <Star size={14} fill="#F59E0B" style={{ color:"#F59E0B" }} />
-              <span style={{ fontSize:16, fontWeight:900, color:"#B45309", lineHeight:1 }}>
-                {PLACEHOLDER_RATINGS.received.length
-                  ? (PLACEHOLDER_RATINGS.received.reduce((s: number, r: any) => s + r.rating, 0) / PLACEHOLDER_RATINGS.received.length).toFixed(1)
-                  : "—"}
-              </span>
-              <span style={{ fontSize:11, color:"#92400E", fontWeight:600 }}>Avg Relief Rating</span>
-            </div>
-          )}
-          {canSubmit && <Button size="sm" onClick={() => setApplyOpen(true)}><Plus size={13} /> Apply for Leave</Button>}
+          {canSubmit && !isSuperAdmin && <Button size="sm" onClick={() => setApplyOpen(true)}><Plus size={13} /> Apply for Leave</Button>}
         </div>
       </div>
 
@@ -1212,7 +1370,6 @@ export default function LeavePage() {
         {[
           { key: "ALL", label: "My Requests" },
           { key: "RELIEF", label: "Relief Duties", icon: ShieldCheck },
-          { key: "RATINGS", label: "Ratings", icon: Star },
         ].map(({ key, label, icon: Icon }) => {
           const activeActual = mainTab === key
           return (
@@ -1230,13 +1387,10 @@ export default function LeavePage() {
       </div>
 
       {/* Relief Duties panel */}
-      {mainTab === "RELIEF" && <ReliefDutiesPanel />}
+      {mainTab === "RELIEF" && <ReliefDutiesPanel currentUserEmployeeId={user?.employeeId} />}
 
-      {/* Ratings panel */}
-      {mainTab === "RATINGS" && <RatingsPanel isAdmin={!!isAdmin} />}
-
-      {/* Leave content — hidden when on Relief/Ratings tab */}
-      {mainTab !== "RELIEF" && mainTab !== "RATINGS" && balances.length > 0 && (
+      {/* Leave content — hidden when on Relief tab */}
+      {mainTab !== "RELIEF" && balances.length > 0 && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Your Leave Balances</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px,1fr))", gap: 10 }}>
@@ -1246,7 +1400,7 @@ export default function LeavePage() {
       )}
 
       {/* Team on leave */}
-      {mainTab !== "RELIEF" && mainTab !== "RATINGS" && teamOnLeave.length > 0 && (
+      {mainTab !== "RELIEF" && teamOnLeave.length > 0 && (
         <Card>
           <div style={{ padding: "13px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 7 }}><Users size={14} style={{ color: "var(--primary)" }} /> Team Leave</div>
@@ -1267,7 +1421,7 @@ export default function LeavePage() {
       )}
 
       {/* Requests table */}
-      {mainTab !== "RELIEF" && mainTab !== "RATINGS" && <Card>
+      {mainTab !== "RELIEF" && <Card>
         <div style={{ padding: "13px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 13, fontWeight: 700 }}>{canApprove ? "Leave Requests" : "My Leave History"}</div>
           <div style={{ display: "flex", gap: 3, background: "var(--muted)", borderRadius: 7, padding: 3 }}>
@@ -1297,8 +1451,12 @@ export default function LeavePage() {
                 </tr>
               </thead>
               <tbody>
-                {requests.map((req: any) => (
-                  <React.Fragment key={req.id}>
+                {requests.map((req: any) => {
+                  const canEditAsPL = !isAdmin && !!canApprove && req.currentStage === "PENDING_PROJECT_LEAD"
+                  const plAlreadyActed = !isAdmin && !!canApprove && req.approvals?.some((a: any) =>
+                    a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !!a.action
+                  )
+                  return <React.Fragment key={req.id}>
                     <tr style={{ borderBottom: "1px solid var(--border)" }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
@@ -1334,84 +1492,124 @@ export default function LeavePage() {
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                           {req.status === "PENDING" && canApprove && (<>
 
-                            {/* SUPER ADMIN: bypass any stage */}
-                            {isSuperAdmin && req.currentStage !== "AWAITING_RELIEF" && req.approvals?.filter((a: any) => !a.action).map((a: any) => (
-                              <div key={a.id} style={{ display: "flex", gap: 3 }}>
-                                <button onClick={() => approve(req.id, a.stage)} title={`Bypass — approve ${a.stage} stage`} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Check size={10} /> {a.stage.replace(/_/g, " ")}
-                                </button>
-                              </div>
-                            ))}
-                            {isSuperAdmin && req.currentStage !== "AWAITING_RELIEF" && req.approvals?.some((a: any) => !a.action) && (
-                              <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center" }}><X size={11} /></button>
-                            )}
-
-                            {/* ADMIN (not super): nudge only for non-admin stages; approve+reject only their own stage */}
-                            {isAdmin && !isSuperAdmin && (<>
-                              {req.currentStage === "AWAITING_RELIEF" && (
-                                <button onClick={() => nudge(req.id, "RELIEF")} title="Remind relief officers" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> Remind Relief
+                            {/* HR ADMIN (SUPER_ADMIN): remind PL while waiting, approve/reject at HR stage */}
+                            {isSuperAdmin && (<>
+                              {req.currentStage === "PENDING_PROJECT_LEAD" && (
+                                <button onClick={() => nudge(req.id, "PROJECT_LEAD")} style={{ background: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                                  <Bell size={10} /> {sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "Sent" : "Remind PL"}
                                 </button>
                               )}
-                              {req.currentStage === "PENDING_TEAM_LEAD" && (
-                                <button onClick={() => nudge(req.id, "TEAM_LEAD")} title="Remind team lead" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> Remind TL
-                                </button>
-                              )}
-                              {req.currentStage === "PENDING_ADMIN" && (<>
-                                <button onClick={() => approve(req.id, "ADMIN")} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
+                              {req.currentStage === "PENDING_HR_ADMIN" && (<>
+                                <button onClick={() => setApproveTarget({ id: req.id, stage: "HR_ADMIN", req })} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
                                 <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
                               </>)}
                             </>)}
 
-                            {/* TEAM LEAD: approve/reject only at their stage; nudge elsewhere */}
-                            {!isAdmin && (<>
-                              {req.currentStage === "AWAITING_RELIEF" && (
-                                <button onClick={() => nudge(req.id, "RELIEF")} title="Remind relief officers" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> Remind Relief
+                            {/* ADMIN (not super): nudge at non-admin stages, approve/reject at their stage */}
+                            {isAdmin && !isSuperAdmin && (<>
+                              {req.currentStage === "PENDING_PROJECT_LEAD" && (
+                                <button onClick={() => nudge(req.id, "PROJECT_LEAD")} style={{ background: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                                  <Bell size={10} /> {sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "Sent" : "Remind PL"}
                                 </button>
                               )}
-                              {req.currentStage === "PENDING_TEAM_LEAD" && (<>
-                                <button onClick={() => approve(req.id)} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
+                              {req.currentStage === "PENDING_ADMIN" && (<>
+                                <button onClick={() => setApproveTarget({ id: req.id, stage: "ADMIN", req })} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
                                 <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
                               </>)}
+                            </>)}
+
+                            {/* PROJECT LEAD: approve/reject at their stage, remind admin while waiting */}
+                            {!isAdmin && (<>
+                              {req.currentStage === "PENDING_PROJECT_LEAD" && !plAlreadyActed && (<>
+                                <button onClick={() => {
+                                  let handover: any[] = []
+                                  try { handover = JSON.parse(req.handoverNotes ?? "[]") } catch {}
+                                  const myEntry = handover.find((e: any) => e.projectLeadId === user?.employeeId)
+                                  if (myEntry && !myEntry.relieverId) {
+                                    setEditLeaveWarning("You must assign a relief officer before you can approve.")
+                                    setEditLeave(req)
+                                  } else {
+                                    setApproveTarget({ id: req.id, req })
+                                  }
+                                }} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
+                                <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
+                              </>)}
+                              {req.currentStage === "PENDING_PROJECT_LEAD" && plAlreadyActed && (
+                                <span style={{ fontSize: 11, color: "var(--success)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
+                                  <Check size={11} /> Approved · awaiting others
+                                </span>
+                              )}
                               {req.currentStage === "PENDING_ADMIN" && (
-                                <button onClick={() => nudge(req.id, "ADMIN")} title="Remind admin" style={{ background: "var(--warning-bg)", color: "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> Remind Admin
+                                <button onClick={() => nudge(req.id, "ADMIN")} style={{ background: sentNudges.has(`${req.id}:ADMIN`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:ADMIN`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                                  <Bell size={10} /> {sentNudges.has(`${req.id}:ADMIN`) ? "Sent" : "Remind HR"}
                                 </button>
                               )}
                             </>)}
                           </>)}
 
-                          {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) &&
-                            (isAdmin || !(req.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING")) && (
-                            <button onClick={() => setEditLeave(req)} title="Edit request" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }}>
-                              <Edit3 size={12} />
+                          {req.status === "PENDING" && (
+                            (req.employeeId === user?.employeeId && (isAdmin || !(req.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING"))) ||
+                            isAdmin || canEditAsPL
+                          ) && (
+                            <button onClick={() => setEditLeave(req)} style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                              <Edit3 size={11} /> Edit
                             </button>
                           )}
                           {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) && (
-                            <button onClick={() => cancel(req.id)} title="Cancel request" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }}>
-                              <Trash2 size={12} />
+                            <button onClick={() => cancel(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                              <Trash2 size={11} /> Cancel
                             </button>
                           )}
-                          <button onClick={() => setViewLeave(req)} style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 7px", display: "flex", alignItems: "center" }} title="View details">
-                            <Eye size={12} />
+                          <button onClick={() => setViewLeave(req)} style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
+                            <Eye size={11} /> View
                           </button>
                         </div>
                       </td>
                     </tr>
                   </React.Fragment>
-                ))}
+                })}
               </tbody>
             </table>
           </div>
         )}
       </Card>}
 
-      <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} />
+      <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
-      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} onClose={() => setEditLeave(null)} onDone={load} />}
-      {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} />}
+      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={!isAdmin && !!canApprove && editLeave?.currentStage === "PENDING_PROJECT_LEAD"} onClose={() => { setEditLeave(null); setEditLeaveWarning("") }} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} noReliefWarning={editLeaveWarning} />}
+      {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />}
+
+      {/* Approve confirmation modal */}
+      <Modal open={!!approveTarget} onClose={() => { if (!approving) setApproveTarget(null) }} title="Confirm Approval" width={420}>
+        {approveTarget && (
+          <div style={{ padding: "20px 24px" }}>
+            <p style={{ fontSize: 14, color: "var(--muted-foreground)", lineHeight: 1.6, marginBottom: 16 }}>
+              You are about to approve the leave request for{" "}
+              <strong>{approveTarget.req.employee?.firstName} {approveTarget.req.employee?.lastName}</strong>.
+            </p>
+            <div style={{ background: "var(--muted)", borderRadius: 8, padding: "12px 14px", fontSize: 13, display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Leave Type</span>
+                <span style={{ fontWeight: 600 }}>{approveTarget.req.leaveType?.name}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Period</span>
+                <span style={{ fontWeight: 600 }}>{formatDate(approveTarget.req.startDate, "MMM d")} → {formatDate(approveTarget.req.endDate, "MMM d")}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ color: "var(--muted-foreground)" }}>Duration</span>
+                <span style={{ fontWeight: 600 }}>{approveTarget.req.days} day{approveTarget.req.days !== 1 ? "s" : ""}</span>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <Button variant="secondary" size="sm" onClick={() => setApproveTarget(null)} disabled={approving}>Cancel</Button>
+              <Button size="sm" onClick={() => approve(approveTarget.id, approveTarget.stage)} disabled={approving}>
+                {approving ? <><Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} /> Approving…</> : <><Check size={12} /> Confirm Approval</>}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       {/* Cancel confirmation modal */}
       <Modal open={!!cancelTargetId} onClose={() => setCancelTargetId(null)} title="Cancel Leave Request" width={400}>
