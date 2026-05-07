@@ -114,7 +114,7 @@ export default function EditProfilePage() {
   )
 
   return (
-    <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>

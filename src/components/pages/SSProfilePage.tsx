@@ -169,7 +169,7 @@ export default function SSProfilePage() {
   const completeness = profile.completeness ?? 0
 
   return (
-    <div style={{ maxWidth:840, margin:"0 auto", display:"flex", flexDirection:"column", gap:20 }}>
+    <div style={{ display:"flex", flexDirection:"column", gap:20 }}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
 
       {/* Page header */}

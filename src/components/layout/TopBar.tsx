@@ -375,7 +375,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               </div>
               <div style={{ padding: "6px 0" }}>
                 {[
-                  { label: "My Profile", href: profileHref, icon: UserCircle, show: true },
+                  { label: "My Profile", href: profileHref, icon: UserCircle, show: activeRole !== "SUPER_ADMIN" },
                 ].filter(i => i.show).map(item => {
                   const Icon = item.icon
                   return (

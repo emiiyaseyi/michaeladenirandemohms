@@ -152,11 +152,11 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Self Service", icon: "UserCircle", roles: ["SUPER_ADMIN", "ADMIN"], section: "EXTRAS",
     children: [
-      { label: "Profile",          href: "/self-service/profile" },
-      { label: "Payslips",         href: "/self-service/payslips" },
-      { label: "Requisition",      href: "/self-service/requisitions" },
-      { label: "Grievance",        href: "/self-service/grievance" },
-      { label: "Exit",             href: "/self-service/exit" },
+      { label: "Profile",          href: "/self-service/profile",         excludeRoles: ["SUPER_ADMIN"] },
+      { label: "Payslips",         href: "/self-service/payslips",        excludeRoles: ["SUPER_ADMIN"] },
+      { label: "Requisition",      href: "/self-service/requisitions",    excludeRoles: ["SUPER_ADMIN"] },
+      { label: "Grievance",        href: "/self-service/grievance",       excludeRoles: ["SUPER_ADMIN"] },
+      { label: "Exit",             href: "/self-service/exit",            excludeRoles: ["SUPER_ADMIN"] },
       { label: "Change Password",  href: "/self-service/change-password" },
     ],
   },
