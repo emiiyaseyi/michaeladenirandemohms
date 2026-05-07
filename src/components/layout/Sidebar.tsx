@@ -174,7 +174,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
                 {isOpen && (
                   <div style={{ marginBottom: 4 }}>
                     {visible.map(child => {
-                      const childActive = path === child.href
+                      const childActive = path === child.href || path.startsWith(child.href + "/")
                       return (
                         <NavLink key={child.href} href={child.href} label={child.label} active={childActive} indent />
                       )

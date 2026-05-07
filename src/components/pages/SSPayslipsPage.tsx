@@ -262,7 +262,7 @@ export default function SSPayslipsPage() {
   const filtered = filterYear ? payslips.filter(p => p.year === Number(filterYear)) : payslips
 
   return (
-    <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
         <div>

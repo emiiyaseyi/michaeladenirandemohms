@@ -116,14 +116,15 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── OTHER ────────────────────────────────────────────────────────────────────
   {
-    label: "Settings", icon: "Settings", roles: ["ADMIN"], section: "OTHER",
+    label: "Settings", icon: "Settings", roles: ["SUPER_ADMIN"], section: "OTHER",
     children: [
-      { label: "Overview",            href: "/settings" },
       { label: "Admins",              href: "/settings/admins" },
       { label: "HR & Payroll",        href: "/settings/hr-payroll" },
-      { label: "Plan & Billing",      href: "/settings/plan-billing" },
-      { label: "Customization",       href: "/settings/customization" },
+      { label: "Departments",         href: "/settings/departments" },
+      { label: "Leave Types",         href: "/settings/leave-types" },
+      { label: "Public Holidays",     href: "/settings/public-holidays" },
       { label: "Approval Workflows",  href: "/settings/approval-workflows" },
+      { label: "Customization",       href: "/settings/customization" },
       { label: "Single Sign-On",      href: "/settings/single-sign-on" },
       { label: "Roles & Permissions", href: "/settings/roles-permissions" },
     ],
@@ -216,7 +217,7 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
     canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
     canManageOnboarding: true,  canViewOwnOnboarding: true,
     canManageOffboarding: true,
-    canManageSettings: true,
+    canManageSettings: false,
     canViewAnalytics: true,     canViewTeamAnalytics: true,
     isReadOnly: false,
   },

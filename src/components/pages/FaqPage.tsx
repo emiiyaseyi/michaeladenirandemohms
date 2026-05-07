@@ -6,8 +6,8 @@ import { HelpCircle, ChevronDown, ChevronUp, Search } from "lucide-react"
 const FAQS = [
   { cat: "Leave", q: "How do I apply for leave?", a: "Navigate to Self Service → Leave and click 'Apply for Leave'. Select your leave type, dates, and assign relief officers." },
   { cat: "Leave", q: "How are leave days calculated?", a: "Leave days are calculated as working days only — weekends (Saturday and Sunday) and public holidays are automatically excluded." },
-  { cat: "Leave", q: "Can I cancel an approved leave?", a: "Yes, you can cancel a pending or approved leave request from the Leave section, as long as no relief officer has accepted. Once a relief officer accepts, only an Admin can override." },
-  { cat: "Leave", q: "What is a relief officer?", a: "A relief officer is a colleague who covers your responsibilities during your leave. You nominate them when applying, and they must accept or decline within 12 hours." },
+  { cat: "Leave", q: "Can I cancel an approved leave?", a: "Yes, you can cancel a pending or approved leave request from the Leave section at any time. Admins can cancel on behalf of any employee." },
+  { cat: "Leave", q: "What is a relief officer?", a: "A relief officer is a colleague who covers your responsibilities during your leave. You nominate them when applying, and they can accept or decline the assignment." },
   { cat: "Profile", q: "How do I update my profile?", a: "Go to Self Service → My Profile or Dashboard → Edit Profile. You can update personal info, contact, address, next of kin, and bank details." },
   { cat: "Profile", q: "Why can't I change my name or role?", a: "Name, employee ID, job title, and system role are managed by HR and can only be updated by an Admin or HR Admin." },
   { cat: "Profile", q: "How is profile completeness calculated?", a: "Profile completeness is based on 15 required fields: personal info, contact, address, next of kin, and bank details." },
@@ -31,7 +31,7 @@ export default function FAQPage() {
   })
 
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+    <div>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 20, fontWeight: 800 }}>Frequently Asked Questions</h1>
         <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>Find answers to common questions about the HRMS</p>

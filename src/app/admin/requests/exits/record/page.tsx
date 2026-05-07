@@ -91,7 +91,7 @@ export default function RecordExitPage() {
         <span style={{ fontSize: 15, color: "var(--muted-foreground)" }}>Record exit request for employee</span>
       </div>
 
-      <div style={{ maxWidth: 1000, margin: "0 auto", padding: "40px 32px" }}>
+      <div style={{ padding: "40px 32px" }}>
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
           <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
             <h1 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Record Employee Exit</h1>
