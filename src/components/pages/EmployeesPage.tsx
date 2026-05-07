@@ -1,193 +1,387 @@
 "use client"
-import { useState, useEffect, useCallback } from "react"
-import Card from "@/components/ui/Card"
-import Badge from "@/components/ui/Badge"
-import Avatar from "@/components/ui/Avatar"
-import Button from "@/components/ui/Button"
-import Modal from "@/components/ui/Modal"
-import EmptyState from "@/components/ui/EmptyState"
-import { Users, Plus, Search, Download, Edit, Eye, Upload } from "lucide-react"
-import { formatDate } from "@/lib/utils"
-import AddEmployeeForm from "@/components/employees/AddEmployeeForm"
-import EditEmployeeModal from "@/components/employees/EditEmployeeModal"
-import EmployeePreviewModal from "@/components/employees/EmployeePreviewModal"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { useRouter } from "next/navigation"
+import { Search, MoreHorizontal, Loader2, ChevronDown, Check, KeyRound, Eye, Upload, RefreshCw, UserPlus, FileUp, FileDown } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+
+const STATUS_OPTS = [
+  { value: "", label: "All" },
+  { value: "ACTIVE", label: "Active" },
+  { value: "TERMINATED", label: "Inactive" },
+]
+
+const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+  ACTIVE:     { bg: "#DCFCE7", color: "#16a34a", label: "Active" },
+  ON_LEAVE:   { bg: "#FEF3C7", color: "#D97706", label: "On Leave" },
+  TERMINATED: { bg: "#FEE2E2", color: "#DC2626", label: "Inactive" },
+  RESIGNED:   { bg: "#F3F4F6", color: "#6B7280", label: "Resigned" },
+}
+
+const PAGE_SIZES = [10, 20, 50, 100]
+
+function Av({ name, photo }: { name: string; photo?: string | null }) {
+  const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
+  if (photo) return <img src={photo} alt={name} style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+  return <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white", flexShrink: 0 }}>{initials}</div>
+}
+
+function RowMenu({ emp, onView, onReset }: { emp: any; onView: () => void; onReset: () => void }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [open])
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6, color: "var(--muted-foreground)" }}>
+        <MoreHorizontal size={16} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", right: 0, top: "100%", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 150, padding: "4px 0" }}>
+          <button onClick={() => { setOpen(false); onView() }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+            <Eye size={13} /> View
+          </button>
+          <button onClick={() => { setOpen(false); onReset() }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+            <KeyRound size={13} /> Reset Password
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
 
 export default function EmployeesPage() {
   const { user } = useCurrentUser()
+  const router = useRouter()
   const [employees, setEmployees] = useState<any[]>([])
-  const [departments, setDepartments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("ACTIVE")
-  const [deptFilter, setDeptFilter] = useState("")
-  const [addOpen, setAddOpen] = useState(false)
-  const [selected, setSelected] = useState<any>(null)
-  const [editTarget, setEditTarget] = useState<any>(null)
-  const [csvUploading, setCsvUploading] = useState(false)
-  const [csvResult, setCsvResult] = useState<any>(null)
+  const [manageOpen, setManageOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [resetting, setResetting] = useState(false)
+  const [resetTarget, setResetTarget] = useState<any>(null)
+  const [resetMsg, setResetMsg] = useState("")
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
+  const manageRef = useRef<HTMLDivElement>(null)
+  const filterRef = useRef<HTMLDivElement>(null)
+  const pageSizeRef = useRef<HTMLDivElement>(null)
+  const [pageSizeOpen, setPageSizeOpen] = useState(false)
+
+  useEffect(() => {
+    if (!manageOpen) return
+    const h = (e: MouseEvent) => { if (!manageRef.current?.contains(e.target as Node)) setManageOpen(false) }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [manageOpen])
+
+  useEffect(() => {
+    if (!filterOpen) return
+    const h = (e: MouseEvent) => { if (!filterRef.current?.contains(e.target as Node)) setFilterOpen(false) }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [filterOpen])
+
+  useEffect(() => {
+    if (!pageSizeOpen) return
+    const h = (e: MouseEvent) => { if (!pageSizeRef.current?.contains(e.target as Node)) setPageSizeOpen(false) }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [pageSizeOpen])
 
   const load = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams()
     if (search) params.set("search", search)
     if (statusFilter) params.set("status", statusFilter)
-    if (deptFilter) params.set("dept", deptFilter)
     const r = await fetch(`/api/employees?${params}`)
     const data = await r.json()
     setEmployees(data.employees ?? [])
-    setDepartments(data.departments ?? [])
     setLoading(false)
-  }, [search, statusFilter, deptFilter])
+    setSelected(new Set())
+    setPage(1)
+  }, [search, statusFilter])
 
   useEffect(() => { load() }, [load])
 
+  const toggleSelect = (id: string) => {
+    setSelected(s => {
+      const n = new Set(s)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+  }
+
+  const start = (page - 1) * pageSize
+  const paginated = employees.slice(start, start + pageSize)
+  const totalPages = Math.ceil(employees.length / pageSize)
+
+  const toggleAll = () => {
+    if (selected.size === paginated.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(paginated.map(e => e.id)))
+    }
+  }
+
+  const doReset = async (ids: string[]) => {
+    setResetting(true)
+    if (ids.length === 1) {
+      await fetch(`/api/employees/${ids[0]}/reset-password`, { method: "POST" })
+    } else {
+      await fetch("/api/employees/bulk-reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeIds: ids }),
+      })
+    }
+    setResetting(false)
+    setResetTarget(null)
+    setSelected(new Set())
+    setResetMsg(`Password${ids.length > 1 ? "s" : ""} reset to default successfully.`)
+    setTimeout(() => setResetMsg(""), 4000)
+  }
+
+  const th: React.CSSProperties = { padding: "11px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }
+  const td: React.CSSProperties = { padding: "13px 20px", fontSize: 13, borderBottom: "1px solid var(--border)" }
+
+  const filterLabel = STATUS_OPTS.find(o => o.value === statusFilter)?.label ?? "All"
+  const allSelected = paginated.length > 0 && paginated.every(e => selected.has(e.id))
+  const someSelected = selected.size > 0
+
+  const manageItems = [
+    { label: "Add new Employee", icon: <UserPlus size={13} />, href: "/admin/people/employees/add" },
+    { label: "Bulk upload Employees", icon: <FileUp size={13} />, href: "/admin/people/employees/bulk-upload" },
+    { label: "Bulk update Employees", icon: <RefreshCw size={13} />, href: "/admin/people/employees/bulk-update" },
+    { label: "Bulk upload Accounts", icon: <Upload size={13} />, href: "/admin/people/employees/bulk-upload-accounts" },
+    { label: "Bulk upload Annual Earning", icon: <FileDown size={13} />, href: "/admin/people/employees/bulk-upload-earnings" },
+  ]
+
   return (
     <div>
-      {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Employees</h1>
-          <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Manage your workforce</p>
+          <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>{employees.length} employee{employees.length !== 1 ? "s" : ""}</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Button variant="secondary" size="sm" onClick={() => window.open("/api/employees/csv-upload", "_blank")}>
-            <Download size={14} /> Template
-          </Button>
-          {user?.caps.canCreateEmployee && (
-            <>
-              <label style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", color: "var(--foreground)" }}>
-                <Upload size={14} /> {csvUploading ? "Uploading…" : "CSV Upload"}
-                <input type="file" accept=".csv" style={{ display: "none" }} onChange={async e => {
-                  const f = e.target.files?.[0]; if (!f) return
-                  setCsvUploading(true); setCsvResult(null)
-                  const fd = new FormData(); fd.append("file", f)
-                  const r = await fetch("/api/employees/csv-upload", { method: "POST", body: fd })
-                  const d = await r.json()
-                  setCsvResult(d); setCsvUploading(false); e.target.value = ""
-                  if (d.created > 0) load()
-                }} />
-              </label>
-              <Button size="sm" onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button>
-            </>
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          {someSelected && (
+            <button onClick={() => setResetTarget("bulk")} disabled={resetting}
+              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", background: "none", border: "1px solid var(--border)", borderRadius: 9, cursor: resetting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+              <KeyRound size={14} /> Reset {selected.size} Password{selected.size > 1 ? "s" : ""}
+            </button>
+          )}
+          {user?.caps?.canCreateEmployee && (
+            <div ref={manageRef} style={{ position: "relative" }}>
+              <button onClick={() => setManageOpen(o => !o)}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+                Manage <ChevronDown size={14} />
+              </button>
+              {manageOpen && (
+                <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 220, padding: "4px 0" }}>
+                  {manageItems.map(item => (
+                    <button key={item.href} onClick={() => { setManageOpen(false); router.push(item.href) }}
+                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+                      <span style={{ color: "var(--muted-foreground)" }}>{item.icon}</span>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
 
-      {/* Filters */}
-      <Card style={{ padding: "14px 20px", marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "7px 12px", flex: 1, minWidth: 200 }}>
-          <Search size={14} style={{ color: "var(--muted-foreground)" }} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employees..." style={{ border: "none", background: "transparent", fontSize: 13, outline: "none", width: "100%", color: "var(--foreground)" }} />
-        </div>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "7px 12px", fontSize: 13, background: "var(--card)", color: "var(--foreground)", cursor: "pointer" }}>
-          <option value="">All Status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="ON_LEAVE">On Leave</option>
-          <option value="TERMINATED">Terminated</option>
-          <option value="RESIGNED">Resigned</option>
-        </select>
-        <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "7px 12px", fontSize: 13, background: "var(--card)", color: "var(--foreground)", cursor: "pointer" }}>
-          <option value="">All Departments</option>
-          {departments.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-        <div style={{ fontSize: 13, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{employees.length} result{employees.length !== 1 ? "s" : ""}</div>
-      </Card>
-
-      {/* CSV Result Banner */}
-      {csvResult && (
-        <div style={{ padding: "12px 16px", borderRadius: 8, marginBottom: 16, background: csvResult.created > 0 ? "var(--success-bg)" : "var(--warning-bg)", border: `1px solid ${csvResult.created > 0 ? "var(--success)" : "var(--warning)"}`, display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13 }}>
-          <span><strong>{csvResult.created}</strong> employee{csvResult.created !== 1 ? "s" : ""} created, <strong>{csvResult.skipped}</strong> skipped.</span>
-          <button onClick={() => setCsvResult(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1 }}>×</button>
+      {resetMsg && (
+        <div style={{ padding: "11px 16px", borderRadius: 8, marginBottom: 16, background: "#DCFCE7", border: "1px solid #bbf7d0", fontSize: 13, color: "#15803d" }}>
+          {resetMsg}
         </div>
       )}
 
-      {/* Table */}
-      <Card>
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+        {/* Toolbar */}
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "7px 12px", flex: 1, maxWidth: 300 }}>
+            <Search size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employees…"
+              style={{ border: "none", background: "transparent", fontSize: 13, outline: "none", width: "100%", color: "var(--foreground)" }} />
+          </div>
+          <div ref={filterRef} style={{ position: "relative" }}>
+            <button onClick={() => setFilterOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
+              {filterLabel} <ChevronDown size={13} />
+            </button>
+            {filterOpen && (
+              <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 130, padding: "4px 0" }}>
+                {STATUS_OPTS.map(o => (
+                  <button key={o.value} onClick={() => { setStatusFilter(o.value); setFilterOpen(false) }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: statusFilter === o.value ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
+                    {o.label} {statusFilter === o.value && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {loading ? (
-          <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)" }}>Loading...</div>
+          <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <Loader2 size={16} style={{ animation: "spin .8s linear infinite" }} /> Loading…
+          </div>
         ) : employees.length === 0 ? (
-          <EmptyState icon={Users} title="No employees found" description="Add your first employee to get started." action={user?.caps.canCreateEmployee ? <Button onClick={() => setAddOpen(true)}><Plus size={14} /> Add Employee</Button> : undefined} />
+          <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>
+            {search ? "No employees match your search." : "No employees found."}
+          </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Employee Name</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>ID</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Work Email</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Role / Type</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Hire Date</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Department</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Status</th>
-                  <th style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", position: "sticky", right: 0, background: "var(--card)", zIndex: 2, boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", minWidth: 120 }}>Actions</th>
+                <tr>
+                  <th style={{ ...th, width: 44, padding: "11px 16px" }}>
+                    <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
+                  </th>
+                  <th style={th}>Name</th>
+                  <th style={th}>Email Address</th>
+                  <th style={th}>ID Number</th>
+                  <th style={th}>Department</th>
+                  <th style={th}>Job Title</th>
+                  <th style={th}>Phone</th>
+                  <th style={th}>Status</th>
+                  <th style={{ ...th, width: 60 }}></th>
                 </tr>
               </thead>
               <tbody>
-                {employees.map((emp: any) => (
-                  <tr key={emp.id} style={{ borderBottom: "1px solid var(--border)", transition: "background 0.1s" }} onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"} onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
-                    <td style={{ padding: "14px 20px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <Avatar name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} size={36} />
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{emp.firstName} {emp.lastName}</div>
-                      </div>
-                    </td>
-                    <td style={{ padding: "14px 20px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{emp.employeeId}</td>
-                    <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{emp.workEmail ?? "—"}</td>
-                    <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{emp.phone ?? "—"}</td>
-                    <td style={{ padding: "14px 20px" }}>
-                      <div style={{ fontSize: 13 }}>{emp.jobTitle ?? "—"}</div>
-                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{emp.employmentType?.replace(/_/g," ")}</div>
-                    </td>
-                    <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{formatDate(emp.hireDate)}</td>
-                    <td style={{ padding: "14px 20px", fontSize: 13 }}>{emp.department?.name ?? "—"}</td>
-                    <td style={{ padding: "14px 20px" }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 20, background: emp.category === "TECHNICAL" ? "#EEF2FF" : "#FFFBEB", color: emp.category === "TECHNICAL" ? "#6366F1" : "#F59E0B" }}>
-                        {emp.category === "TECHNICAL" ? "Technical" : "Non-Technical"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "14px 20px" }}><Badge status={emp.employeeStatus} /></td>
-                    <td style={{ padding: "14px 20px", position: "sticky", right: 0, background: "var(--card)", boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", zIndex: 1 }}>
-                      <div style={{ display: "flex", gap: 4 }}>
-                        <button onClick={() => setSelected(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="View"><Eye size={13} /></button>
-                        {user?.caps.canEditAnyEmployee && emp.id !== user?.employeeId && (
-                          <button onClick={() => setEditTarget(emp)} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: "5px 8px", color: "var(--muted-foreground)" }} title="Edit"><Edit size={13} /></button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {paginated.map((emp: any) => {
+                  const isSelected = selected.has(emp.id)
+                  const badge = STATUS_BADGE[emp.employeeStatus] ?? { bg: "#F3F4F6", color: "#6B7280", label: emp.employeeStatus }
+                  return (
+                    <tr key={emp.id}
+                      onClick={() => router.push(`/admin/people/employees/${emp.id}`)}
+                      style={{ transition: "background .1s", background: isSelected ? "var(--muted)" : "", cursor: "pointer" }}
+                      onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "var(--muted)" }}
+                      onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "" }}>
+                      <td style={{ ...td, width: 44, padding: "13px 16px" }} onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(emp.id)} style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
+                      </td>
+                      <td style={td}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <Av name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} />
+                          <span style={{ whiteSpace: "nowrap" }}>
+                            <span style={{ fontWeight: 800 }}>{emp.lastName?.toUpperCase()}</span>
+                            {" "}{emp.firstName}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.workEmail ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)", fontFamily: "monospace", fontSize: 12 }}>{emp.employeeId}</td>
+                      <td style={td}>{emp.department?.name ?? "—"}</td>
+                      <td style={td}>{emp.jobTitle ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.phone ?? "—"}</td>
+                      <td style={td}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: badge.bg, color: badge.color, whiteSpace: "nowrap" }}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td style={{ ...td, textAlign: "right" }} onClick={e => e.stopPropagation()}>
+                        <RowMenu emp={emp}
+                          onView={() => router.push(`/admin/people/employees/${emp.id}`)}
+                          onReset={() => setResetTarget(emp)} />
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         )}
-      </Card>
 
-      {/* Add Employee Modal */}
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add New Employee" width={720}>
-        <AddEmployeeForm departments={departments} onSuccess={() => { setAddOpen(false); load() }} currentUserRole={user?.role} />
-      </Modal>
-
-      {/* Edit Employee Modal */}
-      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title={`Edit — ${editTarget?.firstName ?? ""} ${editTarget?.lastName ?? ""}`} width={720}>
-        {editTarget && (
-          <EditEmployeeModal
-            employee={editTarget}
-            departments={departments}
-            employees={employees}
-            onClose={() => setEditTarget(null)}
-            onSuccess={load}
-            currentUserRole={user?.role}
-          />
+        {/* Pagination footer */}
+        {employees.length > 0 && (
+          <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, color: "var(--muted-foreground)" }}>
+            <span>
+              {start + 1}–{Math.min(start + pageSize, employees.length)} of {employees.length} items
+              {someSelected ? ` · ${selected.size} selected` : ""}
+            </span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {totalPages > 1 && (
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+                    style={{ padding: "4px 10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 7, cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.4 : 1, fontSize: 13 }}>‹</button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    const pg = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i
+                    return (
+                      <button key={pg} onClick={() => setPage(pg)}
+                        style={{ padding: "4px 10px", background: page === pg ? "var(--primary)" : "var(--muted)", border: `1px solid ${page === pg ? "var(--primary)" : "var(--border)"}`, borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: page === pg ? 700 : 400, color: page === pg ? "white" : "var(--foreground)" }}>
+                        {pg}
+                      </button>
+                    )
+                  })}
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+                    style={{ padding: "4px 10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 7, cursor: page >= totalPages ? "default" : "pointer", opacity: page >= totalPages ? 0.4 : 1, fontSize: 13 }}>›</button>
+                </div>
+              )}
+              <div ref={pageSizeRef} style={{ position: "relative" }}>
+                <button onClick={() => setPageSizeOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 7, cursor: "pointer", fontSize: 13, color: "var(--foreground)", fontWeight: 600 }}>
+                  {pageSize} / page <ChevronDown size={12} />
+                </button>
+                {pageSizeOpen && (
+                  <div style={{ position: "absolute", bottom: "100%", right: 0, marginBottom: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 110, padding: "4px 0" }}>
+                    {PAGE_SIZES.map(s => (
+                      <button key={s} onClick={() => { setPageSize(s); setPage(1); setPageSizeOpen(false) }}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 14px", background: pageSize === s ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
+                        {s} / page {pageSize === s && <Check size={12} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
-      </Modal>
+      </div>
 
-      {/* View Employee Modal */}
-      <Modal open={!!selected} onClose={() => setSelected(null)} title="Employee Profile" width={660}>
-        {selected && <EmployeePreviewModal employee={selected} />}
-      </Modal>
+      {/* Single Reset Confirm */}
+      {resetTarget && resetTarget !== "bulk" && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Reset Password</h2>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>
+              Reset the password for <strong>{resetTarget.firstName} {resetTarget.lastName}</strong> to the system default? They'll be required to change it on next login.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setResetTarget(null)} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
+              <button onClick={() => doReset([resetTarget.id])} disabled={resetting} style={{ padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: resetting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 7 }}>
+                {resetting ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Resetting…</> : "Reset Password"}
+              </button>
+            </div>
+          </div>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      )}
+
+      {/* Bulk Reset Confirm */}
+      {resetTarget === "bulk" && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>Reset Multiple Passwords</h2>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>
+              Reset the passwords for <strong>{selected.size} employee{selected.size > 1 ? "s" : ""}</strong> to the system default? They'll each be required to change it on next login.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setResetTarget(null)} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
+              <button onClick={() => doReset(Array.from(selected))} disabled={resetting} style={{ padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: resetting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 7 }}>
+                {resetting ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Resetting…</> : "Reset Passwords"}
+              </button>
+            </div>
+          </div>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      )}
     </div>
   )
 }

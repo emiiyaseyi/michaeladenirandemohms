@@ -99,11 +99,6 @@ export async function POST(req: NextRequest) {
   }
   if (!employeeId) employeeId = user.employeeId
 
-  // HR Admin (SUPER_ADMIN) cannot apply for leave for themselves
-  if (user.role === "SUPER_ADMIN" && employeeId === user.employeeId) {
-    return forbidden("HR Admin cannot apply for leave")
-  }
-
   if (!employeeId || !leaveTypeId || !startDate || !endDate || !reason) {
     return NextResponse.json({ error: "All required fields must be provided" }, { status: 400 })
   }

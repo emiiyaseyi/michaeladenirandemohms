@@ -592,11 +592,20 @@ export default function SettingsPage() {
               <div>
                 {holidays.map(h => (
                   <div key={h.id} style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{h.name}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontWeight: 600, fontSize: 13 }}>{h.name}</span>
+                      {!h.isCustom && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "#EEF2FF", color: "#6366F1" }}>System</span>
+                      )}
+                    </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{new Date(h.date).toLocaleDateString("en-NG", { weekday: "long", day: "numeric", month: "long" })}</span>
-                      <button onClick={() => { setEditingHoliday(h); setHolidayForm({ name: h.name, date: new Date(h.date).toISOString().slice(0, 10) }); setSettingsError(""); setHolidayOpen(true) }} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--foreground)", fontWeight: 600 }}><Pencil size={12} /> Edit</button>
-                      <button onClick={() => { setSettingsError(""); deleteHoliday(h.id) }} style={{ background: "var(--danger-bg)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--danger)", fontWeight: 600 }}><Trash2 size={12} /> Delete</button>
+                      {h.isCustom && (
+                        <>
+                          <button onClick={() => { setEditingHoliday(h); setHolidayForm({ name: h.name, date: new Date(h.date).toISOString().slice(0, 10) }); setSettingsError(""); setHolidayOpen(true) }} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--foreground)", fontWeight: 600 }}><Pencil size={12} /> Edit</button>
+                          <button onClick={() => { setSettingsError(""); deleteHoliday(h.id) }} style={{ background: "var(--danger-bg)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--danger)", fontWeight: 600 }}><Trash2 size={12} /> Delete</button>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}

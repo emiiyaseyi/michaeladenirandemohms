@@ -60,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     "departmentId", "jobTitle", "employmentType", "employeeStatus",
     "hireDate", "confirmationDate", "endDate",
     "managerId", "projectLeadId", "teamId",
-    "bankName", "bankAccountNo", "bankAccountName", "pensionPin", "tin", "nhfNo",
+    "bankName", "bankAccountNo", "bankAccountName", "pensionPin", "tin", "nhfNo", "nin", "aiMembership",
     "grossSalary", "onProbation", "probationEndDate",
     "nokName", "nokPhone", "nokRelationship", "nokAddress",
     "annualLeaveBalance", "sickLeaveBalance",

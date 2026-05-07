@@ -180,6 +180,36 @@ body.mobile-nav-open .mobile-nav-overlay { display: block; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 main { min-width: 0; }
 
+/* ─── Responsive grid utilities ──────────────────────────────── */
+.grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.grid-3col {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+.grid-4col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+@media (max-width: 899px) {
+  .grid-2col { grid-template-columns: 1fr !important; }
+  .grid-3col { grid-template-columns: 1fr !important; }
+  .grid-4col { grid-template-columns: 1fr 1fr !important; }
+  .side-panel { width: 100vw !important; }
+  .page-header { flex-direction: column !important; align-items: flex-start !important; gap: 12px !important; }
+  .hide-mobile { display: none !important; }
+}
+@media (max-width: 640px) {
+  .grid-2col { grid-template-columns: 1fr !important; }
+  .grid-4col { grid-template-columns: 1fr 1fr !important; }
+  .side-panel { width: 100vw !important; }
+}
+
 /* ─── Announcement animations ─────────────────────────────────── */
 @keyframes marquee {
   0%   { transform: translateX(0) }

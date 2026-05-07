@@ -48,7 +48,6 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Org. Chart",         href: "/people/org-chart" },
       { label: "Job Titles",         href: "/people/job-titles",         excludeRoles: ["PROJECT_LEAD"] },
       { label: "Profile Requests",   href: "/people/profile-requests",   excludeRoles: ["PROJECT_LEAD"] },
-      { label: "Personal Documents", href: "/people/personal-docs",      excludeRoles: ["PROJECT_LEAD"] },
     ],
   },
   {

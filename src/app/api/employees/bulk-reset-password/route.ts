@@ -1,0 +1,30 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import bcrypt from "bcryptjs"
+
+export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canManageSettings && !caps(user.role).canViewAllEmployees) return forbidden()
+
+  const { employeeIds } = await req.json()
+  if (!Array.isArray(employeeIds) || employeeIds.length === 0) {
+    return NextResponse.json({ error: "employeeIds array is required" }, { status: 400 })
+  }
+
+  const employees = await prisma.employee.findMany({
+    where: { id: { in: employeeIds } },
+    select: { userId: true },
+  })
+
+  const defaultPwd = process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1"
+  const hashed = await bcrypt.hash(defaultPwd, 10)
+
+  await prisma.user.updateMany({
+    where: { id: { in: employees.map(e => e.userId) } },
+    data: { password: hashed, mustChangePassword: true },
+  })
+
+  return NextResponse.json({ ok: true, count: employees.length })
+}

@@ -89,10 +89,13 @@ model Department {
   division      Division?      @relation(fields: [divisionId], references: [id])
   parent        Department?    @relation("DeptHierarchy", fields: [parentId], references: [id])
   children      Department[]   @relation("DeptHierarchy")
-  employees     Employee[]
-  teams         Team[]
-  jobPostings   JobPosting[]
-  leaveRequests LeaveRequest[]
+  employees              Employee[]
+  teams                  Team[]
+  jobPostings            JobPosting[]
+  leaveRequests          LeaveRequest[]
+  redeployedFromHere     RedeploymentRequest[] @relation("RedeployFromDept")
+  redeployedToHere       RedeploymentRequest[] @relation("RedeployToDept")
+  offerLetters           OfferLetter[]
 }
 
 model Team {
@@ -150,6 +153,8 @@ model Employee {
   pensionPin         String?
   tin                String?
   nhfNo              String?
+  nin                String?
+  aiMembership       String?
   grossSalary        Float?
   nokName            String?
   nokPhone           String?
@@ -192,6 +197,13 @@ model Employee {
   successionPlans    SuccessionPlan[]     @relation("SuccessorEmployee")
   weeklyReports      WeeklyReport[]
   payslips           Payslip[]
+  signatoryRecord    CompanySignatory?
+  loanRequests         LoanRequest[]
+  salaryAdvances       SalaryAdvanceRequest[]
+  redeploymentRequests RedeploymentRequest[]
+  documentRequests     DocumentRequest[]
+  offerLettersSent     OfferLetter[]        @relation("OfferManager")
+  customGroupMemberships CustomGroupMember[]
 }
 
 model Document {
@@ -380,6 +392,45 @@ model Offer {
   application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 }
 
+model OfferLetter {
+  id             String      @id @default(cuid())
+  candidateName  String
+  candidateEmail String
+  jobTitle       String?
+  departmentId   String?
+  managerId      String?
+  hireDate       DateTime?
+  salary         Float?
+  letterText     String?
+  status         OfferStatus @default(PENDING)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  department     Department? @relation(fields: [departmentId], references: [id])
+  manager        Employee?   @relation("OfferManager", fields: [managerId], references: [id])
+}
+
+model CustomGroup {
+  id              String              @id @default(cuid())
+  name            String              @unique
+  description     String?
+  groupByCurrency Boolean             @default(false)
+  status          String              @default("ACTIVE")
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  members         CustomGroupMember[]
+}
+
+model CustomGroupMember {
+  id         String      @id @default(cuid())
+  groupId    String
+  employeeId String
+  createdAt  DateTime    @default(now())
+  group      CustomGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, employeeId])
+}
+
 model OnboardingTask {
   id          String             @id @default(cuid())
   employeeId  String
@@ -419,7 +470,52 @@ model PublicHoliday {
   name      String
   date      DateTime
   year      Int
+  isCustom  Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+model JobTitle {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model LoanRequest {
+  id               String   @id @default(cuid())
+  employeeId       String
+  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  policyName       String?
+  amount           Float
+  repaymentTenor   Int
+  interval         String   @default("Months")
+  reason           String?
+  noteForUser      String?
+  documentUrl      String?
+  status           String   @default("PENDING")
+  disburseWithPayroll Boolean @default(false)
+  deductFromPayroll   Boolean @default(false)
+  declineReason    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model SalaryAdvanceRequest {
+  id             String   @id @default(cuid())
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  policyName     String?
+  amount         Float
+  repaymentTenor Int
+  interval       String   @default("Months")
+  reason         String?
+  noteForUser    String?
+  documentUrl    String?
+  status         String   @default("PENDING")
+  declineReason  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model LeaveFreezeperiod {
@@ -1015,6 +1111,34 @@ model Payslip {
   @@unique([employeeId, month, year])
 }
 
+model Workplace {
+  id           String   @id @default(cuid())
+  displayName  String
+  addressLine1 String
+  addressLine2 String?
+  city         String?
+  state        String?
+  country      String   @default("Nigeria")
+  zipCode      String?
+  phone        String
+  taxOffice    String?
+  taxId        String?
+  nhfLocation  String?
+  isFiling     Boolean  @default(false)
+  isMailing    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model CompanySignatory {
+  id         String   @id @default(cuid())
+  employeeId String   @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
 enum NotificationType {
   INFO
   SUCCESS
@@ -1090,4 +1214,36 @@ model PersonalDocument {
   updatedAt   DateTime          @updatedAt
   employee    Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   reviewer    User?             @relation("PersonalDocReviewer", fields: [reviewedBy], references: [id])
+}
+
+model RedeploymentRequest {
+  id               String   @id @default(cuid())
+  employeeId       String
+  fromDepartmentId String?
+  toDepartmentId   String?
+  fromJobTitle     String?
+  toJobTitle       String?
+  effectiveDate    DateTime?
+  reason           String?
+  noteForUser      String?
+  status           String   @default("PENDING")
+  declineReason    String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  fromDepartment   Department? @relation("RedeployFromDept", fields: [fromDepartmentId], references: [id])
+  toDepartment     Department? @relation("RedeployToDept", fields: [toDepartmentId], references: [id])
+}
+
+model DocumentRequest {
+  id           String   @id @default(cuid())
+  employeeId   String
+  documentType String
+  purpose      String?
+  notes        String?
+  status       String   @default("PENDING")
+  declineReason String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }

@@ -7,7 +7,6 @@ const SECTION_TITLES: Record<string, string> = {
   "employees":                 "Employees",
   "employees/teams":           "Teams",
   "employees/profile-requests":"Profile Update Requests",
-  "employees/personal-docs":   "Personal Documents",
   "leave":                     "Leave Management",
   "recruitment":               "Recruitment & ATS",
   "performance":               "Performance Management",

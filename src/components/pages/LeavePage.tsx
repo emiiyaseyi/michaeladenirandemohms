@@ -85,6 +85,8 @@ function ReliefOfficerSearch({ employees, selected, onChange }: { employees: any
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
+
+  
   useEffect(() => {
     const handler = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
     document.addEventListener("mousedown", handler)
@@ -1262,13 +1264,9 @@ export default function LeavePage() {
   const [employeeGender, setEmployeeGender] = useState<string | undefined>()
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>("ALL")
-  const [mainTab, setMainTab] = useState<MainTab>(() => {
-    // Will be corrected in useEffect after hydration
-    return "ALL"
-  })
+  const [mainTab, setMainTab] = useState<MainTab>("ALL")
   const [applyOpen, setApplyOpen] = useState(false)
   const [rejectId, setRejectId] = useState("")
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editLeave, setEditLeave] = useState<any | null>(null)
   const [viewLeave, setViewLeave] = useState<any | null>(null)
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null)
@@ -1276,6 +1274,10 @@ export default function LeavePage() {
   const [approveTarget, setApproveTarget] = useState<{ id: string; stage?: string; req: any } | null>(null)
   const [approving, setApproving] = useState(false)
   const [editLeaveWarning, setEditLeaveWarning] = useState("")
+  const [reviewReq, setReviewReq] = useState<any | null>(null)
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 20
 
   const canApprove = user?.caps?.canApproveLeave
   const canSubmit = user?.caps?.canSubmitLeave
@@ -1350,6 +1352,22 @@ export default function LeavePage() {
 
   const statusTabs: Tab[] = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED"]
 
+  const filteredRequests = requests.filter(r => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (
+      `${r.employee?.firstName} ${r.employee?.lastName}`.toLowerCase().includes(q) ||
+      r.leaveType?.name?.toLowerCase().includes(q) ||
+      r.employee?.department?.name?.toLowerCase().includes(q)
+    )
+  })
+  const pendingCount = requests.filter(r => r.status === "PENDING" && (
+    (isSuperAdmin && r.currentStage === "PENDING_HR_ADMIN") ||
+    (isAdmin && !isSuperAdmin && r.currentStage === "PENDING_ADMIN")
+  )).length
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE))
+  const pagedRequests = filteredRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
@@ -1361,7 +1379,17 @@ export default function LeavePage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {canSubmit && !isSuperAdmin && <Button size="sm" onClick={() => setApplyOpen(true)}><Plus size={13} /> Apply for Leave</Button>}
+          {isAdmin && (
+            <button onClick={() => router.push(pathname.startsWith("/admin") ? "/admin/requests/leave/record" : "/project-lead/requests/leave/record")}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+              <Plus size={13} /> Record Leave for an Employee
+            </button>
+          )}
+          {canSubmit && !isSuperAdmin && (
+            <button onClick={() => setApplyOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+              <Plus size={13} /> Apply for Leave
+            </button>
+          )}
         </div>
       </div>
 
@@ -1390,7 +1418,18 @@ export default function LeavePage() {
       {mainTab === "RELIEF" && <ReliefDutiesPanel currentUserEmployeeId={user?.employeeId} />}
 
       {/* Leave content — hidden when on Relief tab */}
-      {mainTab !== "RELIEF" && balances.length > 0 && (
+      {mainTab !== "RELIEF" && pendingCount > 0 && (
+        <div style={{ padding: "12px 16px", background: "rgba(234,179,8,0.1)", border: "1px solid var(--warning)", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
+          <AlertCircle size={16} style={{ color: "var(--warning)", flexShrink: 0 }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--warning)" }}>
+            {pendingCount} leave request{pendingCount !== 1 ? "s" : ""} awaiting your approval
+          </span>
+          <button onClick={() => setTab("PENDING")} style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: "var(--warning)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+            Review now
+          </button>
+        </div>
+      )}
+      {mainTab !== "RELIEF" && !isAdmin && balances.length > 0 && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Your Leave Balances</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px,1fr))", gap: 10 }}>
@@ -1422,14 +1461,18 @@ export default function LeavePage() {
 
       {/* Requests table */}
       {mainTab !== "RELIEF" && <Card>
-        <div style={{ padding: "13px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>{canApprove ? "Leave Requests" : "My Leave History"}</div>
-          <div style={{ display: "flex", gap: 3, background: "var(--muted)", borderRadius: 7, padding: 3 }}>
+        <div style={{ padding: "13px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 3, background: "var(--muted)", borderRadius: 7, padding: 3, flexShrink: 0 }}>
             {statusTabs.map(t => (
-              <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 10px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: tab === t ? "var(--card)" : "transparent", color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", transition: "all .15s" }}>
+              <button key={t} onClick={() => { setTab(t); setPage(1) }} style={{ padding: "4px 10px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: tab === t ? "var(--card)" : "transparent", color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", transition: "all .15s" }}>
                 {t.charAt(0) + t.slice(1).toLowerCase()}
               </button>
             ))}
+          </div>
+          <div style={{ position: "relative" }}>
+            <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)", pointerEvents: "none" }} />
+            <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search employee or leave type…"
+              style={{ paddingLeft: 30, paddingRight: 10, paddingTop: 7, paddingBottom: 7, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", width: 220, outline: "none" }} />
           </div>
         </div>
 
@@ -1437,142 +1480,231 @@ export default function LeavePage() {
           <div style={{ padding: 50, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--muted-foreground)" }}>
             <Loader2 size={16} style={{ animation: "spin .8s linear infinite" }} /> Loading…
           </div>
-        ) : requests.length === 0 ? (
-          <EmptyState icon={CalendarDays} title="No leave requests" description="No requests match this filter." />
+        ) : pagedRequests.length === 0 ? (
+          <EmptyState icon={CalendarDays} title="No leave requests" description={search ? "No requests match your search." : "No requests match this filter."} />
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Employee", "Leave Type", "Days", "Dates", "Status", "Approval"].map(h => (
+                  {["Employee", "Leave Type", "Period", "Days", "Status", "Stage"].map(h => (
                     <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
-                  <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", position: "sticky", right: 0, background: "var(--card)", zIndex: 2, boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", minWidth: 160 }}>Actions</th>
+                  <th style={{ padding: "10px 14px", textAlign: "right", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {requests.map((req: any) => {
-                  const canEditAsPL = !isAdmin && !!canApprove && req.currentStage === "PENDING_PROJECT_LEAD"
-                  const plAlreadyActed = !isAdmin && !!canApprove && req.approvals?.some((a: any) =>
-                    a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !!a.action
-                  )
-                  return <React.Fragment key={req.id}>
-                    <tr style={{ borderBottom: "1px solid var(--border)" }}
+                {pagedRequests.map((req: any) => {
+                  return (
+                    <tr key={req.id}
+                      onClick={() => setReviewReq(req)}
+                      style={{ borderBottom: "1px solid var(--border)", cursor: "pointer" }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
-                      <td style={{ padding: "11px 14px" }}>
+                      <td style={{ padding: "12px 14px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                           <Avatar name={`${req.employee?.firstName} ${req.employee?.lastName}`} photo={req.employee?.profilePhoto} size={30} />
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: 13 }}>{req.employee?.firstName} {req.employee?.lastName}</div>
+                            <div style={{ fontSize: 13 }}>
+                              <span style={{ fontWeight: 800, textTransform: "uppercase" }}>{req.employee?.lastName}</span>{" "}{req.employee?.firstName}
+                            </div>
                             <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{req.employee?.department?.name ?? "—"}</div>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: "11px 14px", fontSize: 13 }}>{req.leaveType?.name}</td>
-                      <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
-                      <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
-                      <td style={{ padding: "11px 14px" }}><Badge status={req.currentStage ?? req.status} /></td>
-                      <td style={{ padding: "11px 14px" }}>
+                      <td style={{ padding: "12px 14px", fontSize: 13 }}>{req.leaveType?.name}</td>
+                      <td style={{ padding: "12px 14px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
+                      <td style={{ padding: "12px 14px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
+                      <td style={{ padding: "12px 14px" }}><Badge status={req.currentStage ?? req.status} /></td>
+                      <td style={{ padding: "12px 14px" }}>
                         {req.currentStage === "AWAITING_RELIEF" ? (
                           <div style={{ fontSize: 11, color: "var(--warning)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
                             <Clock size={11} />
-                            {(req.reliefOfficersList ?? []).filter((r: any) => r.status === "PENDING").length} relief pending
+                            {(req.reliefOfficersList ?? []).filter((r: any) => r.status === "PENDING").length} pending
                           </div>
-                        ) : (
-                          <>
-                            {req.approvals?.length > 0 && <StageBar approvals={req.approvals} />}
+                        ) : req.approvals?.length > 0 ? (
+                          <div>
+                            <StageBar approvals={req.approvals} />
                             {req.status === "PENDING" && req.approvals?.find((a: any) => !a.action) && (
                               <div style={{ marginTop: 3 }}><CountdownTimer deadline={req.approvals.find((a: any) => !a.action)?.deadline} /></div>
                             )}
-                          </>
-                        )}
+                          </div>
+                        ) : <span style={{ color: "var(--muted-foreground)", fontSize: 12 }}>—</span>}
                       </td>
-                      <td style={{ padding: "11px 14px", position: "sticky", right: 0, background: "var(--card)", boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", zIndex: 1 }}>
-                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                          {req.status === "PENDING" && canApprove && (<>
-
-                            {/* HR ADMIN (SUPER_ADMIN): remind PL while waiting, approve/reject at HR stage */}
-                            {isSuperAdmin && (<>
-                              {req.currentStage === "PENDING_PROJECT_LEAD" && (
-                                <button onClick={() => nudge(req.id, "PROJECT_LEAD")} style={{ background: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> {sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "Sent" : "Remind PL"}
-                                </button>
-                              )}
-                              {req.currentStage === "PENDING_HR_ADMIN" && (<>
-                                <button onClick={() => setApproveTarget({ id: req.id, stage: "HR_ADMIN", req })} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
-                                <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
-                              </>)}
-                            </>)}
-
-                            {/* ADMIN (not super): nudge at non-admin stages, approve/reject at their stage */}
-                            {isAdmin && !isSuperAdmin && (<>
-                              {req.currentStage === "PENDING_PROJECT_LEAD" && (
-                                <button onClick={() => nudge(req.id, "PROJECT_LEAD")} style={{ background: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> {sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "Sent" : "Remind PL"}
-                                </button>
-                              )}
-                              {req.currentStage === "PENDING_ADMIN" && (<>
-                                <button onClick={() => setApproveTarget({ id: req.id, stage: "ADMIN", req })} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
-                                <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
-                              </>)}
-                            </>)}
-
-                            {/* PROJECT LEAD: approve/reject at their stage, remind admin while waiting */}
-                            {!isAdmin && (<>
-                              {req.currentStage === "PENDING_PROJECT_LEAD" && !plAlreadyActed && (<>
-                                <button onClick={() => {
-                                  let handover: any[] = []
-                                  try { handover = JSON.parse(req.handoverNotes ?? "[]") } catch {}
-                                  const myEntry = handover.find((e: any) => e.projectLeadId === user?.employeeId)
-                                  if (myEntry && !myEntry.relieverId) {
-                                    setEditLeaveWarning("You must assign a relief officer before you can approve.")
-                                    setEditLeave(req)
-                                  } else {
-                                    setApproveTarget({ id: req.id, req })
-                                  }
-                                }} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
-                                <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
-                              </>)}
-                              {req.currentStage === "PENDING_PROJECT_LEAD" && plAlreadyActed && (
-                                <span style={{ fontSize: 11, color: "var(--success)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
-                                  <Check size={11} /> Approved · awaiting others
-                                </span>
-                              )}
-                              {req.currentStage === "PENDING_ADMIN" && (
-                                <button onClick={() => nudge(req.id, "ADMIN")} style={{ background: sentNudges.has(`${req.id}:ADMIN`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:ADMIN`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> {sentNudges.has(`${req.id}:ADMIN`) ? "Sent" : "Remind HR"}
-                                </button>
-                              )}
-                            </>)}
-                          </>)}
-
-                          {req.status === "PENDING" && (
-                            (req.employeeId === user?.employeeId && (isAdmin || !(req.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING"))) ||
-                            isAdmin || canEditAsPL
-                          ) && (
-                            <button onClick={() => setEditLeave(req)} style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                              <Edit3 size={11} /> Edit
-                            </button>
-                          )}
-                          {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) && (
-                            <button onClick={() => cancel(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                              <Trash2 size={11} /> Cancel
-                            </button>
-                          )}
-                          <button onClick={() => setViewLeave(req)} style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                            <Eye size={11} /> View
-                          </button>
-                        </div>
+                      <td style={{ padding: "12px 14px", textAlign: "right" }}>
+                        <button onClick={e => { e.stopPropagation(); setReviewReq(req) }}
+                          style={{ padding: "5px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "var(--foreground)", whiteSpace: "nowrap" }}>
+                          Review
+                        </button>
                       </td>
                     </tr>
-                  </React.Fragment>
+                  )
                 })}
               </tbody>
             </table>
           </div>
         )}
+        {!loading && filteredRequests.length > PAGE_SIZE && (
+          <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+              {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filteredRequests.length)} of {filteredRequests.length} requests
+            </span>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
+                style={{ padding: "5px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 12, opacity: page === 1 ? 0.5 : 1, display: "flex", alignItems: "center" }}>
+                <ChevronLeft size={14} />
+              </button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i
+                return p <= totalPages ? (
+                  <button key={p} onClick={() => setPage(p)}
+                    style={{ padding: "5px 10px", border: "1px solid var(--border)", borderRadius: 6, background: p === page ? "var(--primary)" : "var(--muted)", color: p === page ? "white" : "var(--foreground)", cursor: "pointer", fontSize: 12, fontWeight: p === page ? 700 : 400 }}>
+                    {p}
+                  </button>
+                ) : null
+              })}
+              <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}
+                style={{ padding: "5px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, opacity: page === totalPages ? 0.5 : 1, display: "flex", alignItems: "center" }}>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </Card>}
+
+      {/* Review slide-in panel */}
+      {reviewReq && (
+        <>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.18)", zIndex: 40 }} onClick={() => setReviewReq(null)} />
+          <div className="side-panel" style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 520, background: "var(--card)", borderLeft: "1px solid var(--border)", zIndex: 50, display: "flex", flexDirection: "column", boxShadow: "-8px 0 32px rgba(0,0,0,0.12)", overflowY: "auto" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--card)", zIndex: 10 }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>Leave Request</div>
+              <button onClick={() => setReviewReq(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 4, borderRadius: 6, display: "flex" }}><X size={18} /></button>
+            </div>
+            <div style={{ padding: "20px", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <Avatar name={`${reviewReq.employee?.firstName} ${reviewReq.employee?.lastName}`} photo={reviewReq.employee?.profilePhoto} size={44} />
+                <div>
+                  <div style={{ fontSize: 15 }}><span style={{ fontWeight: 800, textTransform: "uppercase" }}>{reviewReq.employee?.lastName}</span> {reviewReq.employee?.firstName}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{reviewReq.employee?.department?.name ?? "—"}</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 12 }}>
+              {([
+                ["Leave Type", reviewReq.leaveType?.name ?? "—"],
+                ["Duration", `${reviewReq.days} day${reviewReq.days !== 1 ? "s" : ""}`],
+                ["Start Date", formatDate(reviewReq.startDate, "MMM d, yyyy")],
+                ["End Date", formatDate(reviewReq.endDate, "MMM d, yyyy")],
+                ...(reviewReq.reason ? [["Reason", reviewReq.reason]] : []),
+              ] as [string, string][]).map(([label, value]) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                  <span style={{ fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600, flexShrink: 0 }}>{label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, textAlign: "right" }}>{value}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600 }}>Status</span>
+                <Badge status={reviewReq.currentStage ?? reviewReq.status} />
+              </div>
+            </div>
+            {reviewReq.approvals?.length > 0 && (
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Approval Chain</div>
+                <div style={{ marginBottom: 8 }}><StageBar approvals={reviewReq.approvals} /></div>
+                {reviewReq.status === "PENDING" && reviewReq.approvals?.find((a: any) => !a.action) && (
+                  <CountdownTimer deadline={reviewReq.approvals.find((a: any) => !a.action)?.deadline} />
+                )}
+              </div>
+            )}
+            {(reviewReq.reliefOfficersList ?? []).length > 0 && (
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Relief Officers</div>
+                {(reviewReq.reliefOfficersList ?? []).map((r: any, i: number) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: i > 0 ? 8 : 0, paddingBottom: 8, borderBottom: i < reviewReq.reliefOfficersList.length - 1 ? "1px solid var(--border)" : "none" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : (r.name ?? r.relieverId)}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: r.status === "ACCEPTED" ? "var(--success-bg)" : r.status === "DECLINED" ? "var(--danger-bg)" : "var(--warning-bg)", color: r.status === "ACCEPTED" ? "var(--success)" : r.status === "DECLINED" ? "var(--accent)" : "var(--warning)" }}>{r.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 8, marginTop: "auto", borderTop: "1px solid var(--border)" }}>
+              <button onClick={() => { setViewLeave(reviewReq); setReviewReq(null) }}
+                style={{ width: "100%", padding: "10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <Eye size={14} /> View Full Details
+              </button>
+              {reviewReq.status === "PENDING" && canApprove && isSuperAdmin && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && (
+                <button onClick={() => nudge(reviewReq.id, "PROJECT_LEAD")}
+                  style={{ width: "100%", padding: "10px", background: sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Bell size={14} /> {sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "Reminder Sent" : "Remind Project Lead"}
+                </button>
+              )}
+              {reviewReq.status === "PENDING" && canApprove && isSuperAdmin && reviewReq.currentStage === "PENDING_HR_ADMIN" && (<>
+                <button onClick={() => { setApproveTarget({ id: reviewReq.id, stage: "HR_ADMIN", req: reviewReq }); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--success-bg)", color: "var(--success)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Check size={14} /> Approve Leave
+                </button>
+                <button onClick={() => { setRejectId(reviewReq.id); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <X size={14} /> Reject Leave
+                </button>
+              </>)}
+              {reviewReq.status === "PENDING" && canApprove && isAdmin && !isSuperAdmin && reviewReq.currentStage === "PENDING_ADMIN" && (<>
+                <button onClick={() => { setApproveTarget({ id: reviewReq.id, stage: "ADMIN", req: reviewReq }); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--success-bg)", color: "var(--success)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Check size={14} /> Approve Leave
+                </button>
+                <button onClick={() => { setRejectId(reviewReq.id); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <X size={14} /> Reject Leave
+                </button>
+              </>)}
+              {reviewReq.status === "PENDING" && canApprove && isAdmin && !isSuperAdmin && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && (
+                <button onClick={() => nudge(reviewReq.id, "PROJECT_LEAD")}
+                  style={{ width: "100%", padding: "10px", background: sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Bell size={14} /> {sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "Sent" : "Remind Project Lead"}
+                </button>
+              )}
+              {reviewReq.status === "PENDING" && canApprove && !isAdmin && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && !reviewReq.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !!a.action) && (<>
+                <button onClick={() => {
+                  let handover: any[] = []
+                  try { handover = JSON.parse(reviewReq.handoverNotes ?? "[]") } catch {}
+                  const myEntry = handover.find((e: any) => e.projectLeadId === user?.employeeId)
+                  if (myEntry && !myEntry.relieverId) { setEditLeaveWarning("You must assign a relief officer before you can approve."); setEditLeave(reviewReq) }
+                  else setApproveTarget({ id: reviewReq.id, req: reviewReq })
+                  setReviewReq(null)
+                }} style={{ width: "100%", padding: "10px", background: "var(--success-bg)", color: "var(--success)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Check size={14} /> Approve
+                </button>
+                <button onClick={() => { setRejectId(reviewReq.id); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <X size={14} /> Reject
+                </button>
+              </>)}
+              {reviewReq.status === "PENDING" && canApprove && !isAdmin && reviewReq.currentStage === "PENDING_ADMIN" && (
+                <button onClick={() => nudge(reviewReq.id, "ADMIN")}
+                  style={{ width: "100%", padding: "10px", background: sentNudges.has(`${reviewReq.id}:ADMIN`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${reviewReq.id}:ADMIN`) ? "var(--success)" : "var(--warning)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Bell size={14} /> {sentNudges.has(`${reviewReq.id}:ADMIN`) ? "Sent" : "Remind HR Admin"}
+                </button>
+              )}
+              {reviewReq.status === "PENDING" && (
+                (reviewReq.employeeId === user?.employeeId && (isAdmin || !(reviewReq.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING"))) || isAdmin
+              ) && (
+                <button onClick={() => { setEditLeave(reviewReq); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Edit3 size={14} /> Edit Request
+                </button>
+              )}
+              {reviewReq.status === "PENDING" && (reviewReq.employeeId === user?.employeeId || isAdmin) && (
+                <button onClick={() => { cancel(reviewReq.id); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Trash2 size={14} /> Cancel Request
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
