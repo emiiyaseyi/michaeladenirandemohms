@@ -1,0 +1,22 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const search = searchParams.get("search") ?? ""
+  const batches = await prisma.absenceBatch.findMany({
+    where: search ? { description: { contains: search, mode: "insensitive" } } : {},
+    orderBy: { createdAt: "desc" },
+  })
+  return NextResponse.json({ batches })
+}
+
+export async function POST(req: NextRequest) {
+  const { description, startDate, endDate } = await req.json()
+  if (!description?.trim() || !startDate || !endDate)
+    return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
+  const batch = await prisma.absenceBatch.create({
+    data: { description: description.trim(), startDate: new Date(startDate), endDate: new Date(endDate) },
+  })
+  return NextResponse.json({ batch }, { status: 201 })
+}

@@ -36,8 +36,18 @@ const SECTION_TITLES: Record<string, string> = {
   "performance/groups":        "Performance Groups",
   "performance/conversations": "Conversations",
   "performance/feedback":      "Feedback",
+  "disciplinary/violation-types": "Violation Types",
+  "disciplinary/triggers":        "Triggers",
+  "disciplinary/violations":      "Violations",
+  "disciplinary/violations/new":  "Record Violation",
+  "rent-documents":               "Rent Documents",
+  "rent-documents/new":           "Add Rent Document",
   "performance/conversations/setup/new":    "Schedule Conversation",
   "performance/conversations/prompts/new":  "Add Prompt",
+  "disciplinary/suspensions":              "Suspensions",
+  "disciplinary/suspensions/new":          "Record Suspension",
+  "disciplinary/suspensions/bulk-upload":  "Bulk Upload Suspensions",
+  "time-tracking/absence":                 "Absence Batches",
   "surveys":                   "Surveys",
   "surveys/new":               "Create Survey",
   "surveys/templates/new":     "Survey Template",
@@ -76,6 +86,10 @@ export default function TopBarWrapper({ user }: { user: any }) {
     else if (segs[0] === "contractors" && segs.length === 1) title = "Contractors"
     else if (segs[0] === "contractors" && segs.length === 2) title = "Contractor Details"
     else if (segs[0] === "contractors" && segs[2] === "edit") title = "Edit Contractor"
+    else if (segs[0] === "rent-documents" && segs[2] === "edit") title = "Edit Rent Document"
+    else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs.length === 3) title = "Absence"
+    else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs[3] === "new") title = "Record Employee Absence"
+    else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs[3] === "bulk-upload") title = "Bulk Upload Absent Days"
     else title = "DSN HRMS"
   }
   return <TopBar title={title} user={user} />

@@ -210,6 +210,12 @@ model Employee {
   conversationSetups          ConversationSetup[]
   feedbackRequestsSent        FeedbackRequest[]        @relation("FeedbackRequester")
   feedbackRequestsReceived    FeedbackRequest[]        @relation("FeedbackTarget")
+  rentDocuments               RentDocument[]
+  disciplinaryTriggers        DisciplinaryTrigger[]
+  violationsReceived          Violation[]              @relation("ViolationEmployee")
+  violationsRecorded          Violation[]              @relation("ViolationRecorder")
+  suspensions                 Suspension[]
+  absenceRecords              AbsenceRecord[]
 }
 
 model Document {
@@ -659,6 +665,135 @@ model Feedback {
   appraisal   Appraisal?   @relation(fields: [appraisalId], references: [id])
   giver       Employee     @relation("FeedbackGiver", fields: [giverId], references: [id])
   receiver    Employee     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
+}
+
+model RentDocument {
+  id                  String             @id @default(cuid())
+  employeeId          String
+  amount              Float
+  rentStart           DateTime
+  rentEnd             DateTime
+  propertyAddress     String
+  landlordName        String?
+  landlordPhone       String?
+  landlordEmail       String?
+  rentReceiptUrl      String?
+  tenancyAgreementUrl String?
+  status              RentDocumentStatus @default(TO_REVIEW)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  employee            Employee           @relation(fields: [employeeId], references: [id])
+}
+
+enum RentDocumentStatus {
+  APPROVED
+  DECLINED
+  TO_REVIEW
+}
+
+model ViolationType {
+  id         String      @id @default(cuid())
+  name       String
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  violations Violation[]
+}
+
+model Violation {
+  id                String          @id @default(cuid())
+  employeeId        String
+  recordedById      String
+  violationTypeId   String
+  incidentDate      DateTime
+  details           String
+  expectingResponse Boolean         @default(false)
+  supportingDocUrl  String?
+  reviewNote        String?
+  status            ViolationStatus @default(TO_REVIEW)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  employee          Employee        @relation("ViolationEmployee", fields: [employeeId], references: [id])
+  recordedBy        Employee        @relation("ViolationRecorder", fields: [recordedById], references: [id])
+  violationType     ViolationType   @relation(fields: [violationTypeId], references: [id])
+}
+
+enum ViolationStatus {
+  APPROVED
+  DECLINED
+  TO_REVIEW
+}
+
+model DisciplinaryTrigger {
+  id          String                    @id @default(cuid())
+  employeeId  String
+  action      String
+  description String?
+  triggerDate DateTime
+  status      DisciplinaryTriggerStatus @default(PENDING_REVIEW)
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  employee    Employee                  @relation(fields: [employeeId], references: [id])
+}
+
+enum DisciplinaryTriggerStatus {
+  APPROVED
+  DECLINED
+  PENDING_REVIEW
+}
+
+model Suspension {
+  id               String           @id @default(cuid())
+  employeeId       String
+  startDate        DateTime
+  endDate          DateTime?
+  reason           String?
+  noteForUser      String?
+  supportingDocUrl String?
+  alreadyOccurred  Boolean          @default(true)
+  status           SuspensionStatus @default(TO_REVIEW)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  employee         Employee         @relation(fields: [employeeId], references: [id])
+}
+
+enum SuspensionStatus {
+  TO_REVIEW
+  APPROVED
+  DECLINED
+  PENDING
+  SUSPENDED
+}
+
+model AbsenceBatch {
+  id          String          @id @default(cuid())
+  description String
+  startDate   DateTime
+  endDate     DateTime
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  records     AbsenceRecord[]
+}
+
+model AbsenceRecord {
+  id          String        @id @default(cuid())
+  batchId     String
+  employeeId  String
+  absentStart DateTime
+  absentEnd   DateTime
+  totalDays   Int
+  reason      String
+  note        String?
+  status      AbsenceStatus @default(NEW)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  batch       AbsenceBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  employee    Employee      @relation(fields: [employeeId], references: [id])
+}
+
+enum AbsenceStatus {
+  NEW
+  APPROVED
+  DECLINED
 }
 
 model FeedbackRequest {
