@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { Search, Users, MoreHorizontal, Plus, Loader2, X } from "lucide-react"
 
 const STAGES = ["APPLICATION","ASSESSMENT","TECHNICAL","INTERVIEW","MANAGEMENT_REVIEW","OFFER","ONBOARDING"]
@@ -30,25 +31,38 @@ const fi: React.CSSProperties = {
 function RowMenu({ app, onMoveStage, onUpdateStatus, onDelete }: { app: any; onMoveStage: (stage: string) => void; onUpdateStatus: (s: string) => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false)
   const [sub, setSub] = useState<"stage" | "status" | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
+  const [pos, setPos] = useState({ top: 0, right: 0 })
+  const btnRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+  const toggle = () => {
+    if (!open && btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setPos({ top: r.bottom + 4, right: window.innerWidth - r.right })
+    }
+    setOpen(v => !v); setSub(null)
+  }
   useEffect(() => {
-    const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) { setOpen(false); setSub(null) } }
+    if (!open) return
+    const h = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        btnRef.current && !btnRef.current.contains(e.target as Node)) { setOpen(false); setSub(null) }
+    }
     document.addEventListener("mousedown", h)
     return () => document.removeEventListener("mousedown", h)
-  }, [])
+  }, [open])
   return (
-    <div ref={ref} style={{ position: "relative", display: "inline-block" }} onClick={e => e.stopPropagation()}>
-      <button onClick={() => { setOpen(o => !o); setSub(null) }} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6, color: "var(--muted-foreground)" }}>
+    <>
+      <button ref={btnRef} onClick={toggle} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6, color: "var(--muted-foreground)" }}>
         <MoreHorizontal size={16} />
       </button>
-      {open && (
-        <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 170, padding: "4px 0" }}>
+      {open && typeof window !== "undefined" && createPortal(
+        <div ref={menuRef} style={{ position: "fixed", top: pos.top, right: pos.right, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 9999, minWidth: 170, padding: "4px 0" }}>
           <div style={{ position: "relative" }}>
             <button onMouseEnter={() => setSub("stage")} style={{ display: "flex", width: "100%", padding: "10px 16px", background: sub === "stage" ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left", justifyContent: "space-between" }}>
               Move to Stage <span>›</span>
             </button>
             {sub === "stage" && (
-              <div style={{ position: "absolute", right: "calc(100% + 4px)", top: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 51, minWidth: 160, padding: "4px 0" }}>
+              <div style={{ position: "absolute", right: "calc(100% + 4px)", top: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 1, minWidth: 160, padding: "4px 0" }}>
                 {STAGES.filter(s => s !== app.stage).map(s => (
                   <button key={s} onClick={() => { setOpen(false); setSub(null); onMoveStage(s) }} style={{ display: "block", width: "100%", padding: "9px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>{STAGE_LABEL[s]}</button>
                 ))}
@@ -60,7 +74,7 @@ function RowMenu({ app, onMoveStage, onUpdateStatus, onDelete }: { app: any; onM
               Update Status <span>›</span>
             </button>
             {sub === "status" && (
-              <div style={{ position: "absolute", right: "calc(100% + 4px)", top: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 51, minWidth: 140, padding: "4px 0" }}>
+              <div style={{ position: "absolute", right: "calc(100% + 4px)", top: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 1, minWidth: 140, padding: "4px 0" }}>
                 {["ACTIVE", "REJECTED", "WITHDRAWN", "HIRED"].filter(s => s !== app.status).map(s => (
                   <button key={s} onClick={() => { setOpen(false); setSub(null); onUpdateStatus(s) }} style={{ display: "block", width: "100%", padding: "9px 14px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>{s.charAt(0) + s.slice(1).toLowerCase()}</button>
                 ))}
@@ -69,9 +83,10 @@ function RowMenu({ app, onMoveStage, onUpdateStatus, onDelete }: { app: any; onM
           </div>
           <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
           <button onClick={() => { setOpen(false); onDelete() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#DC2626", textAlign: "left" }}>Delete</button>
-        </div>
+        </div>,
+        document.body
       )}
-    </div>
+    </>
   )
 }
 

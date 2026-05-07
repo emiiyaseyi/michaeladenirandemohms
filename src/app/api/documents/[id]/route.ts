@@ -38,11 +38,13 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!isAdmin) return forbidden()
 
   const { id } = await params
-  // Soft delete
-  await prisma.orgDocument.update({
-    where: { id },
-    data: { isActive: false },
-  })
+  const permanent = new URL(req.url).searchParams.get("permanent") === "true"
+
+  if (permanent) {
+    await prisma.orgDocument.delete({ where: { id } })
+  } else {
+    await prisma.orgDocument.update({ where: { id }, data: { isActive: false } })
+  }
 
   return NextResponse.json({ ok: true })
 }

@@ -322,7 +322,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
           )}
           {open && query && results.length === 0 && !loading && (
             <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1.5px solid var(--primary)", borderTop: "1px solid var(--border)", borderRadius: "0 0 12px 12px", boxShadow: "var(--shadow-lg)", padding: "24px 14px", textAlign: "center", zIndex: 100 }}>
-              <div style={{ fontSize: 22, marginBottom: 6 }}>🔍</div>
+              <div style={{ marginBottom: 8, display: "flex", justifyContent: "center" }}><Search size={28} style={{ color: "var(--muted-foreground)", opacity: 0.4 }} /></div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>No results for "{query}"</div>
               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Try a name, job title, leave type, or feature</div>
             </div>

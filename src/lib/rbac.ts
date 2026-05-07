@@ -71,8 +71,9 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Documents",       href: "/requests/documents",       excludeRoles: ["PROJECT_LEAD", "STAFF"] },
     ],
   },
-  { label: "Surveys",   href: "/surveys",   icon: "ClipboardList", roles: ALL_ROLES },
-  { label: "Documents", href: "/documents", icon: "FolderOpen",    roles: ALL_ROLES },
+  { label: "Surveys",     href: "/surveys",     icon: "ClipboardList", roles: ALL_ROLES },
+  { label: "Documents",   href: "/documents",   icon: "FolderOpen",    roles: ALL_ROLES },
+  { label: "Contractors", href: "/contractors", icon: "UserCheck",    roles: ["ADMIN"] },
 
   // ── COMPENSATION ─────────────────────────────────────────────────────────────
   { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"], section: "COMPENSATION" },
@@ -85,7 +86,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Performance", icon: "TrendingUp", roles: ALL_ROLES, section: "PRODUCTIVITY",
     children: [
       { label: "Overview",      href: "/performance" },
-      { label: "Setup",         href: "/performance/setup",         excludeRoles: ["PROJECT_LEAD", "STAFF"] },
       { label: "Period",        href: "/performance/period",        excludeRoles: ["PROJECT_LEAD", "STAFF"] },
       { label: "Objectives",    href: "/performance/objectives" },
       { label: "Groups",        href: "/performance/groups",        excludeRoles: ["STAFF"] },
@@ -113,8 +113,6 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   { label: "Disciplinary", href: "/disciplinary", icon: "Scale",     roles: ["PROJECT_LEAD", "STAFF"] },
-  { label: "Onboarding",  href: "/onboarding",  icon: "UserCheck", roles: ["ADMIN"] },
-  { label: "Offboarding", href: "/offboarding", icon: "UserMinus", roles: ["ADMIN"] },
 
   // ── OTHER ────────────────────────────────────────────────────────────────────
   {
@@ -138,7 +136,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Assignments", href: "/assets/assignments" },
     ],
   },
-  { label: "Rent Documents", href: "/rent-documents", icon: "FileText",  roles: ["ADMIN"] },
+  { label: "Rent Documents", href: "/rent-documents", icon: "House",  roles: ["ADMIN"] },
   { label: "Audit Log",      href: "/audit-log",      icon: "FileText",  roles: ["ADMIN"] },
   {
     label: "Announcements", icon: "Megaphone", roles: ALL_ROLES,

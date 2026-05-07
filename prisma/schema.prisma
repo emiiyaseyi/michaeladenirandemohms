@@ -61,6 +61,7 @@ model User {
   notifications          Notification[]
   announcements          Announcement[]        @relation("AnnouncementCreator")
   orgDocsUploaded        OrgDocument[]         @relation("OrgDocUploader")
+  offerTemplates         OfferTemplate[]       @relation("OfferTemplateCreator")
   sessions               Session[]
   profileUpdateReviews   ProfileUpdateRequest[]
   personalDocReviews     PersonalDocument[]    @relation("PersonalDocReviewer")
@@ -204,6 +205,11 @@ model Employee {
   documentRequests     DocumentRequest[]
   offerLettersSent     OfferLetter[]        @relation("OfferManager")
   customGroupMemberships CustomGroupMember[]
+  surveyResponses        SurveyResponse[]
+  performanceGroupMemberships PerformanceGroupMember[]
+  conversationSetups          ConversationSetup[]
+  feedbackRequestsSent        FeedbackRequest[]        @relation("FeedbackRequester")
+  feedbackRequestsReceived    FeedbackRequest[]        @relation("FeedbackTarget")
 }
 
 model Document {
@@ -270,23 +276,27 @@ model SystemSetting {
 }
 
 model OrgDocument {
-  id              String         @id @default(cuid())
-  title           String
-  category        OrgDocCategory @default(OTHER)
-  description     String?
-  fileUrl         String
-  fileSize        Int?
-  mimeType        String?
-  canView         Boolean        @default(true)
-  canDownload     Boolean        @default(false)
-  canCopy         Boolean        @default(true)
-  requiresAck     Boolean        @default(false)
-  isActive        Boolean        @default(true)
-  uploadedById    String
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  acknowledgments DocAck[]
-  uploadedBy      User           @relation("OrgDocUploader", fields: [uploadedById], references: [id])
+  id                     String         @id @default(cuid())
+  title                  String
+  category               OrgDocCategory @default(OTHER)
+  description            String?
+  fileUrl                String
+  fileSize               Int?
+  mimeType               String?
+  canView                Boolean        @default(true)
+  canDownload            Boolean        @default(false)
+  canCopy                Boolean        @default(true)
+  requiresAck            Boolean        @default(false)
+  requiresSignature      Boolean        @default(false)
+  sentToCurrentEmployees Boolean        @default(false)
+  includeInOnboarding    Boolean        @default(false)
+  sentAt                 DateTime?
+  isActive               Boolean        @default(true)
+  uploadedById           String
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  acknowledgments        DocAck[]
+  uploadedBy             User           @relation("OrgDocUploader", fields: [uploadedById], references: [id])
 }
 
 model DocAck {
@@ -651,6 +661,23 @@ model Feedback {
   receiver    Employee     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
 }
 
+model FeedbackRequest {
+  id          String                @id @default(cuid())
+  requesterId String
+  targetId    String
+  message     String?
+  status      FeedbackRequestStatus @default(PENDING)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  requester   Employee              @relation("FeedbackRequester", fields: [requesterId], references: [id])
+  target      Employee              @relation("FeedbackTarget", fields: [targetId], references: [id])
+}
+
+enum FeedbackRequestStatus {
+  PENDING
+  FULFILLED
+}
+
 model WeeklyReport {
   id            String              @id @default(cuid())
   employeeId    String
@@ -998,6 +1025,124 @@ enum ApprovalAction {
   CLARIFICATION_REQUESTED
 }
 
+// ── Offer Templates ──────────────────────────────────────────────────────────
+
+enum OfferTemplateStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model OfferTemplate {
+  id            String               @id @default(cuid())
+  name          String
+  content       String?
+  isDefault     Boolean              @default(false)
+  status        OfferTemplateStatus  @default(DRAFT)
+  signatureText String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  createdById   String
+  createdBy     User                 @relation("OfferTemplateCreator", fields: [createdById], references: [id])
+}
+
+// ── Surveys ──────────────────────────────────────────────────────────────────
+
+enum SurveyType {
+  GENERAL
+  CONFIRMATION
+  EXIT
+}
+
+enum SurveyStatus {
+  DRAFT
+  ACTIVE
+  CLOSED
+}
+
+enum QuestionType {
+  TEXT
+  MULTIPLE_CHOICE
+  RATING
+  YES_NO
+}
+
+model SurveyTemplate {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  type        SurveyType
+  isDefault   Boolean   @default(false)
+  status      SurveyStatus @default(DRAFT)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  questions   SurveyTemplateQuestion[]
+  surveys     Survey[]
+}
+
+model SurveyTemplateQuestion {
+  id         String       @id @default(cuid())
+  templateId String
+  text       String
+  qType      QuestionType @default(TEXT)
+  options    Json?
+  order      Int          @default(0)
+  required   Boolean      @default(false)
+
+  template   SurveyTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model Survey {
+  id          String       @id @default(cuid())
+  title       String
+  type        SurveyType
+  isAnonymous Boolean      @default(false)
+  status      SurveyStatus @default(DRAFT)
+  templateId  String?
+  dueDate     DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  template    SurveyTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  questions   SurveyQuestion[]
+  responses   SurveyResponse[]
+}
+
+model SurveyQuestion {
+  id       String       @id @default(cuid())
+  surveyId String
+  text     String
+  qType    QuestionType @default(TEXT)
+  options  Json?
+  order    Int          @default(0)
+  required Boolean      @default(false)
+
+  survey   Survey       @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  answers  SurveyAnswer[]
+}
+
+model SurveyResponse {
+  id          String    @id @default(cuid())
+  surveyId    String
+  employeeId  String?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  survey      Survey    @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  employee    Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  answers     SurveyAnswer[]
+}
+
+model SurveyAnswer {
+  id         String   @id @default(cuid())
+  responseId String
+  questionId String
+  answer     String?
+
+  response   SurveyResponse  @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question   SurveyQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
 enum KPIStatus {
   DRAFT
   SUBMITTED
@@ -1020,6 +1165,42 @@ enum AppraisalStatus {
   REVIEWED
   CALIBRATED
   FINALISED
+}
+
+// ── Contractors ───────────────────────────────────────────────────────────────
+
+model Contractor {
+  id               String              @id @default(cuid())
+  name             String
+  email            String?
+  phone            String?
+  country          String?
+  state            String?
+  address          String?
+  businessType     String?
+  companyRegNumber String?
+  industry         String?
+  currency         String?             @default("NGN")
+  paymentRoute     String?             @default("LOCAL_BANK")
+  bankName         String?
+  accountNumber    String?
+  paymentMethod    String?
+  startDate        DateTime?
+  isActive         Boolean             @default(true)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  payments         ContractorPayment[]
+}
+
+model ContractorPayment {
+  id           String     @id @default(cuid())
+  contractorId String
+  description  String?
+  amount       Float
+  bank         String?
+  status       String     @default("PENDING")
+  createdAt    DateTime   @default(now())
+  contractor   Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
 }
 
 enum PerformanceBand {
@@ -1246,4 +1427,84 @@ model DocumentRequest {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   employee     Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+
+model PerformanceGroup {
+  id          String                   @id @default(cuid())
+  name        String
+  description String?
+  isActive    Boolean                  @default(true)
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  members     PerformanceGroupMember[]
+}
+
+model PerformanceGroupMember {
+  id         String           @id @default(cuid())
+  groupId    String
+  employeeId String
+  createdAt  DateTime         @default(now())
+  group      PerformanceGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, employeeId])
+}
+
+model ConversationSetup {
+  id               String              @id @default(cuid())
+  employeeId       String
+  conversationWith String
+  scheduledDate    DateTime
+  startTime        String
+  endTime          String
+  frequency        String              @default("ONE_OFF")
+  conversationType String              @default("OTHER")
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  employee         Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  rounds           ConversationRound[]
+}
+
+model ConversationRound {
+  id               String               @id @default(cuid())
+  setupId          String
+  scheduledDate    DateTime
+  startTime        String
+  endTime          String
+  conversationType String               @default("OTHER")
+  status           String               @default("OTHER")
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  setup            ConversationSetup    @relation(fields: [setupId], references: [id], onDelete: Cascade)
+  actions          ConversationAction[]
+  notes            ConversationNote[]
+}
+
+model ConversationAction {
+  id        String            @id @default(cuid())
+  roundId   String
+  title     String
+  startDate DateTime
+  endDate   DateTime
+  createdAt DateTime          @default(now())
+  round     ConversationRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+}
+
+model ConversationNote {
+  id        String            @id @default(cuid())
+  roundId   String
+  content   String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  round     ConversationRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+}
+
+model ConversationPrompt {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  type        String   @default("CHECK_IN")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

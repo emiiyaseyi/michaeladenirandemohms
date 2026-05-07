@@ -14,8 +14,9 @@ export async function GET(req: NextRequest) {
 
   const isAdmin = caps(user.role).canManageSettings || ["ADMIN","ADMIN","ADMIN"].includes(user.role)
 
+  const all = req.nextUrl.searchParams.get("all") === "true"
   const docs = await prisma.orgDocument.findMany({
-    where: { isActive: true },
+    where: isAdmin && all ? {} : { isActive: true },
     include: {
       uploadedBy: { select: { name: true } },
       acknowledgments: {
@@ -58,6 +59,9 @@ export async function POST(req: NextRequest) {
   const canDownload = formData.get("canDownload") === "true"
   const requiresAck = formData.get("requiresAck") === "true"
   const canCopy = formData.get("canCopy") !== "false"
+  const requiresSignature = formData.get("requiresSignature") === "true"
+  const sentToCurrentEmployees = formData.get("sentToCurrentEmployees") === "true"
+  const includeInOnboarding = formData.get("includeInOnboarding") === "true"
 
   if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 })
   if (!file) return NextResponse.json({ error: "File is required" }, { status: 400 })
@@ -86,6 +90,10 @@ export async function POST(req: NextRequest) {
       canDownload,
       requiresAck,
       canCopy,
+      requiresSignature,
+      sentToCurrentEmployees,
+      includeInOnboarding,
+      sentAt: sentToCurrentEmployees ? new Date() : null,
       uploadedById: user.id,
     },
     include: { uploadedBy: { select: { name: true } } },

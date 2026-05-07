@@ -4,7 +4,7 @@ import { useRouter, useParams } from "next/navigation"
 import {
   ChevronLeft, ChevronDown, Edit2, Upload, Loader2,
   Building2, User, CreditCard, FileText, Briefcase, MapPin,
-  Receipt, Shield, X,
+  Receipt, Shield, X, Search,
 } from "lucide-react"
 
 const TABS = ["Job & Pay", "Personal", "Request", "Documents", "Benefits", "Assets", "Tasks", "Disciplinary", "Notes", "Logs"]
@@ -460,14 +460,106 @@ function TabRequest({ emp }: { emp: any }) {
   )
 }
 
-function TabDocuments() {
+function TabDocuments({ emp }: { emp: any }) {
+  const [acks, setAcks] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [preview, setPreview] = useState<{ title: string; fileUrl: string; mimeType?: string } | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/employees/${emp.id}/documents`)
+      .then(r => r.json())
+      .then(d => { setAcks(d.acks ?? []); setLoading(false) })
+  }, [emp.id])
+
+  const filtered = acks.filter(a => {
+    const q = search.toLowerCase()
+    return !q || (a.document?.title ?? "").toLowerCase().includes(q)
+  })
+
+  const statusText = (a: any) => {
+    if (!a.acknowledged) return "Pending"
+    const date = new Date(a.acknowledgedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+    return a.document?.requiresSignature ? `Signed on ${date}` : `Acknowledged on ${date}`
+  }
+
+  const th: React.CSSProperties = { padding: "10px 16px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }
+  const td: React.CSSProperties = { padding: "13px 16px", fontSize: 14, borderBottom: "1px solid var(--border)" }
+
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
-      <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>Shared Documents</span>
-        <button style={{ padding: "7px 14px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>Add Document</button>
+      <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: "var(--foreground)" }}>Employee Documents</div>
+        <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>These documents are shared between {emp.firstName} {emp.lastName} and admins.</div>
       </div>
-      <div style={{ padding: 48, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No documents found.</div>
+
+      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ position: "relative", maxWidth: 240 }}>
+          <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search" style={{ width: "100%", paddingLeft: 30, padding: "8px 12px 8px 30px", border: "1px solid var(--border)", borderRadius: 20, fontSize: 13, background: "var(--background)", color: "var(--foreground)", boxSizing: "border-box" }} />
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 48, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
+      ) : filtered.length === 0 ? (
+        <div style={{ padding: 48, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No documents assigned yet.</div>
+      ) : (
+        <>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={th}>Document</th>
+                <th style={th}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((a: any) => (
+                <tr key={a.id}>
+                  <td style={td}>
+                    <button
+                      onClick={() => setPreview({ title: a.document?.title ?? "", fileUrl: a.document?.fileUrl ?? "", mimeType: a.document?.mimeType })}
+                      style={{ background: "none", border: "none", cursor: "pointer", color: "#2563EB", fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 6, padding: 0 }}
+                    >
+                      <FileText size={14} color="#6B7280" />
+                      {a.document?.title ?? "—"}
+                    </button>
+                  </td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{statusText(a)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ padding: "10px 16px", textAlign: "right", fontSize: 12, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)" }}>
+            1–{filtered.length} of {filtered.length} items
+          </div>
+        </>
+      )}
+
+      {/* Preview modal */}
+      {preview && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "white", borderRadius: 12, width: "100%", maxWidth: 720, maxHeight: "80vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>Preview {preview.title}</div>
+              <button onClick={() => setPreview(null)} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
+            </div>
+            <div style={{ flex: 1, overflow: "hidden", minHeight: 300 }}>
+              {preview.mimeType === "application/pdf" ? (
+                <object data={`${preview.fileUrl}#toolbar=0`} type="application/pdf" style={{ width: "100%", height: "100%", border: "none", minHeight: 300 }}>
+                  <div style={{ padding: 24, textAlign: "center", color: "#6B7280" }}>Unsupported file type</div>
+                </object>
+              ) : (
+                <div style={{ padding: 24, textAlign: "center", color: "#6B7280", fontSize: 14 }}>Unsupported file type</div>
+              )}
+            </div>
+            <div style={{ padding: "14px 20px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <a href={preview.fileUrl} download style={{ fontSize: 14, fontWeight: 600, color: "#2563EB", textDecoration: "none" }}>Download Document</a>
+              <button onClick={() => setPreview(null)} style={{ padding: "8px 20px", border: "1px solid #E5E7EB", background: "white", borderRadius: 8, fontSize: 14, cursor: "pointer" }}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -1086,7 +1178,7 @@ export default function EmployeeProfilePage() {
         {activeTab === "Job & Pay" && <TabJobPay emp={emp} openModal={openModal} />}
         {activeTab === "Personal" && <TabPersonal emp={emp} openModal={openModal} onUpload={triggerUpload} uploadedDocs={uploadedDocs} />}
         {activeTab === "Request" && <TabRequest emp={emp} />}
-        {activeTab === "Documents" && <TabDocuments />}
+        {activeTab === "Documents" && <TabDocuments emp={emp} />}
         {activeTab === "Benefits" && <TabBenefits emp={emp} />}
         {activeTab === "Assets" && <TabAssets emp={emp} />}
         {activeTab === "Tasks" && <TabTasks emp={emp} />}
