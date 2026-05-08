@@ -16,6 +16,7 @@ export interface NavItem {
   section?: string
   children?: ChildNavItem[]
   indent?: boolean
+  skipForRoles?: SystemRole[]
 }
 
 export const ALL_ROLES: SystemRole[] = ["SUPER_ADMIN", "ADMIN", "PROJECT_LEAD", "STAFF"]
@@ -150,14 +151,16 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Trash",     href: "/trash",     icon: "Trash2",    roles: ["ADMIN"] },
 
   // ── EXTRAS ───────────────────────────────────────────────────────────────────
+  { label: "Preferences", href: "/preferences", icon: "UserCircle", roles: ["SUPER_ADMIN"], section: "EXTRAS" },
   {
-    label: "Self Service", icon: "UserCircle", roles: ["SUPER_ADMIN", "ADMIN"], section: "EXTRAS",
+    label: "Self Service", icon: "UserCircle", roles: ["ADMIN"], section: "EXTRAS",
+    skipForRoles: ["SUPER_ADMIN"],
     children: [
-      { label: "Profile",          href: "/self-service/profile",         excludeRoles: ["SUPER_ADMIN"] },
-      { label: "Payslips",         href: "/self-service/payslips",        excludeRoles: ["SUPER_ADMIN"] },
-      { label: "Requisition",      href: "/self-service/requisitions",    excludeRoles: ["SUPER_ADMIN"] },
-      { label: "Grievance",        href: "/self-service/grievance",       excludeRoles: ["SUPER_ADMIN"] },
-      { label: "Exit",             href: "/self-service/exit",            excludeRoles: ["SUPER_ADMIN"] },
+      { label: "Profile",          href: "/self-service/profile" },
+      { label: "Payslips",         href: "/self-service/payslips" },
+      { label: "Requisition",      href: "/self-service/requisitions" },
+      { label: "Grievance",        href: "/self-service/grievance" },
+      { label: "Exit",             href: "/self-service/exit" },
       { label: "Change Password",  href: "/self-service/change-password" },
     ],
   },
@@ -280,7 +283,10 @@ export function getNavForRoleWithPrefix(role: SystemRole): NavItem[] {
     return `${base}${href}`
   }
   return NAV_ITEMS
-    .filter(item => item.roles.includes(navRole) || (role === "SUPER_ADMIN" && item.roles.includes("SUPER_ADMIN")))
+    .filter(item => {
+      if (item.skipForRoles?.includes(role)) return false
+      return item.roles.includes(navRole) || (role === "SUPER_ADMIN" && item.roles.includes("SUPER_ADMIN"))
+    })
     .map(item => ({
       ...item,
       href: item.href ? mapHref(item.href) : undefined,

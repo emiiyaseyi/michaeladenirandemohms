@@ -166,7 +166,6 @@ model Employee {
   sickLeaveBalance   Int                  @default(14)
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
-  appraisals         Appraisal[]
   docAcks            DocAck[]
   documents          Document[]
   department         Department?          @relation(fields: [departmentId], references: [id])
@@ -193,9 +192,6 @@ model Employee {
   exitRequests       ExitRequest[]
   onboardingTasks    OnboardingTask[]
   projectAssignments ProjectAssignment[]
-  successionRoles    SuccessionPlan[]     @relation("CurrentRoleEmployee")
-  successionPlans    SuccessionPlan[]     @relation("SuccessorEmployee")
-  weeklyReports      WeeklyReport[]
   payslips           Payslip[]
   signatoryRecord    CompanySignatory?
   loanRequests         LoanRequest[]
@@ -334,28 +330,10 @@ model JobPosting {
   status         JobStatus        @default(DRAFT)
   openDate       DateTime?
   closeDate      DateTime?
-  requisitionId  String?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   applications   JobApplication[]
   department     Department?      @relation(fields: [departmentId], references: [id])
-  requisition    JobRequisition?  @relation(fields: [requisitionId], references: [id])
-}
-
-model JobRequisition {
-  id             String            @id @default(cuid())
-  title          String
-  departmentId   String?
-  description    String?
-  employmentType EmploymentType    @default(FULL_TIME)
-  isInternal     Boolean           @default(false)
-  status         RequisitionStatus @default(PENDING)
-  requestedById  String?
-  approvedById   String?
-  approvedAt     DateTime?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  jobPostings    JobPosting[]
 }
 
 model JobApplication {
@@ -373,26 +351,9 @@ model JobApplication {
   rejectionReason String?
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
-  interviews      Interview[]
   employee        Employee?         @relation(fields: [employeeId], references: [id])
   jobPosting      JobPosting        @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
   offer           Offer?
-}
-
-model Interview {
-  id            String          @id @default(cuid())
-  applicationId String
-  scheduledAt   DateTime
-  type          InterviewType   @default(TECHNICAL)
-  interviewers  String?
-  location      String?
-  notes         String?
-  feedback      String?
-  rating        Int?
-  status        InterviewStatus @default(SCHEDULED)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  application   JobApplication  @relation(fields: [applicationId], references: [id], onDelete: Cascade)
 }
 
 model Offer {
@@ -602,7 +563,6 @@ model PerformanceCycle {
   isActive    Boolean     @default(false)
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  appraisals  Appraisal[]
   kpis        KPI[]
 }
 
@@ -632,29 +592,8 @@ model KPI {
   employee      Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
-model Appraisal {
-  id               String           @id @default(cuid())
-  employeeId       String
-  cycleId          String
-  kpiScore         Float?
-  behavioralScore  Float?
-  finalScore       Float?
-  performanceBand  PerformanceBand?
-  status           AppraisalStatus  @default(PENDING)
-  selfCompleted    Boolean          @default(false)
-  managerCompleted Boolean          @default(false)
-  arcCompleted     Boolean          @default(false)
-  comments         String?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  cycle            PerformanceCycle @relation(fields: [cycleId], references: [id])
-  employee         Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  feedbacks        Feedback[]
-}
-
 model Feedback {
   id          String       @id @default(cuid())
-  appraisalId String?
   giverId     String
   receiverId  String
   type        FeedbackType @default(PEER)
@@ -663,7 +602,6 @@ model Feedback {
   isAnonymous Boolean      @default(false)
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
-  appraisal   Appraisal?   @relation(fields: [appraisalId], references: [id])
   giver       Employee     @relation("FeedbackGiver", fields: [giverId], references: [id])
   receiver    Employee     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
 }
@@ -841,39 +779,6 @@ enum FeedbackRequestStatus {
   FULFILLED
 }
 
-model WeeklyReport {
-  id            String              @id @default(cuid())
-  employeeId    String
-  weekStart     DateTime
-  weekEnd       DateTime
-  status        ReportStatus        @default(DRAFT)
-  supervisorId  String?
-  totalScore    Float?
-  submittedAt   DateTime?
-  reviewedAt    DateTime?
-  reviewComment String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
-  employee      Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  entries       WeeklyReportEntry[]
-}
-
-model WeeklyReportEntry {
-  id          String       @id @default(cuid())
-  reportId    String
-  date        DateTime
-  task        String
-  project     String?
-  duration    Float
-  description String
-  outcome     String?
-  learnings   String?
-  challenges  String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  report      WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
-}
-
 model Project {
   id          String              @id @default(cuid())
   name        String
@@ -912,7 +817,6 @@ model Offboarding {
   completedAt    DateTime?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
-  exitInterview  ExitInterview?
   employee       Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   tasks          OffboardingTask[]
 }
@@ -932,17 +836,6 @@ model OffboardingTask {
   offboarding   Offboarding @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
 }
 
-model ExitInterview {
-  id            String      @id @default(cuid())
-  offboardingId String      @unique
-  responses     Json?
-  isAnonymous   Boolean     @default(false)
-  completedAt   DateTime?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  offboarding   Offboarding @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
-}
-
 model ExitRequest {
   id              String    @id @default(cuid())
   employeeId      String
@@ -957,22 +850,6 @@ model ExitRequest {
   updatedAt       DateTime  @updatedAt
   employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   reviewedBy      User?     @relation(fields: [reviewedById], references: [id])
-}
-
-model SuccessionPlan {
-  id              String             @id @default(cuid())
-  roleTitle       String
-  currentHolderId String?
-  isCritical      Boolean            @default(false)
-  riskLevel       RiskLevel          @default(HIGH)
-  successorId     String?
-  readiness       SuccessorReadiness @default(LONG_TERM)
-  developmentPlan String?
-  notes           String?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  currentHolder   Employee?          @relation("CurrentRoleEmployee", fields: [currentHolderId], references: [id])
-  successor       Employee?          @relation("SuccessorEmployee", fields: [successorId], references: [id])
 }
 
 model LeaveBalance {
@@ -1101,12 +978,6 @@ enum JobStatus {
   CANCELLED
 }
 
-enum RequisitionStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
 enum ApplicationStage {
   APPLICATION
   ASSESSMENT
@@ -1122,21 +993,6 @@ enum ApplicationStatus {
   REJECTED
   WITHDRAWN
   HIRED
-}
-
-enum InterviewType {
-  PHONE_SCREEN
-  TECHNICAL
-  BEHAVIORAL
-  MANAGEMENT
-  FINAL
-}
-
-enum InterviewStatus {
-  SCHEDULED
-  COMPLETED
-  CANCELLED
-  NO_SHOW
 }
 
 enum OfferStatus {
@@ -1321,15 +1177,6 @@ enum KPIProgressStatus {
   COMPLETED
 }
 
-enum AppraisalStatus {
-  PENDING
-  IN_PROGRESS
-  SUBMITTED
-  REVIEWED
-  CALIBRATED
-  FINALISED
-}
-
 // ── Contractors ───────────────────────────────────────────────────────────────
 
 model Contractor {
@@ -1366,26 +1213,12 @@ model ContractorPayment {
   contractor   Contractor @relation(fields: [contractorId], references: [id], onDelete: Cascade)
 }
 
-enum PerformanceBand {
-  OUTSTANDING
-  EXCEEDS_EXPECTATION
-  MEETS_EXPECTATION
-  BELOW_EXPECTATION
-}
-
 enum FeedbackType {
   PEER
   MANAGER
   SELF
   THREE_SIXTY
   KUDOS
-}
-
-enum ReportStatus {
-  DRAFT
-  SUBMITTED
-  APPROVED
-  CORRECTION_REQUESTED
 }
 
 enum ProjectStatus {
@@ -1408,18 +1241,6 @@ enum OffboardingStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
-}
-
-enum RiskLevel {
-  HIGH
-  MEDIUM
-  LOW
-}
-
-enum SuccessorReadiness {
-  READY_NOW
-  READY_SOON
-  LONG_TERM
 }
 
 enum PayslipStatus {

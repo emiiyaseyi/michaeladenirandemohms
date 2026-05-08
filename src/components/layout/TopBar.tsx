@@ -92,7 +92,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
   const hasElevatedRole = ["ADMIN", "PROJECT_LEAD"].includes(activeRole)
 
   const roleBase = activeRole === "ADMIN" ? "/admin" : activeRole === "PROJECT_LEAD" ? "/project-lead" : "/staff"
-  const profileHref = `${roleBase}/self-service/profile`
+  const profileHref = activeRole === "SUPER_ADMIN" ? "/admin/preferences" : `${roleBase}/self-service/profile`
 
   const fetchNotifications = useCallback(() => {
     fetch("/api/notifications")
@@ -375,7 +375,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               </div>
               <div style={{ padding: "6px 0" }}>
                 {[
-                  { label: "My Profile", href: profileHref, icon: UserCircle, show: activeRole !== "SUPER_ADMIN" },
+                  { label: activeRole === "SUPER_ADMIN" ? "Preferences" : "My Profile", href: profileHref, icon: UserCircle, show: true },
                 ].filter(i => i.show).map(item => {
                   const Icon = item.icon
                   return (
