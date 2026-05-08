@@ -7,12 +7,11 @@ import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
 import AuthLeftPanel from "@/components/layout/AuthLeftPanel"
 
 const DEMOS: [string, string, string, string][] = [
-  ["HR",  "HR Admin",        "hr@datasciencenigeria.ai",    "Admin@DSN2024!"],
-  ["A",   "Admin",           "admin@dsn-hrms.com",          "Admin@DSN2024!"],
-  ["PL",  "Project Lead",    "projectlead@dsn-hrms.com",    "dsn-demo"],
-  ["PL2", "Project Lead 2",  "projectlead2@dsn-hrms.com",   "dsn-demo"],
-  ["S",   "Staff",           "staff@dsn-hrms.com",          "dsn-demo"],
-  ["S2",  "Staff 2",         "staff2@dsn-hrms.com",         "dsn-demo"],
+  ["HR", "HR Admin", "hr@datasciencenigeria.ai", "dsn-staff"],
+  ["S1", "Staff 1",  "staff1@dsn-hrms.com",      "dsn-demo"],
+  ["S2", "Staff 2",  "staff2@dsn-hrms.com",      "dsn-demo"],
+  ["S3", "Staff 3",  "staff3@dsn-hrms.com",      "dsn-demo"],
+  ["S4", "Staff 4",  "staff4@dsn-hrms.com",      "dsn-demo"],
 ]
 
 
