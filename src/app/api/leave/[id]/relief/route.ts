@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // Notify the leave applicant
   const appRole = (applicant as any).user?.role ?? "STAFF"
-  const appBase = appRole === "ADMIN" || appRole === "SUPER_ADMIN" ? "/admin" : appRole === "PROJECT_LEAD" ? "/project-lead" : "/staff"
+  const appBase = appRole === "SUPER_ADMIN" ? "/admin" : "/staff"
   await prisma.notification.create({
     data: {
       userId: applicant.userId,
@@ -68,8 +68,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
     const plApproval = request?.approvals[0]
     if (plApproval?.employee) {
-      const tlRole = (plApproval.employee as any).user?.role ?? "PROJECT_LEAD"
-      const tlBase = tlRole === "ADMIN" || tlRole === "SUPER_ADMIN" ? "/admin" : tlRole === "PROJECT_LEAD" ? "/project-lead" : "/staff"
+      const tlRole = (plApproval.employee as any).user?.role ?? "STAFF"
+      const tlBase = tlRole === "SUPER_ADMIN" ? "/admin" : "/staff"
       await prisma.notification.create({
         data: {
           userId: plApproval.employee.userId,

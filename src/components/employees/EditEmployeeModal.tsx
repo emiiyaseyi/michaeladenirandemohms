@@ -34,7 +34,6 @@ export default function EditEmployeeModal({ employee, departments, employees: al
       lastName: employee.lastName ?? "",
       middleName: employee.middleName ?? "",
       role: employee.user?.role ?? "STAFF",
-      additionalRoles: employee.user?.additionalRoles ?? [],
       gender: employee.gender ?? "",
       dateOfBirth: employee.dateOfBirth ? employee.dateOfBirth.split("T")[0] : "",
       maritalStatus: employee.maritalStatus ?? "",
@@ -76,24 +75,11 @@ export default function EditEmployeeModal({ employee, departments, employees: al
     setForm(f => {
       const updated = { ...f, [k]: value }
 
-      if (k === "departmentId" && value) {
-        const deptEmps = allEmployees.filter((emp: any) => emp.departmentId === value && emp.id !== employee?.id)
-        const mgr = deptEmps.find((emp: any) => emp.user?.role === "PROJECT_LEAD" || emp.user?.role === "PROJECT_LEAD")
-        const lead = deptEmps.find((emp: any) => emp.user?.role === "PROJECT_LEAD")
-        const mgrAny = deptEmps.find((emp: any) => emp.user?.role === "PROJECT_LEAD")
-        if (lead) updated.projectLeadId = lead.id
-        if (mgrAny) updated.managerId = mgrAny.id
-        else if (mgr) updated.managerId = mgr.id
-      }
-
       if (k === "teamId" && value) {
         const team = teams.find((t: any) => t.id === value)
         if (team) {
           if (team.department?.id) updated.departmentId = team.department.id
           if (team.head?.id) updated.managerId = team.head.id
-          const deptEmps = allEmployees.filter((emp: any) => emp.departmentId === team.department?.id && emp.id !== employee?.id)
-          const lead = deptEmps.find((emp: any) => emp.user?.role === "PROJECT_LEAD")
-          if (lead) updated.projectLeadId = lead.id
         }
       }
 
@@ -218,8 +204,6 @@ export default function EditEmployeeModal({ employee, departments, employees: al
             ) : (
               <select value={form.role ?? "STAFF"} onChange={set("role")} style={fi}>
                 <option value="STAFF">Staff</option>
-                <option value="PROJECT_LEAD">Project Lead</option>
-                {currentUserRole === "SUPER_ADMIN" && <option value="ADMIN">Admin</option>}
               </select>
             )}
           </F>

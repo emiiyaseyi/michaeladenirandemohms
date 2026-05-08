@@ -1,16 +1,10 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
-import DashboardShell from "@/components/layout/DashboardShell"
-import { getNavForRoleWithPrefix, getRoleHome } from "@/lib/rbac"
+import { getRoleHome } from "@/lib/rbac"
 
 export default async function ProjectLeadLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session?.user) redirect("/login")
   const role = (session.user as any).role ?? "STAFF"
-  if (role !== "PROJECT_LEAD") redirect(getRoleHome(role))
-  return (
-    <DashboardShell user={session.user} nav={getNavForRoleWithPrefix("PROJECT_LEAD")} homeUrl="/project-lead">
-      {children}
-    </DashboardShell>
-  )
+  redirect(getRoleHome(role))
 }

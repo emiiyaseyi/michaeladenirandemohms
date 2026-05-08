@@ -89,9 +89,8 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   const activeRole: string = user?.role ?? "STAFF"
-  const hasElevatedRole = ["ADMIN", "PROJECT_LEAD"].includes(activeRole)
 
-  const roleBase = activeRole === "ADMIN" ? "/admin" : activeRole === "PROJECT_LEAD" ? "/project-lead" : "/staff"
+  const roleBase = activeRole === "SUPER_ADMIN" ? "/admin" : "/staff"
   const profileHref = activeRole === "SUPER_ADMIN" ? "/admin/preferences" : `${roleBase}/self-service/profile`
 
   const fetchNotifications = useCallback(() => {

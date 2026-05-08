@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         include: { project: { select: { id: true, name: true, status: true } } },
         where: { project: { status: "ACTIVE" } },
       },
-      user: { select: { role: true, additionalRoles: true, email: true } },
+      user: { select: { role: true, email: true } },
     },
   })
 
@@ -113,15 +113,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
-  if (Array.isArray(body.additionalRoles)) {
-    userUpdate.additionalRoles = body.additionalRoles
-  }
   if (Object.keys(userUpdate).length > 0) {
     await prisma.user.update({ where: { id: employee.userId }, data: userUpdate })
   }
 
   if (roleChanged && previousRole) {
-    const ROLE_LABEL: Record<string, string> = { STAFF: "Staff", PROJECT_LEAD: "Project Lead", ADMIN: "Admin" }
+    const ROLE_LABEL: Record<string, string> = { STAFF: "Staff", SUPER_ADMIN: "Super Admin" }
     await prisma.notification.create({
       data: {
         userId: employee.userId,

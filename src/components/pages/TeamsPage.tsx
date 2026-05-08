@@ -287,6 +287,7 @@ function TeamCard({
 export default function TeamsPage() {
   const { data: session } = useSession()
   const userRole = (session?.user as any)?.role ?? ""
+  const user = session?.user as any
 
   const [teams, setTeams] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
@@ -314,8 +315,8 @@ export default function TeamsPage() {
 
   useEffect(() => { load() }, [load])
 
-  const canEdit = ["ADMIN", "ADMIN", "ADMIN"].includes(userRole)
-  const canDelete = userRole === "ADMIN"
+  const canEdit = userRole === "SUPER_ADMIN" || !!(user?.isElevated)
+  const canDelete = userRole === "SUPER_ADMIN" || !!(user?.isElevated)
 
   const technical    = employees.filter(e => e.category === "TECHNICAL")
   const nonTechnical = employees.filter(e => e.category !== "TECHNICAL")

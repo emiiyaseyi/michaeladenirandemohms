@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       nextNum++
 
       const newUser = await prisma.user.create({
-        data: { name: fullName, email: email.trim().toLowerCase(), password: hashedPwd, role: (["STAFF","PROJECT_LEAD","ADMIN"].includes(rowRole?.trim().toUpperCase() ?? "") ? rowRole!.trim().toUpperCase() : "STAFF") as any },
+        data: { name: fullName, email: email.trim().toLowerCase(), password: hashedPwd, role: "STAFF" },
       })
 
       const catUpper = category?.trim().toUpperCase()

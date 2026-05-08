@@ -3,6 +3,7 @@ import { usePathname, useRouter } from "next/navigation"
 
 const TABS = [
   { label: "Admins",             href: "/admin/settings/admins" },
+  { label: "Roles & Permissions", href: "/admin/settings/roles-permissions" },
   { label: "HR & Payroll",       href: "/admin/settings/hr-payroll" },
   { label: "Departments",        href: "/admin/settings/departments" },
   { label: "Leave Types",        href: "/admin/settings/leave-types" },
@@ -28,7 +29,7 @@ export default function SettingsNav() {
   const pathname = usePathname()
   const router = useRouter()
 
-  const isRolesPage = pathname === "/admin/settings/roles-permissions"
+  const isRolesPage = pathname.startsWith("/admin/settings/roles-permissions")
   const title = Object.entries(TITLES).find(([k]) => pathname === k || pathname.startsWith(k + "/"))?.[1] ?? "Settings"
 
   return (

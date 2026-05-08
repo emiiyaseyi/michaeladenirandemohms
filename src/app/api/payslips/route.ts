@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, isAdminRole } from "@/lib/api-auth"
 
 // Compute net pay from payslip fields
 function calcNetPay(d: any): number {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const employeeId = searchParams.get("employeeId") ?? undefined
 
   const selfService = searchParams.get("self") === "true"
-  const isPayrollAdmin = user.role === "ADMIN" && !selfService
+  const isPayrollAdmin = caps(user.role).canViewAllEmployees && !selfService
 
   let where: any = {}
   if (isPayrollAdmin) {

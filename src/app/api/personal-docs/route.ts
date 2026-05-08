@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 
 const VALID_TYPES = ["SSCE", "FIRST_DEGREE", "NYSC", "PROFESSIONAL_CERT", "UTILITY_BILL", "OTHER"]
 
@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["ADMIN", "ADMIN", "ADMIN"].includes(user.role)
+  const isAdmin = caps(user.role).canViewAllEmployees
   const empIdParam = req.nextUrl.searchParams.get("employeeId")
   const statusParam = req.nextUrl.searchParams.get("status")
 
@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
 
   // Notify admins
   const admins = await prisma.user.findMany({
-    where: { role: { in: ["ADMIN", "ADMIN", "ADMIN"] as any }, isActive: true },
+    where: { role: { in: ["SUPER_ADMIN"] }, isActive: true },
     select: { id: true },
   })
   if (admins.length > 0) {

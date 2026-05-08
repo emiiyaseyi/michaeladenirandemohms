@@ -45,7 +45,7 @@ export function forbidden(msg = "Forbidden") {
 }
 
 export function isAdminRole(role: string): boolean {
-  return role === "ADMIN" || role === "SUPER_ADMIN"
+  return role === "SUPER_ADMIN"
 }
 
 export function isHRAdmin(role: string): boolean {
@@ -53,7 +53,6 @@ export function isHRAdmin(role: string): boolean {
 }
 
 export function roleBasePath(role: string): string {
-  if (role === "ADMIN" || role === "SUPER_ADMIN") return "/admin"
-  if (role === "PROJECT_LEAD") return "/project-lead"
+  if (role === "SUPER_ADMIN") return "/admin"
   return "/staff"
 }

@@ -28,7 +28,7 @@ const RESET_STATUS_META = {
   RESOLVED: { bg: "var(--success-bg,#E6F4EA)", color: "var(--success,#1A7336)", label: "Resolved" },
 }
 
-const ROLE_LABELS: Record<string, string> = { ADMIN: "Admin", PROJECT_LEAD: "Project Lead", STAFF: "Staff" }
+const ROLE_LABELS: Record<string, string> = { SUPER_ADMIN: "Super Admin", ADMIN: "Admin", STAFF: "Staff" }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 

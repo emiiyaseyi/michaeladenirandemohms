@@ -54,7 +54,7 @@ model User {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   lastLoginAt     DateTime?
-  additionalRoles SystemRole[]   @default([])
+  adminRoles             UserAdminRole[]
   accounts               Account[]
   auditLogs              AuditLog[]
   employee               Employee?
@@ -923,10 +923,31 @@ enum OrgDocCategory {
   OTHER
 }
 
+model AdminRole {
+  id          String          @id @default(cuid())
+  name        String
+  slug        String          @unique
+  description String?
+  isSystem    Boolean         @default(false)
+  permissions Json            @default("{}")
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  members     UserAdminRole[]
+}
+
+model UserAdminRole {
+  id          String    @id @default(cuid())
+  userId      String
+  adminRoleId String
+  assignedAt  DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adminRole   AdminRole @relation(fields: [adminRoleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, adminRoleId])
+}
+
 enum SystemRole {
   SUPER_ADMIN
-  ADMIN
-  PROJECT_LEAD
   STAFF
 }
 

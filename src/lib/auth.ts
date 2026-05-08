@@ -26,12 +26,15 @@ export const authOptions: NextAuthOptions = {
         if (!valid) return null
         // Track last login time (non-fatal)
         try { await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }) } catch {}
+        const isElevated = user.role !== "SUPER_ADMIN"
+          ? (await prisma.userAdminRole.count({ where: { userId: user.id } })) > 0
+          : false
         return {
           id: user.id, email: user.email, name: user.name, role: user.role,
-          additionalRoles: user.additionalRoles ?? [],
           employeeId: user.employee?.id, image: user.employee?.profilePhoto ?? user.image,
           lastLoginAt: new Date().toISOString(),
           mustChangePassword: user.mustChangePassword,
+          isElevated,
         }
       },
     }),
@@ -40,10 +43,10 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = (user as any).role
-        token.additionalRoles = (user as any).additionalRoles ?? []
         token.employeeId = (user as any).employeeId
         token.lastLoginAt = (user as any).lastLoginAt
         token.mustChangePassword = (user as any).mustChangePassword ?? false
+        token.isElevated = (user as any).isElevated ?? false
       }
       return token
     },
@@ -51,10 +54,10 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         ;(session.user as any).id = token.sub
         ;(session.user as any).role = token.role
-        ;(session.user as any).additionalRoles = token.additionalRoles ?? []
         ;(session.user as any).employeeId = token.employeeId
         ;(session.user as any).lastLoginAt = token.lastLoginAt
         ;(session.user as any).mustChangePassword = token.mustChangePassword ?? false
+        ;(session.user as any).isElevated = token.isElevated ?? false
       }
       return session
     },

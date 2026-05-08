@@ -12,10 +12,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const isApproval = action === "APPROVED" || action === "APPROVED_WITH_COMMENT"
   const isRejected = action === "REJECTED"
   const isHR = isHRAdmin(user.role)
-  const isAdminOnly = user.role === "ADMIN"
-  const isPL = caps(user.role).canApproveLeave && !isAdminOnly && !isHR
+  const isPL = caps(user.role).canApproveLeave && !isHR
 
-  if (isAdminOnly) return forbidden("Admins can only view and remind — use /nudge to send reminders")
   if (!isPL && !isHR) return forbidden("You are not authorised to approve leave")
 
   const request = await prisma.leaveRequest.findUnique({

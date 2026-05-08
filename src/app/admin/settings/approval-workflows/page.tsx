@@ -10,24 +10,23 @@ const inp: React.CSSProperties = {
 const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }
 
 const APPROVER_ROLES = [
-  { key: "STAFF",        label: "Relief Officer" },
-  { key: "PROJECT_LEAD", label: "Project Lead" },
-  { key: "ADMIN",        label: "HR Admin" },
-  { key: "ADMIN",        label: "Admin" },
+  { key: "STAFF", label: "Relief Officer" },
+  { key: "STAFF", label: "Manager" },
+  { key: "ADMIN", label: "HR Admin" },
 ]
 
 const DEFAULT_CATEGORIES = [
   { id: "leave", name: "Leave", description: "Leave request approval chain", isSystem: true,
     chain: [
       { role: "STAFF", label: "Relief Officer", deadlineHours: 24 },
-      { role: "PROJECT_LEAD", label: "Project Lead", deadlineHours: 24 },
-      { role: "ADMIN", label: "HR Admin", deadlineHours: 72 },
+      { role: "STAFF", label: "Manager",        deadlineHours: 48 },
+      { role: "ADMIN", label: "HR Admin",       deadlineHours: 72 },
     ],
   },
   { id: "performance", name: "Performance Reviews", description: "Appraisal sign-off chain", isSystem: true,
     chain: [
-      { role: "PROJECT_LEAD", label: "Manager", deadlineHours: 72 },
-      { role: "ADMIN", label: "HR Admin", deadlineHours: 72 },
+      { role: "STAFF", label: "Manager",   deadlineHours: 72 },
+      { role: "ADMIN", label: "HR Admin",  deadlineHours: 72 },
     ],
   },
   { id: "profile_changes", name: "Employee Profile Changes", description: "Profile update requests", isSystem: true,

@@ -49,9 +49,8 @@ export async function PATCH(req: NextRequest) {
 
   // ADMIN requests → notify only SUPER_ADMIN
   // Staff/TL requests → notify ADMIN + SUPER_ADMIN (excluding submitter)
-  const targetRoles: string[] = user.role === "ADMIN" ? ["SUPER_ADMIN"] : ["ADMIN", "SUPER_ADMIN"]
   const reviewers = await prisma.user.findMany({
-    where: { role: { in: targetRoles as any }, isActive: true, NOT: { id: user.id } },
+    where: { role: { in: ["SUPER_ADMIN"] }, isActive: true, NOT: { id: user.id } },
     select: { id: true },
   })
   if (reviewers.length > 0) {

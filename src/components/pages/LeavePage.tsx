@@ -52,7 +52,7 @@ function BalanceCard({ lb }: { lb: any }) {
 }
 
 function StageBar({ approvals }: { approvals: any[] }) {
-  const STAGE_ORDER = ["PROJECT_LEAD", "ADMIN"]
+  const STAGE_ORDER = ["PROJECT_LEAD", "HR_ADMIN"]
   const labels: Record<string, string> = { PROJECT_LEAD: "Project Lead", HR_ADMIN: "HR/Admin" }
   const stages = STAGE_ORDER.filter(s => approvals.some(a => a.stage === s))
   return (

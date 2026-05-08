@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["ADMIN","ADMIN","ADMIN"].includes(user.role)
-  if (!isAdmin) return forbidden()
+  if (!caps(user.role).canViewAllEmployees) return forbidden()
 
   const { id } = await params
   const body = await req.json()
@@ -34,8 +33,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["ADMIN","ADMIN","ADMIN"].includes(user.role)
-  if (!isAdmin) return forbidden()
+  if (!caps(user.role).canViewAllEmployees) return forbidden()
 
   const { id } = await params
   const permanent = new URL(req.url).searchParams.get("permanent") === "true"

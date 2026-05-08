@@ -8,7 +8,7 @@ export async function GET() {
   if (!caps(user.role).canManageSettings) return forbidden()
 
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN" },
+    where: { adminRoles: { some: {} } },
     select: {
       id: true, name: true, email: true, isActive: true, createdAt: true,
       employee: { select: { id: true, phone: true, profilePhoto: true } },
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!caps(user.role).canManageSettings) return forbidden()
 
   const body = await req.json()
-  const { firstName, lastName, email, phone } = body
+  const { firstName, lastName, email } = body
   if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 })
 
   const existing = await prisma.user.findUnique({ where: { email } })
@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
       name: `${firstName} ${lastName}`.trim(),
       email,
       password: hashed,
-      role: "ADMIN",
+      role: "STAFF",
       mustChangePassword: true,
     },
     select: { id: true, name: true, email: true, isActive: true, createdAt: true, employee: { select: { id: true, phone: true, profilePhoto: true } } },

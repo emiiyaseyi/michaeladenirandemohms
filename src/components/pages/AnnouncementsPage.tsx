@@ -37,7 +37,7 @@ const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
   RETIRED: { bg: "rgba(156,163,175,0.2)", color: "#6B7280" },
 }
 
-const ALL_ROLES = ["ADMIN","ADMIN","ADMIN","PROJECT_LEAD","PROJECT_LEAD","PROJECT_LEAD","STAFF","STAFF","ADMIN","ADMIN","ADMIN"]
+const ALL_ROLES = ["SUPER_ADMIN", "STAFF"]
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN:"Super Admin", ADMIN:"Admin", HR_ADMIN:"HR Admin", MANAGER:"Manager",
   DEPARTMENT_LEAD:"Dept Lead", PROJECT_MANAGER:"Project Manager", STAFF:"Staff",
@@ -286,7 +286,7 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AnnouncementsPage() {
   const { user } = useCurrentUser()
-  const isAdmin = ["ADMIN","ADMIN","ADMIN","PROJECT_LEAD"].includes(user?.role ?? "")
+  const isAdmin = user?.isAdmin ?? false
 
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

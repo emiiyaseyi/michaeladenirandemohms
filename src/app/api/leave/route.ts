@@ -45,15 +45,12 @@ export async function GET(req: NextRequest) {
   if (c.canViewAllLeave) {
     scopeFilter = status ? { status: status as any } : {}
   } else if (c.canViewTeamLeave) {
-    if (user.role === "PROJECT_LEAD") {
-      // Show requests where this PL has an approval record assigned to them
-      const myApprovals = await prisma.leaveApproval.findMany({
-        where: { employeeId: user.employeeId, stage: "PROJECT_LEAD" },
-        select: { leaveRequestId: true },
-      })
-      const leaveIds = myApprovals.map(a => a.leaveRequestId)
-      scopeFilter = { id: { in: leaveIds }, ...(status ? { status: status as any } : {}) }
-    }
+    const myApprovals = await prisma.leaveApproval.findMany({
+      where: { employeeId: user.employeeId, stage: "PROJECT_LEAD" },
+      select: { leaveRequestId: true },
+    })
+    const leaveIds = myApprovals.map(a => a.leaveRequestId)
+    scopeFilter = { id: { in: leaveIds }, ...(status ? { status: status as any } : {}) }
   } else {
     scopeFilter = { employeeId: user.employeeId, ...(status ? { status: status as any } : {}) }
   }
@@ -182,7 +179,7 @@ export async function POST(req: NextRequest) {
           title: "Leave Request — Your Approval Needed",
           message: `${employee.firstName} ${employee.lastName} submitted a ${request.days}-day ${request.leaveType.name} leave request (${format(start, "MMM d")} – ${format(end, "MMM d")}) and requires your approval.`,
           type: "WARNING",
-          link: `${plRole === "ADMIN" || plRole === "SUPER_ADMIN" ? "/admin" : plRole === "PROJECT_LEAD" ? "/project-lead" : "/staff"}/requests/leave`,
+          link: `${plRole === "SUPER_ADMIN" ? "/admin" : "/staff"}/requests/leave`,
         },
       })
     }
@@ -190,7 +187,7 @@ export async function POST(req: NextRequest) {
 
   // Notify all admins
   const admins = await prisma.user.findMany({
-    where: { role: { in: ["ADMIN", "SUPER_ADMIN"] }, isActive: true },
+    where: { role: { in: ["SUPER_ADMIN"] }, isActive: true },
     select: { id: true, employee: { select: { id: true } } },
   })
   for (const admin of admins) {

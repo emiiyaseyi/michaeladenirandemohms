@@ -1,213 +1,313 @@
 "use client"
-import { useState, useEffect } from "react"
-import Card from "@/components/ui/Card"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import Button from "@/components/ui/Button"
-import { ShieldCheck, Plus, Trash2, Loader2, X } from "lucide-react"
+import Avatar from "@/components/ui/Avatar"
+import Modal from "@/components/ui/Modal"
+import { Plus, MoreHorizontal, Users, Eye, Pencil, Trash2, Loader2, ShieldCheck } from "lucide-react"
 
 const inp: React.CSSProperties = {
   width: "100%", padding: "9px 12px", border: "1px solid var(--border)",
   borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)",
   boxSizing: "border-box",
 }
-const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }
 
-const DUTY_GROUPS = [
-  { group: "Payroll & Payslips", duties: [
-    { key: "canViewPayslips",   label: "View employee payslips" },
-    { key: "canCreatePayslip",  label: "Create / generate payslips" },
-    { key: "canEditPayslip",    label: "Edit payslip entries" },
-    { key: "canReleasePayslip", label: "Release payslips to employees" },
-    { key: "canDeletePayslip",  label: "Delete / void payslips" },
-    { key: "canExportPayroll",  label: "Export payroll data" },
-  ]},
-  { group: "Leave Management", duties: [
-    { key: "canViewAllLeave",       label: "View all leave requests" },
-    { key: "canApproveLeave",       label: "Approve or reject leave" },
-    { key: "canCancelLeave",        label: "Cancel leave on behalf of employee" },
-    { key: "canManageLeaveTypes",   label: "Create / edit leave types" },
-    { key: "canAdjustLeaveBalance", label: "Manually adjust leave balances" },
-    { key: "canViewLeaveReports",   label: "View leave analytics & reports" },
-  ]},
-  { group: "HR & Employees", duties: [
-    { key: "canViewAllEmployees",    label: "View all employee records" },
-    { key: "canCreateEmployee",      label: "Add new employees" },
-    { key: "canEditEmployee",        label: "Edit employee records" },
-    { key: "canDeactivateEmployee",  label: "Deactivate / offboard employees" },
-    { key: "canManageDepartments",   label: "Create / edit departments" },
-    { key: "canViewReports",         label: "View HR reports" },
-    { key: "canExportReports",       label: "Export reports to CSV / PDF" },
-    { key: "canManageAnnouncements", label: "Create & manage announcements" },
-    { key: "canManageDocuments",     label: "Upload & manage org documents" },
-  ]},
-  { group: "Benefits Administration", duties: [
-    { key: "canViewBenefits",         label: "View benefits enrollments" },
-    { key: "canManageBenefits",       label: "Create / edit benefit plans" },
-    { key: "canEnrollBenefits",       label: "Enroll employees in benefits" },
-    { key: "canProcessBenefitClaims", label: "Process benefit claims" },
-    { key: "canManagePension",        label: "Manage pension records" },
-    { key: "canManageHMO",            label: "Manage HMO / health insurance" },
-  ]},
-  { group: "Performance Management", duties: [
-    { key: "canViewPerformance",        label: "View performance records" },
-    { key: "canCreateReview",           label: "Create performance review cycles" },
-    { key: "canManageKPIs",             label: "Create & manage KPIs / goals" },
-    { key: "canSubmitAppraisals",       label: "Submit appraisals" },
-    { key: "canApproveAppraisals",      label: "Approve & finalise appraisals" },
-    { key: "canViewPerformanceReports", label: "View performance analytics" },
-  ]},
-  { group: "Projects", duties: [
-    { key: "canViewProjects",             label: "View all projects" },
-    { key: "canCreateProject",            label: "Create projects" },
-    { key: "canManageProjectAssignments", label: "Assign / remove team members" },
-    { key: "canCloseProject",             label: "Close or archive projects" },
-  ]},
-  { group: "System & Administration", duties: [
-    { key: "canManageSettings", label: "Manage system settings" },
-    { key: "canManageUsers",    label: "Create & manage user accounts" },
-    { key: "canViewAuditLog",   label: "View audit / activity log" },
-    { key: "canSwitchView",     label: "Switch between admin & staff views" },
-  ]},
-]
+interface RoleRecord {
+  id: string; name: string; slug: string; description: string | null; isSystem: boolean
+  _count: { members: number }
+}
+
+interface AdminRecord {
+  id: string; name: string | null; email: string | null; role: string
+  employee: { employeeId: string; department: { name: string } | null } | null
+  adminRoles: { adminRole: { id: string } }[]
+}
 
 export default function RolesPermissionsPage() {
-  const [roles, setRoles] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [newOpen, setNewOpen] = useState(false)
-  const [form, setForm] = useState({ name: "", description: "", duties: [] as string[] })
-  const [saving, setSaving] = useState(false)
+  const router = useRouter()
+  const [tab, setTab] = useState<"system" | "custom">("system")
+  const [roles, setRoles] = useState<RoleRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [menuOpen, setMenuOpen] = useState<string | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // Assign Members modal
+  const [assignRole, setAssignRole] = useState<RoleRecord | null>(null)
+  const [admins, setAdmins] = useState<AdminRecord[]>([])
+  const [memberSearch, setMemberSearch] = useState("")
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([])
+  const [savingMembers, setSavingMembers] = useState(false)
+
+  // Delete confirmation
+  const [deleteRole, setDeleteRole] = useState<RoleRecord | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const load = async () => {
     setLoading(true)
-    const r = await fetch("/api/settings/custom-roles")
+    const r = await fetch("/api/settings/roles")
     const d = await r.json()
-    setRoles(d.customRoles ?? [])
+    setRoles(d.roles ?? [])
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
-  const save = async () => {
-    if (!form.name || form.duties.length === 0) return
-    setSaving(true)
-    const r = await fetch("/api/settings/custom-roles", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) })
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(null)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [])
+
+  const openAssign = async (role: RoleRecord) => {
+    setAssignRole(role); setMenuOpen(null); setSelectedMemberIds([])
+    const r = await fetch("/api/settings/admins")
     const d = await r.json()
-    if (d.customRole) setRoles(prev => [...prev, d.customRole])
-    setSaving(false); setNewOpen(false); setForm({ name: "", description: "", duties: [] })
+    setAdmins(d.admins ?? [])
   }
 
-  const del = async (id: string) => {
-    if (!confirm("Delete this custom role?")) return
-    await fetch(`/api/settings/custom-roles?id=${id}`, { method: "DELETE" })
-    setRoles(prev => prev.filter(r => r.id !== id))
+  const saveMembers = async () => {
+    if (!assignRole || selectedMemberIds.length === 0) return
+    setSavingMembers(true)
+    await fetch(`/api/settings/roles/${assignRole.id}/members`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userIds: selectedMemberIds }),
+    })
+    setSavingMembers(false); setAssignRole(null); load()
   }
 
-  const allDuties = DUTY_GROUPS.flatMap(g => g.duties)
+  const confirmDelete = async () => {
+    if (!deleteRole) return
+    setDeleting(true)
+    await fetch(`/api/settings/roles/${deleteRole.id}`, { method: "DELETE" })
+    setDeleting(false); setDeleteRole(null); load()
+  }
+
+  const systemRoles = roles.filter(r => r.isSystem)
+  const customRoles = roles.filter(r => !r.isSystem)
+
+  const filteredAdmins = admins.filter(a => {
+    if (!memberSearch) return true
+    const q = memberSearch.toLowerCase()
+    return (a.name ?? "").toLowerCase().includes(q) || (a.email ?? "").toLowerCase().includes(q)
+  })
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <div>
-          <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>Create custom roles with granular permissions drawn from system role capabilities.</p>
+          <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>Roles & Permissions</h1>
+          <p style={{ fontSize: 13, color: "var(--muted-foreground)", margin: "3px 0 0" }}>Manage system and custom roles and their permissions.</p>
         </div>
-        <Button size="sm" onClick={() => setNewOpen(true)}><Plus size={14} /> New Role</Button>
+        {tab === "custom" && (
+          <Button size="sm" onClick={() => router.push("/admin/settings/roles-permissions/new")}>
+            <Plus size={14} /> Create Custom Role
+          </Button>
+        )}
       </div>
 
-      <Card>
+      {/* Tabs */}
+      <div style={{ borderBottom: "1px solid var(--border)", display: "flex" }}>
+        {(["system", "custom"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{ padding: "10px 20px", fontSize: 13, fontWeight: tab === t ? 700 : 500, color: tab === t ? "var(--primary)" : "var(--muted-foreground)", background: "transparent", border: "none", borderBottom: `2px solid ${tab === t ? "var(--primary)" : "transparent"}`, cursor: "pointer", marginBottom: -1, transition: "color .15s" }}>
+            {t === "system" ? "System Roles" : "Custom Roles"}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>
         {loading ? (
-          <div style={{ padding: 48, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--muted-foreground)" }}>
+          <div style={{ padding: 60, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--muted-foreground)" }}>
             <Loader2 size={18} style={{ animation: "spin .8s linear infinite" }} /><span style={{ fontSize: 13 }}>Loading…</span>
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
-        ) : roles.length === 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "48px 24px", textAlign: "center" }}>
-            <ShieldCheck size={32} style={{ color: "var(--muted-foreground)", opacity: 0.3 }} />
-            <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No custom roles yet. Create one by selecting granular permissions.</div>
-          </div>
+        ) : tab === "system" ? (
+          <SystemRolesTable roles={systemRoles} onAssign={openAssign} onView={r => router.push(`/admin/settings/roles-permissions/${r.id}`)} menuOpen={menuOpen} setMenuOpen={setMenuOpen} menuRef={menuRef} />
         ) : (
-          <div>
-            {roles.map((role: any) => {
-              const dutyLabels = (role.duties ?? []).map((k: string) => allDuties.find(d => d.key === k)?.label ?? k)
-              return (
-                <div key={role.id} style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 9, background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <ShieldCheck size={18} style={{ color: "var(--primary)" }} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{role.name}</div>
-                    {role.description && <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{role.description}</div>}
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 8 }}>
-                      {dutyLabels.slice(0, 8).map((p: string) => (
-                        <span key={p} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "var(--success-bg)", color: "var(--success)", fontWeight: 600 }}>{p}</span>
-                      ))}
-                      {dutyLabels.length > 8 && <span style={{ fontSize: 10, color: "var(--muted-foreground)" }}>+{dutyLabels.length - 8} more</span>}
+          <CustomRolesTable roles={customRoles} onAssign={openAssign} onView={r => router.push(`/admin/settings/roles-permissions/${r.id}`)} onEdit={r => router.push(`/admin/settings/roles-permissions/${r.id}`)} onDelete={r => { setDeleteRole(r); setMenuOpen(null) }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} menuRef={menuRef} />
+        )}
+      </div>
+
+      {/* Assign Members Modal */}
+      <Modal open={!!assignRole} onClose={() => setAssignRole(null)} title={`Assign Members — ${assignRole?.name}`} width={480}>
+        <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+          <input placeholder="Search admins…" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} style={inp} />
+          <p style={{ fontSize: 12, color: "var(--muted-foreground)", margin: 0 }}>Only elevated staff and the Primary Admin can be assigned roles.</p>
+          {filteredAdmins.length === 0 ? (
+            <div style={{ padding: "16px 0", textAlign: "center", fontSize: 13, color: "var(--muted-foreground)" }}>No admins found</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
+              {filteredAdmins.map(a => {
+                const sel = selectedMemberIds.includes(a.id)
+                return (
+                  <label key={a.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 8, border: `1px solid ${sel ? "var(--primary)" : "var(--border)"}`, background: sel ? "var(--muted)" : "transparent", cursor: "pointer" }}>
+                    <input type="checkbox" checked={sel} onChange={() => setSelectedMemberIds(ids => sel ? ids.filter(id => id !== a.id) : [...ids, a.id])} style={{ width: 14, height: 14, flexShrink: 0 }} />
+                    <Avatar name={a.name ?? a.email ?? "?"} size={28} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name ?? "—"}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{a.email}</div>
                     </div>
+                    {a.role === "SUPER_ADMIN" && <span style={{ fontSize: 10, background: "var(--primary)", color: "white", borderRadius: 999, padding: "2px 7px", fontWeight: 700 }}>Primary</span>}
+                  </label>
+                )
+              })}
+            </div>
+          )}
+        </div>
+        <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <Button variant="secondary" onClick={() => setAssignRole(null)}>Cancel</Button>
+          <Button disabled={savingMembers || selectedMemberIds.length === 0} loading={savingMembers} onClick={saveMembers}>
+            Assign {selectedMemberIds.length > 0 ? `(${selectedMemberIds.length})` : ""}
+          </Button>
+        </div>
+      </Modal>
+
+      {/* Delete confirmation */}
+      <Modal open={!!deleteRole} onClose={() => setDeleteRole(null)} title="Delete Custom Role" width={420}>
+        <div style={{ padding: 24 }}>
+          <p style={{ fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+            Delete <strong>{deleteRole?.name}</strong>? This will remove the role from all assigned members. This cannot be undone.
+          </p>
+        </div>
+        <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <Button variant="secondary" onClick={() => setDeleteRole(null)}>Cancel</Button>
+          <Button variant="danger" loading={deleting} onClick={confirmDelete}>Delete Role</Button>
+        </div>
+      </Modal>
+    </div>
+  )
+}
+
+function SystemRolesTable({ roles, onAssign, onView, menuOpen, setMenuOpen, menuRef }: {
+  roles: RoleRecord[]; onAssign: (r: RoleRecord) => void; onView: (r: RoleRecord) => void
+  menuOpen: string | null; setMenuOpen: (id: string | null) => void; menuRef: React.RefObject<HTMLDivElement | null>
+}) {
+  if (roles.length === 0) return (
+    <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>
+      No system roles found.
+    </div>
+  )
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ borderBottom: "1px solid var(--border)" }}>
+            {["Role", "Description", "Members", ""].map(h => (
+              <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {roles.map(role => (
+            <tr key={role.id} style={{ borderBottom: "1px solid var(--border)" }}>
+              <td style={{ padding: "14px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <ShieldCheck size={15} style={{ color: "var(--primary)" }} />
                   </div>
-                  <button onClick={() => del(role.id)} style={{ background: "var(--danger-bg)", border: "none", borderRadius: 7, padding: "6px 8px", cursor: "pointer", color: "var(--danger)", flexShrink: 0 }}>
-                    <Trash2 size={13} />
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{role.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>System role</div>
+                  </div>
+                </div>
+              </td>
+              <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)", maxWidth: 280 }}>{role.description ?? "—"}</td>
+              <td style={{ padding: "14px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{role._count.members}</span>
+                  <button onClick={() => onAssign(role)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--primary)", fontWeight: 600, display: "flex", alignItems: "center", gap: 4, padding: 0 }}>
+                    <Users size={12} /> Assign members
                   </button>
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </Card>
+              </td>
+              <td style={{ padding: "14px 20px" }}>
+                <div style={{ position: "relative" }} ref={menuOpen === role.id ? menuRef as React.RefObject<HTMLDivElement> : undefined}>
+                  <button onClick={() => setMenuOpen(menuOpen === role.id ? null : role.id)} style={{ background: "var(--muted)", border: "none", borderRadius: 7, padding: "5px 8px", cursor: "pointer", color: "var(--foreground)" }}>
+                    <MoreHorizontal size={15} />
+                  </button>
+                  {menuOpen === role.id && (
+                    <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, minWidth: 140, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50 }}>
+                      <button onClick={() => onView(role)} style={{ width: "100%", padding: "9px 14px", textAlign: "left", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--foreground)", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                        <Eye size={13} /> View
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
 
-      {/* New Role Modal */}
-      {newOpen && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "var(--card)", borderRadius: 16, width: "100%", maxWidth: 600, maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.35)" }}>
-            <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 800 }}>New Custom Role</div>
-              <button onClick={() => setNewOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}><X size={16} /></button>
-            </div>
-            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16, overflowY: "auto", flex: 1 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%,220px),1fr))", gap: 14 }}>
-                <div><label style={lbl}>Role Name *</label><input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} style={inp} placeholder="e.g. Payslip Officer" /></div>
-                <div><label style={lbl}>Description</label><input value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} style={inp} placeholder="Brief description" /></div>
-              </div>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                  <label style={{ ...lbl, marginBottom: 0 }}>Permissions *</label>
-                  <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{form.duties.length} selected</span>
+function CustomRolesTable({ roles, onAssign, onView, onEdit, onDelete, menuOpen, setMenuOpen, menuRef }: {
+  roles: RoleRecord[]; onAssign: (r: RoleRecord) => void; onView: (r: RoleRecord) => void
+  onEdit: (r: RoleRecord) => void; onDelete: (r: RoleRecord) => void
+  menuOpen: string | null; setMenuOpen: (id: string | null) => void; menuRef: React.RefObject<HTMLDivElement | null>
+}) {
+  if (roles.length === 0) return (
+    <div style={{ padding: "48px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>
+      No custom roles yet. Create one to get started.
+    </div>
+  )
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ borderBottom: "1px solid var(--border)" }}>
+            {["Role", "Description", "Members", ""].map(h => (
+              <th key={h} style={{ padding: "12px 20px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {roles.map(role => (
+            <tr key={role.id} style={{ borderBottom: "1px solid var(--border)" }}>
+              <td style={{ padding: "14px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 8, background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <ShieldCheck size={15} style={{ color: "var(--muted-foreground)" }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{role.name}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Custom role</div>
+                  </div>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {DUTY_GROUPS.map(grp => {
-                    const allKeys = grp.duties.map(d => d.key)
-                    const allSelected = allKeys.every(k => form.duties.includes(k))
-                    return (
-                      <div key={grp.group}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                          <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted-foreground)" }}>{grp.group}</div>
-                          <button type="button" onClick={() => setForm(f => ({ ...f, duties: allSelected ? f.duties.filter(d => !allKeys.includes(d)) : [...new Set([...f.duties, ...allKeys])] }))} style={{ fontSize: 10, fontWeight: 700, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
-                            {allSelected ? "Deselect all" : "Select all"}
-                          </button>
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%,200px),1fr))", gap: 4 }}>
-                          {grp.duties.map(duty => {
-                            const selected = form.duties.includes(duty.key)
-                            return (
-                              <label key={duty.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 7, border: `1px solid ${selected ? "var(--primary)" : "var(--border)"}`, background: selected ? "var(--muted)" : "transparent", cursor: "pointer" }}>
-                                <input type="checkbox" checked={selected} onChange={() => setForm(f => ({ ...f, duties: selected ? f.duties.filter(d => d !== duty.key) : [...f.duties, duty.key] }))} style={{ width: 13, height: 13, flexShrink: 0 }} />
-                                <span style={{ fontSize: 11, fontWeight: selected ? 600 : 400, color: selected ? "var(--foreground)" : "var(--foreground)" }}>{duty.label}</span>
-                              </label>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })}
+              </td>
+              <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)", maxWidth: 280 }}>{role.description ?? "—"}</td>
+              <td style={{ padding: "14px 20px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600 }}>{role._count.members}</span>
+                  <button onClick={() => onAssign(role)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--primary)", fontWeight: 600, display: "flex", alignItems: "center", gap: 4, padding: 0 }}>
+                    <Users size={12} /> Assign members
+                  </button>
                 </div>
-              </div>
-            </div>
-            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0 }}>
-              <button onClick={() => setNewOpen(false)} style={{ padding: "8px 16px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--muted)", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>Cancel</button>
-              <button onClick={save} disabled={saving || !form.name || form.duties.length === 0} style={{ padding: "8px 18px", border: "none", borderRadius: 8, background: "var(--primary)", color: "white", cursor: "pointer", fontSize: 13, fontWeight: 700, opacity: (!form.name || form.duties.length === 0) ? 0.5 : 1 }}>
-                {saving ? "Creating…" : "Create Role"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </td>
+              <td style={{ padding: "14px 20px" }}>
+                <div style={{ position: "relative" }} ref={menuOpen === role.id ? menuRef as React.RefObject<HTMLDivElement> : undefined}>
+                  <button onClick={() => setMenuOpen(menuOpen === role.id ? null : role.id)} style={{ background: "var(--muted)", border: "none", borderRadius: 7, padding: "5px 8px", cursor: "pointer", color: "var(--foreground)" }}>
+                    <MoreHorizontal size={15} />
+                  </button>
+                  {menuOpen === role.id && (
+                    <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, minWidth: 140, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50 }}>
+                      <button onClick={() => onView(role)} style={{ width: "100%", padding: "9px 14px", textAlign: "left", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--foreground)", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}><Eye size={13} /> View</button>
+                      <button onClick={() => onEdit(role)} style={{ width: "100%", padding: "9px 14px", textAlign: "left", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--foreground)", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}><Pencil size={13} /> Edit</button>
+                      <div style={{ height: 1, background: "var(--border)" }} />
+                      <button onClick={() => onDelete(role)} style={{ width: "100%", padding: "9px 14px", textAlign: "left", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--danger)", fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}><Trash2 size={13} /> Delete</button>
+                    </div>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }

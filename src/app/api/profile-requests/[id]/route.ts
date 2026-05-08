@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, roleBasePath } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, roleBasePath } from "@/lib/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!["ADMIN", "SUPER_ADMIN"].includes(user.role)) return forbidden()
+  if (!caps(user.role).canViewAllEmployees) return forbidden()
 
   const { id } = await params
   const { action, reviewNote } = await req.json() // action: "approve" | "reject"
@@ -16,12 +16,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   })
   if (!req_) return NextResponse.json({ error: "Not found" }, { status: 404 })
   if (req_.status !== "PENDING") return NextResponse.json({ error: "Already reviewed" }, { status: 409 })
-
-  // ADMIN cannot approve requests submitted by other admins — only SUPER_ADMIN can
-  const submitterRole = (req_.employee as any).user?.role
-  if (user.role === "ADMIN" && ["ADMIN", "SUPER_ADMIN"].includes(submitterRole)) {
-    return NextResponse.json({ error: "Only a Super Admin can review admin profile requests" }, { status: 403 })
-  }
 
   const empRole = (req_.employee as any).user?.role ?? "STAFF"
   const empBase = roleBasePath(empRole)

@@ -85,8 +85,6 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
           <label style={labelStyle}>System Role</label>
           <select value={form.role} onChange={e => set("role", e.target.value)} style={inputStyle}>
             <option value="STAFF">Staff</option>
-            <option value="PROJECT_LEAD">Project Lead</option>
-            {(currentUserRole === "SUPER_ADMIN") && <option value="ADMIN">Admin</option>}
           </select>
         </div>
         <div />

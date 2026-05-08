@@ -45,12 +45,9 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Scope filter for PROJECT_LEAD
   let scopeFilter: any = {}
   if (!c.canViewAllEmployees && c.canViewTeamEmployees) {
-    if (user.role === "PROJECT_LEAD") {
-      scopeFilter = { managerId: user.employeeId }
-    }
+    scopeFilter = { managerId: user.employeeId }
   }
 
   try {
@@ -76,7 +73,7 @@ export async function GET(req: NextRequest) {
           projectAssignments: {
             include: { project: { select: { id: true, name: true, status: true } } },
           },
-          user: { select: { role: true, additionalRoles: true, email: true } },
+          user: { select: { role: true, email: true } },
         },
         orderBy: { createdAt: "desc" },
       }),
