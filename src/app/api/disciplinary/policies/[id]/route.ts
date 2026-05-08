@@ -11,7 +11,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         include: {
           employee: {
             select: {
-              id: true, firstName: true, lastName: true, email: true,
+              id: true, firstName: true, lastName: true,
+              workEmail: true,
               department: { select: { name: true } },
             },
           },

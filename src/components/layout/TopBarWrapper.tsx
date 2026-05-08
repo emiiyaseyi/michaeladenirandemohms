@@ -68,6 +68,10 @@ const SECTION_TITLES: Record<string, string> = {
   "contractors/bulk-upload":   "Bulk Upload Contractors",
   "self-service/edit":         "Edit Profile",
   "self-service/preferences":  "Preferences",
+  "assets/overview":           "Assets",
+  "assets/overview/new":       "Create New Asset",
+  "assets/assignments":        "Assignments",
+  "assets/assignments/new":    "Assign Asset",
 }
 
 const ROLE_SLUGS = ["admin", "project-lead", "staff"]
@@ -99,6 +103,10 @@ export default function TopBarWrapper({ user }: { user: any }) {
     else if (segs[0] === "contractors" && segs.length === 2) title = "Contractor Details"
     else if (segs[0] === "contractors" && segs[2] === "edit") title = "Edit Contractor"
     else if (segs[0] === "rent-documents" && segs[2] === "edit") title = "Edit Rent Document"
+    else if (segs[0] === "assets" && segs[1] === "overview" && segs.length === 3) title = "View Asset"
+    else if (segs[0] === "assets" && segs[1] === "overview" && segs[3] === "edit") title = "Edit Asset"
+    else if (segs[0] === "assets" && segs[1] === "overview" && segs[3] === "employees") title = "Remove or Add Employees"
+    else if (segs[0] === "assets" && segs[1] === "assignments" && segs.length === 3) title = "Employee Asset"
     else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs.length === 3) title = "Absence"
     else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs[3] === "new") title = "Record Employee Absence"
     else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs[3] === "bulk-upload") title = "Bulk Upload Absent Days"
