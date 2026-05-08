@@ -44,14 +44,13 @@ async function main() {
       u = await prisma.user.update({ where: { id: u.id }, data: { role: acc.role as any } })
     }
 
-    let emp = await prisma.employee.findFirst({ where: { workEmail: acc.email } })
+    let emp = await prisma.employee.findFirst({ where: { userId: u.id } })
     if (!emp) {
       emp = await prisma.employee.create({
         data: {
           userId: u.id,
           employeeId: `DSN${String(acc.num).padStart(4, "0")}`,
           firstName: fn, lastName: ln,
-          workEmail: acc.email,
           gender: acc.gender as any,
           jobTitle: acc.title,
           departmentId: dept.id,

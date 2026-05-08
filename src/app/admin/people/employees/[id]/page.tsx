@@ -214,7 +214,7 @@ function TabPersonal({ emp, openModal, onUpload, uploadedDocs }: {
           <InfoRow label="Gender" value={emp.gender ? (emp.gender === "MALE" ? "Male" : "Female") : null} />
           <InfoRow label="Nationality" value={emp.nationality ?? "Nigerian"} />
           <InfoRow label="State of Origin" value={emp.stateOfOrigin} />
-          <InfoRow label="Email" value={emp.workEmail} />
+          <InfoRow label="Email" value={emp.user?.email} />
           <InfoRow label="Phone" value={emp.phone} />
           <InfoRow label="Alt. Phone" value={emp.alternatePhone} />
           <InfoRow label="Marital Status" value={emp.maritalStatus ? emp.maritalStatus.charAt(0) + emp.maritalStatus.slice(1).toLowerCase() : null} />

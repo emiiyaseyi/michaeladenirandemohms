@@ -186,7 +186,7 @@ export async function GET() {
       employeeStatus: employee.employeeStatus,
       gender: employee.gender,
       // Contact & personal
-      email: employee.workEmail ?? employee.personalEmail,
+      email: user.email ?? employee.personalEmail,
       phone: employee.phone,
       city: employee.city,
       state: employee.state,

@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
             search ? { OR: [
               { firstName: { contains: search, mode: "insensitive" } },
               { lastName: { contains: search, mode: "insensitive" } },
-              { workEmail: { contains: search, mode: "insensitive" } },
+              { user: { email: { contains: search, mode: "insensitive" } } },
               { employeeId: { contains: search, mode: "insensitive" } },
               { jobTitle: { contains: search, mode: "insensitive" } },
             ]} : {},
@@ -76,7 +76,7 @@ export async function GET(req: NextRequest) {
           projectAssignments: {
             include: { project: { select: { id: true, name: true, status: true } } },
           },
-          user: { select: { role: true, additionalRoles: true } },
+          user: { select: { role: true, additionalRoles: true, email: true } },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -96,13 +96,13 @@ export async function POST(req: NextRequest) {
   if (!caps(user.role).canCreateEmployee) return forbidden()
 
   const body = await req.json()
-  const { firstName, lastName, middleName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, dateOfBirth, gender, category, grossSalary, projectLeadEmail, role: bodyRole } = body
+  const { firstName, lastName, middleName, email: workEmail, phone, jobTitle, departmentId, employmentType, hireDate, dateOfBirth, gender, category, grossSalary, projectLeadEmail, role: bodyRole } = body
 
   if (!firstName || !lastName || !workEmail || !phone || !jobTitle || !hireDate || !gender || !departmentId || !category) {
     return NextResponse.json({ error: "First name, last name, email, phone, job title, hire date, gender, department and category are required" }, { status: 400 })
   }
 
-  const existing = await prisma.employee.findFirst({ where: { workEmail } })
+  const existing = await prisma.user.findFirst({ where: { email: workEmail } })
   if (existing) return NextResponse.json({ error: "Email already in use" }, { status: 400 })
 
   const count = await prisma.employee.count()
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
   // Look up project lead by email
   let projectLeadId: string | null = null
   if (projectLeadEmail?.trim()) {
-    const lead = await prisma.employee.findFirst({ where: { workEmail: projectLeadEmail.trim().toLowerCase() } })
+    const lead = await prisma.employee.findFirst({ where: { user: { email: projectLeadEmail.trim().toLowerCase() } } })
     projectLeadId = lead?.id ?? null
   }
 
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
 
   const employee = await prisma.employee.create({
     data: {
-      userId: newUser.id, employeeId, firstName, lastName, middleName: middleName || null, workEmail,
+      userId: newUser.id, employeeId, firstName, lastName, middleName: middleName || null,
       phone: phone || null, jobTitle: jobTitle || null,
       departmentId: departmentId || null,
       employmentType: (employmentType ?? "FULL_TIME") as any,

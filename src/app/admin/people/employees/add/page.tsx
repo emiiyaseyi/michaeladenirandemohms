@@ -124,7 +124,7 @@ export default function AddNewMemberPage() {
   // Step 0: Basic Info + Compensation
   const [form, setForm] = useState({
     firstName: "", middleName: "", lastName: "",
-    workplaceId: "", workEmail: "", departmentId: "",
+    workplaceId: "", email: "", departmentId: "",
     hireDate: "", managerId: "", phone: "", employeeNumber: "",
     jobTitle: "", payband: "", amount: "", netOrGross: "Gross",
     contractType: "", employmentStatus: "Full-time", workingDays: "",
@@ -178,7 +178,7 @@ export default function AddNewMemberPage() {
 
   const setF = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
-    if (k === "workEmail") { setEmailAvailable(null); checkEmail(e.target.value) }
+    if (k === "email") { setEmailAvailable(null); checkEmail(e.target.value) }
   }
   const setP = (k: keyof typeof personal) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setPersonal(p => ({ ...p, [k]: e.target.value }))
@@ -192,7 +192,7 @@ export default function AddNewMemberPage() {
   const validateStep0 = () => {
     if (!form.firstName.trim()) { setErr("First name is required"); return false }
     if (!form.lastName.trim()) { setErr("Last name is required"); return false }
-    if (!form.workEmail.trim()) { setErr("Work email is required"); return false }
+    if (!form.email.trim()) { setErr("Work email is required"); return false }
     if (!form.hireDate) { setErr("Hire date is required"); return false }
     return true
   }
@@ -302,7 +302,7 @@ export default function AddNewMemberPage() {
                   placeholder="Select workplace…" />
                 <Field label="Email" required>
                   <div style={{ position: "relative" }}>
-                    <input value={form.workEmail} onChange={setF("workEmail")} style={{ ...fi, borderColor: emailAvailable === false ? "#ef4444" : emailAvailable === true ? "var(--primary)" : "var(--border)", paddingRight: 36 }} placeholder="Enter Email" />
+                    <input value={form.email} onChange={setF("email")} style={{ ...fi, borderColor: emailAvailable === false ? "#ef4444" : emailAvailable === true ? "var(--primary)" : "var(--border)", paddingRight: 36 }} placeholder="Enter Email" />
                     {emailChecking && <Loader2 size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", animation: "spin .8s linear infinite", color: "var(--muted-foreground)" }} />}
                     {emailAvailable === true && !emailChecking && <Check size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#16a34a" }} />}
                   </div>

@@ -42,9 +42,9 @@ async function main() {
     create: { name: "DSN Admin", email: "admin@dsn-hrms.com", password: hash("Admin@DSN2024!"), role: "ADMIN", mustChangePassword: false },
   })
   await prisma.employee.upsert({
-    where: { workEmail: "admin@dsn-hrms.com" },
+    where: { userId: adminUser.id },
     update: {},
-    create: { userId: adminUser.id, employeeId: "DSN-D001", firstName: "DSN", lastName: "Admin", workEmail: "admin@dsn-hrms.com", jobTitle: "System Administrator", departmentId: adminFacility.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-01-01"), grossSalary: 800000 },
+    create: { userId: adminUser.id, employeeId: "DSN-D001", firstName: "DSN", lastName: "Admin", jobTitle: "System Administrator", departmentId: adminFacility.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-01-01"), grossSalary: 800000 },
   })
 
   await prisma.user.upsert({
@@ -52,9 +52,9 @@ async function main() {
     update: { mustChangePassword: false },
     create: { name: "Demo Project Lead", email: "projectlead@dsn-hrms.com", password: hash("dsn-demo"), role: "PROJECT_LEAD", mustChangePassword: false },
   }).then(u => prisma.employee.upsert({
-    where: { workEmail: "projectlead@dsn-hrms.com" },
+    where: { userId: u.id },
     update: {},
-    create: { userId: u.id, employeeId: "DSN-D002", firstName: "Demo", lastName: "Project Lead", workEmail: "projectlead@dsn-hrms.com", jobTitle: "Project Lead", departmentId: techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-03-01"), grossSalary: 600000 },
+    create: { userId: u.id, employeeId: "DSN-D002", firstName: "Demo", lastName: "Project Lead", jobTitle: "Project Lead", departmentId: techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-03-01"), grossSalary: 600000 },
   }))
 
   await prisma.user.upsert({
@@ -62,9 +62,9 @@ async function main() {
     update: { mustChangePassword: false },
     create: { name: "Demo Staff", email: "staff@dsn-hrms.com", password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false },
   }).then(u => prisma.employee.upsert({
-    where: { workEmail: "staff@dsn-hrms.com" },
+    where: { userId: u.id },
     update: {},
-    create: { userId: u.id, employeeId: "DSN-D003", firstName: "Demo", lastName: "Staff", workEmail: "staff@dsn-hrms.com", jobTitle: "Staff", departmentId: equalyzai.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: 380000 },
+    create: { userId: u.id, employeeId: "DSN-D003", firstName: "Demo", lastName: "Staff", jobTitle: "Staff", departmentId: equalyzai.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: 380000 },
   }))
 
   console.log("  ✓ Demo login accounts")
@@ -76,9 +76,9 @@ async function main() {
     create: { name: "Amina Bello", email: "hr@datasciencenigeria.ai", password: hash("dsn-staff"), role: "ADMIN", mustChangePassword: false },
   })
   const hrEmp = await prisma.employee.upsert({
-    where: { workEmail: "hr@datasciencenigeria.ai" },
+    where: { userId: hrUser.id },
     update: {},
-    create: { userId: hrUser.id, employeeId: "DSN0001", firstName: "Amina", lastName: "Bello", workEmail: "hr@datasciencenigeria.ai", phone: "+234 801 234 5678", gender: "FEMALE", jobTitle: "HR Manager", departmentId: adminFacility.id, employmentType: "FULL_TIME", category: "NON_TECHNICAL", grossSalary: 750000, employeeStatus: "ACTIVE", hireDate: new Date("2021-03-01") },
+    create: { userId: hrUser.id, employeeId: "DSN0001", firstName: "Amina", lastName: "Bello", phone: "+234 801 234 5678", gender: "FEMALE", jobTitle: "HR Manager", departmentId: adminFacility.id, employmentType: "FULL_TIME", category: "NON_TECHNICAL", grossSalary: 750000, employeeStatus: "ACTIVE", hireDate: new Date("2021-03-01") },
   })
 
   // ── 12 Sample Employees ───────────────────────────────────────────────────────
@@ -121,9 +121,9 @@ async function main() {
     } else {
       counter++
       emp = await prisma.employee.upsert({
-        where: { workEmail: s.email },
+        where: { userId: u.id },
         update: { category: s.cat as any, grossSalary: s.salary },
-        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), workEmail: s.email, gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire) },
+        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire) },
       })
     }
     empRecords[s.email] = emp
@@ -137,12 +137,12 @@ async function main() {
   const blessing = empRecords["blessing.okafor@datasciencenigeria.ai"]
 
   await Promise.all([
-    prisma.employee.update({ where: { workEmail: "fatima.musa@datasciencenigeria.ai" },    data: { managerId: emeka.id,   projectLeadId: emeka.id } }),
-    prisma.employee.update({ where: { workEmail: "aisha.garba@datasciencenigeria.ai" },    data: { managerId: emeka.id,   projectLeadId: emeka.id } }),
-    prisma.employee.update({ where: { workEmail: "zainab.hassan@datasciencenigeria.ai" },  data: { managerId: emeka.id,   projectLeadId: emeka.id } }),
-    prisma.employee.update({ where: { workEmail: "kelechi.ibe@datasciencenigeria.ai" },    data: { managerId: chidi.id,   projectLeadId: chidi.id } }),
-    prisma.employee.update({ where: { workEmail: "olumide.adewale@datasciencenigeria.ai" },data: { managerId: chidi.id,   projectLeadId: chidi.id } }),
-    prisma.employee.update({ where: { workEmail: "grace.okeke@datasciencenigeria.ai" },    data: { managerId: blessing.id } }),
+    prisma.employee.update({ where: { id: empRecords["fatima.musa@datasciencenigeria.ai"]?.id },    data: { managerId: emeka.id,   projectLeadId: emeka.id } }),
+    prisma.employee.update({ where: { id: empRecords["aisha.garba@datasciencenigeria.ai"]?.id },    data: { managerId: emeka.id,   projectLeadId: emeka.id } }),
+    prisma.employee.update({ where: { id: empRecords["zainab.hassan@datasciencenigeria.ai"]?.id },  data: { managerId: emeka.id,   projectLeadId: emeka.id } }),
+    prisma.employee.update({ where: { id: empRecords["kelechi.ibe@datasciencenigeria.ai"]?.id },    data: { managerId: chidi.id,   projectLeadId: chidi.id } }),
+    prisma.employee.update({ where: { id: empRecords["olumide.adewale@datasciencenigeria.ai"]?.id },data: { managerId: chidi.id,   projectLeadId: chidi.id } }),
+    prisma.employee.update({ where: { id: empRecords["grace.okeke@datasciencenigeria.ai"]?.id },    data: { managerId: blessing.id } }),
   ])
   await Promise.all([
     prisma.employee.updateMany({ where: { departmentId: equalyzai.id },       data: { projectLeadId: emeka.id } }),

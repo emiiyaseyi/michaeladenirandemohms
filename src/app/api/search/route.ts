@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
           { firstName: { contains: q, mode: "insensitive" } },
           { lastName:  { contains: q, mode: "insensitive" } },
           { jobTitle:  { contains: q, mode: "insensitive" } },
-          { workEmail: { contains: q, mode: "insensitive" } },
+          { user: { email: { contains: q, mode: "insensitive" } } },
           { department: { name: { contains: q, mode: "insensitive" } } },
         ],
       },

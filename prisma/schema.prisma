@@ -127,7 +127,6 @@ model Employee {
   stateOfOrigin      String?
   profilePhoto       String?
   personalEmail      String?
-  workEmail          String               @unique
   phone              String?
   alternatePhone     String?
   address            String?

@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button"
 export default function AddEmployeeForm({ departments, onSuccess, currentUserRole }: { departments: any[]; onSuccess: () => void; currentUserRole?: string }) {
   const [form, setForm] = useState({
     firstName: "", middleName: "", lastName: "",
-    workEmail: "", phone: "", jobTitle: "",
+    email: "", phone: "", jobTitle: "",
     departmentId: "", employmentType: "FULL_TIME",
     hireDate: "", dateOfBirth: "", gender: "",
     category: "", projectLeadEmail: "", grossSalary: "",
@@ -43,7 +43,7 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
         {field("First Name", "firstName")}
         {field("Last Name", "lastName")}
         {field("Middle Name", "middleName", "text", false)}
-        {field("Work Email", "workEmail", "email")}
+        {field("Work Email", "email", "email")}
         {field("Phone", "phone", "tel")}
         {field("Job Title", "jobTitle")}
         {field("Hire Date", "hireDate", "date")}

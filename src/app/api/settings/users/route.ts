@@ -72,7 +72,6 @@ export async function POST(req: NextRequest) {
           firstName,
           lastName,
           middleName: middleName || null,
-          workEmail: email,
           jobTitle: jobTitle || null,
           departmentId: departmentId || null,
           employmentType: employmentType ?? "FULL_TIME",

@@ -107,12 +107,12 @@ async function main() {
       create: { name: "HR Admin", email: "hr@datasciencenigeria.ai", password: hashed, role: "SUPER_ADMIN" as any, mustChangePassword: false },
     })
     await prisma.employee.upsert({
-      where:  { workEmail: "hr@datasciencenigeria.ai" },
+      where:  { userId: adminUser.id },
       update: {},
       create: {
         userId: adminUser.id, employeeId: "DSN-0001",
         firstName: "HR", lastName: "Admin",
-        workEmail: "hr@datasciencenigeria.ai", jobTitle: "HR Admin",
+        jobTitle: "HR Admin",
         departmentId: adminDept?.id ?? null,
         employmentType: "FULL_TIME", employeeStatus: "ACTIVE", hireDate: new Date("2023-01-01"), gender: "FEMALE",
       },
@@ -148,9 +148,9 @@ async function main() {
     create: { name: "DSN Admin", email: "admin@dsn-hrms.com", password: hash("Admin@DSN2024!"), role: "ADMIN", mustChangePassword: false },
   })
   await prisma.employee.upsert({
-    where: { workEmail: "admin@dsn-hrms.com" },
+    where: { userId: demoAdmin.id },
     update: { dateOfBirth: new Date("1990-07-15") },
-    create: { userId: demoAdmin.id, employeeId: "DSN-D001", firstName: "DSN", lastName: "Admin", workEmail: "admin@dsn-hrms.com", jobTitle: "System Administrator", departmentId: adminFacility.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-01-01"), grossSalary: 800000, gender: "FEMALE", dateOfBirth: new Date("1990-07-15") },
+    create: { userId: demoAdmin.id, employeeId: "DSN-D001", firstName: "DSN", lastName: "Admin", jobTitle: "System Administrator", departmentId: adminFacility.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-01-01"), grossSalary: 800000, gender: "FEMALE", dateOfBirth: new Date("1990-07-15") },
   })
 
   const demoProjectLead = await prisma.user.upsert({
@@ -158,9 +158,9 @@ async function main() {
     update: { mustChangePassword: false },
     create: { name: "Demo Project Lead", email: "projectlead@dsn-hrms.com", password: hash("dsn-demo"), role: "PROJECT_LEAD", mustChangePassword: false },
   }).then(u => prisma.employee.upsert({
-    where: { workEmail: "projectlead@dsn-hrms.com" },
+    where: { userId: u.id },
     update: { dateOfBirth: new Date("1988-03-22") },
-    create: { userId: u.id, employeeId: "DSN-D002", firstName: "Demo", lastName: "Project Lead", workEmail: "projectlead@dsn-hrms.com", jobTitle: "Project Lead", departmentId: techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-03-01"), grossSalary: 600000, gender: "MALE", dateOfBirth: new Date("1988-03-22") },
+    create: { userId: u.id, employeeId: "DSN-D002", firstName: "Demo", lastName: "Project Lead", jobTitle: "Project Lead", departmentId: techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-03-01"), grossSalary: 600000, gender: "MALE", dateOfBirth: new Date("1988-03-22") },
   }))
 
   const demoProjectLead2 = await prisma.user.upsert({ // used as projectLeadId for staff2 below
@@ -168,9 +168,9 @@ async function main() {
     update: { mustChangePassword: false },
     create: { name: "Demo Project Lead 2", email: "projectlead2@dsn-hrms.com", password: hash("dsn-demo"), role: "PROJECT_LEAD", mustChangePassword: false },
   }).then(u => prisma.employee.upsert({
-    where: { workEmail: "projectlead2@dsn-hrms.com" },
+    where: { userId: u.id },
     update: { dateOfBirth: new Date("1986-09-11") },
-    create: { userId: u.id, employeeId: "DSN-D004", firstName: "Demo", lastName: "Project Lead Two", workEmail: "projectlead2@dsn-hrms.com", jobTitle: "Project Lead", departmentId: equalyzai?.id ?? techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-06-01"), grossSalary: 580000, gender: "FEMALE", dateOfBirth: new Date("1986-09-11") },
+    create: { userId: u.id, employeeId: "DSN-D004", firstName: "Demo", lastName: "Project Lead Two", jobTitle: "Project Lead", departmentId: equalyzai?.id ?? techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-06-01"), grossSalary: 580000, gender: "FEMALE", dateOfBirth: new Date("1986-09-11") },
   }))
 
   await prisma.user.upsert({
@@ -178,9 +178,9 @@ async function main() {
     update: { mustChangePassword: false },
     create: { name: "Demo Staff", email: "staff@dsn-hrms.com", password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false },
   }).then(u => prisma.employee.upsert({
-    where: { workEmail: "staff@dsn-hrms.com" },
+    where: { userId: u.id },
     update: { dateOfBirth: new Date("1995-11-08") },
-    create: { userId: u.id, employeeId: "DSN-D003", firstName: "Demo", lastName: "Staff", workEmail: "staff@dsn-hrms.com", jobTitle: "Staff", departmentId: techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: 380000, managerId: demoProjectLead.id, projectLeadId: demoProjectLead.id, gender: "FEMALE", dateOfBirth: new Date("1995-11-08") },
+    create: { userId: u.id, employeeId: "DSN-D003", firstName: "Demo", lastName: "Staff", jobTitle: "Staff", departmentId: techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: 380000, managerId: demoProjectLead.id, projectLeadId: demoProjectLead.id, gender: "FEMALE", dateOfBirth: new Date("1995-11-08") },
   }))
 
   // 5th demo account — extra staff
@@ -189,9 +189,9 @@ async function main() {
     update: { mustChangePassword: false },
     create: { name: "Demo Staff 2", email: "staff2@dsn-hrms.com", password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false },
   }).then(u => prisma.employee.upsert({
-    where: { workEmail: "staff2@dsn-hrms.com" },
+    where: { userId: u.id },
     update: { dateOfBirth: new Date("1997-04-14") },
-    create: { userId: u.id, employeeId: "DSN-D005", firstName: "Demo", lastName: "Staff Two", workEmail: "staff2@dsn-hrms.com", jobTitle: "Staff", departmentId: equalyzai?.id ?? techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-06-01"), grossSalary: 350000, projectLeadId: demoProjectLead2.id, gender: "MALE", dateOfBirth: new Date("1997-04-14") },
+    create: { userId: u.id, employeeId: "DSN-D005", firstName: "Demo", lastName: "Staff Two", jobTitle: "Staff", departmentId: equalyzai?.id ?? techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-06-01"), grossSalary: 350000, projectLeadId: demoProjectLead2.id, gender: "MALE", dateOfBirth: new Date("1997-04-14") },
   }))
 
   // 12 sample employees
@@ -230,9 +230,9 @@ async function main() {
     } else {
       counter++
       emp = await prisma.employee.upsert({
-        where: { workEmail: s.email },
+        where: { userId: u.id },
         update: { category: s.cat as any, grossSalary: s.salary, dateOfBirth: new Date(s.dob) },
-        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), workEmail: s.email, gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
+        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
       })
     }
     empRecords[s.email] = emp
@@ -245,12 +245,12 @@ async function main() {
   const tunde = empRecords["tunde.adeyemi@datasciencenigeria.ai"]
   const blessing = empRecords["blessing.okafor@datasciencenigeria.ai"]
   await Promise.all([
-    prisma.employee.update({ where: { workEmail: "fatima.musa@datasciencenigeria.ai" },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
-    prisma.employee.update({ where: { workEmail: "aisha.garba@datasciencenigeria.ai" },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
-    prisma.employee.update({ where: { workEmail: "zainab.hassan@datasciencenigeria.ai" },  data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
-    prisma.employee.update({ where: { workEmail: "kelechi.ibe@datasciencenigeria.ai" },    data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
-    prisma.employee.update({ where: { workEmail: "olumide.adewale@datasciencenigeria.ai" },data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
-    prisma.employee.update({ where: { workEmail: "grace.okeke@datasciencenigeria.ai" },    data: { managerId: blessing?.id } }),
+    prisma.employee.update({ where: { id: empRecords["fatima.musa@datasciencenigeria.ai"]?.id },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
+    prisma.employee.update({ where: { id: empRecords["aisha.garba@datasciencenigeria.ai"]?.id },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
+    prisma.employee.update({ where: { id: empRecords["zainab.hassan@datasciencenigeria.ai"]?.id },  data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
+    prisma.employee.update({ where: { id: empRecords["kelechi.ibe@datasciencenigeria.ai"]?.id },    data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
+    prisma.employee.update({ where: { id: empRecords["olumide.adewale@datasciencenigeria.ai"]?.id },data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
+    prisma.employee.update({ where: { id: empRecords["grace.okeke@datasciencenigeria.ai"]?.id },    data: { managerId: blessing?.id } }),
   ])
 
   // Projects

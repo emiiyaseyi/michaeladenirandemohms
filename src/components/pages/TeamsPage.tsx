@@ -329,7 +329,7 @@ export default function TeamsPage() {
 
   const filteredRoster = employees.filter(e => {
     const q = search.toLowerCase()
-    const matchSearch = !q || `${e.firstName} ${e.lastName} ${e.jobTitle ?? ""} ${e.workEmail}`.toLowerCase().includes(q)
+    const matchSearch = !q || `${e.firstName} ${e.lastName} ${e.jobTitle ?? ""} ${e.user?.email ?? ""}`.toLowerCase().includes(q)
     const matchCat = !catFilter || (catFilter === "TECHNICAL" ? e.category === "TECHNICAL" : e.category !== "TECHNICAL")
     return matchSearch && matchCat
   })

@@ -13,7 +13,7 @@ export async function GET() {
       confirmationDate: null,
     },
     select: {
-      id: true, firstName: true, lastName: true, workEmail: true, phone: true,
+      id: true, firstName: true, lastName: true, user: { select: { email: true } }, phone: true,
       profilePhoto: true, hireDate: true, probationEndDate: true,
       onProbation: true, employeeStatus: true, jobTitle: true,
       department: { select: { id: true, name: true } },

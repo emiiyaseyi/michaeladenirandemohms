@@ -32,7 +32,7 @@ export default function EmployeePreviewModal({ employee }: { employee: any }) {
               {employee.jobTitle ?? "—"} · {employee.department?.name ?? "—"}
             </p>
             <p style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-              {employee.employeeId} · {employee.workEmail}
+              {employee.employeeId} · {employee.user?.email}
             </p>
             <div style={{ marginTop: 6 }}><Badge status={employee.employeeStatus} /></div>
           </div>
@@ -41,7 +41,7 @@ export default function EmployeePreviewModal({ employee }: { employee: any }) {
         {/* Employee details */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
           {tile("Employee ID",     employee.employeeId)}
-          {tile("Work Email",      employee.workEmail)}
+          {tile("Work Email",      employee.user?.email)}
           {tile("Phone",           employee.phone ?? "—")}
           {tile("Employment Type", employee.employmentType?.replace(/_/g, " ") ?? "—")}
           {tile("Hire Date",       formatDate(employee.hireDate))}

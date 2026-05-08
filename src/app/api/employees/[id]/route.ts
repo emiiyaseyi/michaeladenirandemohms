@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         include: { project: { select: { id: true, name: true, status: true } } },
         where: { project: { status: "ACTIVE" } },
       },
-      user: { select: { role: true, additionalRoles: true } },
+      user: { select: { role: true, additionalRoles: true, email: true } },
     },
   })
 

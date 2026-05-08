@@ -87,7 +87,7 @@ export default function ManagersPage() {
                       <Av name={`${m.firstName} ${m.lastName}`} photo={m.profilePhoto} />
                       <div>
                         <div style={{ fontWeight: 700 }}>{m.firstName} {m.lastName}</div>
-                        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{m.workEmail}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{m.user?.email}</div>
                       </div>
                     </div>
                   </td>

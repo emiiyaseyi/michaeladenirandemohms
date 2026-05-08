@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           employee: {
             select: {
               id: true, firstName: true, lastName: true,
-              workEmail: true,
+              user: { select: { email: true } },
               department: { select: { name: true } },
             },
           },

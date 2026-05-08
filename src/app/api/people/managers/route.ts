@@ -11,7 +11,7 @@ export async function GET() {
     where: { directReports: { some: {} } },
     select: {
       id: true, firstName: true, lastName: true, jobTitle: true,
-      profilePhoto: true, employeeId: true, workEmail: true,
+      profilePhoto: true, employeeId: true, user: { select: { email: true } },
       _count: { select: { directReports: true } },
     },
     orderBy: { firstName: "asc" },

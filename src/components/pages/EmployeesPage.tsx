@@ -291,7 +291,7 @@ export default function EmployeesPage() {
                           </span>
                         </div>
                       </td>
-                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.workEmail ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.user?.email ?? "—"}</td>
                       <td style={{ ...td, color: "var(--muted-foreground)", fontFamily: "monospace", fontSize: 12 }}>{emp.employeeId}</td>
                       <td style={td}>{emp.department?.name ?? "—"}</td>
                       <td style={td}>{emp.jobTitle ?? "—"}</td>

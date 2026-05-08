@@ -81,7 +81,7 @@ export default function ConfirmationPage() {
 
   const filtered = employees.filter(e => {
     const q = search.toLowerCase()
-    const matchQ = !q || `${e.firstName} ${e.lastName}`.toLowerCase().includes(q) || (e.workEmail ?? "").toLowerCase().includes(q)
+    const matchQ = !q || `${e.firstName} ${e.lastName}`.toLowerCase().includes(q) || (e.user?.email ?? "").toLowerCase().includes(q)
     const matchDept = !deptFilter || e.department?.name === deptFilter
     return matchQ && matchDept
   })
@@ -181,7 +181,7 @@ export default function ConfirmationPage() {
                           <div style={{ fontWeight: 700 }}>{e.lastName?.toUpperCase()} {e.firstName}</div>
                         </div>
                       </td>
-                      <td style={{ ...td, color: "var(--muted-foreground)", fontSize: 12 }}>{e.workEmail ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)", fontSize: 12 }}>{e.user?.email ?? "—"}</td>
                       <td style={td}>
                         <div style={{ fontWeight: 600 }}>{e.department?.name ?? "—"}</div>
                         {e.jobTitle && <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle}</div>}
