@@ -45,6 +45,8 @@ const SECTION_TITLES: Record<string, string> = {
   "performance/groups":        "Performance Groups",
   "performance/conversations": "Conversations",
   "performance/feedback":      "Feedback",
+  "disciplinary/policies":         "Policies",
+  "disciplinary/policies/new":     "Record New Policy",
   "disciplinary/violation-types": "Violation Types",
   "disciplinary/triggers":        "Triggers",
   "disciplinary/violations":      "Violations",
@@ -92,6 +94,7 @@ export default function TopBarWrapper({ user }: { user: any }) {
     else if (segs[0] === "performance" && segs[1] === "groups" && segs[3] === "edit") title = "Edit Group"
     else if (segs[0] === "performance" && segs[1] === "conversations" && segs[2] === "setup" && segs[4] === "edit") title = "Edit Conversation Setup"
     else if (segs[0] === "performance" && segs[1] === "conversations" && segs[2] === "prompts" && segs[4] === "edit") title = "Edit Prompt"
+    else if (segs[0] === "disciplinary" && segs[1] === "policies" && segs.length === 3) title = "View Policy"
     else if (segs[0] === "contractors" && segs.length === 1) title = "Contractors"
     else if (segs[0] === "contractors" && segs.length === 2) title = "Contractor Details"
     else if (segs[0] === "contractors" && segs[2] === "edit") title = "Edit Contractor"

@@ -35,21 +35,6 @@ const DEFAULT_CATEGORIES = [
   },
 ]
 
-function Section({ title, description, children, defaultOpen = false }: { title: string; description: string; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>
-      <button onClick={() => setOpen(o => !o)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", gap: 16 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)" }}>{title}</div>
-          <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>{description}</div>
-        </div>
-        {open ? <ChevronUp size={16} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} /> : <ChevronDown size={16} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />}
-      </button>
-      {open && <div style={{ borderTop: "1px solid var(--border)" }}>{children}</div>}
-    </div>
-  )
-}
 
 export default function ApprovalWorkflowsSettingsPage() {
   const [cats, setCats] = useState<any[]>([])
@@ -112,7 +97,7 @@ export default function ApprovalWorkflowsSettingsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <Section title="Approval Workflows" description="Configure role-based approval chains for leave requests, performance reviews, profile changes, and more." defaultOpen>
+      <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>
         <div style={{ padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", flexWrap: "wrap", gap: 8 }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {saved && <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--success)" }}><Check size={13} /> Saved</span>}
@@ -208,7 +193,7 @@ export default function ApprovalWorkflowsSettingsPage() {
             ))}
           </div>
         )}
-      </Section>
+      </div>
 
       {/* New Category Modal */}
       {newCatOpen && (

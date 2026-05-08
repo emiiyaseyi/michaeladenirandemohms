@@ -4,7 +4,7 @@ import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Avatar from "@/components/ui/Avatar"
 import Modal from "@/components/ui/Modal"
-import { ChevronDown, ChevronUp, Plus, Pencil, KeyRound, UserX, UserCheck, Loader2 } from "lucide-react"
+import { Plus, Pencil, KeyRound, UserX, UserCheck, Loader2 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import { roleLabel, ALL_ROLES, type SystemRole } from "@/lib/rbac"
 
@@ -35,21 +35,6 @@ const BLANK_FORM = {
   jobTitle: "", departmentId: "", employmentType: "FULL_TIME", employeeId: "",
 }
 
-function Section({ title, description, children, defaultOpen = false }: { title: string; description: string; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>
-      <button onClick={() => setOpen(o => !o)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", gap: 16 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)" }}>{title}</div>
-          <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>{description}</div>
-        </div>
-        {open ? <ChevronUp size={16} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} /> : <ChevronDown size={16} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />}
-      </button>
-      {open && <div style={{ borderTop: "1px solid var(--border)" }}>{children}</div>}
-    </div>
-  )
-}
 
 export default function AdminsSettingsPage() {
   const { user: currentUser } = useCurrentUser()
@@ -112,7 +97,7 @@ export default function AdminsSettingsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
 
-      <Section title="Admins" description="The table below shows who has Admin access and which areas of the platform are available to them." defaultOpen>
+      <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>
         {/* Stats */}
         <div style={{ padding: "16px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%,160px),1fr))", gap: 12, borderBottom: "1px solid var(--border)" }}>
           {[
@@ -198,7 +183,7 @@ export default function AdminsSettingsPage() {
             </table>
           </div>
         )}
-      </Section>
+      </div>
 
       {/* Add User Modal */}
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add User" width={520}>

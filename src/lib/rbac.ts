@@ -129,7 +129,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Roles & Permissions", href: "/settings/roles-permissions" },
     ],
   },
-  { label: "Reports", href: "/reports", icon: "BarChart2", roles: ["ADMIN"] },
+  { label: "Reports", href: "/reports", icon: "BarChart2", roles: ["ADMIN"], section: "OTHER" },
   {
     label: "Assets", icon: "Package", roles: ["ADMIN"],
     children: [

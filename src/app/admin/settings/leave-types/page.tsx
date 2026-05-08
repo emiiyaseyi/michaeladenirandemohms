@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
-import { ChevronDown, ChevronUp, Plus, Pencil, Trash2 } from "lucide-react"
+import { Plus, Pencil, Trash2 } from "lucide-react"
 
 const inp: React.CSSProperties = {
   width: "100%", padding: "9px 12px", border: "1px solid var(--border)",
@@ -13,21 +13,6 @@ const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 6
 
 const BLANK = { name: "", description: "", defaultDays: "21", waitingDays: "0", genderSpecific: "", requiresDoc: false, minDocDays: "2", isActive: true }
 
-function Section({ title, description, children, defaultOpen = false }: { title: string; description: string; children: React.ReactNode; defaultOpen?: boolean }) {
-  const [open, setOpen] = useState(defaultOpen)
-  return (
-    <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>
-      <button onClick={() => setOpen(o => !o)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", gap: 16 }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)" }}>{title}</div>
-          <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>{description}</div>
-        </div>
-        {open ? <ChevronUp size={16} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} /> : <ChevronDown size={16} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />}
-      </button>
-      {open && <div style={{ borderTop: "1px solid var(--border)" }}>{children}</div>}
-    </div>
-  )
-}
 
 export default function LeaveTypesSettingsPage() {
   const [leaveTypes, setLeaveTypes] = useState<any[]>([])
@@ -62,7 +47,7 @@ export default function LeaveTypesSettingsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <Section title={`Leave Types (${leaveTypes.length})`} description="Define leave categories available to employees — annual leave, sick leave, maternity, and more." defaultOpen>
+      <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>
         <div style={{ padding: "14px 24px", display: "flex", justifyContent: "flex-end", borderBottom: "1px solid var(--border)" }}>
           <Button size="sm" onClick={() => { setEditing(null); setForm({ ...BLANK }); setError(""); setOpen(true) }}><Plus size={14} /> Add Leave Type</Button>
         </div>
@@ -85,7 +70,7 @@ export default function LeaveTypesSettingsPage() {
           ))}
           {leaveTypes.length === 0 && <div style={{ padding: 32, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leave types configured.</div>}
         </div>
-      </Section>
+      </div>
 
       <Modal open={open} onClose={() => { setOpen(false); setEditing(null) }} title={editing ? "Edit Leave Type" : "Add Leave Type"} width={480}>
         <form onSubmit={save}>

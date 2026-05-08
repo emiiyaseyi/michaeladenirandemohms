@@ -134,7 +134,14 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
       {/* Scrollable Nav */}
       <nav style={{ flex: 1, padding: "10px 10px", overflowY: "auto", overflowX: "hidden" }}>
-        {nav.map(item => {
+        {(() => {
+          const seenSections = new Set<string>()
+          return nav.map(item => {
+            const showSection = !!(item.section && !seenSections.has(item.section))
+            if (item.section) seenSections.add(item.section)
+            return { item, showSection }
+          })
+        })().map(({ item, showSection }) => {
           const Icon = resolveIcon(item.icon)
 
           if (item.children) {
@@ -145,7 +152,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
             return (
               <div key={item.label}>
-                {item.section && (
+                {showSection && (
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--sidebar-fg)", padding: "10px 10px 4px", textTransform: "uppercase", marginTop: 4 }}>
                     {item.section}
                   </div>
@@ -191,7 +198,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
           return (
             <div key={item.href ?? item.label}>
-              {item.section && (
+              {showSection && (
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--sidebar-fg)", padding: "10px 10px 4px", textTransform: "uppercase", marginTop: 4 }}>
                   {item.section}
                 </div>

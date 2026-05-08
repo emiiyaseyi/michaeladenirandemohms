@@ -33,9 +33,6 @@ export default function SettingsNav() {
 
   return (
     <div>
-      <div style={{ marginBottom: 12 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800 }}>{title}</h1>
-      </div>
       {!isRolesPage && (
         <div style={{ borderBottom: "1px solid var(--border)", display: "flex", gap: 0, overflowX: "auto" }}>
           {TABS.map(tab => {
