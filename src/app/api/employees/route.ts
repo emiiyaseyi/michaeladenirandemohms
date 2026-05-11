@@ -38,7 +38,8 @@ export async function GET(req: NextRequest) {
         },
         orderBy: { firstName: "asc" },
       })
-      return NextResponse.json({ employees, departments: [] })
+      const departments = await prisma.department.findMany({ orderBy: { name: "asc" } })
+      return NextResponse.json({ employees, departments })
     } catch (e: any) {
       console.error("[GET /api/employees staff]", e)
       return NextResponse.json({ employees: [], departments: [] })

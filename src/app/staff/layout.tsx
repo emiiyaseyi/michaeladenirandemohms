@@ -8,7 +8,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   const session = await auth()
   if (!session?.user) redirect("/login")
   const role = (session.user as any).role ?? "STAFF"
-  if (role !== "STAFF") redirect(getRoleHome(role))
+  if (role === "SUPER_ADMIN" || role === "ADMIN") redirect(getRoleHome(role))
 
   const nav = getNavForRoleWithPrefix("STAFF")
 

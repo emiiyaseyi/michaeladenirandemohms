@@ -8,10 +8,10 @@ import AuthLeftPanel from "@/components/layout/AuthLeftPanel"
 
 const DEMOS: [string, string, string, string][] = [
   ["HR", "HR Admin", "hr@datasciencenigeria.ai", "Admin@DSN2024!"],
-  ["S1", "Staff 1",  "staff1@dsn-hrms.com",      "dsn-demo"],
-  ["S2", "Staff 2",  "staff2@dsn-hrms.com",      "dsn-demo"],
-  ["S3", "Staff 3",  "staff3@dsn-hrms.com",      "dsn-demo"],
-  ["S4", "Staff 4",  "staff4@dsn-hrms.com",      "dsn-demo"],
+  ["A1", "Admin 1",  "staff1@dsn-hrms.com",      "dsn-demo"],
+  ["A2", "Admin 2",  "staff2@dsn-hrms.com",      "dsn-demo"],
+  ["S1", "Staff 1",  "staff3@dsn-hrms.com",      "dsn-demo"],
+  ["S2", "Staff 2",  "staff4@dsn-hrms.com",      "dsn-demo"],
 ]
 
 

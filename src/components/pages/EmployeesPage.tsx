@@ -73,11 +73,14 @@ export default function EmployeesPage() {
   const canEditEmployee = user?.can("canEditEmployee") ?? false
   const router = useRouter()
   const [employees, setEmployees] = useState<any[]>([])
+  const [departments, setDepartments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState("ACTIVE")
+  const [deptFilter, setDeptFilter] = useState("")
   const [manageOpen, setManageOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
+  const [deptOpen, setDeptOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [resetting, setResetting] = useState(false)
   const [resetTarget, setResetTarget] = useState<any>(null)
@@ -86,6 +89,7 @@ export default function EmployeesPage() {
   const [pageSize, setPageSize] = useState(20)
   const manageRef = useRef<HTMLDivElement>(null)
   const filterRef = useRef<HTMLDivElement>(null)
+  const deptRef = useRef<HTMLDivElement>(null)
   const pageSizeRef = useRef<HTMLDivElement>(null)
   const [pageSizeOpen, setPageSizeOpen] = useState(false)
 
@@ -104,6 +108,13 @@ export default function EmployeesPage() {
   }, [filterOpen])
 
   useEffect(() => {
+    if (!deptOpen) return
+    const h = (e: MouseEvent) => { if (!deptRef.current?.contains(e.target as Node)) setDeptOpen(false) }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [deptOpen])
+
+  useEffect(() => {
     if (!pageSizeOpen) return
     const h = (e: MouseEvent) => { if (!pageSizeRef.current?.contains(e.target as Node)) setPageSizeOpen(false) }
     document.addEventListener("mousedown", h)
@@ -115,13 +126,15 @@ export default function EmployeesPage() {
     const params = new URLSearchParams()
     if (search) params.set("search", search)
     if (statusFilter) params.set("status", statusFilter)
+    if (deptFilter) params.set("dept", deptFilter)
     const r = await fetch(`/api/employees?${params}`)
     const data = await r.json()
     setEmployees(data.employees ?? [])
+    setDepartments(data.departments ?? [])
     setLoading(false)
     setSelected(new Set())
     setPage(1)
-  }, [search, statusFilter])
+  }, [search, statusFilter, deptFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -242,6 +255,27 @@ export default function EmployeesPage() {
                   <button key={o.value} onClick={() => { setStatusFilter(o.value); setFilterOpen(false) }}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: statusFilter === o.value ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
                     {o.label} {statusFilter === o.value && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div ref={deptRef} style={{ position: "relative" }}>
+            <button onClick={() => setDeptOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
+              {deptFilter ? (departments.find((d: any) => d.id === deptFilter)?.name ?? "Department") : "All Departments"} <ChevronDown size={13} />
+            </button>
+            {deptOpen && (
+              <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 180, maxWidth: 260, maxHeight: 240, overflowY: "auto", padding: "4px 0" }}>
+                <button onClick={() => { setDeptFilter(""); setDeptOpen(false) }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: !deptFilter ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>All Departments</span>
+                  {!deptFilter && <Check size={13} style={{ flexShrink: 0, marginLeft: 8 }} />}
+                </button>
+                {departments.map((d: any) => (
+                  <button key={d.id} onClick={() => { setDeptFilter(d.id); setDeptOpen(false) }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: deptFilter === d.id ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={d.name}>{d.name}</span>
+                    {deptFilter === d.id && <Check size={13} style={{ flexShrink: 0, marginLeft: 8 }} />}
                   </button>
                 ))}
               </div>

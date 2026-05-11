@@ -3,6 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import CredentialsProvider from "next-auth/providers/credentials"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { ROLE_CAPABILITIES } from "@/lib/rbac"
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as any,
@@ -39,6 +40,13 @@ export const authOptions: NextAuthOptions = {
             const perms = ur.adminRole.permissions as Record<string, boolean>
             for (const [key, val] of Object.entries(perms)) {
               if (val) permissions[key] = true
+            }
+          }
+          // Merge system role capabilities so ADMIN always gets what RBAC grants them
+          const sysCaps = ROLE_CAPABILITIES[user.role as keyof typeof ROLE_CAPABILITIES]
+          if (sysCaps) {
+            for (const [key, val] of Object.entries(sysCaps)) {
+              if (val === true) permissions[key] = true
             }
           }
         }

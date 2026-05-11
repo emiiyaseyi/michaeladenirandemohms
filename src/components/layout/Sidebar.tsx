@@ -9,7 +9,7 @@ import {
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, FolderOpen, Layers,
   Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck,
   ClipboardList, DollarSign, Gift, Clock, Scale, Package, FileText,
-  Calendar, ShoppingBag, MessageSquare, House,
+  Calendar, ShoppingBag, MessageSquare, House, Banknote,
   type LucideIcon,
 } from "lucide-react"
 import { roleLabel, type NavItem } from "@/lib/rbac"
@@ -19,7 +19,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, FolderOpen, Layers,
   Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck,
   ClipboardList, DollarSign, Gift, Clock, Scale, Package, FileText,
-  Calendar, ShoppingBag, MessageSquare, House,
+  Calendar, ShoppingBag, MessageSquare, House, Banknote,
 }
 
 function resolveIcon(name: string): LucideIcon {
@@ -142,7 +142,17 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
             return { item, showSection }
           })
         })().map(({ item, showSection }) => {
+          const shouldShowSection = showSection && user?.role !== "STAFF"
           const Icon = resolveIcon(item.icon)
+
+          if (item.spacer) {
+            return (
+              <div
+                key={item.label}
+                style={{ height: 6, margin: "6px 0", borderTop: "1px solid rgba(255,255,255,0.08)" }}
+              />
+            )
+          }
 
           if (item.children) {
             const isOpen   = openDropdowns[item.label] ?? false
@@ -152,7 +162,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
             return (
               <div key={item.label}>
-                {showSection && (
+                {shouldShowSection && (
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--sidebar-fg)", padding: "10px 10px 4px", textTransform: "uppercase", marginTop: 4 }}>
                     {item.section}
                   </div>
@@ -181,7 +191,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
                 {isOpen && (
                   <div style={{ marginBottom: 4 }}>
                     {visible.map(child => {
-                      const childActive = path === child.href || path.startsWith(child.href + "/")
+                      const childActive = path === child.href || (!child.exact && path.startsWith(child.href + "/"))
                       return (
                         <NavLink key={child.href} href={child.href} label={child.label} active={childActive} indent />
                       )
@@ -211,7 +221,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
       {/* User + Logout */}
       <div style={{ padding: "10px", borderTop: "1px solid var(--sidebar-border)", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)" }}>
           <div style={{
             width: 32, height: 32, borderRadius: "50%", background: "var(--primary)",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -227,21 +237,20 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
               {roleLabel(user?.role ?? "")}
             </div>
           </div>
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            title="Sign out"
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: "white", padding: 4, display: "flex", alignItems: "center",
+              borderRadius: 6, flexShrink: 0, transition: "background 0.15s",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)" }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none" }}
+          >
+            <LogOut size={15} />
+          </button>
         </div>
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          style={{
-            width: "100%", display: "flex", alignItems: "center", gap: 8,
-            padding: "8px 10px", borderRadius: 8, background: "rgba(248,113,113,0.08)",
-            border: "1px solid rgba(248,113,113,0.2)", cursor: "pointer",
-            color: "#F87171", fontSize: 12, fontWeight: 600, transition: "all 0.15s",
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(248,113,113,0.18)" }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(248,113,113,0.08)" }}
-        >
-          <LogOut size={14} />
-          Sign Out
-        </button>
       </div>
     </aside>
   )

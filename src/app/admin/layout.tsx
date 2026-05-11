@@ -12,16 +12,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const userId = (session.user as any).id as string | undefined
 
   const isSuperAdmin = role === "SUPER_ADMIN"
+  const isAdminRole  = role === "ADMIN"
 
   // Allow STAFF users elevated via UserAdminRole
   let isElevated = false
-  if (!isSuperAdmin && userId) {
+  if (!isSuperAdmin && !isAdminRole && userId) {
     isElevated = (await prisma.userAdminRole.count({ where: { userId } })) > 0
   }
 
-  if (!isSuperAdmin && !isElevated) redirect(getRoleHome(role))
+  if (!isSuperAdmin && !isAdminRole && !isElevated) redirect(getRoleHome(role))
 
-  // SUPER_ADMIN gets the SUPER_ADMIN nav; everyone else (ADMIN legacy or elevated STAFF) gets ADMIN nav
+  // SUPER_ADMIN gets full nav; ADMIN and elevated STAFF get ADMIN nav
   const navRole: SystemRole = role === "SUPER_ADMIN" ? "SUPER_ADMIN" : "ADMIN"
 
   return (

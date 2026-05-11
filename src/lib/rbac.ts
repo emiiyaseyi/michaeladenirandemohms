@@ -6,6 +6,7 @@ export interface ChildNavItem {
   label: string
   href: string
   excludeRoles?: SystemRole[]
+  exact?: boolean
 }
 
 export interface NavItem {
@@ -17,6 +18,7 @@ export interface NavItem {
   children?: ChildNavItem[]
   indent?: boolean
   skipForRoles?: SystemRole[]
+  spacer?: boolean
 }
 
 export const ALL_ROLES: SystemRole[] = ["SUPER_ADMIN", "ADMIN", "STAFF"]
@@ -25,13 +27,15 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── Top ─────────────────────────────────────────────────────────────────────
   { label: "Dashboard",       href: "/dashboard",       icon: "LayoutDashboard", roles: ALL_ROLES },
-  { label: "Company Details", href: "/company-details", icon: "Building2", roles: ["SUPER_ADMIN"] },
+  { label: "Company Details", href: "/company-details", icon: "Building2",       roles: ["SUPER_ADMIN"] },
 
-  // Self-service items for STAFF — standalone at top
-  { label: "My Profile",       href: "/self-service/profile",          icon: "UserCircle",    roles: ["STAFF"] },
-  { label: "My Payslips",      href: "/self-service/payslips",         icon: "Receipt",       roles: ["STAFF"] },
-  { label: "Grievance",        href: "/self-service/grievance",        icon: "MessageSquare", roles: ["STAFF"] },
-  { label: "Change Password",  href: "/self-service/change-password",  icon: "Settings",      roles: ["STAFF"] },
+  // Spacers — visual gap after the top items, role-specific
+  { label: "__spacer_top_admin__", spacer: true, icon: "", roles: ["SUPER_ADMIN", "ADMIN"] },
+  { label: "__spacer_top_staff__", spacer: true, icon: "", roles: ["STAFF"] },
+
+  // ── STAFF items after spacer ─────────────────────────────────────────────────
+  { label: "People",    href: "/people",  icon: "Users",    roles: ["STAFF"] },
+  { label: "Job & Pay", href: "/job-pay", icon: "Banknote", roles: ["STAFF"] },
 
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
@@ -60,33 +64,36 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Settings",   href: "/recruitment/settings" },
     ],
   },
+
+  // Requests — dropdown for admin, flat link for staff
   {
-    label: "Requests", icon: "Receipt", roles: ALL_ROLES,
+    label: "Requests", icon: "Receipt", roles: ["ADMIN"],
     children: [
-      { label: "Loans",           href: "/requests/loans",           excludeRoles: ["STAFF"] },
-      { label: "Salary Advances", href: "/requests/salary-advances", excludeRoles: ["STAFF"] },
+      { label: "Loans",           href: "/requests/loans" },
+      { label: "Salary Advances", href: "/requests/salary-advances" },
       { label: "Leave",           href: "/requests/leave" },
-      { label: "Exit",            href: "/self-service/exit",        excludeRoles: ["ADMIN", "SUPER_ADMIN"] },
-      { label: "Exits",           href: "/requests/exits",           excludeRoles: ["STAFF"] },
-      { label: "Redeployments",   href: "/requests/redeployments",   excludeRoles: ["STAFF"] },
-      { label: "Documents",       href: "/requests/documents",       excludeRoles: ["STAFF"] },
+      { label: "Exits",           href: "/requests/exits" },
+      { label: "Redeployments",   href: "/requests/redeployments" },
+      { label: "Documents",       href: "/requests/documents" },
     ],
   },
-  { label: "Surveys",     href: "/surveys",     icon: "ClipboardList", roles: ALL_ROLES },
+  { label: "Requests", href: "/requests", icon: "Receipt", roles: ["STAFF"] },
+
+  // Documents before Surveys (staff order)
   { label: "Documents",   href: "/documents",   icon: "FolderOpen",    roles: ALL_ROLES },
+  { label: "Surveys",     href: "/surveys",     icon: "ClipboardList", roles: ALL_ROLES },
   { label: "Contractors", href: "/contractors", icon: "UserCheck",     roles: ["ADMIN"] },
 
   // ── COMPENSATION ─────────────────────────────────────────────────────────────
-  { label: "Benefits", href: "/benefits", icon: "Gift",    roles: ["ADMIN"], section: "COMPENSATION" },
-
-  { label: "Job & Pay", href: "/job-pay", icon: "Banknote", roles: ["STAFF"], section: "COMPENSATION" },
-  { label: "Benefits",  href: "/benefits", icon: "Gift",    roles: ["STAFF"] },
+  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"], section: "COMPENSATION" },
+  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["STAFF"] },
+  { label: "Payslips", href: "/self-service/payslips", icon: "Receipt", roles: ["STAFF"] },
 
   // ── PRODUCTIVITY ─────────────────────────────────────────────────────────────
   {
     label: "Performance", icon: "TrendingUp", roles: ALL_ROLES, section: "PRODUCTIVITY",
     children: [
-      { label: "Overview",      href: "/performance" },
+      { label: "Overview",      href: "/performance", exact: true },
       { label: "Period",        href: "/performance/period",        excludeRoles: ["STAFF"] },
       { label: "Objectives",    href: "/performance/objectives" },
       { label: "Groups",        href: "/performance/groups",        excludeRoles: ["STAFF"] },
@@ -95,8 +102,8 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Feedback",      href: "/performance/feedback" },
     ],
   },
-  { label: "Projects",    href: "/projects",    icon: "Layers",   roles: ALL_ROLES },
-  { label: "Assets",      href: "/assets",      icon: "Package",  roles: ["STAFF"] },
+  { label: "Projects",  href: "/projects",  icon: "Layers",  roles: ["ADMIN"] },
+  { label: "Assets",    href: "/assets",    icon: "Package", roles: ["STAFF"] },
   {
     label: "Time Tracking", icon: "Clock", roles: ["ADMIN"],
     children: [
@@ -140,7 +147,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Rent Documents", href: "/rent-documents", icon: "House",    roles: ["ADMIN"] },
   { label: "Audit Log",      href: "/audit-log",      icon: "FileText", roles: ["ADMIN"] },
   {
-    label: "Announcements", icon: "Megaphone", roles: ALL_ROLES,
+    label: "Announcements", icon: "Megaphone", roles: ["ADMIN"],
     children: [
       { label: "Overview", href: "/announcements" },
       { label: "Groups",   href: "/announcements/groups" },
@@ -150,9 +157,15 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Trash",     href: "/trash",     icon: "Trash2",    roles: ["ADMIN"] },
 
   // ── EXTRAS ───────────────────────────────────────────────────────────────────
-  { label: "Preferences", href: "/preferences", icon: "UserCircle", roles: ["SUPER_ADMIN"], section: "EXTRAS" },
-  { label: "FAQ",      href: "/faq",      icon: "HelpCircle", roles: ALL_ROLES },
-  { label: "Calendar", href: "/calendar", icon: "Calendar",   roles: ["SUPER_ADMIN", "ADMIN"] },
+  { label: "Preferences", href: "/preferences", icon: "UserCircle", roles: ["SUPER_ADMIN"],           section: "EXTRAS" },
+  { label: "Calendar",    href: "/calendar",    icon: "Calendar",   roles: ["SUPER_ADMIN", "ADMIN"],  section: "EXTRAS" },
+  { label: "FAQ",         href: "/faq",         icon: "HelpCircle", roles: ["SUPER_ADMIN", "ADMIN"] },
+
+  // ── STAFF bottom group ───────────────────────────────────────────────────────
+  { label: "__spacer_bottom_staff__", spacer: true, icon: "", roles: ["STAFF"] },
+  { label: "Personal",        href: "/self-service/profile",         icon: "UserCircle", roles: ["STAFF"] },
+  { label: "Change Password", href: "/self-service/change-password", icon: "Settings",   roles: ["STAFF"] },
+  { label: "FAQ",             href: "/faq",                          icon: "HelpCircle", roles: ["STAFF"] },
 ]
 
 // ─── CAPABILITY FLAGS ────────────────────────────────────────────────────────

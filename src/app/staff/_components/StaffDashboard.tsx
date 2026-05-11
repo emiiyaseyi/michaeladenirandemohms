@@ -7,7 +7,7 @@ import Link from "next/link"
 import {
   Building2, UserCheck, CalendarDays, Clock, Edit2,
   ChevronRight, Cake, Award, Loader2, AlertCircle,
-  CalendarCheck, Star, FileText, ShoppingBag, Users,
+  CalendarCheck, Star, FileText, Users,
   Search, Briefcase, TrendingUp,
   Gift, Megaphone, ChevronLeft,
   Target, ClipboardList, Globe, Building,
@@ -74,7 +74,7 @@ const TOUR_STEPS = [
     icon: Zap,
     color: "#F59E0B",
     title: "Quick Actions",
-    body: "The quick action bar lets you jump straight to common tasks — request leave, view your payslip, submit a requisition, set KPI goals, and more. Scroll sideways if more actions exist.",
+    body: "The quick action bar lets you jump straight to common tasks — request leave, view your payslip, set KPI goals, access your documents, and more. Scroll sideways if more actions exist.",
     hint: "Find it just below your hero card",
   },
   {
@@ -102,7 +102,7 @@ const TOUR_STEPS = [
     icon: UserCheck,
     color: "#10B981",
     title: "Self Service",
-    body: "The Self Service section is your personal hub: update your profile, submit and track leave, raise requisitions, log grievances, and access your documents — all in one place.",
+    body: "The Self Service section is your personal hub: update your profile, submit and track leave, log grievances, and access your documents — all in one place.",
     hint: "Click 'Self Service' in the left sidebar",
   },
   {
@@ -338,7 +338,6 @@ const QUICK_ACTIONS = [
   { label:"View Payslip",    href:"/staff/self-service/payslips",       color:"#10B981", icon:FileText },
   { label:"Set KPI Goals",   href:"/staff/performance/objectives",      color:"#F59E0B", icon:Target },
   { label:"Take Appraisal",  href:"/staff/performance/reviews",         color:"#EC4899", icon:TrendingUp },
-  { label:"My Requisition",  href:"/staff/self-service/requisitions",   color:"#0EA5E9", icon:ShoppingBag },
   { label:"My Documents",    href:"/staff/documents",                   color:"#8B5CF6", icon:ClipboardList },
 ]
 
@@ -696,7 +695,7 @@ function AllEmployeesMini() {
 
   return (
     <Card style={{ animation:"fadeInUp .4s ease .35s both" }}>
-      <SectionHeading title="All Employees" action="View all" actionHref="/staff/org-chart" />
+      <SectionHeading title="All Employees" action="View all" actionHref="/staff/people" />
       <div style={{ padding:"10px 18px 8px" }}>
         <div style={{ position:"relative" }}>
           <Search size={13} style={{ position:"absolute", left:10, top:"50%", transform:"translateY(-50%)", color:"var(--muted-foreground)" }} />
@@ -716,13 +715,10 @@ function AllEmployeesMini() {
       ) : (
         <div style={{ paddingBottom:8 }}>
           {filtered.map((emp: any) => (
-            <Link key={emp.id} href="/staff/org-chart" style={{
+            <div key={emp.id} style={{
               display:"flex", alignItems:"center", gap:10, padding:"9px 18px",
-              textDecoration:"none", borderTop:"1px solid var(--border)", transition:"background .12s",
-            }}
-              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
-              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-            >
+              borderTop:"1px solid var(--border)",
+            }}>
               <Avatar name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} size={32} />
               <div style={{ flex:1, minWidth:0 }}>
                 <div style={{ fontSize:12, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap", color:"var(--foreground)" }}>
@@ -733,7 +729,7 @@ function AllEmployeesMini() {
                 </div>
               </div>
               <Badge status={emp.employeeStatus ?? "ACTIVE"} />
-            </Link>
+            </div>
           ))}
         </div>
       )}
