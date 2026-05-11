@@ -1,27 +1,33 @@
 // ─── RBAC — Role-Based Access Control ───────────────────────────────────────
 
-export type SystemRole = "SUPER_ADMIN" | "ADMIN" | "STAFF"
+export type SystemRole = "SUPER_ADMIN" | "STAFF"
+
+// Nav panel role — "ADMIN" is an internal nav concept (admin panel items),
+// not a DB system role. Users are either SUPER_ADMIN or STAFF (possibly elevated).
+export type NavPanelRole = SystemRole | "ADMIN"
 
 export interface ChildNavItem {
   label: string
   href: string
   excludeRoles?: SystemRole[]
   exact?: boolean
+  permission?: string
 }
 
 export interface NavItem {
   label: string
   href?: string
   icon: string
-  roles: SystemRole[]
+  roles: NavPanelRole[]
   section?: string
   children?: ChildNavItem[]
   indent?: boolean
   skipForRoles?: SystemRole[]
   spacer?: boolean
+  permission?: string
 }
 
-export const ALL_ROLES: SystemRole[] = ["SUPER_ADMIN", "ADMIN", "STAFF"]
+export const ALL_ROLES: NavPanelRole[] = ["SUPER_ADMIN", "ADMIN", "STAFF"]
 
 export const NAV_ITEMS: NavItem[] = [
 
@@ -39,29 +45,29 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
-    label: "People", icon: "Users", roles: ["ADMIN"], section: "PEOPLE",
+    label: "People", icon: "Users", roles: ["ADMIN"], section: "PEOPLE", permission: "canViewAllEmployees",
     children: [
       { label: "Employees",        href: "/people/employees" },
       { label: "Departments",      href: "/people/departments" },
       { label: "Teams",            href: "/people/teams" },
       { label: "Managers",         href: "/people/managers" },
-      { label: "Custom Groups",    href: "/people/custom-groups" },
-      { label: "Offers",           href: "/people/offers" },
-      { label: "Exits",            href: "/people/exits" },
-      { label: "External Admins",  href: "/people/external-admins" },
+      { label: "Custom Groups",    href: "/people/custom-groups",   permission: "canViewCustomGroups" },
+      { label: "Offers",           href: "/people/offers",          permission: "canViewOffers" },
+      { label: "Exits",            href: "/people/exits",           permission: "canViewExitRequests" },
+      { label: "External Admins",  href: "/people/external-admins", permission: "canManageAdmins" },
       { label: "Confirmation",     href: "/people/confirmation" },
-      { label: "Org. Chart",       href: "/people/org-chart" },
-      { label: "Job Titles",       href: "/people/job-titles" },
-      { label: "Profile Requests", href: "/people/profile-requests" },
+      { label: "Org. Chart",       href: "/people/org-chart",       permission: "canViewOrgChart" },
+      { label: "Job Titles",       href: "/people/job-titles",      permission: "canViewJobTitles" },
+      { label: "Profile Requests", href: "/people/profile-requests",permission: "canManageProfileRequests" },
     ],
   },
   {
-    label: "Hiring", icon: "Briefcase", roles: ["ADMIN"],
+    label: "Hiring", icon: "Briefcase", roles: ["ADMIN"], permission: "canViewJobs",
     children: [
-      { label: "Overview",   href: "/recruitment" },
+      { label: "Overview",   href: "/recruitment", exact: true },
       { label: "Jobs",       href: "/recruitment/jobs" },
-      { label: "Applicants", href: "/recruitment/applicants" },
-      { label: "Settings",   href: "/recruitment/settings" },
+      { label: "Applicants", href: "/recruitment/applicants", permission: "canViewApplicants" },
+      { label: "Settings",   href: "/recruitment/settings",   permission: "canManageHiringSettings" },
     ],
   },
 
@@ -69,29 +75,29 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Requests", icon: "Receipt", roles: ["ADMIN"],
     children: [
-      { label: "Loans",           href: "/requests/loans" },
-      { label: "Salary Advances", href: "/requests/salary-advances" },
-      { label: "Leave",           href: "/requests/leave" },
-      { label: "Exits",           href: "/requests/exits" },
-      { label: "Redeployments",   href: "/requests/redeployments" },
-      { label: "Documents",       href: "/requests/documents" },
+      { label: "Loans",           href: "/requests/loans",           permission: "canViewLoans" },
+      { label: "Salary Advances", href: "/requests/salary-advances", permission: "canViewSalaryAdvances" },
+      { label: "Leave",           href: "/requests/leave",           permission: "canViewAllLeave" },
+      { label: "Exits",           href: "/requests/exits",           permission: "canViewExitRequests" },
+      { label: "Redeployments",   href: "/requests/redeployments",   permission: "canViewRedeployments" },
+      { label: "Documents",       href: "/requests/documents",       permission: "canViewDocuments" },
     ],
   },
   { label: "Requests", href: "/requests", icon: "Receipt", roles: ["STAFF"] },
 
   // Documents before Surveys (staff order)
-  { label: "Documents",   href: "/documents",   icon: "FolderOpen",    roles: ALL_ROLES },
-  { label: "Surveys",     href: "/surveys",     icon: "ClipboardList", roles: ALL_ROLES },
-  { label: "Contractors", href: "/contractors", icon: "UserCheck",     roles: ["ADMIN"] },
+  { label: "Documents",   href: "/documents",   icon: "FolderOpen",    roles: ALL_ROLES, permission: "canViewDocuments" },
+  { label: "Surveys",     href: "/surveys",     icon: "ClipboardList", roles: ALL_ROLES, permission: "canViewSurveys" },
+  { label: "Contractors", href: "/contractors", icon: "UserCheck",     roles: ["ADMIN"], permission: "canViewContractors" },
 
   // ── COMPENSATION ─────────────────────────────────────────────────────────────
-  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"], section: "COMPENSATION" },
+  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"], section: "COMPENSATION", permission: "canViewBenefits" },
   { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["STAFF"] },
   { label: "Payslips", href: "/self-service/payslips", icon: "Receipt", roles: ["STAFF"] },
 
   // ── PRODUCTIVITY ─────────────────────────────────────────────────────────────
   {
-    label: "Performance", icon: "TrendingUp", roles: ALL_ROLES, section: "PRODUCTIVITY",
+    label: "Performance", icon: "TrendingUp", roles: ALL_ROLES, section: "PRODUCTIVITY", permission: "canViewPerformance",
     children: [
       { label: "Overview",      href: "/performance", exact: true },
       { label: "Period",        href: "/performance/period",        excludeRoles: ["STAFF"] },
@@ -102,16 +108,16 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Feedback",      href: "/performance/feedback" },
     ],
   },
-  { label: "Projects",  href: "/projects",  icon: "Layers",  roles: ["ADMIN"] },
+  { label: "Projects",  href: "/projects",  icon: "Layers",  roles: ["ADMIN"], permission: "canViewProjects" },
   { label: "Assets",    href: "/assets",    icon: "Package", roles: ["STAFF"] },
   {
-    label: "Time Tracking", icon: "Clock", roles: ["ADMIN"],
+    label: "Time Tracking", icon: "Clock", roles: ["ADMIN"], permission: "canViewAbsences",
     children: [
       { label: "Absence", href: "/time-tracking/absence" },
     ],
   },
   {
-    label: "Disciplinary", icon: "Scale", roles: ["ADMIN"],
+    label: "Disciplinary", icon: "Scale", roles: ["ADMIN"], permission: "canViewDisciplinary",
     children: [
       { label: "Suspensions",     href: "/disciplinary/suspensions" },
       { label: "Violations",      href: "/disciplinary/violations" },
@@ -136,25 +142,25 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Roles & Permissions", href: "/settings/roles-permissions" },
     ],
   },
-  { label: "Reports",       href: "/reports",       icon: "BarChart2",  roles: ["ADMIN"], section: "OTHER" },
+  { label: "Reports",       href: "/reports",       icon: "BarChart2",  roles: ["ADMIN"], section: "OTHER", permission: "canViewReports" },
   {
-    label: "Assets", icon: "Package", roles: ["ADMIN"],
+    label: "Assets", icon: "Package", roles: ["ADMIN"], permission: "canViewAssets",
     children: [
       { label: "Overview",    href: "/assets/overview" },
       { label: "Assignments", href: "/assets/assignments" },
     ],
   },
-  { label: "Rent Documents", href: "/rent-documents", icon: "House",    roles: ["ADMIN"] },
-  { label: "Audit Log",      href: "/audit-log",      icon: "FileText", roles: ["ADMIN"] },
+  { label: "Rent Documents", href: "/rent-documents", icon: "House",    roles: ["ADMIN"], permission: "canViewRentDocuments" },
+  { label: "Audit Log",      href: "/audit-log",      icon: "FileText", roles: ["ADMIN"], permission: "canViewAuditLog" },
   {
-    label: "Announcements", icon: "Megaphone", roles: ["ADMIN"],
+    label: "Announcements", icon: "Megaphone", roles: ["ADMIN"], permission: "canViewAnnouncements",
     children: [
-      { label: "Overview", href: "/announcements" },
+      { label: "Overview", href: "/announcements", exact: true },
       { label: "Groups",   href: "/announcements/groups" },
     ],
   },
-  { label: "Analytics", href: "/analytics", icon: "BarChart3", roles: ["ADMIN"] },
-  { label: "Trash",     href: "/trash",     icon: "Trash2",    roles: ["ADMIN"] },
+  { label: "Analytics", href: "/analytics", icon: "BarChart3", roles: ["ADMIN"], permission: "canViewAnalytics" },
+  { label: "Trash",     href: "/trash",     icon: "Trash2",    roles: ["ADMIN"], permission: "canViewAuditLog" },
 
   // ── EXTRAS ───────────────────────────────────────────────────────────────────
   { label: "Preferences", href: "/preferences", icon: "UserCircle", roles: ["SUPER_ADMIN"],           section: "EXTRAS" },
@@ -210,20 +216,6 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
     canViewAnalytics: true,     canViewTeamAnalytics: true,
     isReadOnly: false,
   },
-  ADMIN: {
-    canViewAllEmployees: true,  canViewTeamEmployees: true,
-    canCreateEmployee: true,    canEditAnyEmployee: true,
-    canViewAllLeave: true,      canViewTeamLeave: true,
-    canApproveLeave: true,      canSubmitLeave: true,
-    canManageRecruitment: true, canViewRecruitment: true,
-    canManagePerformanceCycles: true, canViewAllPerformance: true,
-    canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
-    canManageOnboarding: true,  canViewOwnOnboarding: true,
-    canManageOffboarding: true,
-    canManageSettings: false,
-    canViewAnalytics: true,     canViewTeamAnalytics: true,
-    isReadOnly: false,
-  },
   STAFF: {
     canViewAllEmployees: false, canViewTeamEmployees: false,
     canCreateEmployee: false,   canEditAnyEmployee: false,
@@ -244,7 +236,6 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
 
 export const ROLE_SLUGS: Record<SystemRole, string> = {
   SUPER_ADMIN: "admin",
-  ADMIN:       "admin",
   STAFF:       "staff",
 }
 
@@ -257,19 +248,20 @@ export function getCapabilities(role: string): RoleCapabilities {
 }
 
 export function getNavForRole(role: string): NavItem[] {
-  return NAV_ITEMS.filter(item => item.roles.includes(role as SystemRole))
+  return NAV_ITEMS.filter(item => item.roles.includes(role as NavPanelRole))
 }
 
-export function getNavForRoleWithPrefix(role: SystemRole): NavItem[] {
-  const navRole: SystemRole = role === "SUPER_ADMIN" ? "ADMIN" : role
-  const base = getRoleHome(role)
+export function getNavForRoleWithPrefix(role: NavPanelRole): NavItem[] {
+  // SUPER_ADMIN sees ADMIN items + SUPER_ADMIN-only items; ADMIN and STAFF see their own items
+  const navRole: NavPanelRole = role === "SUPER_ADMIN" ? "ADMIN" : role
+  const base = role === "ADMIN" ? "/admin" : getRoleHome(role as SystemRole)
   const mapHref = (href: string): string => {
     if (href === "/dashboard") return base
     return `${base}${href}`
   }
   return NAV_ITEMS
     .filter(item => {
-      if (item.skipForRoles?.includes(role)) return false
+      if (role !== "ADMIN" && item.skipForRoles?.includes(role as SystemRole)) return false
       return item.roles.includes(navRole) || (role === "SUPER_ADMIN" && item.roles.includes("SUPER_ADMIN"))
     })
     .map(item => ({
@@ -282,7 +274,6 @@ export function getNavForRoleWithPrefix(role: SystemRole): NavItem[] {
 export function roleLabel(role: string): string {
   const labels: Record<string, string> = {
     SUPER_ADMIN: "Super Admin",
-    ADMIN:       "Admin",
     STAFF:       "Staff",
   }
   return labels[role] ?? role

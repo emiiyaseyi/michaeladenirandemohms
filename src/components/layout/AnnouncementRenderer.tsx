@@ -239,10 +239,12 @@ export default function AnnouncementRenderer({ userRole }: { userRole: string })
   const popups = announcements.filter(a => a.behavior === "POPUP")
   const bars = announcements.filter(a => a.behavior === "NOTIFICATION_BAR")
 
+  if (bars.length === 0 && popups.length === 0) return null
+
   return (
-    <>
+    <div>
       {bars.length > 0 && <NotificationBarAnnouncement items={bars} />}
       {popups.length > 0 && <PopupAnnouncement items={popups} />}
-    </>
+    </div>
   )
 }

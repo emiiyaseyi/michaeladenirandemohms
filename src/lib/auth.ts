@@ -42,7 +42,7 @@ export const authOptions: NextAuthOptions = {
               if (val) permissions[key] = true
             }
           }
-          // Merge system role capabilities so ADMIN always gets what RBAC grants them
+          // Merge system role capabilities (STAFF base caps)
           const sysCaps = ROLE_CAPABILITIES[user.role as keyof typeof ROLE_CAPABILITIES]
           if (sysCaps) {
             for (const [key, val] of Object.entries(sysCaps)) {

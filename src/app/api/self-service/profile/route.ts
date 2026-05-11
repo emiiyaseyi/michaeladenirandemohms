@@ -192,6 +192,8 @@ export async function GET() {
       state: employee.state,
       maritalStatus: employee.maritalStatus,
       bankName: employee.bankName,
+      nin: employee.nin,
+      aiMembership: employee.aiMembership,
     },
     leaveBalances: filteredBalances,
     teamOnLeave: (teamOnLeave as any[]).map(m => ({

@@ -33,12 +33,12 @@ export default function EditCompanyDetailsPage() {
   }, [])
 
   const save = async () => {
-    if (!form.companyName.trim()) { setError("Company name is required"); return }
     setSaving(true); setError("")
+    const { companyName: _ignored, ...rest } = form
     const r = await fetch("/api/company-details", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(rest),
     })
     const d = await r.json()
     setSaving(false)
@@ -110,10 +110,10 @@ export default function EditCompanyDetailsPage() {
           {/* Right fields */}
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                Company name <span style={{ color: "var(--accent)" }}>*</span>
-              </label>
-              <input value={form.companyName} onChange={e => setForm(f => ({ ...f, companyName: e.target.value }))} style={fi} placeholder="e.g. Data Science Nigeria" />
+              <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Company name</label>
+              <div style={{ ...fi, background: "var(--muted)", color: "var(--muted-foreground)", cursor: "default", userSelect: "none" }}>
+                {form.companyName}
+              </div>
             </div>
             <div>
               <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>

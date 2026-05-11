@@ -283,24 +283,32 @@ async function main() {
     return
   }
 
-  // Quick-login demo accounts (2 admins + 2 staff)
+  // Quick-login demo accounts (2 elevated staff + 2 staff)
   const demoStaffs = [
-    { email: "staff1@dsn-hrms.com", name: "Chisom Obi",       empId: "DSN-D001", fn: "Chisom", ln: "Obi",   title: "HR Manager",        dept: adminFacility,  gender: "FEMALE", dob: "1992-03-10", salary: 480000, role: "ADMIN" },
-    { email: "staff2@dsn-hrms.com", name: "Kunle Bello",      empId: "DSN-D002", fn: "Kunle",  ln: "Bello", title: "Operations Manager", dept: techDelivery,   gender: "MALE",   dob: "1994-07-22", salary: 520000, role: "ADMIN" },
-    { email: "staff3@dsn-hrms.com", name: "Demo Staff Three", empId: "DSN-D003", fn: "Demo",   ln: "Staff Three", title: "Data Analyst", dept: equalyzai,      gender: "FEMALE", dob: "1996-01-15", salary: 360000, role: "STAFF" },
-    { email: "staff4@dsn-hrms.com", name: "Demo Staff Four",  empId: "DSN-D004", fn: "Demo",   ln: "Staff Four",  title: "Finance Officer", dept: finance,       gender: "MALE",   dob: "1991-09-05", salary: 390000, role: "STAFF" },
+    { email: "staff1@dsn-hrms.com", name: "Chisom Obi",       empId: "DSN-D001", fn: "Chisom", ln: "Obi",   title: "HR Manager",        dept: adminFacility,  gender: "FEMALE", dob: "1992-03-10", salary: 480000, role: "STAFF", elevate: true },
+    { email: "staff2@dsn-hrms.com", name: "Kunle Bello",      empId: "DSN-D002", fn: "Kunle",  ln: "Bello", title: "Operations Manager", dept: techDelivery,   gender: "MALE",   dob: "1994-07-22", salary: 520000, role: "STAFF", elevate: true },
+    { email: "staff3@dsn-hrms.com", name: "Demo Staff Three", empId: "DSN-D003", fn: "Demo",   ln: "Staff Three", title: "Data Analyst", dept: equalyzai,      gender: "FEMALE", dob: "1996-01-15", salary: 360000, role: "STAFF", elevate: false },
+    { email: "staff4@dsn-hrms.com", name: "Demo Staff Four",  empId: "DSN-D004", fn: "Demo",   ln: "Staff Four",  title: "Finance Officer", dept: finance,       gender: "MALE",   dob: "1991-09-05", salary: 390000, role: "STAFF", elevate: false },
   ]
   for (const s of demoStaffs) {
     const u = await prisma.user.upsert({
       where: { email: s.email },
-      update: { mustChangePassword: false, password: hash("dsn-demo"), role: s.role as any },
-      create: { name: s.name, email: s.email, password: hash("dsn-demo"), role: s.role as any, mustChangePassword: false },
+      update: { mustChangePassword: false, password: hash("dsn-demo"), role: "STAFF" as any },
+      create: { name: s.name, email: s.email, password: hash("dsn-demo"), role: "STAFF" as any, mustChangePassword: false },
     })
     await prisma.employee.upsert({
       where: { userId: u.id },
       update: { dateOfBirth: new Date(s.dob) },
       create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: s.salary, gender: s.gender as any, dateOfBirth: new Date(s.dob) },
     })
+    // Elevate Chisom and Kunle to HR Admin role
+    if (s.elevate && hrAdminRole) {
+      await prisma.userAdminRole.upsert({
+        where: { userId_adminRoleId: { userId: u.id, adminRoleId: hrAdminRole.id } },
+        update: {},
+        create: { userId: u.id, adminRoleId: hrAdminRole.id },
+      })
+    }
   }
 
   // 12 sample employees
@@ -459,8 +467,8 @@ async function main() {
   console.log("\n✅ Demo data complete.")
   console.log("\n🔑 Demo login accounts:")
   console.log("   HR Admin:  hr@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")
-  console.log("   Admin 1:   staff1@dsn-hrms.com       /  dsn-demo        (ADMIN — Chisom Obi)")
-  console.log("   Admin 2:   staff2@dsn-hrms.com       /  dsn-demo        (ADMIN — Kunle Bello)")
+  console.log("   HR Admin 1: staff1@dsn-hrms.com       /  dsn-demo        (STAFF + HR Admin role — Chisom Obi)")
+  console.log("   HR Admin 2: staff2@dsn-hrms.com       /  dsn-demo        (STAFF + HR Admin role — Kunle Bello)")
   console.log("   Staff 1:   staff3@dsn-hrms.com       /  dsn-demo        (STAFF)")
   console.log("   Staff 2:   staff4@dsn-hrms.com       /  dsn-demo        (STAFF)")
 }

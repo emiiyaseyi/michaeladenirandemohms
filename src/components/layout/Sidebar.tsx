@@ -70,9 +70,46 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
     }
   }
 
+  // Permission filtering only applies in the admin panel for elevated STAFF.
+  // Staff panel, SUPER_ADMIN, and ADMIN always see their full nav.
+  const isAdminPanel = homeUrl?.startsWith("/admin") ?? false
+  const hasPermission = (permission?: string): boolean => {
+    if (!permission) return true
+    if (!isAdminPanel) return true
+    if (user?.role === "SUPER_ADMIN") return true
+    return !!user?.permissions?.[permission]
+  }
+
+  // Pre-filter nav: remove items the user doesn't have permission for,
+  // filter dropdown children, and hide groups with no visible children.
+  const role = user?.role as string | undefined
+  const filteredNav: NavItem[] = []
+  for (const item of nav) {
+    if (item.spacer) { filteredNav.push(item); continue }
+    if (item.children) {
+      if (!hasPermission(item.permission)) continue
+      const visibleChildren = item.children.filter(c =>
+        !c.excludeRoles?.includes(role as any) && hasPermission(c.permission)
+      )
+      if (visibleChildren.length === 0) continue
+      filteredNav.push({ ...item, children: visibleChildren })
+    } else {
+      if (!hasPermission(item.permission)) continue
+      filteredNav.push(item)
+    }
+  }
+
+  // Re-compute section labels after filtering
+  const seenSections = new Set<string>()
+  const navWithSections = filteredNav.map(item => {
+    const showSection = !!(item.section && !seenSections.has(item.section))
+    if (item.section) seenSections.add(item.section)
+    return { item, showSection }
+  })
+
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {}
-    for (const item of nav) {
+    for (const item of filteredNav) {
       if (item.children?.some(c => path === c.href || path.startsWith(c.href + "/"))) {
         init[item.label] = true
       }
@@ -81,7 +118,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
   })
 
   useEffect(() => {
-    nav.forEach(item => {
+    filteredNav.forEach(item => {
       if (item.children?.some(c => path === c.href || path.startsWith(c.href + "/"))) {
         setOpenDropdowns(prev => ({ ...prev, [item.label]: true }))
       }
@@ -134,31 +171,19 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
       {/* Scrollable Nav */}
       <nav style={{ flex: 1, padding: "10px 10px", overflowY: "auto", overflowX: "hidden" }}>
-        {(() => {
-          const seenSections = new Set<string>()
-          return nav.map(item => {
-            const showSection = !!(item.section && !seenSections.has(item.section))
-            if (item.section) seenSections.add(item.section)
-            return { item, showSection }
-          })
-        })().map(({ item, showSection }) => {
+        {navWithSections.map(({ item, showSection }) => {
           const shouldShowSection = showSection && user?.role !== "STAFF"
           const Icon = resolveIcon(item.icon)
 
           if (item.spacer) {
             return (
-              <div
-                key={item.label}
-                style={{ height: 6, margin: "6px 0", borderTop: "1px solid rgba(255,255,255,0.08)" }}
-              />
+              <div key={item.label} style={{ height: 6, margin: "6px 0", borderTop: "1px solid rgba(255,255,255,0.08)" }} />
             )
           }
 
           if (item.children) {
             const isOpen   = openDropdowns[item.label] ?? false
             const isActive = item.children.some(c => path === c.href || path.startsWith(c.href + "/"))
-            const role     = user?.role as string | undefined
-            const visible  = item.children.filter(c => !c.excludeRoles?.includes(role as any))
 
             return (
               <div key={item.label}>
@@ -190,7 +215,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
                 {isOpen && (
                   <div style={{ marginBottom: 4 }}>
-                    {visible.map(child => {
+                    {item.children.map(child => {
                       const childActive = path === child.href || (!child.exact && path.startsWith(child.href + "/"))
                       return (
                         <NavLink key={child.href} href={child.href} label={child.label} active={childActive} indent />
@@ -208,7 +233,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
           return (
             <div key={item.href ?? item.label}>
-              {showSection && (
+              {shouldShowSection && (
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--sidebar-fg)", padding: "10px 10px 4px", textTransform: "uppercase", marginTop: 4 }}>
                   {item.section}
                 </div>

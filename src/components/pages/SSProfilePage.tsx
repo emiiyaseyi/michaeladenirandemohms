@@ -8,28 +8,98 @@ import Link from "next/link"
 import {
   Building2, UserCheck, Users, CalendarDays, Clock,
   Briefcase, Mail, Phone, MapPin, Banknote, Heart,
-  Edit2, Loader2, AlertCircle, CheckCircle2, FileText, Upload, CheckCircle, XCircle,
+  Edit2, Loader2, AlertCircle, CheckCircle2, Upload, Pencil, X,
 } from "lucide-react"
 import { roleLabel } from "@/lib/rbac"
 
-const DOC_TYPES = [
-  { key: "SSCE",              label: "SSCE Certificate",         desc: "West African Senior School Certificate" },
-  { key: "FIRST_DEGREE",     label: "First Degree",             desc: "University degree certificate" },
-  { key: "NYSC",             label: "NYSC Certificate",         desc: "National Youth Service Corps discharge certificate" },
-  { key: "PROFESSIONAL_CERT", label: "Professional Certification", desc: "e.g. PMP, CPA, CISSP, etc." },
-  { key: "UTILITY_BILL",     label: "Utility Bill",             desc: "Recent utility bill for address verification" },
-  { key: "OTHER",            label: "Other Document",           desc: "Any other supporting document" },
-]
-
-const DOC_STATUS_META = {
-  PENDING:  { bg: "#FFFBEB", color: "#B45309", icon: Clock,        label: "Pending Review" },
-  APPROVED: { bg: "#E6F4EA", color: "#1A7336", icon: CheckCircle,  label: "Approved" },
-  REJECTED: { bg: "#FEE2E2", color: "#DC2626", icon: XCircle,      label: "Rejected" },
+const DOC_STATUS_LABEL: Record<string, string> = {
+  PENDING:  "Pending Review",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
 }
 
-function PersonalDocsSection() {
+const circleBtn: React.CSSProperties = {
+  width: 34, height: 34, borderRadius: "50%",
+  border: "1.5px solid var(--border)",
+  background: "var(--background)",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  cursor: "pointer", flexShrink: 0,
+  color: "var(--primary)",
+}
+
+function TextFieldRow({
+  label, value, onEdit,
+}: {
+  label: string
+  value?: string | null
+  onEdit: () => void
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ flex: "0 0 220px", fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>{label}</div>
+      <div style={{ flex: 1, fontSize: 13, color: value ? "var(--foreground)" : "var(--muted-foreground)" }}>
+        {value ?? "—"}
+      </div>
+      <button style={circleBtn} onClick={onEdit}>
+        <Pencil size={14} />
+      </button>
+    </div>
+  )
+}
+
+function EditTextModal({
+  label, value, onSave, onClose, saving,
+}: {
+  label: string
+  value: string
+  onSave: (val: string) => void
+  onClose: () => void
+  saving: boolean
+}) {
+  const [val, setVal] = useState(value)
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)" }}
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div style={{ background: "var(--card)", borderRadius: 12, padding: "28px 28px 24px", width: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.18)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>Edit {label}</div>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 4 }}>
+            <X size={18} />
+          </button>
+        </div>
+        <input
+          value={val}
+          onChange={e => setVal(e.target.value)}
+          placeholder={`Enter ${label}`}
+          autoFocus
+          style={{
+            width: "100%", padding: "10px 12px", borderRadius: 8, border: "1.5px solid var(--border)",
+            fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none",
+            boxSizing: "border-box",
+          }}
+          onKeyDown={e => { if (e.key === "Enter") onSave(val) }}
+        />
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 18 }}>
+          <button onClick={onClose} disabled={saving}
+            style={{ padding: "8px 18px", borderRadius: 7, border: "1px solid var(--border)", background: "var(--background)", fontSize: 13, cursor: "pointer", fontWeight: 600 }}>
+            Cancel
+          </button>
+          <button onClick={() => onSave(val)} disabled={saving}
+            style={{ padding: "8px 18px", borderRadius: 7, border: "none", background: "var(--primary)", color: "white", fontSize: 13, cursor: saving ? "not-allowed" : "pointer", fontWeight: 600, opacity: saving ? 0.7 : 1, display: "flex", alignItems: "center", gap: 6 }}>
+            {saving && <Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} />}
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function DocumentSections({ nin, aiMembership, onTextSaved }: { nin?: string | null; aiMembership?: string | null; onTextSaved: (field: string, val: string) => void }) {
   const [docs, setDocs] = useState<Record<string, any>>({})
   const [uploading, setUploading] = useState<string | null>(null)
+  const [editModal, setEditModal] = useState<{ field: "nin" | "aiMembership"; label: string } | null>(null)
+  const [saving, setSaving] = useState(false)
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
   useEffect(() => {
@@ -43,7 +113,10 @@ function PersonalDocsSection() {
       .catch(() => {})
   }, [])
 
-  async function handleUpload(type: string, file: File) {
+  async function handleUpload(type: string, e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
     setUploading(type)
     const fd = new FormData()
     fd.append("file", file)
@@ -56,64 +129,116 @@ function PersonalDocsSection() {
     setUploading(null)
   }
 
-  return (
-    <Card>
-      <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 8 }}>
-        <FileText size={15} style={{ color: "var(--primary)" }} />
-        <div style={{ fontSize: 13, fontWeight: 700 }}>Personal Documents</div>
-      </div>
-      <div style={{ padding: "12px 18px", display: "flex", flexDirection: "column", gap: 10 }}>
-        {DOC_TYPES.map(({ key, label, desc }) => {
-          const doc = docs[key]
-          const statusMeta = doc ? DOC_STATUS_META[doc.status as keyof typeof DOC_STATUS_META] : null
-          const StatusIcon = statusMeta?.icon ?? null
-          const isUploading = uploading === key
+  async function handleSaveText(val: string) {
+    if (!editModal) return
+    setSaving(true)
+    const res = await fetch("/api/self-service/profile/update", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [editModal.field]: val }),
+    })
+    if (res.ok) {
+      onTextSaved(editModal.field, val)
+      setEditModal(null)
+    }
+    setSaving(false)
+  }
 
-          return (
-            <div key={key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 10, border: "1px solid var(--border)", background: doc ? statusMeta?.bg ?? "var(--muted)" : "var(--background)" }}>
-              <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <FileText size={16} style={{ color: doc ? statusMeta?.color ?? "var(--primary)" : "var(--muted-foreground)" }} />
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{label}</div>
-                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                  {doc ? (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontWeight: 600, color: statusMeta?.color }}>
-                      {StatusIcon && <StatusIcon size={11} />} {statusMeta?.label} · {doc.fileName}
-                    </span>
-                  ) : desc}
-                </div>
-                {doc?.reviewNote && (
-                  <div style={{ fontSize: 11, color: "#78350F", marginTop: 2 }}>Note: {doc.reviewNote}</div>
-                )}
-              </div>
-              <div style={{ flexShrink: 0 }}>
-                <input
-                  type="file"
-                  ref={el => { fileRefs.current[key] = el }}
-                  style={{ display: "none" }}
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(key, f); e.target.value = "" }}
-                />
-                <button
-                  onClick={() => fileRefs.current[key]?.click()}
-                  disabled={isUploading}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6, padding: "6px 12px",
-                    border: "1px solid var(--border)", borderRadius: 7, cursor: isUploading ? "not-allowed" : "pointer",
-                    fontSize: 12, fontWeight: 600, background: "var(--background)", color: "var(--foreground)",
-                    opacity: isUploading ? 0.7 : 1,
-                  }}
-                >
-                  {isUploading ? <Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} /> : <Upload size={12} />}
-                  {doc ? "Replace" : "Upload"}
-                </button>
-              </div>
-            </div>
-          )
-        })}
+  function uploadRow(key: string, label: string) {
+    return (
+      <div key={key} style={{ display: "flex", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ flex: "0 0 220px", fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>{label}</div>
+        <div style={{ flex: 1, fontSize: 13, color: docs[key] ? (docs[key].status === "APPROVED" ? "#1A7336" : docs[key].status === "REJECTED" ? "#DC2626" : "#B45309") : "var(--muted-foreground)" }}>
+          {docs[key] ? `${DOC_STATUS_LABEL[docs[key].status] ?? docs[key].status} · ${docs[key].fileName}` : "No file has been uploaded."}
+        </div>
+        <input type="file" ref={el => { fileRefs.current[key] = el }} style={{ display: "none" }}
+          accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+          onChange={e => handleUpload(key, e)} />
+        <button style={{ ...circleBtn, opacity: uploading === key ? 0.6 : 1, cursor: uploading === key ? "not-allowed" : "pointer" }}
+          onClick={() => fileRefs.current[key]?.click()} disabled={uploading === key}>
+          {uploading === key ? <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> : <Upload size={14} />}
+        </button>
       </div>
-    </Card>
+    )
+  }
+
+  const currentNin = nin
+  const currentAi = aiMembership
+
+  return (
+    <>
+      {/* General Information */}
+      <Card>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>General Information</div>
+        </div>
+
+        {/* AI+ Membership — pencil modal */}
+        <TextFieldRow
+          label="AI+ Membership"
+          value={currentAi}
+          onEdit={() => setEditModal({ field: "aiMembership", label: "AI+ Membership" })}
+        />
+
+        {/* NIN — pencil modal */}
+        <TextFieldRow
+          label="NIN"
+          value={currentNin}
+          onEdit={() => setEditModal({ field: "nin", label: "NIN" })}
+        />
+
+        {/* NIN Slip — upload */}
+        {uploadRow("NIN_SLIP", "NIN Slip")}
+
+        {/* Utility Bill — upload (no bottom border on last row) */}
+        <div style={{ display: "flex", alignItems: "center", padding: "14px 20px" }}>
+          <div style={{ flex: "0 0 220px", fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>Utility Bill</div>
+          <div style={{ flex: 1, fontSize: 13, color: docs["UTILITY_BILL"] ? (docs["UTILITY_BILL"].status === "APPROVED" ? "#1A7336" : docs["UTILITY_BILL"].status === "REJECTED" ? "#DC2626" : "#B45309") : "var(--muted-foreground)" }}>
+            {docs["UTILITY_BILL"] ? `${DOC_STATUS_LABEL[docs["UTILITY_BILL"].status] ?? docs["UTILITY_BILL"].status} · ${docs["UTILITY_BILL"].fileName}` : "No file has been uploaded."}
+          </div>
+          <input type="file" ref={el => { fileRefs.current["UTILITY_BILL"] = el }} style={{ display: "none" }}
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+            onChange={e => handleUpload("UTILITY_BILL", e)} />
+          <button style={{ ...circleBtn, opacity: uploading === "UTILITY_BILL" ? 0.6 : 1, cursor: uploading === "UTILITY_BILL" ? "not-allowed" : "pointer" }}
+            onClick={() => fileRefs.current["UTILITY_BILL"]?.click()} disabled={uploading === "UTILITY_BILL"}>
+            {uploading === "UTILITY_BILL" ? <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> : <Upload size={14} />}
+          </button>
+        </div>
+      </Card>
+
+      {/* Educational Certifications */}
+      <Card>
+        <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>Educational Certifications</div>
+        </div>
+        {uploadRow("FIRST_DEGREE", "Degree")}
+        {uploadRow("NYSC", "NYSC")}
+        {/* Last row — no bottom border */}
+        <div style={{ display: "flex", alignItems: "center", padding: "14px 20px" }}>
+          <div style={{ flex: "0 0 220px", fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>SSCE</div>
+          <div style={{ flex: 1, fontSize: 13, color: docs["SSCE"] ? (docs["SSCE"].status === "APPROVED" ? "#1A7336" : docs["SSCE"].status === "REJECTED" ? "#DC2626" : "#B45309") : "var(--muted-foreground)" }}>
+            {docs["SSCE"] ? `${DOC_STATUS_LABEL[docs["SSCE"].status] ?? docs["SSCE"].status} · ${docs["SSCE"].fileName}` : "No file has been uploaded."}
+          </div>
+          <input type="file" ref={el => { fileRefs.current["SSCE"] = el }} style={{ display: "none" }}
+            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+            onChange={e => handleUpload("SSCE", e)} />
+          <button style={{ ...circleBtn, opacity: uploading === "SSCE" ? 0.6 : 1, cursor: uploading === "SSCE" ? "not-allowed" : "pointer" }}
+            onClick={() => fileRefs.current["SSCE"]?.click()} disabled={uploading === "SSCE"}>
+            {uploading === "SSCE" ? <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> : <Upload size={14} />}
+          </button>
+        </div>
+      </Card>
+
+      {editModal && (
+        <EditTextModal
+          label={editModal.label}
+          value={editModal.field === "nin" ? (currentNin ?? "") : (currentAi ?? "")}
+          onSave={handleSaveText}
+          onClose={() => setEditModal(null)}
+          saving={saving}
+        />
+      )}
+    </>
   )
 }
 
@@ -141,11 +266,21 @@ export default function SSProfilePage() {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [nin, setNin] = useState<string | null>(null)
+  const [aiMembership, setAiMembership] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/self-service/profile")
       .then(r => r.json())
-      .then(d => { if (d.error) setError(d.error); else setData(d); setLoading(false) })
+      .then(d => {
+        if (d.error) setError(d.error)
+        else {
+          setData(d)
+          setNin(d.profile?.nin ?? null)
+          setAiMembership(d.profile?.aiMembership ?? null)
+        }
+        setLoading(false)
+      })
       .catch(() => { setError("Failed to load profile"); setLoading(false) })
   }, [])
 
@@ -299,8 +434,15 @@ export default function SSProfilePage() {
         </div>
       </Card>
 
-      {/* Personal documents */}
-      <PersonalDocsSection />
+      {/* Documents */}
+      <DocumentSections
+        nin={nin}
+        aiMembership={aiMembership}
+        onTextSaved={(field, val) => {
+          if (field === "nin") setNin(val)
+          else if (field === "aiMembership") setAiMembership(val)
+        }}
+      />
 
       {/* Active projects */}
       {profile.activeProjects?.length > 0 && (

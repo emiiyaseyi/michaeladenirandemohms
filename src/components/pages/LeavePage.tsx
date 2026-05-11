@@ -1282,7 +1282,8 @@ export default function LeavePage() {
 
   const canApprove = user?.can("canApproveLeave") ?? false
   const canSubmit = user?.caps?.canSubmitLeave
-  const isAdmin = user?.role === "SUPER_ADMIN" || (user?.can("canViewAllLeave") ?? false)
+  const isInAdminPanel = pathname?.startsWith("/admin") ?? false
+  const isAdmin = isInAdminPanel || user?.role === "SUPER_ADMIN" || (user?.can("canViewAllLeave") ?? false)
   const isSuperAdmin = user?.role === "SUPER_ADMIN"
   const isHRApprover = isAdmin && canApprove
   const isPLApprover = canApprove && !isHRApprover
@@ -1394,7 +1395,7 @@ export default function LeavePage() {
               <Plus size={13} /> Record Leave for an Employee
             </button>
           )}
-          {canSubmit && !isSuperAdmin && (
+          {canSubmit && !isAdmin && (
             <button onClick={() => setApplyOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
               <Plus size={13} /> Apply for Leave
             </button>

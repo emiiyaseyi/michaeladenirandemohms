@@ -4,18 +4,23 @@ import { useRouter } from "next/navigation"
 
 interface Props {
   departments: { id: string; name: string }[]
+  isSuperAdmin: boolean
+  permissions: Record<string, boolean>
 }
 
-export default function AdminQuickActionsBar({ departments: _ }: Props) {
+export default function AdminQuickActionsBar({ departments: _, isSuperAdmin, permissions }: Props) {
   const router = useRouter()
 
-  const actions: { label: string; icon: React.ElementType; bg: string; color: string; onClick: () => void }[] = [
+  const can = (key: string) => isSuperAdmin || !!permissions[key]
+
+  const actions: { label: string; icon: React.ElementType; bg: string; color: string; onClick: () => void; permission: string }[] = [
     {
       label: "Add Employee",
       icon: Plus,
       bg: "var(--primary)",
       color: "white",
       onClick: () => router.push("/admin/people/employees/add"),
+      permission: "canCreateEmployee",
     },
     {
       label: "Departments",
@@ -23,6 +28,7 @@ export default function AdminQuickActionsBar({ departments: _ }: Props) {
       bg: "#EEF2FF",
       color: "#6366F1",
       onClick: () => router.push("/admin/people/departments"),
+      permission: "canManageDepartments",
     },
     {
       label: "All Employees",
@@ -30,6 +36,7 @@ export default function AdminQuickActionsBar({ departments: _ }: Props) {
       bg: "#F0FDF4",
       color: "var(--primary)",
       onClick: () => router.push("/admin/people/employees"),
+      permission: "canViewAllEmployees",
     },
     {
       label: "Reports",
@@ -37,12 +44,16 @@ export default function AdminQuickActionsBar({ departments: _ }: Props) {
       bg: "#FFFBEB",
       color: "#D97706",
       onClick: () => router.push("/admin/reports"),
+      permission: "canViewReports",
     },
   ]
 
+  const visible = actions.filter(a => can(a.permission))
+  if (visible.length === 0) return null
+
   return (
     <div style={{ display: "flex", gap: 10, marginBottom: 24, flexWrap: "wrap" }}>
-      {actions.map(({ label, icon: Icon, bg, color, onClick }) => (
+      {visible.map(({ label, icon: Icon, bg, color, onClick }) => (
         <button
           key={label}
           onClick={onClick}

@@ -54,6 +54,9 @@ async function getHeadcountData() {
 export default async function AdminDashboard() {
   const session = await auth()
   const name = session?.user?.name?.split(" ")[0] ?? "Admin"
+  const role = (session?.user as any)?.role ?? "STAFF"
+  const isSuperAdmin = role === "SUPER_ADMIN"
+  const permissions = (session?.user as any)?.permissions ?? {}
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"
 
@@ -129,7 +132,7 @@ export default async function AdminDashboard() {
 
       <AlertsBanner pendingLeave={pendingLeaveCount} pendingKPIs={pendingKPIs} />
 
-      <AdminQuickActionsBar departments={departments} />
+      <AdminQuickActionsBar departments={departments} isSuperAdmin={isSuperAdmin} permissions={permissions} />
 
       <div style={{ display: "flex", gap: 20, marginBottom: 20, alignItems: "stretch", flexWrap: "wrap" }}>
         <AttritionTrendChart data={attritionData} />

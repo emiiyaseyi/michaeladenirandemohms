@@ -30,10 +30,17 @@ export async function PUT(req: NextRequest) {
   if (error) return error
   if (!caps(user.role).canManageSettings) return forbidden()
 
-  const { companyName, email, primaryContact, otherContact, logoUrl } = await req.json()
+  const { email, primaryContact, otherContact, logoUrl } = await req.json()
+
+  // Preserve the existing company name — it is read-only
+  const existing = await prisma.systemSetting.findUnique({ where: { key: KEY } })
+  const existingData = (existing?.value ?? {}) as any
+  const branding = await prisma.systemSetting.findUnique({ where: { key: "branding" } })
+  const brandingData = (branding?.value ?? {}) as any
+  const companyName = existingData.companyName ?? brandingData?.orgName ?? "Data Science Nigeria"
 
   const value = {
-    companyName: companyName ?? "",
+    companyName,
     email: email ?? "",
     primaryContact: primaryContact ?? "",
     otherContact: otherContact ?? "",
@@ -44,15 +51,6 @@ export async function PUT(req: NextRequest) {
     where: { key: KEY },
     update: { value },
     create: { key: KEY, value },
-  })
-
-  // Keep branding orgName in sync
-  const branding = await prisma.systemSetting.findUnique({ where: { key: "branding" } })
-  const existing = (branding?.value ?? {}) as any
-  await prisma.systemSetting.upsert({
-    where: { key: "branding" },
-    update: { value: { ...existing, orgName: companyName } },
-    create: { key: "branding", value: { orgName: companyName, font: "Inter", primaryColor: "#0052A5", logoUrl: null, wallpaperUrl: null } },
   })
 
   return NextResponse.json({ details: setting.value })

@@ -213,6 +213,7 @@ model Employee {
   absenceRecords              AbsenceRecord[]
   policyExemptions            DisciplinaryPolicyExemption[]
   assetAssignments            AssetAssignment[]
+  benefitEnrollments          BenefitEnrollment[]
 }
 
 model Document {
@@ -1377,6 +1378,7 @@ enum PersonalDocType {
   NYSC
   PROFESSIONAL_CERT
   UTILITY_BILL
+  NIN_SLIP
   OTHER
 }
 
@@ -1558,4 +1560,43 @@ model AssetAssignment {
 enum AssetAssignmentStatus {
   ASSIGNED
   RELEASED
+}
+
+// ── Benefits ──────────────────────────────────────────────────────────────────
+
+model Benefit {
+  id            String              @id @default(cuid())
+  name          String
+  effectiveDate DateTime
+  category      String              @default("Other (taxable)")
+  status        String              @default("ACTIVE")
+  enrollType    String              @default("EMPLOYEES")
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  enrollments   BenefitEnrollment[]
+}
+
+model BenefitEnrollment {
+  id                       String   @id @default(cuid())
+  benefitId                String
+  employeeId               String
+  employeeDeductionType    String   @default("AMOUNT")
+  employeeDeductionValue   Float    @default(0)
+  companyContributionType  String   @default("AMOUNT")
+  companyContributionValue Float    @default(0)
+  cumulativeDeduction      Float    @default(0)
+  cumulativeContribution   Float    @default(0)
+  effectiveDate            DateTime
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+  benefit                  Benefit  @relation(fields: [benefitId], references: [id], onDelete: Cascade)
+  employee                 Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([benefitId, employeeId])
+}
+
+model BenefitCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
 }
