@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   })
   if (existing) return NextResponse.json({ error: "You already have a pending exit request." }, { status: 409 })
 
-  const { exitType, reason, intendedLastDay } = await req.json()
+  const { exitType, reason, intendedLastDay, documentUrl } = await req.json()
   if (!intendedLastDay) return NextResponse.json({ error: "Intended last day is required" }, { status: 400 })
 
   const ALLOWED_EXIT_TYPES = ["RESIGNATION", "RETIREMENT", "CONTRACT_END", "REDUNDANCY"]
@@ -63,6 +63,7 @@ export async function POST(req: NextRequest) {
       exitType: safeExitType as any,
       intendedLastDay: new Date(intendedLastDay),
       reason: reason || null,
+      documentUrl: documentUrl || null,
     },
   })
 

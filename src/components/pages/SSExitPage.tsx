@@ -1,9 +1,9 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Card from "@/components/ui/Card"
 import Badge from "@/components/ui/Badge"
 import Button from "@/components/ui/Button"
-import { LogOut, CheckCircle2, Circle, Loader2, UserMinus, AlertTriangle, FileText, Users, Clock } from "lucide-react"
+import { LogOut, CheckCircle2, Circle, Loader2, UserMinus, AlertTriangle, FileText, Users, Clock, Inbox, X, Paperclip } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
 const EXIT_TYPE_LABEL: Record<string, string> = {
@@ -31,6 +31,12 @@ export default function SSExitPage() {
   const [submitting, setSubmitting]   = useState(false)
   const [submitted, setSubmitted]     = useState(false)
   const [submitError, setSubmitError] = useState("")
+  const [docFile, setDocFile]         = useState<File | null>(null)
+  const [docUrl, setDocUrl]           = useState("")
+  const [docUploading, setDocUploading] = useState(false)
+  const [docError, setDocError]       = useState("")
+  const [dragOver, setDragOver]       = useState(false)
+  const fileInputRef                  = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch("/api/self-service/exit")
@@ -38,6 +44,21 @@ export default function SSExitPage() {
       .then(d => { setOffboarding(d.offboarding ?? null); setLoading(false) })
       .catch(() => setLoading(false))
   }, [])
+
+  const handleFile = async (file: File) => {
+    setDocError("")
+    const ALLOWED = ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "image/jpeg", "image/jpg", "image/png"]
+    if (!ALLOWED.includes(file.type)) { setDocError("Only PDF, DOC, DOCX, JPG, PNG files are accepted"); return }
+    if (file.size > 1 * 1024 * 1024) { setDocError("File too large — max 1MB"); return }
+    setDocFile(file); setDocUploading(true)
+    const fd = new FormData(); fd.append("file", file)
+    const r = await fetch("/api/self-service/exit/upload-doc", { method: "POST", body: fd })
+    setDocUploading(false)
+    if (r.ok) { const d = await r.json(); setDocUrl(d.url) }
+    else { const d = await r.json(); setDocError(d.error ?? "Upload failed"); setDocFile(null) }
+  }
+
+  const removeDoc = () => { setDocFile(null); setDocUrl(""); setDocError(""); if (fileInputRef.current) fileInputRef.current.value = "" }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,7 +72,7 @@ export default function SSExitPage() {
       const r = await fetch("/api/self-service/exit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, documentUrl: docUrl || null }),
       })
       const d = await r.json()
       if (r.ok) { setSubmitted(true); setConfirmOpen(false) }
@@ -276,6 +297,65 @@ export default function SSExitPage() {
                 />
               </div>
 
+              {/* Document upload */}
+              <div style={{ marginBottom: 28 }}>
+                <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, marginBottom: 10, color: "var(--foreground)" }}>
+                  Do you have a supporting document?
+                  <span title="Optional. Accepted: PDF, DOC, DOCX, JPG, PNG — max 1MB" style={{ width: 16, height: 16, borderRadius: "50%", border: "1.5px solid var(--muted-foreground)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "var(--muted-foreground)", cursor: "help", fontWeight: 700, flexShrink: 0 }}>?</span>
+                </label>
+
+                {docUrl ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", border: "1.5px solid var(--primary)", borderRadius: 10, background: "var(--muted)" }}>
+                    <Paperclip size={16} style={{ color: "var(--primary)", flexShrink: 0 }} />
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{docFile?.name}</span>
+                    <button type="button" onClick={removeDoc} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 2, display: "flex", borderRadius: 4 }}>
+                      <X size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
+                    style={{
+                      border: `2px dashed ${dragOver ? "var(--primary)" : "var(--border)"}`,
+                      borderRadius: 12, padding: "32px 20px", textAlign: "center",
+                      background: dragOver ? "var(--muted)" : "transparent",
+                      transition: "all .15s", cursor: "pointer",
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <input ref={fileInputRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
+                    <div style={{ display: "flex", justifyContent: "center", marginBottom: 12 }}>
+                      <div style={{ width: 48, height: 48, borderRadius: 12, background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        {docUploading
+                          ? <Loader2 size={22} style={{ color: "var(--primary)", animation: "spin .8s linear infinite" }} />
+                          : <Inbox size={22} style={{ color: "var(--primary)" }} />}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)", marginBottom: 4 }}>
+                      {docUploading ? "Uploading…" : "Drop your file here or"}
+                    </div>
+                    {!docUploading && (
+                      <>
+                        <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 14 }}>
+                          Only pdf, doc, docx, png, jpg, jpeg — max 1MB
+                        </div>
+                        <button type="button" onClick={e => { e.stopPropagation(); fileInputRef.current?.click() }}
+                          style={{ padding: "8px 24px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+                          Choose file
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+
+                {docError && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "var(--accent)", fontWeight: 600 }}>{docError}</div>
+                )}
+              </div>
+
               <div style={{ display: "flex", justifyContent: "flex-end" }}>
                 <Button type="submit" variant="danger">
                   <LogOut size={14} /> Review & Submit Request
@@ -303,8 +383,15 @@ export default function SSExitPage() {
             </div>
 
             {form.reason && (
-              <div style={{ background: "var(--muted)", borderRadius: 10, padding: "14px 16px", marginBottom: 20, fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.6 }}>
+              <div style={{ background: "var(--muted)", borderRadius: 10, padding: "14px 16px", marginBottom: 12, fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.6 }}>
                 <strong style={{ color: "var(--foreground)" }}>Reason:</strong> {form.reason}
+              </div>
+            )}
+            {docUrl && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", background: "var(--muted)", borderRadius: 10, marginBottom: 20, fontSize: 13 }}>
+                <Paperclip size={14} style={{ color: "var(--primary)", flexShrink: 0 }} />
+                <span style={{ color: "var(--muted-foreground)" }}>Supporting document attached:</span>
+                <span style={{ fontWeight: 600, color: "var(--foreground)" }}>{docFile?.name}</span>
               </div>
             )}
 

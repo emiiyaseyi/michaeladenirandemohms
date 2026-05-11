@@ -1,219 +1,302 @@
 "use client"
-import { useState, useEffect } from "react"
-import { ChevronDown, ChevronUp, Plus, Trash2, ArrowRight, Check, Loader2, X } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Info, ArrowRight, Loader2, Check, X, ChevronDown } from "lucide-react"
 
-const inp: React.CSSProperties = {
-  width: "100%", padding: "9px 12px", border: "1px solid var(--border)",
-  borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)",
-  boxSizing: "border-box",
-}
-const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }
-
-const APPROVER_ROLES = [
-  { key: "STAFF", label: "Relief Officer" },
-  { key: "STAFF", label: "Manager" },
-  { key: "ADMIN", label: "HR Admin" },
+const AVAILABLE_ROLES = [
+  "Head of Department",
+  "Manager",
+  "HR Admin",
+  "Payroll Admin",
+  "Primary Admin",
+  "Secondary Admin",
 ]
 
-const DEFAULT_CATEGORIES = [
-  { id: "leave", name: "Leave", description: "Leave request approval chain", isSystem: true,
-    chain: [
-      { role: "STAFF", label: "Relief Officer", deadlineHours: 24 },
-      { role: "STAFF", label: "Manager",        deadlineHours: 48 },
-      { role: "ADMIN", label: "HR Admin",       deadlineHours: 72 },
+const DEFAULT_SECTIONS = [
+  {
+    id: "hr",
+    name: "HR",
+    categories: [
+      { id: "people", name: "People", description: "Approval workflow for HR-related employee requests e.g document, redeployment and exit", chain: [] as string[] },
+      { id: "time_leave", name: "Time Tracking and Leave", description: "Approval workflow for employee hours and leave requests", chain: ["Head of Department", "Manager", "HR Admin"] },
+      { id: "loans_salary_tax", name: "Loans, Salary Advance and Tax Relief", description: "Approval workflow for loans, salary advance and tax-relief requests", chain: ["Manager", "HR Admin"] },
     ],
   },
-  { id: "performance", name: "Performance Reviews", description: "Appraisal sign-off chain", isSystem: true,
-    chain: [
-      { role: "STAFF", label: "Manager",   deadlineHours: 72 },
-      { role: "ADMIN", label: "HR Admin",  deadlineHours: 72 },
+  {
+    id: "payroll",
+    name: "Payroll",
+    categories: [
+      { id: "payrolls_regular", name: "Payrolls and Regular Payment Schedules", description: "Approval workflow for regular and custom payroll", chain: ["Payroll Admin", "Primary Admin", "Secondary Admin"] },
+      { id: "expense_claims", name: "Expense Claims", description: "Approval workflow for employee expense claims", chain: ["Payroll Admin", "Primary Admin", "Secondary Admin"] },
+      { id: "payroll_changes", name: "Payroll Changes", description: "Approval workflow for payroll changes e.g bonuses, deductions and payables", chain: ["Payroll Admin", "Primary Admin", "Secondary Admin"] },
+      { id: "custom_payment", name: "Custom Payment Schedules", description: "Approval workflow for custom payment schedules", chain: [] as string[] },
     ],
-  },
-  { id: "profile_changes", name: "Employee Profile Changes", description: "Profile update requests", isSystem: true,
-    chain: [{ role: "ADMIN", label: "HR Admin", deadlineHours: 48 }],
   },
 ]
 
+type Category = { id: string; name: string; description: string; chain: string[] }
+type Section = { id: string; name: string; categories: Category[] }
 
 export default function ApprovalWorkflowsSettingsPage() {
-  const [cats, setCats] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
+  const [sections, setSections] = useState<Section[]>([])
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [newCatOpen, setNewCatOpen] = useState(false)
-  const [newCatForm, setNewCatForm] = useState({ name: "", description: "" })
-  const [addStep, setAddStep] = useState<{ catIdx: number; type: "role" | "employee"; role: string; employeeId: string; deadlineHours: number } | null>(null)
-  const [empList, setEmpList] = useState<any[]>([])
+  const [editModal, setEditModal] = useState<{ secIdx: number; catIdx: number } | null>(null)
+  const [editChain, setEditChain] = useState<string[]>([])
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [tooltip, setTooltip] = useState<string | null>(null)
+  const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setLoading(true)
-    fetch("/api/settings/workflow").then(r => r.json()).then(d => {
-      setCats(d.workflow?.categories ?? DEFAULT_CATEGORIES)
-      setLoading(false)
-    }).catch(() => { setCats(DEFAULT_CATEGORIES); setLoading(false) })
-    fetch("/api/employees").then(r => r.ok ? r.json() : null).then(d => d && setEmpList(d.employees ?? [])).catch(() => {})
+    fetch("/api/settings/workflow")
+      .then(r => r.json())
+      .then(d => {
+        setSections(d.workflow?.sections ?? DEFAULT_SECTIONS)
+        setLoading(false)
+      })
+      .catch(() => { setSections(DEFAULT_SECTIONS); setLoading(false) })
+  }, [])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
   }, [])
 
   const saveAll = async () => {
     setSaving(true)
-    await fetch("/api/settings/workflow", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ categories: cats }) })
-    setSaving(false); setSaved(true); setTimeout(() => setSaved(false), 2500)
+    await fetch("/api/settings/workflow", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sections }),
+    })
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2500)
   }
 
-  const addStepToChain = (catIdx: number) => {
-    if (!addStep) return
-    if (addStep.type === "role") {
-      const roleInfo = APPROVER_ROLES.find(r => r.key === addStep.role)
-      if (!roleInfo) return
-      setCats(c => c.map((cat, i) => i !== catIdx ? cat : { ...cat, chain: [...cat.chain, { type: "role", role: addStep.role, label: roleInfo.label, deadlineHours: addStep.deadlineHours }] }))
-    } else {
-      const emp = empList.find(e => e.id === addStep.employeeId)
-      if (!emp) return
-      setCats(c => c.map((cat, i) => i !== catIdx ? cat : { ...cat, chain: [...cat.chain, { type: "employee", employeeId: addStep.employeeId, label: `${emp.firstName} ${emp.lastName}`, jobTitle: emp.jobTitle, deadlineHours: addStep.deadlineHours }] }))
-    }
-    setAddStep(null)
+  const openEdit = (secIdx: number, catIdx: number) => {
+    setEditChain([...sections[secIdx].categories[catIdx].chain])
+    setEditModal({ secIdx, catIdx })
+    setDropdownOpen(false)
   }
 
-  const removeStep = (catIdx: number, stepIdx: number) => setCats(c => c.map((cat, i) => i !== catIdx ? cat : { ...cat, chain: cat.chain.filter((_: any, j: number) => j !== stepIdx) }))
-
-  const moveStep = (catIdx: number, stepIdx: number, dir: -1 | 1) => setCats(c => c.map((cat, i) => {
-    if (i !== catIdx) return cat
-    const chain = [...cat.chain]; const t = stepIdx + dir
-    if (t < 0 || t >= chain.length) return cat
-    ;[chain[stepIdx], chain[t]] = [chain[t], chain[stepIdx]]
-    return { ...cat, chain }
-  }))
-
-  const setDeadline = (catIdx: number, stepIdx: number, hours: number) => setCats(c => c.map((cat, i) => i !== catIdx ? cat : { ...cat, chain: cat.chain.map((s: any, j: number) => j !== stepIdx ? s : { ...s, deadlineHours: hours }) }))
-
-  const deleteCat = (catId: string) => { if (!confirm("Delete this workflow category?")) return; setCats(c => c.filter(cat => cat.id !== catId)) }
-
-  const addCategory = () => {
-    if (!newCatForm.name.trim()) return
-    setCats(c => [...c, { id: `custom_${Date.now()}`, name: newCatForm.name.trim(), description: newCatForm.description.trim(), isSystem: false, chain: [] }])
-    setNewCatOpen(false); setNewCatForm({ name: "", description: "" })
+  const saveEdit = () => {
+    if (!editModal) return
+    setSections(s => s.map((sec, si) => si !== editModal.secIdx ? sec : {
+      ...sec,
+      categories: sec.categories.map((cat, ci) => ci !== editModal.catIdx ? cat : { ...cat, chain: editChain }),
+    }))
+    setEditModal(null)
   }
+
+  const removeFromChain = (role: string) => setEditChain(c => c.filter(r => r !== role))
+  const addToChain = (role: string) => { setEditChain(c => [...c, role]); setDropdownOpen(false) }
+
+  const editingCategory = editModal ? sections[editModal.secIdx]?.categories[editModal.catIdx] : null
+  const availableToAdd = AVAILABLE_ROLES.filter(r => !editChain.includes(r))
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-      <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>
-        <div style={{ padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid var(--border)", flexWrap: "wrap", gap: 8 }}>
-          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            {saved && <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--success)" }}><Check size={13} /> Saved</span>}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => setNewCatOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}>
-              <Plus size={13} /> New Category
-            </button>
-            <button onClick={saveAll} disabled={saving} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
-              {saving ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : <><Check size={13} /> Save All</>}
-            </button>
-          </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
+        {saved && (
+          <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--success)" }}>
+            <Check size={13} /> Saved
+          </span>
+        )}
+        <button
+          onClick={saveAll}
+          disabled={saving}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}
+        >
+          {saving ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : <><Check size={13} /> Save Changes</>}
+        </button>
+      </div>
+
+      {loading ? (
+        <div style={{ padding: 48, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--muted-foreground)" }}>
+          <Loader2 size={18} style={{ animation: "spin .8s linear infinite" }} />
+          <span style={{ fontSize: 13 }}>Loading…</span>
         </div>
+      ) : (
+        sections.map((section, secIdx) => (
+          <div key={section.id} style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>
+            <div style={{ padding: "14px 24px", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
+              <span style={{ fontSize: 14, fontWeight: 800, color: "var(--foreground)" }}>{section.name}</span>
+            </div>
 
-        {loading ? (
-          <div style={{ padding: 48, display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--muted-foreground)" }}>
-            <Loader2 size={18} style={{ animation: "spin .8s linear infinite" }} /><span style={{ fontSize: 13 }}>Loading…</span>
-          </div>
-        ) : (
-          <div style={{ padding: "16px 24px", display: "flex", flexDirection: "column", gap: 12 }}>
-            {cats.map((cat, catIdx) => (
-              <div key={cat.id} style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
-                <div style={{ padding: "12px 16px", background: "var(--muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>{cat.name}</span>
-                    {cat.isSystem && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 20, background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>System</span>}
-                    {cat.description && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{cat.description}</div>}
-                  </div>
-                  {!cat.isSystem && (
-                    <button onClick={() => deleteCat(cat.id)} style={{ background: "var(--danger-bg)", border: "none", borderRadius: 7, padding: "5px 7px", cursor: "pointer", color: "var(--danger)" }}>
-                      <Trash2 size={13} />
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ padding: "14px 16px" }}>
-                  {cat.chain.length === 0 ? (
-                    <div style={{ fontSize: 12, color: "var(--muted-foreground)", fontStyle: "italic", marginBottom: 10 }}>No steps yet — add approver roles below.</div>
-                  ) : (
-                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginBottom: 12 }}>
-                      {cat.chain.map((step: any, stepIdx: number) => (
-                        <div key={stepIdx} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 10, padding: "8px 12px", minWidth: 110 }}>
-                            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)", textAlign: "center" }}>{step.label}</span>
-                            <select value={step.deadlineHours} onChange={e => setDeadline(catIdx, stepIdx, Number(e.target.value))} style={{ fontSize: 10, padding: "2px 4px", border: "1px solid var(--border)", borderRadius: 5, background: "var(--background)", color: "var(--muted-foreground)", marginTop: 2 }}>
-                              {[4, 8, 12, 24, 48, 72, 96].map(h => <option key={h} value={h}>{h < 24 ? `${h}h` : `${h / 24}d`}</option>)}
-                            </select>
-                            <div style={{ display: "flex", gap: 2, marginTop: 2 }}>
-                              <button onClick={() => moveStep(catIdx, stepIdx, -1)} disabled={stepIdx === 0} style={{ background: "none", border: "none", cursor: stepIdx === 0 ? "default" : "pointer", color: "var(--muted-foreground)", padding: "1px 3px", opacity: stepIdx === 0 ? 0.3 : 1 }}><ChevronUp size={11} /></button>
-                              <button onClick={() => moveStep(catIdx, stepIdx, 1)} disabled={stepIdx === cat.chain.length - 1} style={{ background: "none", border: "none", cursor: stepIdx === cat.chain.length - 1 ? "default" : "pointer", color: "var(--muted-foreground)", padding: "1px 3px", opacity: stepIdx === cat.chain.length - 1 ? 0.3 : 1 }}><ChevronDown size={11} /></button>
-                              <button onClick={() => removeStep(catIdx, stepIdx)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--danger)", padding: "1px 3px" }}><X size={11} /></button>
-                            </div>
-                          </div>
-                          {stepIdx < cat.chain.length - 1 && <ArrowRight size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {addStep?.catIdx === catIdx ? (
-                    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, padding: "10px 12px", border: "1px dashed var(--border)", borderRadius: 8, background: "var(--muted)" }}>
-                      <div style={{ display: "flex", borderRadius: 7, overflow: "hidden", border: "1px solid var(--border)", flexShrink: 0 }}>
-                        {(["role", "employee"] as const).map(t => (
-                          <button key={t} onClick={() => setAddStep(s => s ? { ...s, type: t, role: "", employeeId: "" } : null)} style={{ padding: "5px 11px", fontSize: 11, fontWeight: 700, border: "none", cursor: "pointer", background: addStep.type === t ? "var(--primary)" : "var(--background)", color: addStep.type === t ? "white" : "var(--muted-foreground)", textTransform: "capitalize" }}>
-                            {t === "role" ? "Role" : "Person"}
-                          </button>
-                        ))}
+            {section.categories.map((cat, catIdx) => (
+              <div
+                key={cat.id}
+                style={{
+                  padding: "18px 24px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 20,
+                  borderBottom: catIdx < section.categories.length - 1 ? "1px solid var(--border)" : "none",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 6, width: 240, flexShrink: 0 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>{cat.name}</span>
+                  <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                    <Info
+                      size={14}
+                      style={{ color: "var(--muted-foreground)", cursor: "default", flexShrink: 0 }}
+                      onMouseEnter={() => setTooltip(cat.id)}
+                      onMouseLeave={() => setTooltip(null)}
+                    />
+                    {tooltip === cat.id && (
+                      <div style={{
+                        position: "absolute", left: 22, top: "50%", transform: "translateY(-50%)", zIndex: 20,
+                        background: "#1a1a1a", color: "#fff",
+                        fontSize: 11, lineHeight: 1.5, borderRadius: 8, padding: "8px 12px",
+                        width: 220, whiteSpace: "normal", pointerEvents: "none",
+                        boxShadow: "0 4px 16px rgba(0,0,0,0.25)",
+                      }}>
+                        {cat.description}
                       </div>
-                      {addStep.type === "role" ? (
-                        <select value={addStep.role} onChange={e => setAddStep(s => s ? { ...s, role: e.target.value } : null)} style={{ ...inp, flex: 1, minWidth: 160, maxWidth: 220, fontSize: 12, padding: "6px 10px" }}>
-                          <option value="">Select role…</option>
-                          {APPROVER_ROLES.map((r, i) => <option key={i} value={r.key}>{r.label}</option>)}
-                        </select>
-                      ) : (
-                        <select value={addStep.employeeId} onChange={e => setAddStep(s => s ? { ...s, employeeId: e.target.value } : null)} style={{ ...inp, flex: 1, minWidth: 160, maxWidth: 260, fontSize: 12, padding: "6px 10px" }}>
-                          <option value="">Select employee…</option>
-                          {empList.map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}{e.jobTitle ? ` — ${e.jobTitle}` : ""}</option>)}
-                        </select>
-                      )}
-                      <select value={addStep.deadlineHours} onChange={e => setAddStep(s => s ? { ...s, deadlineHours: Number(e.target.value) } : null)} style={{ padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 7, fontSize: 12, background: "var(--background)", color: "var(--foreground)" }}>
-                        {[4, 8, 12, 24, 48, 72, 96].map(h => <option key={h} value={h}>{h < 24 ? `${h}h` : `${h / 24}d`}</option>)}
-                      </select>
-                      <button onClick={() => addStepToChain(catIdx)} disabled={addStep.type === "role" ? !addStep.role : !addStep.employeeId} style={{ padding: "6px 14px", background: "var(--primary)", color: "white", border: "none", borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: "pointer", opacity: (addStep.type === "role" ? !addStep.role : !addStep.employeeId) ? 0.5 : 1 }}>Add</button>
-                      <button onClick={() => setAddStep(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}><X size={14} /></button>
-                    </div>
+                    )}
+                  </div>
+                </div>
+
+                <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                  {cat.chain.length === 0 ? (
+                    <span style={{ fontSize: 12, color: "var(--muted-foreground)", fontStyle: "italic" }}>No approvers set</span>
                   ) : (
-                    <button onClick={() => setAddStep({ catIdx, type: "role", role: "", employeeId: "", deadlineHours: 24 })} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--primary)", background: "none", border: "1px dashed var(--primary)", borderRadius: 7, padding: "5px 12px", cursor: "pointer" }}>
-                      <Plus size={12} /> Add Step
-                    </button>
+                    cat.chain.map((role, rIdx) => (
+                      <div key={rIdx} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>{role}</span>
+                        {rIdx < cat.chain.length - 1 && <ArrowRight size={13} style={{ color: "var(--muted-foreground)" }} />}
+                      </div>
+                    ))
                   )}
                 </div>
+
+                <button
+                  onClick={() => openEdit(secIdx, catIdx)}
+                  style={{
+                    padding: "6px 16px", background: "var(--muted)", border: "1px solid var(--border)",
+                    borderRadius: 8, cursor: "pointer", fontSize: 12, fontWeight: 700,
+                    color: "var(--foreground)", flexShrink: 0,
+                  }}
+                >
+                  Edit
+                </button>
               </div>
             ))}
           </div>
-        )}
-      </div>
+        ))
+      )}
 
-      {/* New Category Modal */}
-      {newCatOpen && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-          <div style={{ background: "var(--card)", borderRadius: 14, width: "100%", maxWidth: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.35)" }}>
+      {editModal && editingCategory && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ background: "var(--card)", borderRadius: 14, width: "100%", maxWidth: 480, boxShadow: "0 20px 60px rgba(0,0,0,0.3)" }}>
             <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontSize: 14, fontWeight: 800 }}>New Workflow Category</div>
-              <button onClick={() => setNewCatOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}><X size={16} /></button>
+              <span style={{ fontSize: 14, fontWeight: 800 }}>{editingCategory.name}</span>
+              <button onClick={() => setEditModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
+                <X size={16} />
+              </button>
             </div>
-            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
-              <div><label style={lbl}>Category Name *</label><input value={newCatForm.name} onChange={e => setNewCatForm(f => ({...f, name: e.target.value}))} style={inp} placeholder="e.g. Document Sign-off" /></div>
-              <div><label style={lbl}>Description</label><input value={newCatForm.description} onChange={e => setNewCatForm(f => ({...f, description: e.target.value}))} style={inp} placeholder="Brief description" /></div>
+
+            <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.6, margin: 0 }}>
+                The order in which you select approval roles determines the approval workflow sequence. For example, selecting "HR Admin" before "Manager" means HR approval must be obtained first.
+              </p>
+
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>
+                  Permissions <span style={{ color: "var(--danger)" }}>*</span>
+                </label>
+
+                <div
+                  ref={dropdownRef}
+                  style={{
+                    border: "1px solid var(--border)", borderRadius: 8, padding: "6px 8px",
+                    background: "var(--background)", display: "flex", flexWrap: "wrap",
+                    alignItems: "center", gap: 6, minHeight: 44, position: "relative",
+                  }}
+                >
+                  {editChain.map(role => (
+                    <div
+                      key={role}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 5,
+                        padding: "4px 10px", background: "var(--muted)",
+                        border: "1px solid var(--border)", borderRadius: 20,
+                        fontSize: 12, fontWeight: 600, color: "var(--foreground)",
+                      }}
+                    >
+                      {role}
+                      <button
+                        onClick={() => removeFromChain(role)}
+                        style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 1, color: "var(--muted-foreground)", display: "flex" }}
+                      >
+                        <X size={11} />
+                      </button>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={() => setDropdownOpen(o => !o)}
+                    style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: "2px 4px", display: "flex", alignItems: "center" }}
+                  >
+                    <ChevronDown size={14} style={{ transform: dropdownOpen ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
+                  </button>
+
+                  {dropdownOpen && (
+                    <div style={{
+                      position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0,
+                      background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8,
+                      boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 10, overflow: "hidden",
+                    }}>
+                      {availableToAdd.length === 0 ? (
+                        <div style={{ padding: "10px 14px", fontSize: 12, color: "var(--muted-foreground)" }}>All roles added</div>
+                      ) : (
+                        availableToAdd.map(role => (
+                          <button
+                            key={role}
+                            onClick={() => addToChain(role)}
+                            style={{
+                              display: "block", width: "100%", padding: "9px 14px",
+                              textAlign: "left", background: "none", border: "none",
+                              cursor: "pointer", fontSize: 13, color: "var(--foreground)",
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
+                            onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                          >
+                            {role}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
+
             <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setNewCatOpen(false)} style={{ padding: "7px 14px", border: "1px solid var(--border)", borderRadius: 7, background: "var(--muted)", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}>Cancel</button>
-              <button onClick={addCategory} disabled={!newCatForm.name.trim()} style={{ padding: "7px 16px", background: "var(--primary)", color: "white", border: "none", borderRadius: 7, fontWeight: 700, fontSize: 12, cursor: "pointer", opacity: !newCatForm.name.trim() ? 0.5 : 1 }}>Create</button>
+              <button
+                onClick={() => setEditModal(null)}
+                style={{ padding: "8px 16px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--muted)", cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveEdit}
+                style={{ padding: "8px 18px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: "pointer" }}
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>
       )}
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }

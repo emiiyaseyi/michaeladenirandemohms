@@ -842,6 +842,7 @@ model ExitRequest {
   exitType        ExitType
   intendedLastDay DateTime
   reason          String?
+  documentUrl     String?
   status          String    @default("PENDING")
   reviewedById    String?
   reviewedAt      DateTime?

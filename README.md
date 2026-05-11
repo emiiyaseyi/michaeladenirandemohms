@@ -60,10 +60,11 @@ Whenever a team member pulls changes that include schema or seed updates, run:
 
 ```bash
 git pull
-npm install              # in case new packages were added
-npx prisma db push       # apply any schema changes
-npx prisma db seed       # re-seed if seed data was updated (optional)
-npx prisma generate      # regenerate the Prisma client
+npm install                             # in case new packages were added
+npx prisma db push                      # apply any schema changes
+npx prisma db push --force-reset        # this drops all tables and recreates them from your current schema.
+npx prisma db seed                      # re-seed if seed data was updated (optional)
+npx prisma generate                     # regenerate the Prisma client
 npm run dev
 ```
 
