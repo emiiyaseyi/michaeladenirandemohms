@@ -6,6 +6,7 @@ import { Search, Plus, MoreHorizontal, Inbox, ChevronDown, Loader2 } from "lucid
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
 import { formatDate } from "@/lib/utils"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "All" },
@@ -64,7 +65,7 @@ function StatusDropdown({ value, onChange }: { value: string; onChange: (v: stri
   )
 }
 
-function RowMenu({ doc, onEdit, onDelete }: { doc: any; onEdit: () => void; onDelete: () => void }) {
+function RowMenu({ doc, onEdit, onDelete, canManage }: { doc: any; onEdit: () => void; onDelete: () => void; canManage: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -96,8 +97,8 @@ function RowMenu({ doc, onEdit, onDelete }: { doc: any; onEdit: () => void; onDe
       </button>
       {open && typeof window !== "undefined" && createPortal(
         <div ref={menuRef} style={{ position: "fixed", top: pos.top, right: pos.right, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 9999, minWidth: 140, padding: "4px 0" }}>
-          <button onClick={() => { setOpen(false); onEdit() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>Edit</button>
-          <button onClick={() => { setOpen(false); onDelete() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#ef4444", textAlign: "left" }}>Delete</button>
+          {canManage && <button onClick={() => { setOpen(false); onEdit() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>Edit</button>}
+          {canManage && <button onClick={() => { setOpen(false); onDelete() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#ef4444", textAlign: "left" }}>Delete</button>}
         </div>,
         document.body
       )}
@@ -110,6 +111,8 @@ const td: React.CSSProperties = { padding: "14px 20px", fontSize: 13 }
 
 export default function RentDocumentsPage() {
   const router = useRouter()
+  const { user } = useCurrentUser()
+  const canManageRentDocuments = user?.can("canManageRentDocuments") ?? false
   const [docs, setDocs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -150,10 +153,12 @@ export default function RentDocumentsPage() {
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
-        <button onClick={() => router.push("/admin/rent-documents/new")}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-          <Plus size={14} /> Add Employee Rent Document
-        </button>
+        {canManageRentDocuments && (
+          <button onClick={() => router.push("/admin/rent-documents/new")}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            <Plus size={14} /> Add Employee Rent Document
+          </button>
+        )}
       </div>
 
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
@@ -219,7 +224,8 @@ export default function RentDocumentsPage() {
                   <td style={{ ...td, textAlign: "right" }} onClick={e => e.stopPropagation()}>
                     <RowMenu doc={doc}
                       onEdit={() => router.push(`/admin/rent-documents/${doc.id}/edit`)}
-                      onDelete={() => setDelTarget(doc)} />
+                      onDelete={() => setDelTarget(doc)}
+                      canManage={canManageRentDocuments} />
                   </td>
                 </tr>
               ))}

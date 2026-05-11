@@ -31,7 +31,7 @@ const SECTION_TITLES: Record<string, string> = {
   "settings/public-holidays":  "Public Holidays",
   "settings/approval-workflows": "Approval Workflows",
   "settings/customization":    "Customization",
-  "settings/single-sign-on":   "Single Sign-On",
+
   "settings/roles-permissions":"Roles & Permissions",
   "payroll":                   "Payroll",
   "self-service":              "Self Service",

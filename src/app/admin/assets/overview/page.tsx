@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { Search, Plus, MoreHorizontal, ChevronDown } from "lucide-react"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 function StatusFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -40,7 +41,7 @@ function StatusFilter({ value, onChange }: { value: string; onChange: (v: string
   )
 }
 
-function RowMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit: () => void; onDelete: () => void }) {
+function RowMenu({ onView, onEdit, onDelete, canEdit, canDelete }: { onView: () => void; onEdit: () => void; onDelete: () => void; canEdit: boolean; canDelete: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -74,8 +75,8 @@ function RowMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit: () 
       {open && typeof window !== "undefined" && createPortal(
         <div ref={menuRef} style={{ position: "fixed", top: pos.top, right: pos.right, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 9999, minWidth: 140, padding: "4px 0" }}>
           <button onClick={() => { setOpen(false); onView() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>View</button>
-          <button onClick={() => { setOpen(false); onEdit() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>Edit</button>
-          <button onClick={() => { setOpen(false); onDelete() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--danger)", textAlign: "left" }}>Delete asset</button>
+          {canEdit && <button onClick={() => { setOpen(false); onEdit() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>Edit</button>}
+          {canDelete && <button onClick={() => { setOpen(false); onDelete() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--danger)", textAlign: "left" }}>Delete asset</button>}
         </div>,
         document.body
       )}
@@ -87,6 +88,10 @@ const PAGE_SIZE = 10
 
 export default function AssetsOverviewPage() {
   const router = useRouter()
+  const { user } = useCurrentUser()
+  const canCreateAsset = user?.can("canCreateAsset") ?? false
+  const canEditAsset = user?.can("canEditAsset") ?? false
+  const canDeleteAsset = user?.can("canDeleteAsset") ?? false
   const [assets, setAssets] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -136,10 +141,12 @@ export default function AssetsOverviewPage() {
         </div>
         <StatusFilter value={status} onChange={v => { setStatus(v); setPage(1) }} />
         <div style={{ flex: 1 }} />
-        <button onClick={() => router.push("/admin/assets/overview/new")}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-          <Plus size={14} /> Create new asset
-        </button>
+        {canCreateAsset && (
+          <button onClick={() => router.push("/admin/assets/overview/new")}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            <Plus size={14} /> Create new asset
+          </button>
+        )}
       </div>
 
       {/* Table */}
@@ -191,6 +198,8 @@ export default function AssetsOverviewPage() {
                       onView={() => router.push(`/admin/assets/overview/${asset.id}`)}
                       onEdit={() => router.push(`/admin/assets/overview/${asset.id}/edit`)}
                       onDelete={() => setDeleteId(asset.id)}
+                      canEdit={canEditAsset}
+                      canDelete={canDeleteAsset}
                     />
                   </td>
                 </tr>

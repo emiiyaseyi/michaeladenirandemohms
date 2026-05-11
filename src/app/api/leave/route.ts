@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, requirePermission } from "@/lib/api-auth"
 import { eachDayOfInterval, isWeekend, format, parseISO, addHours } from "date-fns"
 
 async function calcDays(startDate: Date, endDate: Date, leaveTypeId: string) {
@@ -34,17 +34,56 @@ function computeStage(req: any): string {
   return "APPROVED"
 }
 
+// Returns users who should receive HR-level leave notifications:
+// SUPER_ADMIN + elevated users with canApproveLeave AND canViewAllLeave
+async function getHRAdminRecipients(): Promise<{ userId: string; employeeId?: string }[]> {
+  const [superAdmins, assignments] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: "SUPER_ADMIN", isActive: true },
+      select: { id: true, employee: { select: { id: true } } },
+    }),
+    prisma.userAdminRole.findMany({
+      include: {
+        adminRole: { select: { permissions: true } },
+        user: { select: { id: true, isActive: true, employee: { select: { id: true } } } },
+      },
+    }),
+  ])
+
+  const permsMap = new Map<string, Record<string, boolean>>()
+  const infoMap = new Map<string, { id: string; employeeId?: string }>()
+  for (const { user, adminRole } of assignments) {
+    if (!user.isActive) continue
+    const merged = permsMap.get(user.id) ?? {}
+    const p = adminRole.permissions as Record<string, boolean>
+    for (const [k, v] of Object.entries(p)) if (v) merged[k] = true
+    permsMap.set(user.id, merged)
+    infoMap.set(user.id, { id: user.id, employeeId: user.employee?.id })
+  }
+
+  const out = new Map<string, { userId: string; employeeId?: string }>()
+  for (const u of superAdmins) out.set(u.id, { userId: u.id, employeeId: u.employee?.id })
+  for (const [id, perms] of permsMap.entries()) {
+    if (perms["canApproveLeave"] && perms["canViewAllLeave"]) {
+      out.set(id, { userId: id, employeeId: infoMap.get(id)?.employeeId })
+    }
+  }
+  return [...out.values()]
+}
+
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const c = caps(user.role)
+  const canViewAll = user.role === "SUPER_ADMIN" || !!user.permissions["canViewAllLeave"]
+  const canApprove = !!user.permissions["canApproveLeave"]
   const status = req.nextUrl.searchParams.get("status") ?? ""
 
   let scopeFilter: any = {}
-  if (c.canViewAllLeave) {
+  if (canViewAll) {
     scopeFilter = status ? { status: status as any } : {}
-  } else if (c.canViewTeamLeave) {
+  } else if (canApprove) {
+    // Stage 1 approvers: see requests where they have a LeaveApproval record
     const myApprovals = await prisma.leaveApproval.findMany({
       where: { employeeId: user.employeeId, stage: "PROJECT_LEAD" },
       select: { leaveRequestId: true },
@@ -55,7 +94,9 @@ export async function GET(req: NextRequest) {
     scopeFilter = { employeeId: user.employeeId, ...(status ? { status: status as any } : {}) }
   }
 
-  const [requests, leaveTypes, employees] = await Promise.all([
+  // Employees for relief officer picker (all active)
+  // Project lead picker: only employees whose user has canApproveLeave permission
+  const [requests, leaveTypes, employees, allAssignments] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: scopeFilter,
       include: {
@@ -67,33 +108,60 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
     }),
     prisma.leaveType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
-    // Return active employees for relief officer picker — deduplicate by userId
     prisma.employee.findMany({
       where: { employeeStatus: "ACTIVE" },
       orderBy: { firstName: "asc" },
       select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true, gender: true, userId: true, projectLeadId: true, secondaryProjectLeadIds: true },
       distinct: ["userId"],
     }),
+    prisma.userAdminRole.findMany({
+      include: {
+        adminRole: { select: { permissions: true } },
+        user: { select: { id: true, isActive: true, role: true } },
+      },
+    }),
   ])
 
+  // Build merged permissions per user to find who has canApproveLeave
+  const canApproveUsers = new Set<string>()
+  const permsMap = new Map<string, Record<string, boolean>>()
+  for (const { user: u, adminRole } of allAssignments) {
+    if (!u.isActive) continue
+    if (u.role === "SUPER_ADMIN") { canApproveUsers.add(u.id); continue }
+    const merged = permsMap.get(u.id) ?? {}
+    const p = adminRole.permissions as Record<string, boolean>
+    for (const [k, v] of Object.entries(p)) if (v) merged[k] = true
+    permsMap.set(u.id, merged)
+  }
+  for (const [uid, perms] of permsMap.entries()) {
+    if (perms["canApproveLeave"]) canApproveUsers.add(uid)
+  }
+
+  // Filter employees list to those who can be project leads
+  const projectLeadEmployees = employees.filter(e => e.userId && canApproveUsers.has(e.userId))
+
   const enriched = requests.map(r => ({ ...r, currentStage: computeStage(r) }))
-  return NextResponse.json({ requests: enriched, leaveTypes, employees })
+  return NextResponse.json({ requests: enriched, leaveTypes, employees, projectLeadEmployees })
 }
 
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canSubmitLeave) return forbidden()
 
   const body = await req.json()
-  // projectLeads: [{ employeeId, taskName, taskDescription?, relieverId? }]
   const { leaveTypeId, startDate, endDate, reason, projectLeads = [], documentUrl } = body
   let { employeeId } = body
 
-  const c = caps(user.role)
-  if (!c.canViewAllLeave && employeeId && employeeId !== user.employeeId) {
-    return forbidden("You can only submit leave for yourself")
+  const canViewAll = user.role === "SUPER_ADMIN" || !!user.permissions["canViewAllLeave"]
+
+  // Submitting for someone else requires canCreateLeave or SUPER_ADMIN
+  if (employeeId && employeeId !== user.employeeId) {
+    if (user.role !== "SUPER_ADMIN") {
+      const perm = requirePermission(user, "canCreateLeave")
+      if (perm) return perm
+    }
   }
+
   if (!employeeId) employeeId = user.employeeId
 
   if (!employeeId || !leaveTypeId || !startDate || !endDate || !reason) {
@@ -122,21 +190,18 @@ export async function POST(req: NextRequest) {
   const now = new Date()
   const plIds: string[] = (projectLeads as any[]).map((pl: any) => pl.employeeId).filter(Boolean)
 
-  // Auto-fill from employee's saved project leads if none supplied; deduplicate
   const effectivePLIds = [...new Set(
     plIds.length > 0
       ? plIds
       : [employee.projectLeadId, ...employee.secondaryProjectLeadIds].filter(Boolean) as string[]
   )]
 
-  // Build one approval record per project lead
   const approvalRecords: any[] = effectivePLIds.map(plId => ({
     employeeId: plId,
     stage: "PROJECT_LEAD" as const,
     deadline: addHours(now, 24),
   }))
 
-  // Store relief suggestions (handover) as JSON in handoverNotes
   const handoverData = (projectLeads as any[]).map((pl: any) => ({
     projectLeadId: pl.employeeId,
     taskName: pl.taskName,
@@ -157,8 +222,6 @@ export async function POST(req: NextRequest) {
       departmentId: employee.departmentId,
       status: "PENDING",
       projectLeadIds: effectivePLIds.length > 0 ? JSON.stringify(effectivePLIds) : null,
-      // Relief officers are NOT created on submission — they are created and notified
-      // only after all Project Leads have approved (see approve/route.ts)
       approvals: { create: approvalRecords },
     },
     include: { employee: true, leaveType: true },
@@ -168,10 +231,11 @@ export async function POST(req: NextRequest) {
   for (const plId of effectivePLIds) {
     const plEmp = await prisma.employee.findUnique({
       where: { id: plId },
-      select: { userId: true, user: { select: { role: true } } },
+      select: { userId: true, user: { select: { role: true, adminRoles: { select: { adminRole: { select: { permissions: true } } } } } } },
     })
-    if (plEmp) {
-      const plRole = (plEmp.user?.role as string) ?? "PROJECT_LEAD"
+    if (plEmp?.userId) {
+      // PL is elevated (has admin roles) → link to admin panel, otherwise staff panel
+      const isElevatedPL = (plEmp.user?.adminRoles?.length ?? 0) > 0 || plEmp.user?.role === "SUPER_ADMIN"
       await prisma.notification.create({
         data: {
           userId: plEmp.userId,
@@ -179,22 +243,19 @@ export async function POST(req: NextRequest) {
           title: "Leave Request — Your Approval Needed",
           message: `${employee.firstName} ${employee.lastName} submitted a ${request.days}-day ${request.leaveType.name} leave request (${format(start, "MMM d")} – ${format(end, "MMM d")}) and requires your approval.`,
           type: "WARNING",
-          link: `${plRole === "SUPER_ADMIN" ? "/admin" : "/staff"}/requests/leave`,
+          link: isElevatedPL ? "/admin/requests/leave" : "/staff/requests/leave",
         },
       })
     }
   }
 
-  // Notify all admins
-  const admins = await prisma.user.findMany({
-    where: { role: { in: ["SUPER_ADMIN"] }, isActive: true },
-    select: { id: true, employee: { select: { id: true } } },
-  })
-  for (const admin of admins) {
+  // Notify HR admins
+  const hrAdmins = await getHRAdminRecipients()
+  for (const hr of hrAdmins) {
     await prisma.notification.create({
       data: {
-        userId: admin.id,
-        employeeId: admin.employee?.id ?? null,
+        userId: hr.userId,
+        employeeId: hr.employeeId ?? null,
         title: "New Leave Request Submitted",
         message: `${employee.firstName} ${employee.lastName} submitted a ${request.days}-day leave request pending Project Lead approval.`,
         type: "INFO",

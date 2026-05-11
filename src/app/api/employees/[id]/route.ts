@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -43,6 +43,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canEditAnyEmployee) return forbidden("Insufficient permissions to edit employees")
+  const perm = requirePermission(user, "canEditEmployee")
+  if (perm) return perm
 
   const { id } = await params
 

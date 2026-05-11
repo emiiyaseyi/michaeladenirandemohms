@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canManageSettings && !caps(user.role).canViewAllEmployees) return forbidden()
+  const perm = requirePermission(user, "canEditLoan")
+  if (perm) return perm
 
   const { id } = await params
   const { action, declineReason, disburseWithPayroll, deductFromPayroll } = await req.json()
@@ -35,6 +37,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canManageSettings) return forbidden()
+  const delPerm = requirePermission(user, "canDeleteLoan")
+  if (delPerm) return delPerm
 
   const { id } = await params
   await prisma.$queryRaw`DELETE FROM "LoanRequest" WHERE id = ${id}`

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { Search, Plus, MoreHorizontal, ChevronDown, User } from "lucide-react"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 function StatusFilter({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false)
@@ -89,6 +90,8 @@ const PAGE_SIZE = 10
 
 export default function AssignmentsPage() {
   const router = useRouter()
+  const { user } = useCurrentUser()
+  const canManage = user?.can("canManageAssetAssignments") ?? false
   const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -127,10 +130,12 @@ export default function AssignmentsPage() {
         </div>
         <StatusFilter value={status} onChange={v => { setStatus(v); setPage(1) }} />
         <div style={{ flex: 1 }} />
-        <button onClick={() => router.push("/admin/assets/assignments/new")}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-          <Plus size={14} /> Assign Asset
-        </button>
+        {canManage && (
+          <button onClick={() => router.push("/admin/assets/assignments/new")}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            <Plus size={14} /> Assign Asset
+          </button>
+        )}
       </div>
 
       {/* Table */}

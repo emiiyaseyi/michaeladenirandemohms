@@ -206,7 +206,8 @@ export default function AdminRequestsExitsPage() {
   const pending = requests.filter(r => r.status === "PENDING").length
   const approved = requests.filter(r => r.status === "APPROVED").length
   const declined = requests.filter(r => r.status === "DECLINED").length
-  const canAction = user?.caps?.canManageOffboarding || user?.caps?.canManageSettings
+  const canApproveExitRequest = user?.can("canApproveExitRequest") ?? false
+  const canDeleteExitRequest = user?.can("canDeleteExitRequest") ?? false
 
   const stats = [
     { label: "Total Requests", value: requests.length, bg: "#EFF6FF", color: "#1d4ed8", border: "#BFDBFE" },
@@ -225,7 +226,7 @@ export default function AdminRequestsExitsPage() {
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Exit Requests</h1>
           <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Review and manage employee exit requests</p>
         </div>
-        {canAction && (
+        {canApproveExitRequest && (
           <button onClick={() => router.push("/admin/requests/exits/record")}
             style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>
             <Plus size={15} /> Record Exit
@@ -326,9 +327,11 @@ export default function AdminRequestsExitsPage() {
                         </span>
                       </td>
                       <td style={{ ...td, textAlign: "right" }}>
-                        <button onClick={e => { e.stopPropagation(); setReviewReq(req) }} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--muted-foreground)" }}>
-                          <MoreHorizontal size={16} />
-                        </button>
+                        {canApproveExitRequest && (
+                          <button onClick={e => { e.stopPropagation(); setReviewReq(req) }} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--muted-foreground)" }}>
+                            <MoreHorizontal size={16} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )

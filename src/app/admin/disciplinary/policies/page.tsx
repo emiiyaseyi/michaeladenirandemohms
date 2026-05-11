@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { Search, Plus, MoreHorizontal } from "lucide-react"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 function RowMenu({ onView }: { onView: () => void }) {
   const [open, setOpen] = useState(false)
@@ -48,6 +49,8 @@ function RowMenu({ onView }: { onView: () => void }) {
 const PAGE_SIZE = 10
 
 export default function PoliciesPage() {
+  const { user } = useCurrentUser()
+  const canManagePolicies = user?.can("canManagePolicies") ?? false
   const router = useRouter()
   const [policies, setPolicies] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -83,10 +86,12 @@ export default function PoliciesPage() {
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search"
             style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--card)", color: "var(--foreground)", outline: "none", width: 240 }} />
         </div>
-        <button onClick={() => router.push("/admin/disciplinary/policies/new")}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-          <Plus size={14} /> Create Violation Policy
-        </button>
+        {canManagePolicies && (
+          <button onClick={() => router.push("/admin/disciplinary/policies/new")}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            <Plus size={14} /> Create Violation Policy
+          </button>
+        )}
       </div>
 
       {/* Table */}

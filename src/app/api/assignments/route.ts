@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -35,6 +36,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canManageAssetAssignments")
+  if (perm) return perm
+
   const body = await req.json()
   const { employeeId, assetId, assignedOn, hasTenure, period, interval, note } = body
 

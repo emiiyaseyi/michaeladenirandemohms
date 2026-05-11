@@ -180,6 +180,9 @@ function RecordModal({ employees, onClose, onSaved }: { employees: any[]; onClos
 
 export default function SalaryAdvancesPage() {
   const { user } = useCurrentUser()
+  const canCreateSalaryAdvance = user?.can("canCreateSalaryAdvance") ?? false
+  const canApproveSalaryAdvance = user?.can("canApproveSalaryAdvance") ?? false
+  const canDeleteSalaryAdvance = user?.can("canDeleteSalaryAdvance") ?? false
   const router = useRouter()
   const [tab, setTab] = useState<"requests" | "policies">("requests")
   const [advances, setAdvances] = useState<any[]>([])
@@ -250,10 +253,12 @@ export default function SalaryAdvancesPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 800 }}>Salary Advances</h1>
-        <button onClick={() => router.push("/admin/requests/salary-advances/record")}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-          <Plus size={14} /> Record Salary Advance for an Employee
-        </button>
+        {canCreateSalaryAdvance && (
+          <button onClick={() => router.push("/admin/requests/salary-advances/record")}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            <Plus size={14} /> Record Salary Advance for an Employee
+          </button>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
@@ -339,9 +344,11 @@ export default function SalaryAdvancesPage() {
                           <td style={td}>{a.reason ?? "—"}</td>
                           <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color }}>{a.status}</span></td>
                           <td style={td}>
-                            <button onClick={() => setReviewAdv(a)} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--muted-foreground)" }}>
-                              <MoreHorizontal size={16} />
-                            </button>
+                            {canApproveSalaryAdvance && (
+                              <button onClick={() => setReviewAdv(a)} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--muted-foreground)" }}>
+                                <MoreHorizontal size={16} />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       )

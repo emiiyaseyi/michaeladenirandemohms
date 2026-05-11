@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { Building2, Search, ChevronDown, MoreVertical, Inbox, Download } from "lucide-react"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 interface Contractor {
   id: string
@@ -30,7 +31,7 @@ function StatusBadge({ active }: { active: boolean }) {
   )
 }
 
-function RowMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit: () => void; onDelete: () => void }) {
+function RowMenu({ onView, onEdit, onDelete, canManage }: { onView: () => void; onEdit: () => void; onDelete: () => void; canManage: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -62,9 +63,9 @@ function RowMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit: () 
       {open && typeof window !== "undefined" && createPortal(
         <div ref={menuRef} style={{ position: "fixed", top: pos.top, right: pos.right, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-md)", zIndex: 9999, minWidth: 130, overflow: "hidden" }}>
           {[
-            { label: "View", action: () => { setOpen(false); onView() } },
-            { label: "Edit", action: () => { setOpen(false); onEdit() } },
-            { label: "Delete", action: () => { setOpen(false); onDelete() }, danger: true },
+            { label: "View", action: () => { setOpen(false); onView() }, danger: false },
+            ...(canManage ? [{ label: "Edit", action: () => { setOpen(false); onEdit() }, danger: false }] : []),
+            ...(canManage ? [{ label: "Delete", action: () => { setOpen(false); onDelete() }, danger: true }] : []),
           ].map(item => (
             <button key={item.label} onClick={item.action} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: 13, color: item.danger ? "var(--danger)" : "var(--foreground)" }}
               onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
@@ -81,6 +82,8 @@ function RowMenu({ onView, onEdit, onDelete }: { onView: () => void; onEdit: () 
 
 export default function ContractorsPage() {
   const router = useRouter()
+  const { user } = useCurrentUser()
+  const canManageContractors = user?.can("canManageContractors") ?? false
   const [contractors, setContractors] = useState<Contractor[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -165,27 +168,29 @@ export default function ContractorsPage() {
           </div>
 
           {/* Manage dropdown */}
-          <div ref={manageRef} style={{ position: "relative" }}>
-            <button onClick={() => setShowManageDrop(v => !v)} style={{ padding: "8px 16px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
-              Manage <ChevronDown size={13} />
-            </button>
-            {showManageDrop && (
-              <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-md)", zIndex: 100, minWidth: 210 }}>
-                {[
-                  { label: "Add new Contractor", action: () => router.push("/admin/contractors/new") },
-                  { label: "Bulk update Contractors", action: () => router.push("/admin/contractors/bulk-update") },
-                  { label: "Bulk upload Contractors", action: () => router.push("/admin/contractors/bulk-upload") },
-                  { label: "Download CSV", action: downloadCSV },
-                ].map(item => (
-                  <button key={item.label} onClick={() => { setShowManageDrop(false); item.action() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: 13, color: "var(--foreground)" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {canManageContractors && (
+            <div ref={manageRef} style={{ position: "relative" }}>
+              <button onClick={() => setShowManageDrop(v => !v)} style={{ padding: "8px 16px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+                Manage <ChevronDown size={13} />
+              </button>
+              {showManageDrop && (
+                <div style={{ position: "absolute", top: "100%", right: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-md)", zIndex: 100, minWidth: 210 }}>
+                  {[
+                    { label: "Add new Contractor", action: () => router.push("/admin/contractors/new") },
+                    { label: "Bulk update Contractors", action: () => router.push("/admin/contractors/bulk-update") },
+                    { label: "Bulk upload Contractors", action: () => router.push("/admin/contractors/bulk-upload") },
+                    { label: "Download CSV", action: downloadCSV },
+                  ].map(item => (
+                    <button key={item.label} onClick={() => { setShowManageDrop(false); item.action() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: 13, color: "var(--foreground)" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "var(--muted)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -223,6 +228,7 @@ export default function ContractorsPage() {
               onView={() => router.push(`/admin/contractors/${c.id}`)}
               onEdit={() => router.push(`/admin/contractors/${c.id}/edit`)}
               onDelete={() => deleteContractor(c.id)}
+              canManage={canManageContractors}
             />
           </div>
         ))}

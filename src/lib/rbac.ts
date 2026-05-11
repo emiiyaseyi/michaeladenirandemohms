@@ -126,7 +126,6 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Public Holidays",     href: "/settings/public-holidays" },
       { label: "Approval Workflows",  href: "/settings/approval-workflows" },
       { label: "Customization",       href: "/settings/customization" },
-      { label: "Single Sign-On",      href: "/settings/single-sign-on" },
       { label: "Roles & Permissions", href: "/settings/roles-permissions" },
     ],
   },
@@ -152,18 +151,6 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── EXTRAS ───────────────────────────────────────────────────────────────────
   { label: "Preferences", href: "/preferences", icon: "UserCircle", roles: ["SUPER_ADMIN"], section: "EXTRAS" },
-  {
-    label: "Self Service", icon: "UserCircle", roles: ["ADMIN"], section: "EXTRAS",
-    skipForRoles: ["SUPER_ADMIN"],
-    children: [
-      { label: "Profile",         href: "/self-service/profile" },
-      { label: "Payslips",        href: "/self-service/payslips" },
-      { label: "Requisition",     href: "/self-service/requisitions" },
-      { label: "Grievance",       href: "/self-service/grievance" },
-      { label: "Exit",            href: "/self-service/exit" },
-      { label: "Change Password", href: "/self-service/change-password" },
-    ],
-  },
   { label: "FAQ",      href: "/faq",      icon: "HelpCircle", roles: ALL_ROLES },
   { label: "Calendar", href: "/calendar", icon: "Calendar",   roles: ["SUPER_ADMIN", "ADMIN"] },
 ]

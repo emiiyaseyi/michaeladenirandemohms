@@ -6,6 +6,7 @@ import { Search, Plus, MoreHorizontal, Inbox, X, Loader2, Filter } from "lucide-
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
 import { formatDate } from "@/lib/utils"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const STATUS_OPTIONS = [
   { value: "ALL", label: "All" },
@@ -83,7 +84,7 @@ function StatusFilterPopover({
 }
 
 // ─── Row action menu ───────────────────────────────────────────────────────────
-function RowMenu({ onView, onDelete }: { onView: () => void; onDelete: () => void }) {
+function RowMenu({ onView, onDelete, canDelete }: { onView: () => void; onDelete: () => void; canDelete: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -121,10 +122,12 @@ function RowMenu({ onView, onDelete }: { onView: () => void; onDelete: () => voi
             style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
             View
           </button>
-          <button onClick={() => { setOpen(false); onDelete() }}
-            style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#ef4444", textAlign: "left" }}>
-            Delete
-          </button>
+          {canDelete && (
+            <button onClick={() => { setOpen(false); onDelete() }}
+              style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#ef4444", textAlign: "left" }}>
+              Delete
+            </button>
+          )}
         </div>,
         document.body
       )}
@@ -252,6 +255,8 @@ const th: React.CSSProperties = {
 const td: React.CSSProperties = { padding: "14px 20px", fontSize: 13, borderBottom: "1px solid var(--border)" }
 
 export default function ViolationsPage() {
+  const { user } = useCurrentUser()
+  const canManageViolations = user?.can("canManageViolations") ?? false
   const router = useRouter()
   const [violations, setViolations] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -287,10 +292,12 @@ export default function ViolationsPage() {
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search"
             style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--card)", color: "var(--foreground)", outline: "none", width: 220 }} />
         </div>
-        <button onClick={() => router.push("/admin/disciplinary/violations/new")}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-          <Plus size={14} /> Record violation
-        </button>
+        {canManageViolations && (
+          <button onClick={() => router.push("/admin/disciplinary/violations/new")}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            <Plus size={14} /> Record violation
+          </button>
+        )}
       </div>
 
       {/* Table card */}
@@ -354,6 +361,7 @@ export default function ViolationsPage() {
                   <RowMenu
                     onView={() => setViewTarget(v)}
                     onDelete={() => setDelTarget(v)}
+                    canDelete={canManageViolations}
                   />
                 </td>
               </tr>

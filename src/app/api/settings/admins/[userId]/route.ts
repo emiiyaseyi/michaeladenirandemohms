@@ -30,6 +30,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
       : []),
   ])
 
+  await prisma.notification.create({
+    data: {
+      userId,
+      title: roleIds.length > 0 ? "Admin roles updated" : "Admin access removed",
+      message: roleIds.length > 0
+        ? "Your admin role assignments have been updated."
+        : "Your admin access has been removed. You have been returned to a standard staff account.",
+      type: roleIds.length > 0 ? "INFO" : "WARNING",
+      link: roleIds.length > 0 ? "/admin" : "/staff",
+    },
+  })
+
   const updated = await prisma.user.findUnique({ where: { id: userId }, select: MEMBER_SELECT })
   return NextResponse.json({ admin: updated })
 }
@@ -47,5 +59,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (target.role === "SUPER_ADMIN") return forbidden("Cannot remove SUPER_ADMIN")
 
   await prisma.userAdminRole.deleteMany({ where: { userId } })
+
+  await prisma.notification.create({
+    data: {
+      userId,
+      title: "Admin access removed",
+      message: "Your admin access has been removed. You have been returned to a standard staff account.",
+      type: "WARNING",
+      link: "/staff",
+    },
+  })
+
   return NextResponse.json({ success: true })
 }

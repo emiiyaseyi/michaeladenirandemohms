@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { ChevronDown, Search, Inbox } from "lucide-react"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const PAGE_SIZE = 8
 
@@ -82,7 +83,7 @@ function fmt(d: string) {
   return new Date(d).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
 }
 
-function RowMenu({ onDelete }: { onDelete: () => void }) {
+function RowMenu({ onDelete, canDelete }: { onDelete: () => void; canDelete: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -105,6 +106,8 @@ function RowMenu({ onDelete }: { onDelete: () => void }) {
     document.addEventListener("mousedown", h)
     return () => document.removeEventListener("mousedown", h)
   }, [open])
+
+  if (!canDelete) return null
 
   return (
     <>
@@ -134,6 +137,8 @@ function EmpAvatar({ emp }: { emp: { firstName: string; lastName: string; profil
 }
 
 export default function SuspensionsPage() {
+  const { user } = useCurrentUser()
+  const canManageSuspensions = user?.can("canManageSuspensions") ?? false
   const router = useRouter()
   const [tab, setTab] = useState<"suspensions" | "schedules">("suspensions")
   const [suspensions, setSuspensions] = useState<Suspension[]>([])
@@ -187,14 +192,18 @@ export default function SuspensionsPage() {
           ))}
         </div>
         <div style={{ display: "flex", gap: 10 }}>
-          <button type="button" onClick={() => router.push("/admin/disciplinary/suspensions/bulk-upload")}
-            style={{ padding: "9px 18px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", cursor: "pointer", fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>
-            Bulk upload Suspensions
-          </button>
-          <button type="button" onClick={() => router.push("/admin/disciplinary/suspensions/new")}
-            style={{ padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-            Record Suspension
-          </button>
+          {canManageSuspensions && (
+            <button type="button" onClick={() => router.push("/admin/disciplinary/suspensions/bulk-upload")}
+              style={{ padding: "9px 18px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", cursor: "pointer", fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>
+              Bulk upload Suspensions
+            </button>
+          )}
+          {canManageSuspensions && (
+            <button type="button" onClick={() => router.push("/admin/disciplinary/suspensions/new")}
+              style={{ padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+              Record Suspension
+            </button>
+          )}
         </div>
       </div>
 
@@ -253,7 +262,7 @@ export default function SuspensionsPage() {
                     {s.status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}
                   </span>
                 </td>
-                <td style={td}><RowMenu onDelete={() => setDeleteId(s.id)} /></td>
+                <td style={td}><RowMenu onDelete={() => setDeleteId(s.id)} canDelete={canManageSuspensions} /></td>
               </tr>
             ))}
           </tbody>

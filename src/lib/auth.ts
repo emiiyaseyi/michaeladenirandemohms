@@ -26,15 +26,29 @@ export const authOptions: NextAuthOptions = {
         if (!valid) return null
         // Track last login time (non-fatal)
         try { await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }) } catch {}
-        const isElevated = user.role !== "SUPER_ADMIN"
-          ? (await prisma.userAdminRole.count({ where: { userId: user.id } })) > 0
-          : false
+        let isElevated = false
+        let permissions: Record<string, boolean> = {}
+        if (user.role !== "SUPER_ADMIN") {
+          const adminRoles = await prisma.userAdminRole.findMany({
+            where: { userId: user.id },
+            include: { adminRole: { select: { permissions: true } } },
+          })
+          isElevated = adminRoles.length > 0
+          // Merge: any role granting a permission means the user has it
+          for (const ur of adminRoles) {
+            const perms = ur.adminRole.permissions as Record<string, boolean>
+            for (const [key, val] of Object.entries(perms)) {
+              if (val) permissions[key] = true
+            }
+          }
+        }
         return {
           id: user.id, email: user.email, name: user.name, role: user.role,
           employeeId: user.employee?.id, image: user.employee?.profilePhoto ?? user.image,
           lastLoginAt: new Date().toISOString(),
           mustChangePassword: user.mustChangePassword,
           isElevated,
+          permissions,
         }
       },
     }),
@@ -47,6 +61,7 @@ export const authOptions: NextAuthOptions = {
         token.lastLoginAt = (user as any).lastLoginAt
         token.mustChangePassword = (user as any).mustChangePassword ?? false
         token.isElevated = (user as any).isElevated ?? false
+        token.permissions = (user as any).permissions ?? {}
       }
       return token
     },
@@ -58,6 +73,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).lastLoginAt = token.lastLoginAt
         ;(session.user as any).mustChangePassword = token.mustChangePassword ?? false
         ;(session.user as any).isElevated = token.isElevated ?? false
+        ;(session.user as any).permissions = token.permissions ?? {}
       }
       return session
     },

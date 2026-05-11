@@ -187,6 +187,9 @@ function RecordModal({ employees, onClose, onSaved }: { employees: any[]; onClos
 
 export default function LoansPage() {
   const { user } = useCurrentUser()
+  const canCreateLoan = user?.can("canCreateLoan") ?? false
+  const canApproveLoan = user?.can("canApproveLoan") ?? false
+  const canDeleteLoan = user?.can("canDeleteLoan") ?? false
   const router = useRouter()
   const [tab, setTab] = useState<"requests" | "policies">("requests")
   const [loans, setLoans] = useState<any[]>([])
@@ -257,10 +260,12 @@ export default function LoansPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 800 }}>Loans</h1>
-        <button onClick={() => router.push("/admin/requests/loans/record")}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-          <Plus size={14} /> Record Loan for an Employee
-        </button>
+        {canCreateLoan && (
+          <button onClick={() => router.push("/admin/requests/loans/record")}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            <Plus size={14} /> Record Loan for an Employee
+          </button>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
@@ -348,9 +353,11 @@ export default function LoansPage() {
                           <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20, background: "#EEF2FF", color: "#6366F1" }}>Internal</span></td>
                           <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color }}>{l.status}</span></td>
                           <td style={td}>
-                            <button onClick={() => setReviewLoan(l)} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--muted-foreground)" }}>
-                              <MoreHorizontal size={16} />
-                            </button>
+                            {canApproveLoan && (
+                              <button onClick={() => setReviewLoan(l)} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--muted-foreground)" }}>
+                                <MoreHorizontal size={16} />
+                              </button>
+                            )}
                           </td>
                         </tr>
                       )

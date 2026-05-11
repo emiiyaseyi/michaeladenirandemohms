@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission, forbidden } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageOffboarding) return forbidden()
+  const perm = requirePermission(user, "canApproveExitRequest")
+  if (perm) return perm
 
   const { searchParams } = req.nextUrl
   const employeeId = searchParams.get("employeeId") ?? ""
@@ -29,7 +30,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageOffboarding) return forbidden()
+  const perm = requirePermission(user, "canApproveExitRequest")
+  if (perm) return perm
 
   const { employeeId, exitType, intendedLastDay, reason, noteForUser } = await req.json()
 

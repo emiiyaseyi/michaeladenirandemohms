@@ -69,6 +69,8 @@ function RowMenu({ emp, onView, onReset }: { emp: any; onView: () => void; onRes
 
 export default function EmployeesPage() {
   const { user } = useCurrentUser()
+  const canCreateEmployee = user?.can("canCreateEmployee") ?? false
+  const canEditEmployee = user?.can("canEditEmployee") ?? false
   const router = useRouter()
   const [employees, setEmployees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -169,11 +171,15 @@ export default function EmployeesPage() {
   const someSelected = selected.size > 0
 
   const manageItems = [
-    { label: "Add new Employee", icon: <UserPlus size={13} />, href: "/admin/people/employees/add" },
-    { label: "Bulk upload Employees", icon: <FileUp size={13} />, href: "/admin/people/employees/bulk-upload" },
-    { label: "Bulk update Employees", icon: <RefreshCw size={13} />, href: "/admin/people/employees/bulk-update" },
-    { label: "Bulk upload Accounts", icon: <Upload size={13} />, href: "/admin/people/employees/bulk-upload-accounts" },
-    { label: "Bulk upload Annual Earning", icon: <FileDown size={13} />, href: "/admin/people/employees/bulk-upload-earnings" },
+    ...(canCreateEmployee ? [
+      { label: "Add new Employee", icon: <UserPlus size={13} />, href: "/admin/people/employees/add" },
+      { label: "Bulk upload Employees", icon: <FileUp size={13} />, href: "/admin/people/employees/bulk-upload" },
+      { label: "Bulk upload Accounts", icon: <Upload size={13} />, href: "/admin/people/employees/bulk-upload-accounts" },
+      { label: "Bulk upload Annual Earning", icon: <FileDown size={13} />, href: "/admin/people/employees/bulk-upload-earnings" },
+    ] : []),
+    ...(canEditEmployee ? [
+      { label: "Bulk update Employees", icon: <RefreshCw size={13} />, href: "/admin/people/employees/bulk-update" },
+    ] : []),
   ]
 
   return (
@@ -190,7 +196,7 @@ export default function EmployeesPage() {
               <KeyRound size={14} /> Reset {selected.size} Password{selected.size > 1 ? "s" : ""}
             </button>
           )}
-          {user?.caps?.canCreateEmployee && (
+          {(canCreateEmployee || canEditEmployee) && manageItems.length > 0 && (
             <div ref={manageRef} style={{ position: "relative" }}>
               <button onClick={() => setManageOpen(o => !o)}
                 style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>

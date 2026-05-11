@@ -1,6 +1,39 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden, isHRAdmin, roleBasePath } from "@/lib/api-auth"
+import { requireAuth, forbidden, roleBasePath } from "@/lib/api-auth"
+
+async function getHRAdminRecipients(): Promise<{ userId: string; employeeId?: string }[]> {
+  const [superAdmins, assignments] = await Promise.all([
+    prisma.user.findMany({
+      where: { role: "SUPER_ADMIN", isActive: true },
+      select: { id: true, employee: { select: { id: true } } },
+    }),
+    prisma.userAdminRole.findMany({
+      include: {
+        adminRole: { select: { permissions: true } },
+        user: { select: { id: true, isActive: true, employee: { select: { id: true } } } },
+      },
+    }),
+  ])
+  const permsMap = new Map<string, Record<string, boolean>>()
+  const infoMap = new Map<string, { id: string; employeeId?: string }>()
+  for (const { user: u, adminRole } of assignments) {
+    if (!u.isActive) continue
+    const merged = permsMap.get(u.id) ?? {}
+    const p = adminRole.permissions as Record<string, boolean>
+    for (const [k, v] of Object.entries(p)) if (v) merged[k] = true
+    permsMap.set(u.id, merged)
+    infoMap.set(u.id, { id: u.id, employeeId: u.employee?.id })
+  }
+  const out = new Map<string, { userId: string; employeeId?: string }>()
+  for (const u of superAdmins) out.set(u.id, { userId: u.id, employeeId: u.employee?.id })
+  for (const [id, perms] of permsMap.entries()) {
+    if (perms["canApproveLeave"] && perms["canViewAllLeave"]) {
+      out.set(id, { userId: id, employeeId: infoMap.get(id)?.employeeId })
+    }
+  }
+  return [...out.values()]
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -11,10 +44,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const isApproval = action === "APPROVED" || action === "APPROVED_WITH_COMMENT"
   const isRejected = action === "REJECTED"
-  const isHR = isHRAdmin(user.role)
-  const isPL = caps(user.role).canApproveLeave && !isHR
 
-  if (!isPL && !isHR) return forbidden("You are not authorised to approve leave")
+  const canApproveAtAll = user.role === "SUPER_ADMIN" || !!user.permissions["canApproveLeave"]
+  if (!canApproveAtAll) return forbidden("You are not authorised to approve leave")
+
+  const isHR = user.role === "SUPER_ADMIN" || (user.isElevated && !!user.permissions["canApproveLeave"] && !!user.permissions["canViewAllLeave"])
+  const isPL = !isHR && !!user.permissions["canApproveLeave"]
 
   const request = await prisma.leaveRequest.findUnique({
     where: { id },
@@ -125,15 +160,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
 
       // Notify HR Admins for final approval
-      const hrAdmins = await prisma.employee.findMany({
-        where: { user: { role: "SUPER_ADMIN" } },
-        select: { id: true, userId: true },
-      })
-      for (const hr of hrAdmins) {
+      const hrRecipients = await getHRAdminRecipients()
+      for (const hr of hrRecipients) {
         await prisma.notification.create({
           data: {
             userId: hr.userId,
-            employeeId: hr.id,
+            employeeId: hr.employeeId ?? null,
             title: "Leave — Final Approval Needed",
             message: `${request.employee?.firstName} ${request.employee?.lastName}'s ${request.leaveType?.name} leave has been approved by all Project Leads and awaits your final approval.`,
             type: "WARNING",

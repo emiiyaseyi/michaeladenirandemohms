@@ -5,6 +5,7 @@ import Button from "@/components/ui/Button"
 import Avatar from "@/components/ui/Avatar"
 import Modal from "@/components/ui/Modal"
 import { Plus, MoreHorizontal, Loader2, ShieldCheck } from "lucide-react"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const inp: React.CSSProperties = {
   width: "100%", padding: "9px 12px", border: "1px solid var(--border)",
@@ -29,6 +30,8 @@ interface AdminRecord {
 
 export default function AdminsSettingsPage() {
   const router = useRouter()
+  const { user } = useCurrentUser()
+  const canManage = user?.can("canManageAdmins") ?? false
   const [admins, setAdmins] = useState<AdminRecord[]>([])
   const [allRoles, setAllRoles] = useState<AdminRole[]>([])
   const [loading, setLoading] = useState(true)
@@ -115,9 +118,11 @@ export default function AdminsSettingsPage() {
         {/* Search + button */}
         <div style={{ padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
           <input placeholder="Search by name, email, ID, dept…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, width: 260 }} />
-          <Button size="sm" onClick={() => router.push("/admin/settings/admins/new")}>
-            <Plus size={14} /> Create new Admin
-          </Button>
+          {canManage && (
+            <Button size="sm" onClick={() => router.push("/admin/settings/admins/new")}>
+              <Plus size={14} /> Create new Admin
+            </Button>
+          )}
         </div>
 
         {loading ? (
@@ -135,7 +140,7 @@ export default function AdminsSettingsPage() {
                 </tr>
               </thead>
               <tbody>
-                {elevated.map(a => <AdminRow key={a.id} admin={a} onEdit={openEdit} onRemove={ad => { setRemoveAdmin(ad); setMenuOpen(null) }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} menuRef={menuRef} />)}
+                {elevated.map(a => <AdminRow key={a.id} admin={a} canManage={canManage} onEdit={openEdit} onRemove={ad => { setRemoveAdmin(ad); setMenuOpen(null) }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} menuRef={menuRef} />)}
                 {elevated.length === 0 && !superAdmin && (
                   <tr><td colSpan={4} style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>{search ? "No admins match your search." : "No elevated staff yet."}</td></tr>
                 )}
@@ -185,8 +190,9 @@ export default function AdminsSettingsPage() {
   )
 }
 
-function AdminRow({ admin, onEdit, onRemove, menuOpen, setMenuOpen, menuRef }: {
+function AdminRow({ admin, canManage, onEdit, onRemove, menuOpen, setMenuOpen, menuRef }: {
   admin: AdminRecord
+  canManage: boolean
   onEdit: (a: AdminRecord) => void
   onRemove: (a: AdminRecord) => void
   menuOpen: string | null
@@ -225,18 +231,20 @@ function AdminRow({ admin, onEdit, onRemove, menuOpen, setMenuOpen, menuRef }: {
         </div>
       </td>
       <td style={{ padding: "14px 20px" }}>
-        <div style={{ position: "relative" }} ref={menuOpen === admin.id ? menuRef as React.RefObject<HTMLDivElement> : undefined}>
-          <button onClick={() => setMenuOpen(menuOpen === admin.id ? null : admin.id)} style={{ background: "var(--muted)", border: "none", borderRadius: 7, padding: "5px 8px", cursor: "pointer", color: "var(--foreground)" }}>
-            <MoreHorizontal size={15} />
-          </button>
-          {menuOpen === admin.id && (
-            <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, minWidth: 160, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50 }}>
-              <button onClick={() => onEdit(admin)} style={{ width: "100%", padding: "9px 14px", textAlign: "left", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--foreground)", fontWeight: 500 }}>Edit Roles</button>
-              <div style={{ height: 1, background: "var(--border)" }} />
-              <button onClick={() => onRemove(admin)} style={{ width: "100%", padding: "9px 14px", textAlign: "left", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--danger)", fontWeight: 500 }}>Remove Admin</button>
-            </div>
-          )}
-        </div>
+        {canManage && (
+          <div style={{ position: "relative" }} ref={menuOpen === admin.id ? menuRef as React.RefObject<HTMLDivElement> : undefined}>
+            <button onClick={() => setMenuOpen(menuOpen === admin.id ? null : admin.id)} style={{ background: "var(--muted)", border: "none", borderRadius: 7, padding: "5px 8px", cursor: "pointer", color: "var(--foreground)" }}>
+              <MoreHorizontal size={15} />
+            </button>
+            {menuOpen === admin.id && (
+              <div style={{ position: "absolute", right: 0, top: "100%", marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, minWidth: 160, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50 }}>
+                <button onClick={() => onEdit(admin)} style={{ width: "100%", padding: "9px 14px", textAlign: "left", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--foreground)", fontWeight: 500 }}>Edit Roles</button>
+                <div style={{ height: 1, background: "var(--border)" }} />
+                <button onClick={() => onRemove(admin)} style={{ width: "100%", padding: "9px 14px", textAlign: "left", background: "none", border: "none", fontSize: 13, cursor: "pointer", color: "var(--danger)", fontWeight: 500 }}>Remove Admin</button>
+              </div>
+            )}
+          </div>
+        )}
       </td>
     </tr>
   )

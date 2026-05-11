@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canManageSettings && !caps(user.role).canViewAllEmployees) return forbidden()
+  const perm = requirePermission(user, "canCreateLoan")
+  if (perm) return perm
 
   const body = await req.json()
   const { employeeId, policyName, amount, repaymentTenor, interval, reason, noteForUser } = body

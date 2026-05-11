@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { MoreVertical, Inbox } from "lucide-react"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 type SurveyType = "GENERAL" | "CONFIRMATION" | "EXIT"
 type SurveyStatus = "DRAFT" | "ACTIVE" | "CLOSED"
@@ -49,7 +50,7 @@ function StatusBadge({ status }: { status: SurveyStatus }) {
   )
 }
 
-function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
+function RowMenu({ onEdit, onDelete, canEdit, canDelete }: { onEdit: () => void; onDelete: () => void; canEdit: boolean; canDelete: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -89,8 +90,8 @@ function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
           zIndex: 9999, minWidth: 120, overflow: "hidden",
         }}>
           {[
-            { label: "Edit", action: () => { setOpen(false); onEdit() } },
-            { label: "Delete", action: () => { setOpen(false); onDelete() }, danger: true },
+            ...(canEdit ? [{ label: "Edit", action: () => { setOpen(false); onEdit() }, danger: false }] : []),
+            ...(canDelete ? [{ label: "Delete", action: () => { setOpen(false); onDelete() }, danger: true }] : []),
           ].map(item => (
             <button key={item.label} onClick={item.action} style={{
               display: "block", width: "100%", padding: "10px 16px",
@@ -112,6 +113,10 @@ function RowMenu({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => voi
 
 export default function SurveysPage() {
   const router = useRouter()
+  const { user } = useCurrentUser()
+  const canCreateSurvey = user?.can("canCreateSurvey") ?? false
+  const canEditSurvey = user?.can("canEditSurvey") ?? false
+  const canDeleteSurvey = user?.can("canDeleteSurvey") ?? false
   const [tab, setTab] = useState<"surveys" | "templates">("surveys")
   const [templateTab, setTemplateTab] = useState<"custom" | "default">("custom")
   const [typeFilter, setTypeFilter] = useState<SurveyType | "">("")
@@ -197,11 +202,13 @@ export default function SurveysPage() {
             </button>
           ))}
         </div>
-        <button
-          onClick={() => tab === "surveys" ? router.push("/admin/surveys/new") : router.push("/admin/surveys/templates/new")}
-          style={{ padding: "8px 20px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-          {tab === "surveys" ? "Create Survey" : "Create Template"}
-        </button>
+        {canCreateSurvey && (
+          <button
+            onClick={() => tab === "surveys" ? router.push("/admin/surveys/new") : router.push("/admin/surveys/templates/new")}
+            style={{ padding: "8px 20px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+            {tab === "surveys" ? "Create Survey" : "Create Template"}
+          </button>
+        )}
       </div>
 
       {/* Surveys tab */}
@@ -269,6 +276,8 @@ export default function SurveysPage() {
                   <RowMenu
                     onEdit={() => router.push(`/admin/surveys/${s.id}/edit`)}
                     onDelete={() => deleteSurvey(s.id)}
+                    canEdit={canEditSurvey}
+                    canDelete={canDeleteSurvey}
                   />
                 </div>
               ))
@@ -355,6 +364,8 @@ export default function SurveysPage() {
                   <RowMenu
                     onEdit={() => router.push(`/admin/surveys/templates/${t.id}/edit`)}
                     onDelete={() => deleteTemplate(t.id)}
+                    canEdit={canEditSurvey}
+                    canDelete={canDeleteSurvey}
                   />
                 </div>
               ))

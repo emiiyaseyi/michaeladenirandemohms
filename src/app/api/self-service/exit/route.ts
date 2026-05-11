@@ -66,23 +66,41 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  const admins = await prisma.user.findMany({
-    where: { role: { in: ["SUPER_ADMIN"] }, isActive: true },
-    select: { id: true },
-  })
-
   const date = new Date(intendedLastDay).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
 
-  if (admins.length > 0) {
-    await prisma.notification.createMany({
-      data: admins.map(a => ({
-        userId: a.id,
+  // Notify SUPER_ADMINs + elevated users with canApproveExitRequest
+  const [superAdmins, assignments] = await Promise.all([
+    prisma.user.findMany({ where: { role: "SUPER_ADMIN", isActive: true }, select: { id: true } }),
+    prisma.userAdminRole.findMany({
+      include: {
+        adminRole: { select: { permissions: true } },
+        user: { select: { id: true, isActive: true } },
+      },
+    }),
+  ])
+  const recipients = new Set<string>(superAdmins.map(u => u.id))
+  const permsMap = new Map<string, Record<string, boolean>>()
+  for (const { user: u, adminRole } of assignments) {
+    if (!u.isActive) continue
+    const merged = permsMap.get(u.id) ?? {}
+    const p = adminRole.permissions as Record<string, boolean>
+    for (const [k, v] of Object.entries(p)) if (v) merged[k] = true
+    permsMap.set(u.id, merged)
+  }
+  for (const [uid, perms] of permsMap.entries()) {
+    if (perms["canApproveExitRequest"]) recipients.add(uid)
+  }
+
+  for (const userId of recipients) {
+    await prisma.notification.create({
+      data: {
+        userId,
         employeeId: empId!,
         title: "Exit Request Submitted",
         message: `${emp?.firstName} ${emp?.lastName} has submitted an exit request (${EXIT_LABEL[safeExitType]}). Intended last day: ${date}.${reason ? ` Reason: ${reason}` : ""}`,
-        type: "WARNING" as const,
+        type: "WARNING",
         link: "/admin/requests/exits",
-      })),
+      },
     })
   }
 

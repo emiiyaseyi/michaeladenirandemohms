@@ -55,6 +55,16 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    await prisma.notification.create({
+      data: {
+        userId: emp.userId!,
+        title: "Admin access granted",
+        message: "You have been granted admin access. Use the panel switcher in the top menu to access the admin panel.",
+        type: "SUCCESS",
+        link: "/admin",
+      },
+    })
+
     const updated = await prisma.user.findUnique({ where: { id: emp.userId }, select: MEMBER_SELECT })
     return NextResponse.json({ admin: updated }, { status: 201 })
   }

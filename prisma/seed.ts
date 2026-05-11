@@ -151,7 +151,7 @@ async function main() {
         canViewRentDocuments: true, canManageRentDocuments: true,
         canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
         canViewAuditLog: true,
-        canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true, canManageCustomization: true, canManageSSOSettings: true,
+        canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true, canManageCustomization: true,
         canManageAdmins: true, canCreateCustomRole: true, canEditCustomRole: true, canDeleteCustomRole: true,
       },
     },

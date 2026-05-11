@@ -183,6 +183,9 @@ function RecordModal({ employees, departments, onClose, onSaved }: { employees: 
 
 export default function RedeploymentsPage() {
   const { user } = useCurrentUser()
+  const canCreateRedeployment = user?.can("canCreateRedeployment") ?? false
+  const canApproveRedeployment = user?.can("canApproveRedeployment") ?? false
+  const canDeleteRedeployment = user?.can("canDeleteRedeployment") ?? false
   const [requests, setRequests] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
@@ -254,10 +257,12 @@ export default function RedeploymentsPage() {
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <h1 style={{ fontSize: 20, fontWeight: 800 }}>Redeployments</h1>
-        <button onClick={() => setRecordOpen(true)}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-          <Plus size={14} /> Record Redeployment
-        </button>
+        {canCreateRedeployment && (
+          <button onClick={() => setRecordOpen(true)}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            <Plus size={14} /> Record Redeployment
+          </button>
+        )}
       </div>
 
       <div className="grid-4col" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
@@ -340,9 +345,11 @@ export default function RedeploymentsPage() {
                       </td>
                       <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color }}>{r.status}</span></td>
                       <td style={td}>
-                        <button onClick={() => setReviewReq(r)} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--muted-foreground)" }}>
-                          <MoreHorizontal size={16} />
-                        </button>
+                        {canApproveRedeployment && (
+                          <button onClick={() => setReviewReq(r)} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--muted-foreground)" }}>
+                            <MoreHorizontal size={16} />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   )

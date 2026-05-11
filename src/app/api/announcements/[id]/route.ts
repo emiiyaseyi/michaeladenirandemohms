@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, caps } from "@/lib/api-auth"
+import { requireAuth, forbidden, caps, requirePermission } from "@/lib/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -8,6 +8,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const isAdmin = caps(user.role).canViewAllEmployees
   if (!isAdmin) return forbidden()
+  const perm = requirePermission(user, "canEditAnnouncement")
+  if (perm) return perm
 
   const { id } = await params
   const body = await req.json()
@@ -42,6 +44,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (error) return error
 
   if (!caps(user.role).canViewAllEmployees) return forbidden()
+  const delPerm = requirePermission(user, "canDeleteAnnouncement")
+  if (delPerm) return delPerm
 
   const { id } = await params
   // Soft delete — set to RETIRED so it can be restored from trash

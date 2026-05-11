@@ -10,6 +10,8 @@ export interface SessionUser {
   name: string
   role: SystemRole
   employeeId?: string
+  isElevated: boolean
+  permissions: Record<string, boolean>
 }
 
 export async function requireAuth(): Promise<
@@ -31,9 +33,19 @@ export async function requireAuth(): Promise<
       name: u.name ?? "",
       role: u.role as SystemRole,
       employeeId: u.employeeId,
+      isElevated: !!(u.isElevated),
+      permissions: (u.permissions ?? {}) as Record<string, boolean>,
     },
     error: null,
   }
+}
+
+// Returns a 403 response if the user lacks the permission; null if allowed.
+// SUPER_ADMIN always passes.
+export function requirePermission(user: SessionUser, key: string): NextResponse | null {
+  if (user.role === "SUPER_ADMIN") return null
+  if (user.permissions[key]) return null
+  return forbidden(`Missing permission: ${key}`)
 }
 
 export function caps(role: SystemRole) {

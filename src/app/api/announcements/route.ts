@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
 
   const isAdmin = caps(user.role).canViewAllEmployees
   if (!isAdmin) return forbidden("Only admins can create announcements")
+  const perm = requirePermission(user, "canCreateAnnouncement")
+  if (perm) return perm
 
   const body = await req.json()
   const { title, body: text, type = "TEXT", videoUrl, imageUrl, behavior = "NOTIFICATION_BAR", targetRoles = [], sendEmail = false, status = "DRAFT" } = body
