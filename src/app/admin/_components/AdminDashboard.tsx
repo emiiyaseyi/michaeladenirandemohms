@@ -20,21 +20,13 @@ async function getAttritionData() {
     const yr = d.getFullYear().toString().slice(2)
     months.push({ month: d.getMonth() + 1, year: d.getFullYear(), label: `${MONTH_LABELS[d.getMonth()]} '${yr}` })
   }
-
   const results = await Promise.all(
     months.map(async ({ month, year, label }) => {
       const start = new Date(year, month - 1, 1)
       const end   = new Date(year, month, 0, 23, 59, 59, 999)
       const [inCompany, exited] = await Promise.all([
-        prisma.employee.count({
-          where: {
-            createdAt: { lte: end },
-            OR: [{ endDate: null }, { endDate: { gt: end } }],
-          },
-        }),
-        prisma.employee.count({
-          where: { endDate: { gte: start, lte: end } },
-        }),
+        prisma.employee.count({ where: { createdAt: { lte: end }, OR: [{ endDate: null }, { endDate: { gt: end } }] } }),
+        prisma.employee.count({ where: { endDate: { gte: start, lte: end } } }),
       ])
       return { label, inCompany, exited }
     })
@@ -60,11 +52,14 @@ export default async function AdminDashboard() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"
 
-  const [attritionData, headcount] = await Promise.all([
-    getAttritionData(),
-    getHeadcountData(),
-  ])
+  const can = (key: string) => isSuperAdmin || !!permissions[key]
 
+  const canViewEmployees  = can("canViewAllEmployees")
+  const canViewLeave      = can("canViewAllLeave")
+  const canViewAnalytics  = can("canViewAnalytics")
+  const canViewPerformance = can("canViewPerformance")
+
+  // Only fetch data the user is permitted to see
   const [
     totalEmployees,
     activeEmployees,
@@ -76,36 +71,38 @@ export default async function AdminDashboard() {
     recentEmployees,
     pendingLeaveRequests,
     departments,
+    attritionData,
+    headcount,
   ] = await Promise.all([
-    prisma.employee.count(),
-    prisma.employee.count({ where: { employeeStatus: "ACTIVE" } }),
-    prisma.employee.count({ where: { employeeStatus: "ON_LEAVE" } }),
+    canViewEmployees ? prisma.employee.count() : Promise.resolve(0),
+    canViewEmployees ? prisma.employee.count({ where: { employeeStatus: "ACTIVE" } }) : Promise.resolve(0),
+    canViewEmployees ? prisma.employee.count({ where: { employeeStatus: "ON_LEAVE" } }) : Promise.resolve(0),
     prisma.department.count(),
     prisma.jobPosting.count({ where: { status: "OPEN" } }),
-    prisma.kPI.count({ where: { status: "SUBMITTED" } }),
-    prisma.leaveRequest.count({ where: { status: "PENDING" } }),
-    prisma.employee.findMany({
-      take: 6,
-      orderBy: { createdAt: "desc" },
-      include: {
-        department: true,
-        manager: { select: { id: true, firstName: true, lastName: true } },
-        projectAssignments: { include: { project: { select: { id: true, name: true, status: true } } } },
-      },
-    }),
-    prisma.leaveRequest.findMany({
-      where: { status: "PENDING" },
-      take: 6,
-      orderBy: { createdAt: "asc" },
-      include: {
-        employee: { select: { firstName: true, lastName: true, profilePhoto: true } },
-        leaveType: { select: { name: true } },
-      },
-    }),
-    prisma.department.findMany({
-      orderBy: { name: "asc" },
-      select: { id: true, name: true },
-    }),
+    canViewPerformance ? prisma.kPI.count({ where: { status: "SUBMITTED" } }) : Promise.resolve(0),
+    canViewLeave ? prisma.leaveRequest.count({ where: { status: "PENDING" } }) : Promise.resolve(0),
+    canViewEmployees
+      ? prisma.employee.findMany({
+          take: 6, orderBy: { createdAt: "desc" },
+          include: {
+            department: true,
+            manager: { select: { id: true, firstName: true, lastName: true } },
+            projectAssignments: { include: { project: { select: { id: true, name: true, status: true } } } },
+          },
+        })
+      : Promise.resolve([]),
+    canViewLeave
+      ? prisma.leaveRequest.findMany({
+          where: { status: "PENDING" }, take: 6, orderBy: { createdAt: "asc" },
+          include: {
+            employee: { select: { firstName: true, lastName: true, profilePhoto: true } },
+            leaveType: { select: { name: true } },
+          },
+        })
+      : Promise.resolve([]),
+    prisma.department.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    canViewAnalytics ? getAttritionData() : Promise.resolve([]),
+    canViewAnalytics ? getHeadcountData() : Promise.resolve({ total: 0, male: 0, female: 0 }),
   ])
 
   return (
@@ -121,27 +118,36 @@ export default async function AdminDashboard() {
         </p>
       </div>
 
-      <OrgStatsRow
-        totalEmployees={totalEmployees}
-        activeEmployees={activeEmployees}
-        onLeave={onLeave}
-        departments={deptCount}
-        openJobs={openJobs}
-        pendingLeave={pendingLeaveCount}
-      />
+      {canViewEmployees && (
+        <OrgStatsRow
+          totalEmployees={totalEmployees}
+          activeEmployees={activeEmployees}
+          onLeave={onLeave}
+          departments={deptCount}
+          openJobs={openJobs}
+          pendingLeave={canViewLeave ? pendingLeaveCount : 0}
+        />
+      )}
 
-      <AlertsBanner pendingLeave={pendingLeaveCount} pendingKPIs={pendingKPIs} />
+      {(canViewLeave || canViewPerformance) && (
+        <AlertsBanner
+          pendingLeave={canViewLeave ? pendingLeaveCount : 0}
+          pendingKPIs={canViewPerformance ? pendingKPIs : 0}
+        />
+      )}
 
       <AdminQuickActionsBar departments={departments} isSuperAdmin={isSuperAdmin} permissions={permissions} />
 
-      <div style={{ display: "flex", gap: 20, marginBottom: 20, alignItems: "stretch", flexWrap: "wrap" }}>
-        <AttritionTrendChart data={attritionData} />
-        <HeadcountPieChart total={headcount.total} male={headcount.male} female={headcount.female} />
-      </div>
+      {canViewAnalytics && (
+        <div style={{ display: "flex", gap: 20, marginBottom: 20, alignItems: "stretch", flexWrap: "wrap" }}>
+          <AttritionTrendChart data={attritionData} />
+          <HeadcountPieChart total={(headcount as any).total} male={(headcount as any).male} female={(headcount as any).female} />
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap: 20 }}>
-        <RecentEmployeesPanel employees={recentEmployees} viewAllHref="/admin/people/employees" />
-        <PendingLeavePanel leaveRequests={pendingLeaveRequests} viewAllHref="/admin/requests/leave" />
+        {canViewEmployees && <RecentEmployeesPanel employees={recentEmployees} viewAllHref="/admin/people/employees" />}
+        {canViewLeave && <PendingLeavePanel leaveRequests={pendingLeaveRequests} viewAllHref="/admin/requests/leave" />}
         <CelebrationsCard />
       </div>
     </div>
