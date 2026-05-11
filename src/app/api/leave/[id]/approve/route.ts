@@ -68,13 +68,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const stage: "PROJECT_LEAD" | "HR_ADMIN" = isHR ? "HR_ADMIN" : "PROJECT_LEAD"
 
-  if (stage === "HR_ADMIN") {
-    const plApprovals = request.approvals.filter(a => a.stage === "PROJECT_LEAD")
-    const allPLsDone = plApprovals.length === 0 || plApprovals.every(a =>
-      a.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action as string)
-    )
-    if (!allPLsDone) return NextResponse.json({ error: "All Project Leads must approve first" }, { status: 409 })
-  }
+  // HR admins / super admin can bypass the PL stage entirely
+  // No allPLsDone gate for HR-level approvers
 
   if (stage === "PROJECT_LEAD") {
     if (!user.employeeId) return forbidden("No employee profile")

@@ -210,6 +210,12 @@ main { min-width: 0; }
   .side-panel { width: 100vw !important; }
 }
 
+/* ─── Modal step bar ──────────────────────────────────────────── */
+@media (max-width: 440px) {
+  .modal-step-label { display: none !important; }
+  .modal-step-connector { min-width: 8px !important; }
+}
+
 /* ─── Announcement animations ─────────────────────────────────── */
 @keyframes marquee {
   0%   { transform: translateX(0) }

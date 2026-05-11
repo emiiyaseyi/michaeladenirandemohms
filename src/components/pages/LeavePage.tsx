@@ -163,6 +163,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
   const [docUploading, setDocUploading] = useState(false)
   const [plSearch, setPLSearch] = useState("")
   const [plDropOpen, setPLDropOpen] = useState(false)
+  const [plDropRect, setPlDropRect] = useState<{ top: number; left: number; width: number } | null>(null)
   const plSearchRef = useRef<HTMLDivElement>(null)
   const [form, setForm] = useState({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", documentUrl: "", projectLeads: [] as PLEntry[] })
 
@@ -189,8 +190,22 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
 
   useEffect(() => {
     const handler = (e: MouseEvent) => { if (!plSearchRef.current?.contains(e.target as Node)) setPLDropOpen(false) }
-    document.addEventListener("mousedown", handler); return () => document.removeEventListener("mousedown", handler)
+    const onResize = () => setPLDropOpen(false)
+    document.addEventListener("mousedown", handler)
+    window.addEventListener("resize", onResize)
+    return () => {
+      document.removeEventListener("mousedown", handler)
+      window.removeEventListener("resize", onResize)
+    }
   }, [])
+
+  const openPLDrop = () => {
+    if (plSearchRef.current) {
+      const r = plSearchRef.current.getBoundingClientRect()
+      setPlDropRect({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    setPLDropOpen(true)
+  }
 
   const updatePL = (i: number, field: keyof PLEntry, value: string) => {
     setForm(f => { const pls = [...f.projectLeads]; pls[i] = { ...pls[i], [field]: value }; return { ...f, projectLeads: pls } })
@@ -239,7 +254,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
   const prev = () => setStep(s => Math.max(1, s - 1))
 
   const reset = () => {
-    setStep(1); setCalcDays(0); setHolidays([]); setErrors({}); setPLSearch("")
+    setStep(1); setCalcDays(0); setHolidays([]); setErrors({}); setPLSearch(""); setPLDropOpen(false); setPlDropRect(null)
     setForm({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", documentUrl: "", projectLeads: [] })
   }
 
@@ -253,26 +268,26 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
     else { const d = await r.json(); setErrors({ submit: d.error ?? "Submission failed" }) }
   }
 
-  const steps = [{ n: 1, l: "Leave Type" }, { n: 2, l: "Dates" }, { n: 3, l: "Project Lead(s)" }, { n: 4, l: "Handover" }, { n: 5, l: "Review" }]
+  const steps = [{ n: 1, l: "Type" }, { n: 2, l: "Dates" }, { n: 3, l: "Lead(s)" }, { n: 4, l: "Handover" }, { n: 5, l: "Review" }]
 
   return (
     <Modal open={open} onClose={() => { onClose(); reset() }} title="Apply for Leave" width={640}>
-      {/* Step bar */}
-      <div style={{ display: "flex", padding: "14px 24px 0", gap: 0 }}>
+      {/* Step bar — sticky so it never scrolls away */}
+      <div style={{ display: "flex", padding: "12px 20px 4px", gap: 0, position: "sticky", top: 0, background: "var(--card)", zIndex: 10 }}>
         {steps.map((s, i) => (
-          <div key={s.n} style={{ display: "flex", alignItems: "center", flex: i < steps.length - 1 ? 1 : 0 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: step > s.n ? "var(--success)" : step === s.n ? "var(--primary)" : "var(--muted)", color: step >= s.n ? "white" : "var(--muted-foreground)", transition: "all .2s" }}>
-                {step > s.n ? <Check size={12} /> : s.n}
+          <div key={s.n} style={{ display: "flex", alignItems: "center", flex: i < steps.length - 1 ? 1 : 0, minWidth: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 0 }}>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: step > s.n ? "var(--success)" : step === s.n ? "var(--primary)" : "var(--muted)", color: step >= s.n ? "white" : "var(--muted-foreground)", transition: "all .2s", flexShrink: 0 }}>
+                {step > s.n ? <Check size={11} /> : s.n}
               </div>
-              <span style={{ fontSize: 10, fontWeight: 600, color: step === s.n ? "var(--primary)" : "var(--muted-foreground)", textAlign: "center", maxWidth: 65, lineHeight: 1.2 }}>{s.l}</span>
+              <span className="modal-step-label" style={{ fontSize: 10, fontWeight: 600, color: step === s.n ? "var(--primary)" : "var(--muted-foreground)", textAlign: "center", maxWidth: 56, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.l}</span>
             </div>
-            {i < steps.length - 1 && <div style={{ flex: 1, height: 2, background: step > s.n ? "var(--success)" : "var(--border)", margin: "0 4px 14px", transition: "background .2s" }} />}
+            {i < steps.length - 1 && <div className="modal-step-connector" style={{ flex: 1, height: 2, background: step > s.n ? "var(--success)" : "var(--border)", margin: "0 3px 14px", transition: "background .2s", minWidth: 8 }} />}
           </div>
         ))}
       </div>
 
-      <div style={{ padding: 24, minHeight: 300, overflowY: "auto", maxHeight: "60vh" }}>
+      <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, minHeight: 0 }}>
         {/* Step 1: Leave type */}
         {step === 1 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -420,21 +435,21 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
               )
             })}
 
-            <div ref={plSearchRef} style={{ position: "relative" }}>
+            <div ref={plSearchRef}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px dashed var(--border)", borderRadius: 8, padding: "9px 12px", background: "var(--background)" }}>
                 <Plus size={14} style={{ color: "var(--primary)", flexShrink: 0 }} />
-                <input value={plSearch} onChange={e => { setPLSearch(e.target.value); setPLDropOpen(true) }} onFocus={() => setPLDropOpen(true)}
+                <input value={plSearch} onChange={e => { setPLSearch(e.target.value); openPLDrop() }} onFocus={() => openPLDrop()}
                   placeholder={form.projectLeads.length === 0 ? "Add a Project Lead…" : "Add another Project Lead…"}
                   style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, flex: 1, color: "var(--foreground)" }} />
               </div>
-              {plDropOpen && filteredPLs.length > 0 && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+              {plDropOpen && filteredPLs.length > 0 && plDropRect && (
+                <div style={{ position: "fixed", top: plDropRect.top, left: plDropRect.left, width: plDropRect.width, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.15)", zIndex: 9999, maxHeight: 220, overflowY: "auto" }}>
                   {filteredPLs.slice(0, 8).map((e: any) => (
                     <button key={e.id} onClick={() => addPL(e.id)}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
                       onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
                       onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = "transparent"}>
-                      <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={28} />
+                      <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={32} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
                         {e.jobTitle && <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle}</div>}
@@ -570,7 +585,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
         )}
       </div>
 
-      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", position: "sticky", bottom: 0, background: "var(--card)", zIndex: 10, flexShrink: 0 }}>
         <Button variant="secondary" onClick={step === 1 ? () => { onClose(); reset() } : prev}>{step === 1 ? "Cancel" : <><ChevronLeft size={13} /> Back</>}</Button>
         {step < 5
           ? <Button onClick={next}>Next <ChevronRight size={13} /></Button>
@@ -1390,13 +1405,16 @@ export default function LeavePage() {
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {canCreateLeave && (
-            <button onClick={() => router.push(pathname.startsWith("/admin") ? "/admin/requests/leave/record" : "/project-lead/requests/leave/record")}
+            <button onClick={() => router.push("/admin/requests/leave/record")}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
               <Plus size={13} /> Record Leave for an Employee
             </button>
           )}
           {canSubmit && !isAdmin && (
-            <button onClick={() => setApplyOpen(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            <button onClick={() => {
+              const base = pathname?.startsWith("/project-lead") ? "/project-lead" : "/staff"
+              router.push(`${base}/requests/leave/apply`)
+            }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
               <Plus size={13} /> Apply for Leave
             </button>
           )}

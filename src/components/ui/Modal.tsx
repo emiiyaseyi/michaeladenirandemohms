@@ -18,7 +18,7 @@ export default function Modal({ open, onClose, title, children, width = 560 }: {
           <h2 style={{ flex: 1, fontSize: 16, fontWeight: 700 }}>{title}</h2>
           <button onClick={onClose} style={{ background: "var(--muted)", border: "none", cursor: "pointer", borderRadius: 6, padding: 6, color: "var(--muted-foreground)" }}><X size={16} /></button>
         </div>
-        <div style={{ overflowY: "auto", flex: 1 }}>
+        <div style={{ overflowY: "auto", flex: 1, display: "flex", flexDirection: "column" }}>
           {children}
         </div>
       </div>

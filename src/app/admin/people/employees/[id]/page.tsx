@@ -4,7 +4,7 @@ import { useRouter, useParams } from "next/navigation"
 import {
   ChevronLeft, ChevronDown, Edit2, Upload, Loader2,
   Building2, User, CreditCard, FileText, Briefcase, MapPin,
-  Receipt, Shield, X, Search,
+  Receipt, Shield, X, Search, Check,
 } from "lucide-react"
 
 const TABS = ["Job & Pay", "Personal", "Request", "Documents", "Benefits", "Assets", "Tasks", "Disciplinary", "Notes", "Logs"]
@@ -112,6 +112,66 @@ function Av({ name, photo, size = 80 }: { name: string; photo?: string | null; s
   )
 }
 
+function PLDepartmentsCard({ emp }: { emp: any }) {
+  const [allDepts, setAllDepts] = useState<any[]>([])
+  const [assigned, setAssigned] = useState<string[]>(
+    (emp.user?.projectLeadDepartments ?? []).map((d: any) => d.departmentId)
+  )
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => {
+    fetch("/api/settings").then(r => r.json()).then(d => setAllDepts(d.departments ?? []))
+  }, [])
+
+  const toggle = (id: string) =>
+    setAssigned(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+
+  const save = async () => {
+    setSaving(true)
+    await fetch(`/api/employees/${emp.id}/pl-departments`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ departmentIds: assigned }),
+    })
+    setSaving(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  return (
+    <div style={{ gridColumn: "1 / -1", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(99,102,241,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <Building2 size={16} color="#6366f1" />
+          </div>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>Project Lead — Assigned Departments</span>
+        </div>
+        <button onClick={save} disabled={saving} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", background: saved ? "var(--success)" : "var(--primary)", border: "none", borderRadius: 7, cursor: saving ? "wait" : "pointer", fontSize: 12, fontWeight: 700, color: "white", transition: "background .2s" }}>
+          {saving ? <><Loader2 size={11} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : saved ? "Saved ✓" : "Save"}
+        </button>
+      </div>
+      <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 12 }}>
+        Choose which departments this Project Lead is responsible for. Leave requests from staff in these departments will be routed to them for approval.
+      </p>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {allDepts.map((d: any) => {
+          const sel = assigned.includes(d.id)
+          return (
+            <button key={d.id} onClick={() => toggle(d.id)}
+              style={{ padding: "6px 14px", borderRadius: 20, border: `2px solid ${sel ? "#6366f1" : "var(--border)"}`, background: sel ? "rgba(99,102,241,0.12)" : "var(--muted)", cursor: "pointer", fontSize: 12, fontWeight: sel ? 700 : 500, color: sel ? "#6366f1" : "var(--foreground)", transition: "all .15s" }}>
+              {sel && <Check size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />}
+              {d.name}
+            </button>
+          )
+        })}
+        {allDepts.length === 0 && <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Loading departments…</span>}
+      </div>
+    </div>
+  )
+}
+
 function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any) => void }) {
   const fmt = (n?: number | null) => n != null ? `₦${n.toLocaleString("en-NG", { minimumFractionDigits: 2 })}` : "—"
   const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"
@@ -187,6 +247,8 @@ function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any
           <InfoRow label="NHF Number" value={emp.nhfNo} />
         </InfoCard>
       </div>
+
+      {emp.user?.role === "PROJECT_LEAD" && <PLDepartmentsCard emp={emp} />}
     </div>
   )
 }
@@ -1118,6 +1180,9 @@ export default function EmployeeProfilePage() {
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
               <h1 style={{ fontSize: 22, fontWeight: 800, color: "white", margin: 0 }}>{fullName}</h1>
               <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: badge.bg, color: badge.color }}>{badge.label}</span>
+              {emp.user?.role === "PROJECT_LEAD" && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "rgba(99,102,241,0.3)", color: "#a5b4fc" }}>Project Lead</span>
+              )}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               {emp.jobTitle && <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{emp.jobTitle}</span>}

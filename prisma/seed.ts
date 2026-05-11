@@ -99,23 +99,11 @@ async function main() {
 
   // ── Production HR Admin (Super Admin) ────────────────────────────────────────
   {
-    const adminDept = await prisma.department.findFirst({ where: { name: "Administration & Facility" } })
     const hashed = await bcrypt.hash("Admin@DSN2024!", 12)
-    const adminUser = await prisma.user.upsert({
+    await prisma.user.upsert({
       where:  { email: "hr@datasciencenigeria.ai" },
       update: { role: "SUPER_ADMIN" as any, mustChangePassword: false },
       create: { name: "HR Admin", email: "hr@datasciencenigeria.ai", password: hashed, role: "SUPER_ADMIN" as any, mustChangePassword: false },
-    })
-    await prisma.employee.upsert({
-      where:  { userId: adminUser.id },
-      update: {},
-      create: {
-        userId: adminUser.id, employeeId: "DSN-0001",
-        firstName: "HR", lastName: "Admin",
-        jobTitle: "HR Admin",
-        departmentId: adminDept?.id ?? null,
-        employmentType: "FULL_TIME", employeeStatus: "ACTIVE", hireDate: new Date("2023-01-01"), gender: "FEMALE",
-      },
     })
     console.log("  ✓ Admin account (hr@datasciencenigeria.ai)")
   }
@@ -283,25 +271,25 @@ async function main() {
     return
   }
 
-  // Quick-login demo accounts (2 elevated staff + 2 staff)
+  // Quick-login demo accounts (2 elevated admin + 2 staff + 2 project leads)
   const demoStaffs = [
-    { email: "staff1@dsn-hrms.com", name: "Chisom Obi",       empId: "DSN-D001", fn: "Chisom", ln: "Obi",   title: "HR Manager",        dept: adminFacility,  gender: "FEMALE", dob: "1992-03-10", salary: 480000, role: "STAFF", elevate: true },
-    { email: "staff2@dsn-hrms.com", name: "Kunle Bello",      empId: "DSN-D002", fn: "Kunle",  ln: "Bello", title: "Operations Manager", dept: techDelivery,   gender: "MALE",   dob: "1994-07-22", salary: 520000, role: "STAFF", elevate: true },
-    { email: "staff3@dsn-hrms.com", name: "Demo Staff Three", empId: "DSN-D003", fn: "Demo",   ln: "Staff Three", title: "Data Analyst", dept: equalyzai,      gender: "FEMALE", dob: "1996-01-15", salary: 360000, role: "STAFF", elevate: false },
-    { email: "staff4@dsn-hrms.com", name: "Demo Staff Four",  empId: "DSN-D004", fn: "Demo",   ln: "Staff Four",  title: "Finance Officer", dept: finance,       gender: "MALE",   dob: "1991-09-05", salary: 390000, role: "STAFF", elevate: false },
+    { email: "staff1@dsn-hrms.com", name: "Admin 1", empId: "DSN-D001", fn: "Admin", ln: "1", title: "HR Manager",  dept: adminFacility, gender: "FEMALE", dob: "1992-03-10", salary: 480000, role: "STAFF", elevate: true  },
+    { email: "staff3@dsn-hrms.com", name: "Staff 1", empId: "DSN-D003", fn: "Staff", ln: "1", title: "Data Analyst", dept: equalyzai,     gender: "FEMALE", dob: "1996-01-15", salary: 360000, role: "STAFF", elevate: false },
+    { email: "staff4@dsn-hrms.com", name: "Staff 2", empId: "DSN-D004", fn: "Staff", ln: "2", title: "Finance Officer", dept: finance,    gender: "MALE",   dob: "1991-09-05", salary: 390000, role: "STAFF", elevate: false },
   ]
+  const demoEmpIds: Record<string, string> = {}
   for (const s of demoStaffs) {
     const u = await prisma.user.upsert({
       where: { email: s.email },
       update: { mustChangePassword: false, password: hash("dsn-demo"), role: "STAFF" as any },
       create: { name: s.name, email: s.email, password: hash("dsn-demo"), role: "STAFF" as any, mustChangePassword: false },
     })
-    await prisma.employee.upsert({
+    const emp = await prisma.employee.upsert({
       where: { userId: u.id },
       update: { dateOfBirth: new Date(s.dob) },
       create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: s.salary, gender: s.gender as any, dateOfBirth: new Date(s.dob) },
     })
-    // Elevate Chisom and Kunle to HR Admin role
+    demoEmpIds[s.email] = emp.id
     if (s.elevate && hrAdminRole) {
       await prisma.userAdminRole.upsert({
         where: { userId_adminRoleId: { userId: u.id, adminRoleId: hrAdminRole.id } },
@@ -310,6 +298,37 @@ async function main() {
       })
     }
   }
+
+  // PROJECT_LEAD demo accounts
+  const demoPLs = [
+    { email: "lead1@dsn-hrms.com", name: "Lead 1", empId: "DSN-D005", fn: "Lead", ln: "1", title: "Team Lead — Technology",   dept: equalyzai,     gender: "MALE",   dob: "1990-06-15", salary: 550000, deptIds: [equalyzai?.id, techDelivery?.id].filter(Boolean) as string[] },
+    { email: "lead2@dsn-hrms.com", name: "Lead 2", empId: "DSN-D006", fn: "Lead", ln: "2", title: "Team Lead — Operations",   dept: adminFacility, gender: "FEMALE", dob: "1993-09-20", salary: 520000, deptIds: [adminFacility?.id, finance?.id].filter(Boolean) as string[] },
+  ]
+  const demoPLEmpIds: Record<string, string> = {}
+  const demoPLUserIds: Record<string, string> = {}
+  for (const pl of demoPLs) {
+    const u = await prisma.user.upsert({
+      where: { email: pl.email },
+      update: { mustChangePassword: false, password: hash("dsn-demo"), role: "PROJECT_LEAD" as any },
+      create: { name: pl.name, email: pl.email, password: hash("dsn-demo"), role: "PROJECT_LEAD" as any, mustChangePassword: false },
+    })
+    demoPLUserIds[pl.email] = u.id
+    const emp = await prisma.employee.upsert({
+      where: { userId: u.id },
+      update: { dateOfBirth: new Date(pl.dob) },
+      create: { userId: u.id, employeeId: pl.empId, firstName: pl.fn, lastName: pl.ln, jobTitle: pl.title, departmentId: pl.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: pl.salary, gender: pl.gender as any, dateOfBirth: new Date(pl.dob) },
+    })
+    demoPLEmpIds[pl.email] = emp.id
+    // Assign departments
+    for (const deptId of pl.deptIds) {
+      await prisma.projectLeadDepartment.upsert({
+        where: { userId_departmentId: { userId: u.id, departmentId: deptId } },
+        update: {},
+        create: { userId: u.id, departmentId: deptId },
+      })
+    }
+  }
+  console.log("  ✓ Demo accounts (admin, staff, project lead)")
 
   // 12 sample employees
   const samples = [
@@ -424,13 +443,17 @@ async function main() {
   }
   console.log("  ✓ Job postings & applications")
 
-  // Leave balances
+  // Leave balances — all employees including demo accounts
   const annualLeave = await prisma.leaveType.findFirst({ where: { name: "Annual Leave" } })
   const sickLeave   = await prisma.leaveType.findFirst({ where: { name: "Sick Leave" } })
-  const allEmps = Object.values(empRecords).filter(Boolean)
-  for (const emp of allEmps) {
-    if (annualLeave) await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: annualLeave.id, year: 2026 } }, update: {}, create: { employeeId: emp.id, leaveTypeId: annualLeave.id, year: 2026, allocated: 21, used: 0, pending: 0 } })
-    if (sickLeave)   await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: sickLeave.id,   year: 2026 } }, update: {}, create: { employeeId: emp.id, leaveTypeId: sickLeave.id,   year: 2026, allocated: 14, used: 0, pending: 0 } })
+  const allEmpIds = [
+    ...Object.values(empRecords).filter(Boolean).map((e: any) => e.id as string),
+    ...Object.values(demoEmpIds),
+    ...Object.values(demoPLEmpIds),
+  ]
+  for (const empId of allEmpIds) {
+    if (annualLeave) await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: empId, leaveTypeId: annualLeave.id, year: 2026 } }, update: {}, create: { employeeId: empId, leaveTypeId: annualLeave.id, year: 2026, allocated: 21, used: 0, pending: 0 } })
+    if (sickLeave)   await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: empId, leaveTypeId: sickLeave.id,   year: 2026 } }, update: {}, create: { employeeId: empId, leaveTypeId: sickLeave.id,   year: 2026, allocated: 14, used: 0, pending: 0 } })
   }
   console.log("  ✓ Leave balances")
 
@@ -467,10 +490,11 @@ async function main() {
   console.log("\n✅ Demo data complete.")
   console.log("\n🔑 Demo login accounts:")
   console.log("   HR Admin:  hr@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")
-  console.log("   HR Admin 1: staff1@dsn-hrms.com       /  dsn-demo        (STAFF + HR Admin role — Chisom Obi)")
-  console.log("   HR Admin 2: staff2@dsn-hrms.com       /  dsn-demo        (STAFF + HR Admin role — Kunle Bello)")
-  console.log("   Staff 1:   staff3@dsn-hrms.com       /  dsn-demo        (STAFF)")
-  console.log("   Staff 2:   staff4@dsn-hrms.com       /  dsn-demo        (STAFF)")
+  console.log("   Admin 1:   staff1@dsn-hrms.com       /  dsn-demo        (STAFF + HR Admin role — elevated)")
+  console.log("   Staff 1:   staff3@dsn-hrms.com       /  dsn-demo        (plain STAFF)")
+  console.log("   Staff 2:   staff4@dsn-hrms.com       /  dsn-demo        (plain STAFF)")
+  console.log("   Lead 1:    lead1@dsn-hrms.com        /  dsn-demo        (PROJECT_LEAD — EqualyzAI + Tech Delivery)")
+  console.log("   Lead 2:    lead2@dsn-hrms.com        /  dsn-demo        (PROJECT_LEAD — Admin & Facility + Finance)")
 }
 
 main()

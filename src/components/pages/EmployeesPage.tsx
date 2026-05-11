@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import { Search, MoreHorizontal, Loader2, ChevronDown, Check, KeyRound, Eye, Upload, RefreshCw, UserPlus, FileUp, FileDown } from "lucide-react"
+import { Search, MoreHorizontal, Loader2, ChevronDown, Check, KeyRound, Eye, Upload, RefreshCw, UserPlus, FileUp, FileDown, ShieldCheck } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const STATUS_OPTS = [
@@ -24,6 +24,46 @@ function Av({ name, photo }: { name: string; photo?: string | null }) {
   const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
   if (photo) return <img src={photo} alt={name} style={{ width: 34, height: 34, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
   return <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white", flexShrink: 0 }}>{initials}</div>
+}
+
+function RoleBadge({ emp, onChanged, isSuperAdmin }: { emp: any; onChanged: () => void; isSuperAdmin: boolean }) {
+  const role: string = emp.user?.role ?? "STAFF"
+  const isPL = role === "PROJECT_LEAD"
+  const [loading, setLoading] = useState(false)
+
+  const toggle = async () => {
+    if (!isSuperAdmin || !emp.userId) return
+    const newRole = isPL ? "STAFF" : "PROJECT_LEAD"
+    setLoading(true)
+    await fetch(`/api/employees/${emp.id}/role`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: newRole }),
+    })
+    setLoading(false)
+    onChanged()
+  }
+
+  return (
+    <button
+      onClick={isSuperAdmin && emp.userId ? toggle : undefined}
+      disabled={loading || !emp.userId}
+      title={isSuperAdmin && emp.userId ? `Click to change to ${isPL ? "Staff" : "Project Lead"}` : undefined}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700,
+        padding: "3px 9px", borderRadius: 20, border: "none",
+        background: isPL ? "rgba(99,102,241,0.12)" : "var(--muted)",
+        color: isPL ? "#6366f1" : "var(--muted-foreground)",
+        cursor: isSuperAdmin && emp.userId ? "pointer" : "default",
+        whiteSpace: "nowrap",
+        opacity: loading ? 0.6 : 1,
+        transition: "all .15s",
+      }}
+    >
+      {isPL && <ShieldCheck size={10} />}
+      {isPL ? "Project Lead" : "Staff"}
+    </button>
+  )
 }
 
 function RowMenu({ emp, onView, onReset }: { emp: any; onView: () => void; onReset: () => void }) {
@@ -306,6 +346,7 @@ export default function EmployeesPage() {
                   <th style={th}>Job Title</th>
                   <th style={th}>Phone</th>
                   <th style={th}>Status</th>
+                  <th style={th}>Role</th>
                   <th style={{ ...th, width: 60 }}></th>
                 </tr>
               </thead>
@@ -340,6 +381,9 @@ export default function EmployeesPage() {
                         <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: badge.bg, color: badge.color, whiteSpace: "nowrap" }}>
                           {badge.label}
                         </span>
+                      </td>
+                      <td style={td} onClick={e => e.stopPropagation()}>
+                        <RoleBadge emp={emp} onChanged={load} isSuperAdmin={user?.role === "SUPER_ADMIN"} />
                       </td>
                       <td style={{ ...td, textAlign: "right" }} onClick={e => e.stopPropagation()}>
                         <RowMenu emp={emp}

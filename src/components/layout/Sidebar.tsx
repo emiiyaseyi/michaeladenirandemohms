@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
-  ChevronRight, LogOut, ChevronDown,
+  ChevronRight, LogOut, ChevronDown, ArrowLeftRight,
   LayoutDashboard, UserCircle, Users, CalendarDays, Briefcase, TrendingUp,
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, FolderOpen, Layers,
   Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck,
@@ -243,6 +243,37 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
           )
         })}
       </nav>
+
+      {/* Panel switcher for elevated users */}
+      {user?.isElevated && (
+        <div style={{ padding: "6px 10px", flexShrink: 0 }}>
+          {homeUrl?.startsWith("/project-lead") ? (
+            <Link href="/admin" onClick={closeMobileNav}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, background: "rgba(255,255,255,0.06)", textDecoration: "none", color: "var(--sidebar-fg)", fontSize: 12, fontWeight: 600, transition: "background .15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)" }}
+            >
+              <ArrowLeftRight size={13} /> Switch to Admin
+            </Link>
+          ) : homeUrl?.startsWith("/admin") && user?.role === "PROJECT_LEAD" ? (
+            <Link href="/project-lead" onClick={closeMobileNav}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, background: "rgba(255,255,255,0.06)", textDecoration: "none", color: "var(--sidebar-fg)", fontSize: 12, fontWeight: 600, transition: "background .15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)" }}
+            >
+              <ArrowLeftRight size={13} /> Switch to PL View
+            </Link>
+          ) : homeUrl?.startsWith("/admin") && user?.role === "STAFF" ? (
+            <Link href="/staff" onClick={closeMobileNav}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, background: "rgba(255,255,255,0.06)", textDecoration: "none", color: "var(--sidebar-fg)", fontSize: 12, fontWeight: 600, transition: "background .15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)" }}
+            >
+              <ArrowLeftRight size={13} /> Switch to Staff View
+            </Link>
+          ) : null}
+        </div>
+      )}
 
       {/* User + Logout */}
       <div style={{ padding: "10px", borderTop: "1px solid var(--sidebar-border)", flexShrink: 0 }}>

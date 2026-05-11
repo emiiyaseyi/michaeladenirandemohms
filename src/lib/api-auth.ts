@@ -66,5 +66,6 @@ export function isHRAdmin(role: string): boolean {
 
 export function roleBasePath(role: string): string {
   if (role === "SUPER_ADMIN") return "/admin"
+  if (role === "PROJECT_LEAD") return "/project-lead"
   return "/staff"
 }

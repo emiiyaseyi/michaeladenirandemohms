@@ -77,19 +77,39 @@ export async function GET(req: NextRequest) {
 
   const canViewAll = user.role === "SUPER_ADMIN" || !!user.permissions["canViewAllLeave"]
   const canApprove = !!user.permissions["canApproveLeave"]
+  const isPL = user.role === "PROJECT_LEAD"
   const status = req.nextUrl.searchParams.get("status") ?? ""
 
   let scopeFilter: any = {}
   if (canViewAll) {
     scopeFilter = status ? { status: status as any } : {}
+  } else if (isPL && user.id) {
+    // PROJECT_LEAD sees own requests + all requests from their assigned departments
+    const plDepts = await prisma.projectLeadDepartment.findMany({
+      where: { userId: user.id },
+      select: { departmentId: true },
+    })
+    const deptIds = plDepts.map(d => d.departmentId)
+    const statusFilter = status ? { status: status as any } : {}
+    scopeFilter = {
+      ...statusFilter,
+      OR: [
+        { employeeId: user.employeeId ?? "none" },
+        ...(deptIds.length > 0 ? [{ departmentId: { in: deptIds } }] : []),
+      ],
+    }
   } else if (canApprove) {
-    // Stage 1 approvers: see requests where they have a LeaveApproval record
+    // Elevated STAFF with canApproveLeave: see requests where they have a LeaveApproval record
     const myApprovals = await prisma.leaveApproval.findMany({
       where: { employeeId: user.employeeId, stage: "PROJECT_LEAD" },
       select: { leaveRequestId: true },
     })
     const leaveIds = myApprovals.map(a => a.leaveRequestId)
-    scopeFilter = { id: { in: leaveIds }, ...(status ? { status: status as any } : {}) }
+    const ownFilter = user.employeeId ? [{ employeeId: user.employeeId }] : []
+    scopeFilter = {
+      ...(status ? { status: status as any } : {}),
+      OR: [...ownFilter, ...(leaveIds.length > 0 ? [{ id: { in: leaveIds } }] : [])],
+    }
   } else {
     scopeFilter = { employeeId: user.employeeId, ...(status ? { status: status as any } : {}) }
   }
@@ -111,7 +131,7 @@ export async function GET(req: NextRequest) {
     prisma.employee.findMany({
       where: { employeeStatus: "ACTIVE" },
       orderBy: { firstName: "asc" },
-      select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true, gender: true, userId: true, projectLeadId: true, secondaryProjectLeadIds: true },
+      select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true, gender: true, userId: true, projectLeadId: true, secondaryProjectLeadIds: true, user: { select: { role: true } } },
       distinct: ["userId"],
     }),
     prisma.userAdminRole.findMany({
@@ -137,8 +157,8 @@ export async function GET(req: NextRequest) {
     if (perms["canApproveLeave"]) canApproveUsers.add(uid)
   }
 
-  // Filter employees list to those who can be project leads
-  const projectLeadEmployees = employees.filter(e => e.userId && canApproveUsers.has(e.userId))
+  // Filter employees list to those with PROJECT_LEAD role
+  const projectLeadEmployees = employees.filter(e => (e.user as any)?.role === "PROJECT_LEAD")
 
   const enriched = requests.map(r => ({ ...r, currentStage: computeStage(r) }))
   return NextResponse.json({ requests: enriched, leaveTypes, employees, projectLeadEmployees })
@@ -234,8 +254,10 @@ export async function POST(req: NextRequest) {
       select: { userId: true, user: { select: { role: true, adminRoles: { select: { adminRole: { select: { permissions: true } } } } } } },
     })
     if (plEmp?.userId) {
-      // PL is elevated (has admin roles) → link to admin panel, otherwise staff panel
-      const isElevatedPL = (plEmp.user?.adminRoles?.length ?? 0) > 0 || plEmp.user?.role === "SUPER_ADMIN"
+      // PL is elevated (has admin roles) → link to admin panel; PROJECT_LEAD role → /project-lead; otherwise /staff
+      const plRole = plEmp.user?.role ?? "STAFF"
+      const isElevatedPL = (plEmp.user?.adminRoles?.length ?? 0) > 0 || plRole === "SUPER_ADMIN"
+      const plLink = isElevatedPL ? "/admin/requests/leave" : plRole === "PROJECT_LEAD" ? "/project-lead/requests/leave" : "/staff/requests/leave"
       await prisma.notification.create({
         data: {
           userId: plEmp.userId,
@@ -243,7 +265,7 @@ export async function POST(req: NextRequest) {
           title: "Leave Request — Your Approval Needed",
           message: `${employee.firstName} ${employee.lastName} submitted a ${request.days}-day ${request.leaveType.name} leave request (${format(start, "MMM d")} – ${format(end, "MMM d")}) and requires your approval.`,
           type: "WARNING",
-          link: isElevatedPL ? "/admin/requests/leave" : "/staff/requests/leave",
+          link: plLink,
         },
       })
     }

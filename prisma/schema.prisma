@@ -68,6 +68,7 @@ model User {
   passwordResetRequests  PasswordResetRequest[] @relation("PasswordResetUser")
   resolvedResetRequests  PasswordResetRequest[] @relation("PasswordResetResolver")
   exitRequestReviews     ExitRequest[]
+  projectLeadDepartments ProjectLeadDepartment[]
 }
 
 model Division {
@@ -97,6 +98,7 @@ model Department {
   redeployedFromHere     RedeploymentRequest[] @relation("RedeployFromDept")
   redeployedToHere       RedeploymentRequest[] @relation("RedeployToDept")
   offerLetters           OfferLetter[]
+  projectLeads           ProjectLeadDepartment[]
 }
 
 model Team {
@@ -950,6 +952,7 @@ model UserAdminRole {
 
 enum SystemRole {
   SUPER_ADMIN
+  PROJECT_LEAD
   STAFF
 }
 
@@ -1599,4 +1602,15 @@ model BenefitCategory {
   id        String   @id @default(cuid())
   name      String   @unique
   createdAt DateTime @default(now())
+}
+
+model ProjectLeadDepartment {
+  id           String     @id @default(cuid())
+  userId       String
+  departmentId String
+  createdAt    DateTime   @default(now())
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
 }

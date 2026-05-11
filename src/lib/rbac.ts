@@ -1,9 +1,9 @@
 // ─── RBAC — Role-Based Access Control ───────────────────────────────────────
 
-export type SystemRole = "SUPER_ADMIN" | "STAFF"
+export type SystemRole = "SUPER_ADMIN" | "PROJECT_LEAD" | "STAFF"
 
 // Nav panel role — "ADMIN" is an internal nav concept (admin panel items),
-// not a DB system role. Users are either SUPER_ADMIN or STAFF (possibly elevated).
+// not a DB system role.
 export type NavPanelRole = SystemRole | "ADMIN"
 
 export interface ChildNavItem {
@@ -27,7 +27,7 @@ export interface NavItem {
   permission?: string
 }
 
-export const ALL_ROLES: NavPanelRole[] = ["SUPER_ADMIN", "ADMIN", "STAFF"]
+export const ALL_ROLES: NavPanelRole[] = ["SUPER_ADMIN", "ADMIN", "PROJECT_LEAD", "STAFF"]
 
 export const NAV_ITEMS: NavItem[] = [
 
@@ -172,6 +172,22 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Personal",        href: "/self-service/profile",         icon: "UserCircle", roles: ["STAFF"] },
   { label: "Change Password", href: "/self-service/change-password", icon: "Settings",   roles: ["STAFF"] },
   { label: "FAQ",             href: "/faq",                          icon: "HelpCircle", roles: ["STAFF"] },
+
+  // ── PROJECT LEAD items ────────────────────────────────────────────────────────
+  { label: "Dashboard",    href: "/dashboard",          icon: "LayoutDashboard", roles: ["PROJECT_LEAD"] },
+  { label: "__spacer_pl__", spacer: true, icon: "", roles: ["PROJECT_LEAD"] },
+  { label: "Requests",     href: "/requests/leave",     icon: "CalendarDays",    roles: ["PROJECT_LEAD"] },
+  { label: "My Team",      href: "/team",               icon: "Users",           roles: ["PROJECT_LEAD"] },
+  { label: "People",       href: "/people",             icon: "UserCheck",       roles: ["PROJECT_LEAD"] },
+  { label: "Job & Pay",    href: "/job-pay",             icon: "Banknote",        roles: ["PROJECT_LEAD"] },
+  { label: "Performance",  href: "/performance",        icon: "TrendingUp",      roles: ["PROJECT_LEAD"] },
+  { label: "Documents",    href: "/documents",          icon: "FolderOpen",      roles: ["PROJECT_LEAD"] },
+  { label: "Benefits",     href: "/benefits",           icon: "Gift",            roles: ["PROJECT_LEAD"] },
+  { label: "Payslips",     href: "/self-service/payslips", icon: "Receipt",      roles: ["PROJECT_LEAD"] },
+  { label: "__spacer_bottom_pl__", spacer: true, icon: "", roles: ["PROJECT_LEAD"] },
+  { label: "Personal",        href: "/self-service/profile",         icon: "UserCircle", roles: ["PROJECT_LEAD"] },
+  { label: "Change Password", href: "/self-service/change-password", icon: "Settings",   roles: ["PROJECT_LEAD"] },
+  { label: "FAQ",             href: "/faq",                          icon: "HelpCircle", roles: ["PROJECT_LEAD"] },
 ]
 
 // ─── CAPABILITY FLAGS ────────────────────────────────────────────────────────
@@ -216,6 +232,20 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
     canViewAnalytics: true,     canViewTeamAnalytics: true,
     isReadOnly: false,
   },
+  PROJECT_LEAD: {
+    canViewAllEmployees: false, canViewTeamEmployees: true,
+    canCreateEmployee: false,   canEditAnyEmployee: false,
+    canViewAllLeave: false,     canViewTeamLeave: true,
+    canApproveLeave: true,      canSubmitLeave: true,
+    canManageRecruitment: false, canViewRecruitment: false,
+    canManagePerformanceCycles: false, canViewAllPerformance: false,
+    canViewTeamPerformance: true, canSubmitOwnKPI: true, canScoreKPIs: true,
+    canManageOnboarding: false, canViewOwnOnboarding: true,
+    canManageOffboarding: false,
+    canManageSettings: false,
+    canViewAnalytics: false,    canViewTeamAnalytics: true,
+    isReadOnly: false,
+  },
   STAFF: {
     canViewAllEmployees: false, canViewTeamEmployees: false,
     canCreateEmployee: false,   canEditAnyEmployee: false,
@@ -235,8 +265,9 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
 // ─── ROLE SLUGS & HELPERS ────────────────────────────────────────────────────
 
 export const ROLE_SLUGS: Record<SystemRole, string> = {
-  SUPER_ADMIN: "admin",
-  STAFF:       "staff",
+  SUPER_ADMIN:   "admin",
+  PROJECT_LEAD:  "project-lead",
+  STAFF:         "staff",
 }
 
 export function getRoleHome(role: string): string {
@@ -252,7 +283,6 @@ export function getNavForRole(role: string): NavItem[] {
 }
 
 export function getNavForRoleWithPrefix(role: NavPanelRole): NavItem[] {
-  // SUPER_ADMIN sees ADMIN items + SUPER_ADMIN-only items; ADMIN and STAFF see their own items
   const navRole: NavPanelRole = role === "SUPER_ADMIN" ? "ADMIN" : role
   const base = role === "ADMIN" ? "/admin" : getRoleHome(role as SystemRole)
   const mapHref = (href: string): string => {
@@ -273,8 +303,9 @@ export function getNavForRoleWithPrefix(role: NavPanelRole): NavItem[] {
 
 export function roleLabel(role: string): string {
   const labels: Record<string, string> = {
-    SUPER_ADMIN: "Super Admin",
-    STAFF:       "Staff",
+    SUPER_ADMIN:  "Super Admin",
+    PROJECT_LEAD: "Project Lead",
+    STAFF:        "Staff",
   }
   return labels[role] ?? role
 }
