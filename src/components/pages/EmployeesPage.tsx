@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import { Search, MoreHorizontal, Loader2, ChevronDown, Check, KeyRound, Eye, Upload, RefreshCw, UserPlus, FileUp, FileDown, ShieldCheck } from "lucide-react"
+import { Search, MoreHorizontal, Loader2, ChevronDown, Check, KeyRound, Eye, Upload, RefreshCw, UserPlus, FileUp, FileDown, ShieldCheck, Trash2, UserCog } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const STATUS_OPTS = [
@@ -66,7 +66,10 @@ function RoleBadge({ emp, onChanged, isSuperAdmin }: { emp: any; onChanged: () =
   )
 }
 
-function RowMenu({ emp, onView, onReset }: { emp: any; onView: () => void; onReset: () => void }) {
+function RowMenu({ emp, onView, onReset, onDelete, onChangeRole }: {
+  emp: any; onView: () => void; onReset: () => void;
+  onDelete?: () => void; onChangeRole?: () => void
+}) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -93,13 +96,26 @@ function RowMenu({ emp, onView, onReset }: { emp: any; onView: () => void; onRes
         <MoreHorizontal size={16} />
       </button>
       {open && typeof window !== "undefined" && createPortal(
-        <div ref={menuRef} style={{ position: "fixed", top: pos.top, right: pos.right, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 9999, minWidth: 150, padding: "4px 0" }}>
+        <div ref={menuRef} style={{ position: "fixed", top: pos.top, right: pos.right, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 9999, minWidth: 160, padding: "4px 0" }}>
           <button onClick={() => { setOpen(false); onView() }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
             <Eye size={13} /> View
           </button>
           <button onClick={() => { setOpen(false); onReset() }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
             <KeyRound size={13} /> Reset Password
           </button>
+          {onChangeRole && (
+            <button onClick={() => { setOpen(false); onChangeRole() }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+              <UserCog size={13} /> Change Role
+            </button>
+          )}
+          {onDelete && (
+            <>
+              <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
+              <button onClick={() => { setOpen(false); onDelete() }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#DC2626", textAlign: "left" }}>
+                <Trash2 size={13} /> Delete
+              </button>
+            </>
+          )}
         </div>,
         document.body
       )}
@@ -111,6 +127,8 @@ export default function EmployeesPage() {
   const { user } = useCurrentUser()
   const canCreateEmployee = user?.can("canCreateEmployee") ?? false
   const canEditEmployee = user?.can("canEditEmployee") ?? false
+  const canDeleteEmployee = user?.role === "SUPER_ADMIN" || (user?.can("canDeleteEmployee") ?? false)
+  const canChangeRole = user?.role === "SUPER_ADMIN" || (user?.can("canEditEmployee") ?? false)
   const router = useRouter()
   const [employees, setEmployees] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
@@ -132,6 +150,11 @@ export default function EmployeesPage() {
   const deptRef = useRef<HTMLDivElement>(null)
   const pageSizeRef = useRef<HTMLDivElement>(null)
   const [pageSizeOpen, setPageSizeOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<any>(null)
+  const [deleting, setDeleting] = useState(false)
+  const [roleChangeTarget, setRoleChangeTarget] = useState<any>(null)
+  const [selectedRole, setSelectedRole] = useState<"STAFF" | "PROJECT_LEAD">("STAFF")
+  const [roleChanging, setRoleChanging] = useState(false)
 
   useEffect(() => {
     if (!manageOpen) return
@@ -214,6 +237,44 @@ export default function EmployeesPage() {
     setSelected(new Set())
     setResetMsg(`Password${ids.length > 1 ? "s" : ""} reset to default successfully.`)
     setTimeout(() => setResetMsg(""), 4000)
+  }
+
+  const doDelete = async (id: string) => {
+    setDeleting(true)
+    const r = await fetch(`/api/employees/${id}`, { method: "DELETE" })
+    setDeleting(false)
+    if (r.ok) {
+      setDeleteTarget(null)
+      setResetMsg("Employee deleted successfully.")
+      setTimeout(() => setResetMsg(""), 4000)
+      load()
+    } else {
+      const d = await r.json()
+      setResetMsg(d.error ?? "Failed to delete employee.")
+      setTimeout(() => setResetMsg(""), 5000)
+      setDeleteTarget(null)
+    }
+  }
+
+  const doChangeRole = async () => {
+    if (!roleChangeTarget) return
+    setRoleChanging(true)
+    const r = await fetch(`/api/employees/${roleChangeTarget.id}/role`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role: selectedRole }),
+    })
+    setRoleChanging(false)
+    if (r.ok) {
+      setRoleChangeTarget(null)
+      setResetMsg(`Role updated to ${selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}.`)
+      setTimeout(() => setResetMsg(""), 4000)
+      load()
+    } else {
+      const d = await r.json()
+      setResetMsg(d.error ?? "Failed to change role.")
+      setTimeout(() => setResetMsg(""), 5000)
+    }
   }
 
   const th: React.CSSProperties = { padding: "11px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }
@@ -388,7 +449,12 @@ export default function EmployeesPage() {
                       <td style={{ ...td, textAlign: "right" }} onClick={e => e.stopPropagation()}>
                         <RowMenu emp={emp}
                           onView={() => router.push(`/admin/people/employees/${emp.id}`)}
-                          onReset={() => setResetTarget(emp)} />
+                          onReset={() => setResetTarget(emp)}
+                          onDelete={canDeleteEmployee ? () => setDeleteTarget(emp) : undefined}
+                          onChangeRole={canChangeRole && emp.userId ? () => {
+                            setSelectedRole((emp.user?.role === "PROJECT_LEAD" ? "STAFF" : "PROJECT_LEAD") as "STAFF" | "PROJECT_LEAD")
+                            setRoleChangeTarget(emp)
+                          } : undefined} />
                       </td>
                     </tr>
                   )
@@ -474,6 +540,53 @@ export default function EmployeesPage() {
               <button onClick={() => setResetTarget(null)} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
               <button onClick={() => doReset(Array.from(selected))} disabled={resetting} style={{ padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: resetting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 7 }}>
                 {resetting ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Resetting…</> : "Reset Passwords"}
+              </button>
+            </div>
+          </div>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      )}
+
+      {/* Delete Confirm */}
+      {deleteTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: "#DC2626" }}>Delete Employee</h2>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 8 }}>
+              Are you sure you want to permanently delete <strong>{deleteTarget.firstName} {deleteTarget.lastName}</strong>?
+            </p>
+            <p style={{ fontSize: 13, color: "#DC2626", marginBottom: 24, fontWeight: 600 }}>
+              This action cannot be undone. All employee data, records, and history will be removed.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setDeleteTarget(null)} disabled={deleting} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
+              <button onClick={() => doDelete(deleteTarget.id)} disabled={deleting} style={{ padding: "9px 20px", background: "#DC2626", border: "none", borderRadius: 8, cursor: deleting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 7 }}>
+                {deleting ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Deleting…</> : "Delete Permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Change Modal */}
+      {roleChangeTarget && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Change Role</h2>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
+              Change the role of <strong>{roleChangeTarget.firstName} {roleChangeTarget.lastName}</strong> from{" "}
+              <strong>{(roleChangeTarget.user?.role ?? "STAFF") === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</strong> to{" "}
+              <strong>{selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</strong>?
+            </p>
+            <div style={{ padding: "14px 16px", borderRadius: 10, border: "2px solid var(--primary)", background: "rgba(37,99,235,0.05)", marginBottom: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{selectedRole === "PROJECT_LEAD" ? "Can approve leave requests for their assigned departments. Access to the Project Lead portal." : "Standard employee access. Leave requests routed to their Project Lead."}</div>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 20 }}>The employee must sign out and back in for this change to take effect.</p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setRoleChangeTarget(null)} disabled={roleChanging} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
+              <button onClick={doChangeRole} disabled={roleChanging} style={{ padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: roleChanging ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 7 }}>
+                {roleChanging ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : "Confirm Change"}
               </button>
             </div>
           </div>
