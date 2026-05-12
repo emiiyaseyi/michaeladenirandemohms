@@ -1,6 +1,8 @@
 "use client"
-import { useEffect, useState, useCallback } from "react"
-import { LogOut, CheckCircle, XCircle, Clock, ChevronDown, ChevronUp, AlertTriangle, Users, TrendingDown } from "lucide-react"
+import { useEffect, useState, useCallback, useRef } from "react"
+import { Search, ChevronDown, Check, Loader2, X, MoreHorizontal, Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 interface ExitRequest {
   id: string
@@ -13,6 +15,7 @@ interface ExitRequest {
   reviewedAt: string | null
   reviewedBy: { name: string } | null
   employee: {
+    id: string
     firstName: string
     lastName: string
     jobTitle: string | null
@@ -30,354 +33,334 @@ const EXIT_LABEL: Record<string, string> = {
   TERMINATION: "Termination",
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  PENDING:  { label: "Pending",  color: "#D97706", bg: "#FEF3C7" },
-  APPROVED: { label: "Approved", color: "#059669", bg: "#D1FAE5" },
-  DECLINED: { label: "Declined", color: "#DC2626", bg: "#FEE2E2" },
+const STATUS_STYLE: Record<string, { bg: string; color: string; label: string }> = {
+  PENDING:  { bg: "#FEF3C7", color: "#D97706", label: "Pending" },
+  APPROVED: { bg: "#DCFCE7", color: "#16a34a", label: "Approved" },
+  DECLINED: { bg: "#FEE2E2", color: "#DC2626", label: "Declined" },
 }
 
-function Avatar({ src, name, size = 44 }: { src?: string | null; name: string; size?: number }) {
+const STATUS_OPTS = [
+  { value: "", label: "To Review" },
+  { value: "PENDING", label: "Pending" },
+  { value: "APPROVED", label: "Approved" },
+  { value: "DECLINED", label: "Declined" },
+]
+
+function Av({ name, photo, size = 32 }: { name: string; photo?: string | null; size?: number }) {
   const initials = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()
-  if (src) return <img src={src} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
-  return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: "#E0E7FF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.33, fontWeight: 800, color: "#4338CA", flexShrink: 0 }}>
-      {initials}
-    </div>
-  )
+  if (photo) return <img src={photo} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+  return <div style={{ width: size, height: size, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.35, fontWeight: 800, color: "white", flexShrink: 0 }}>{initials}</div>
 }
 
-function DeclineModal({ req, onClose, onDone }: { req: ExitRequest; onClose: () => void; onDone: () => void }) {
-  const [reason, setReason] = useState("")
-  const [loading, setLoading] = useState(false)
+function ReviewPanel({ req, onClose, onDone }: { req: ExitRequest; onClose: () => void; onDone: () => void }) {
+  const [declineReason, setDeclineReason] = useState("")
+  const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
-
-  async function submit() {
-    if (!reason.trim()) { setErr("Please provide a reason for declining."); return }
-    setLoading(true)
-    const res = await fetch(`/api/requests/exits/${req.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "DECLINE", declineReason: reason }),
-    })
-    setLoading(false)
-    if (!res.ok) { const d = await res.json(); setErr(d.error ?? "Failed"); return }
-    onDone()
-  }
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ background: "var(--card)", borderRadius: 18, padding: "28px 32px", width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(0,0,0,0.22)", border: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: "#FEE2E2", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <XCircle size={20} style={{ color: "#DC2626" }} />
-          </div>
-          <span style={{ fontWeight: 800, fontSize: 16 }}>Decline Exit Request</span>
-        </div>
-        <p style={{ fontSize: 14, color: "var(--muted-foreground)", marginBottom: 18, lineHeight: 1.6 }}>
-          You are declining <strong style={{ color: "var(--foreground)" }}>{req.employee.firstName} {req.employee.lastName}</strong>'s exit request.
-          Please provide a reason — it will be shared with the employee.
-        </p>
-        <textarea
-          placeholder="Reason for declining…"
-          value={reason}
-          onChange={e => { setReason(e.target.value); setErr("") }}
-          rows={4}
-          style={{ width: "100%", borderRadius: 10, border: "1.5px solid var(--border)", padding: "12px 14px", fontSize: 14, resize: "vertical", background: "var(--background)", color: "var(--foreground)", boxSizing: "border-box", lineHeight: 1.6 }}
-        />
-        {err && <p style={{ color: "#DC2626", fontSize: 13, marginTop: 6 }}>{err}</p>}
-        <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
-          <button onClick={onClose} disabled={loading} style={{ padding: "10px 20px", borderRadius: 9, border: "1px solid var(--border)", background: "transparent", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "var(--foreground)" }}>
-            Cancel
-          </button>
-          <button onClick={submit} disabled={loading} style={{ padding: "10px 20px", borderRadius: 9, border: "none", background: "#DC2626", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
-            {loading ? "Declining…" : "Decline Request"}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function ApproveModal({ req, onClose, onDone }: { req: ExitRequest; onClose: () => void; onDone: () => void }) {
-  const [loading, setLoading] = useState(false)
-  const [err, setErr] = useState("")
-
-  async function submit() {
-    setLoading(true)
-    const res = await fetch(`/api/requests/exits/${req.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "APPROVE" }),
-    })
-    setLoading(false)
-    if (!res.ok) { const d = await res.json(); setErr(d.error ?? "Failed"); return }
-    onDone()
-  }
-
-  const lastDay = new Date(req.intendedLastDay).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
-      <div style={{ background: "var(--card)", borderRadius: 18, padding: "28px 32px", width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(0,0,0,0.22)", border: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-          <div style={{ width: 42, height: 42, borderRadius: 12, background: "#D1FAE5", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <CheckCircle size={20} style={{ color: "#059669" }} />
-          </div>
-          <span style={{ fontWeight: 800, fontSize: 16 }}>Approve Exit Request</span>
-        </div>
-        <p style={{ fontSize: 14, color: "var(--muted-foreground)", marginBottom: 8, lineHeight: 1.6 }}>
-          You are approving <strong style={{ color: "var(--foreground)" }}>{req.employee.firstName} {req.employee.lastName}</strong>'s{" "}
-          <strong style={{ color: "var(--foreground)" }}>{EXIT_LABEL[req.exitType] ?? req.exitType}</strong> request.
-        </p>
-        <p style={{ fontSize: 14, color: "var(--muted-foreground)", marginBottom: 18, lineHeight: 1.6 }}>
-          Their intended last day is <strong style={{ color: "var(--foreground)" }}>{lastDay}</strong>. An offboarding record and checklist will be automatically created.
-        </p>
-        {err && (
-          <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "11px 14px", borderRadius: 9, background: "#FEE2E2", marginBottom: 16 }}>
-            <AlertTriangle size={14} style={{ color: "#DC2626", flexShrink: 0 }} />
-            <span style={{ fontSize: 13, color: "#DC2626" }}>{err}</span>
-          </div>
-        )}
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button onClick={onClose} disabled={loading} style={{ padding: "10px 20px", borderRadius: 9, border: "1px solid var(--border)", background: "transparent", fontSize: 13, fontWeight: 600, cursor: "pointer", color: "var(--foreground)" }}>
-            Cancel
-          </button>
-          <button onClick={submit} disabled={loading} style={{ padding: "10px 20px", borderRadius: 9, border: "none", background: "#059669", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: loading ? 0.6 : 1 }}>
-            {loading ? "Approving…" : "Approve & Start Offboarding"}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function RequestCard({ req, onRefresh }: { req: ExitRequest; onRefresh: () => void }) {
-  const [expanded, setExpanded] = useState(false)
-  const [approving, setApproving] = useState(false)
-  const [declining, setDeclining] = useState(false)
-
-  const sc       = STATUS_CONFIG[req.status] ?? STATUS_CONFIG.PENDING
-  const lastDay  = new Date(req.intendedLastDay).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
-  const submitted = new Date(req.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
   const fullName = `${req.employee.firstName} ${req.employee.lastName}`
+  const lastDay = new Date(req.intendedLastDay).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+  const submitted = new Date(req.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })
+
+  const act = async (action: "APPROVE" | "DECLINE") => {
+    if (action === "DECLINE" && !declineReason.trim()) { setErr("Please provide a decline reason"); return }
+    setSaving(true); setErr("")
+    const r = await fetch(`/api/requests/exits/${req.id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, declineReason: action === "DECLINE" ? declineReason : undefined }),
+    })
+    setSaving(false)
+    if (!r.ok) { const d = await r.json(); setErr(d.error ?? "Failed"); return }
+    onDone()
+  }
 
   return (
-    <>
-      {approving && <ApproveModal req={req} onClose={() => setApproving(false)} onDone={() => { setApproving(false); onRefresh() }} />}
-      {declining && <DeclineModal req={req} onClose={() => setDeclining(false)} onDone={() => { setDeclining(false); onRefresh() }} />}
-
-      <div style={{ border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden", background: "var(--card)", transition: "box-shadow .15s" }}
-        onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = "0 4px 16px rgba(0,0,0,0.07)"}
-        onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = "none"}
-      >
-        {/* Main row */}
-        <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" }}>
-          <Avatar src={req.employee.profilePhoto} name={fullName} size={48} />
-
-          <div style={{ flex: "1 1 200px", minWidth: 0 }}>
-            <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 3 }}>{fullName}</div>
-            <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
-              {req.employee.jobTitle ?? "—"}
-              {req.employee.department ? <span style={{ margin: "0 6px", opacity: 0.4 }}>·</span> : ""}
-              {req.employee.department?.name}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 3 }}>ID: {req.employee.employeeId}</div>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.25)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>
+      <div className="side-panel" style={{ background: "var(--card)", width: 520, height: "100%", overflowY: "auto", boxShadow: "-4px 0 24px rgba(0,0,0,0.15)", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>Exit Request</h3>
+            <p style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{EXIT_LABEL[req.exitType] ?? req.exitType}</p>
           </div>
-
-          {/* Exit type + status badges */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, padding: "4px 12px", borderRadius: 20, background: sc.bg, color: sc.color }}>{sc.label}</span>
-            <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "var(--muted)", color: "var(--muted-foreground)" }}>
-              {EXIT_LABEL[req.exitType] ?? req.exitType}
-            </span>
-          </div>
-
-          {/* Last day */}
-          <div style={{ textAlign: "center", flexShrink: 0, padding: "8px 16px", background: "var(--muted)", borderRadius: 10 }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 3 }}>Last Day</div>
-            <div style={{ fontSize: 14, fontWeight: 800, color: "var(--foreground)" }}>{lastDay}</div>
-          </div>
-
-          {/* Actions */}
-          {req.status === "PENDING" && (
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <button
-                onClick={() => setApproving(true)}
-                style={{ padding: "9px 18px", borderRadius: 9, border: "none", background: "#059669", color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "#047857"}
-                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "#059669"}
-              >
-                <CheckCircle size={14} /> Approve
-              </button>
-              <button
-                onClick={() => setDeclining(true)}
-                style={{ padding: "9px 18px", borderRadius: 9, border: "1.5px solid #DC2626", background: "transparent", color: "#DC2626", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-                onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "#FEE2E2" }}
-                onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "transparent" }}
-              >
-                <XCircle size={14} /> Decline
-              </button>
-            </div>
-          )}
-
-          <button
-            onClick={() => setExpanded(v => !v)}
-            style={{ background: "var(--muted)", border: "1px solid var(--border)", cursor: "pointer", padding: "8px 10px", color: "var(--muted-foreground)", flexShrink: 0, borderRadius: 8, display: "flex", alignItems: "center" }}
-          >
-            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 4 }}><X size={18} /></button>
         </div>
 
-        {/* Expanded details */}
-        {expanded && (
-          <div style={{ borderTop: "1px solid var(--border)", padding: "18px 24px", background: "var(--muted)", display: "flex", flexWrap: "wrap", gap: 24 }}>
+        <div style={{ padding: "20px 24px", flex: 1 }}>
+          {/* Employee info */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, padding: "14px 16px", background: "var(--muted)", borderRadius: 10 }}>
+            <Av name={fullName} photo={req.employee.profilePhoto} size={44} />
             <div>
-              <div style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Submitted On</div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{submitted}</div>
+              <div style={{ fontWeight: 800, fontSize: 14 }}>{fullName}</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{req.employee.jobTitle ?? "—"} · {req.employee.department?.name ?? "—"}</div>
+              <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{req.employee.employeeId}</div>
             </div>
-            {req.reason && (
-              <div style={{ flex: "1 1 240px" }}>
-                <div style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Reason</div>
-                <div style={{ fontSize: 14, lineHeight: 1.6, color: "var(--foreground)" }}>{req.reason}</div>
+          </div>
+
+          {/* Details */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+            {[
+              ["Exit Type", EXIT_LABEL[req.exitType] ?? req.exitType],
+              ["Intended Last Day", lastDay],
+              ["Date Submitted", submitted],
+              ["Status", <span key="s" style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: STATUS_STYLE[req.status]?.bg, color: STATUS_STYLE[req.status]?.color }}>{STATUS_STYLE[req.status]?.label ?? req.status}</span>],
+            ].map(([k, v]) => (
+              <div key={String(k)}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>{k}</div>
+                <div style={{ fontSize: 14 }}>{v}</div>
               </div>
-            )}
-            {req.status !== "PENDING" && req.reviewedBy && (
+            ))}
+            {req.reason && (
               <div>
-                <div style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Reviewed By</div>
-                <div style={{ fontSize: 14, fontWeight: 600 }}>{req.reviewedBy.name}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Reason</div>
+                <div style={{ fontSize: 14, lineHeight: 1.6 }}>{req.reason}</div>
               </div>
             )}
             {req.status === "DECLINED" && req.declineReason && (
-              <div style={{ flex: "1 1 240px" }}>
-                <div style={{ fontSize: 11, color: "#DC2626", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Decline Reason</div>
-                <div style={{ fontSize: 14, lineHeight: 1.6, color: "#DC2626" }}>{req.declineReason}</div>
+              <div style={{ padding: "12px 14px", background: "#FEE2E2", borderRadius: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Decline Reason</div>
+                <div style={{ fontSize: 14, color: "#DC2626", lineHeight: 1.6 }}>{req.declineReason}</div>
+              </div>
+            )}
+            {req.reviewedBy && req.status !== "PENDING" && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>Reviewed By</div>
+                <div style={{ fontSize: 14 }}>{req.reviewedBy.name}</div>
               </div>
             )}
           </div>
-        )}
+
+          {/* Actions for pending */}
+          {req.status === "PENDING" && (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 20 }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Decline reason <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>(required to decline)</span></label>
+                <textarea value={declineReason} onChange={e => { setDeclineReason(e.target.value); setErr("") }}
+                  rows={3} placeholder="Provide reason if declining…"
+                  style={{ width: "100%", padding: "9px 13px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+              </div>
+              {err && <div style={{ marginBottom: 12, fontSize: 12, color: "#DC2626" }}>{err}</div>}
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => act("DECLINE")} disabled={saving}
+                  style={{ flex: 1, padding: "10px 0", background: "none", border: "1px solid #DC2626", borderRadius: 8, cursor: saving ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "#DC2626" }}>
+                  Decline
+                </button>
+                <button onClick={() => act("APPROVE")} disabled={saving}
+                  style={{ flex: 1, padding: "10px 0", background: "var(--primary)", border: "none", borderRadius: 8, cursor: saving ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  {saving ? <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> : null} Approve
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
   )
 }
 
-type FilterTab = "ALL" | "PENDING" | "APPROVED" | "DECLINED"
-
 export default function AdminRequestsExitsPage() {
+  const { user } = useCurrentUser()
+  const router = useRouter()
   const [requests, setRequests] = useState<ExitRequest[]>([])
-  const [loading, setLoading]   = useState(true)
-  const [tab, setTab]           = useState<FilterTab>("ALL")
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("")
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [reviewReq, setReviewReq] = useState<ExitRequest | null>(null)
+  const [page, setPage] = useState(1)
+  const filterRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!filterOpen) return
+    const h = (e: MouseEvent) => { if (!filterRef.current?.contains(e.target as Node)) setFilterOpen(false) }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [filterOpen])
 
   const load = useCallback(async () => {
     setLoading(true)
-    const res = await fetch("/api/requests/exits")
-    if (res.ok) {
-      const d = await res.json()
-      setRequests(d.requests ?? [])
-    }
+    const r = await fetch("/api/requests/exits")
+    if (r.ok) { const d = await r.json(); setRequests(d.requests ?? []) }
     setLoading(false)
   }, [])
 
   useEffect(() => { load() }, [load])
 
-  const pending  = requests.filter(r => r.status === "PENDING").length
+  const filtered = requests.filter(r => {
+    const nameMatch = search ? `${r.employee.firstName} ${r.employee.lastName}`.toLowerCase().includes(search.toLowerCase()) : true
+    const statusMatch = statusFilter ? r.status === statusFilter : r.status === "PENDING" || !statusFilter
+    return nameMatch && (statusFilter ? r.status === statusFilter : true)
+  }).filter(r => {
+    if (!search && !statusFilter) return true
+    const nameMatch = search ? `${r.employee.firstName} ${r.employee.lastName}`.toLowerCase().includes(search.toLowerCase()) || (r.employee.employeeId?.toLowerCase().includes(search.toLowerCase())) : true
+    const sMatch = statusFilter ? r.status === statusFilter : true
+    return nameMatch && sMatch
+  })
+
+  const perPage = 20
+  const start = (page - 1) * perPage
+  const paginated = filtered.slice(start, start + perPage)
+  const totalPages = Math.ceil(filtered.length / perPage)
+
+  const th: React.CSSProperties = { padding: "11px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)", whiteSpace: "nowrap" }
+  const td: React.CSSProperties = { padding: "14px 20px", fontSize: 13, borderBottom: "1px solid var(--border)" }
+
+  const pending = requests.filter(r => r.status === "PENDING").length
   const approved = requests.filter(r => r.status === "APPROVED").length
   const declined = requests.filter(r => r.status === "DECLINED").length
+  const canApproveExitRequest = user?.can("canApproveExitRequest") ?? false
+  const canDeleteExitRequest = user?.can("canDeleteExitRequest") ?? false
 
-  const tabs: { key: FilterTab; label: string }[] = [
-    { key: "ALL",      label: `All (${requests.length})` },
-    { key: "PENDING",  label: `Pending (${pending})` },
-    { key: "APPROVED", label: `Approved (${approved})` },
-    { key: "DECLINED", label: `Declined (${declined})` },
+  const stats = [
+    { label: "Total Requests", value: requests.length, bg: "#EFF6FF", color: "#1d4ed8", border: "#BFDBFE" },
+    { label: "Pending Review", value: pending, bg: "#FEF3C7", color: "#92400e", border: "#FDE68A",
+      onClick: () => { setStatusFilter("PENDING"); setPage(1) } },
+    { label: "Approved", value: approved, bg: "#DCFCE7", color: "#15803d", border: "#BBF7D0",
+      onClick: () => { setStatusFilter("APPROVED"); setPage(1) } },
+    { label: "Declined", value: declined, bg: "#FEE2E2", color: "#DC2626", border: "#FECACA",
+      onClick: () => { setStatusFilter("DECLINED"); setPage(1) } },
   ]
 
-  const filtered = tab === "ALL" ? requests : requests.filter(r => r.status === tab)
-
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
-
-      {/* Header */}
-      <div>
-        <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 5 }}>Exit Requests</h1>
-        <p style={{ color: "var(--muted-foreground)", fontSize: 14 }}>
-          Employee-submitted exit requests pending your action.
-        </p>
-      </div>
-
-      {/* Summary stats */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 14 }}>
-        {[
-          { label: "Total",    value: requests.length, icon: Users,        color: "#6366F1", bg: "#EEF2FF" },
-          { label: "Pending",  value: pending,          icon: Clock,        color: "#D97706", bg: "#FEF3C7" },
-          { label: "Approved", value: approved,         icon: CheckCircle,  color: "#059669", bg: "#D1FAE5" },
-          { label: "Declined", value: declined,         icon: XCircle,      color: "#DC2626", bg: "#FEE2E2" },
-        ].map(s => {
-          const Icon = s.icon
-          return (
-            <div key={s.label} style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 14 }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: s.bg, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <Icon size={20} style={{ color: s.color }} />
-              </div>
-              <div>
-                <div style={{ fontSize: 26, fontWeight: 900, color: "var(--foreground)", lineHeight: 1 }}>{s.value}</div>
-                <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 4, fontWeight: 600 }}>{s.label}</div>
-              </div>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Pending alert */}
-      {pending > 0 && (
-        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "14px 18px", borderRadius: 12, background: "#FEF3C7", border: "1px solid #FDE68A" }}>
-          <Clock size={18} style={{ color: "#D97706", flexShrink: 0 }} />
-          <span style={{ fontSize: 14, color: "#92400E", fontWeight: 600 }}>
-            {pending} request{pending > 1 ? "s" : ""} awaiting your review. Please action them promptly.
-          </span>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 800 }}>Exit Requests</h1>
+          <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Review and manage employee exit requests</p>
         </div>
-      )}
-
-      {/* Filter tabs */}
-      <div style={{ display: "flex", gap: 0, borderBottom: "2px solid var(--border)" }}>
-        {tabs.map(t => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            style={{
-              padding: "10px 20px", fontSize: 14,
-              fontWeight: tab === t.key ? 700 : 500,
-              color: tab === t.key ? "var(--primary)" : "var(--muted-foreground)",
-              background: "transparent", border: "none",
-              borderBottom: `2px solid ${tab === t.key ? "var(--primary)" : "transparent"}`,
-              cursor: "pointer", marginBottom: -2, transition: "all .15s",
-            }}
-          >
-            {t.label}
+        {canApproveExitRequest && (
+          <button onClick={() => router.push("/admin/requests/exits/record")}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>
+            <Plus size={15} /> Record Exit
           </button>
+        )}
+      </div>
+
+      {/* Stats cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
+        {stats.map(s => (
+          <div key={s.label} onClick={s.onClick}
+            style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 12, padding: "16px 20px", cursor: s.onClick ? "pointer" : "default", transition: "opacity .15s" }}
+            onMouseEnter={e => { if (s.onClick) (e.currentTarget as HTMLElement).style.opacity = "0.8" }}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = "1"}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: s.color }}>{loading ? "—" : s.value}</div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: s.color, marginTop: 2 }}>{s.label}</div>
+          </div>
         ))}
       </div>
 
-      {/* Content */}
-      {loading ? (
-        <div style={{ padding: "80px 0", textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>Loading…</div>
-      ) : filtered.length === 0 ? (
-        <div style={{ padding: "80px 0", textAlign: "center" }}>
-          <div style={{ width: 64, height: 64, borderRadius: 18, background: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 18px" }}>
-            <TrendingDown size={28} style={{ color: "var(--muted-foreground)" }} />
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
+        {/* Toolbar */}
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "7px 12px", flex: 1, maxWidth: 300 }}>
+            <Search size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+            <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search employees…"
+              style={{ border: "none", background: "transparent", fontSize: 13, outline: "none", width: "100%", color: "var(--foreground)" }} />
           </div>
-          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 8 }}>
-            {tab === "ALL" ? "No exit requests yet" : `No ${tab.toLowerCase()} requests`}
-          </div>
-          <div style={{ fontSize: 14, color: "var(--muted-foreground)", maxWidth: 340, margin: "0 auto", lineHeight: 1.6 }}>
-            {tab === "ALL" ? "When employees submit exit requests, they will appear here." : "Nothing in this category right now."}
+          <div ref={filterRef} style={{ position: "relative" }}>
+            <button onClick={() => setFilterOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
+              {STATUS_OPTS.find(o => o.value === statusFilter)?.label ?? "All"} <ChevronDown size={13} />
+            </button>
+            {filterOpen && (
+              <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 140, padding: "4px 0" }}>
+                <button onClick={() => { setStatusFilter(""); setFilterOpen(false); setPage(1) }}
+                  style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: statusFilter === "" ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
+                  All {statusFilter === "" && <Check size={13} />}
+                </button>
+                {STATUS_OPTS.filter(o => o.value).map(o => (
+                  <button key={o.value} onClick={() => { setStatusFilter(o.value); setFilterOpen(false); setPage(1) }}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: statusFilter === o.value ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
+                    {o.label} {statusFilter === o.value && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {filtered.map(r => (
-            <RequestCard key={r.id} req={r} onRefresh={load} />
-          ))}
-        </div>
+
+        {loading ? (
+          <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <Loader2 size={16} style={{ animation: "spin .8s linear infinite" }} /> Loading…
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>
+            {search || statusFilter ? "No exit requests match your filter." : "No exit requests yet."}
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  <th style={th}>Employee</th>
+                  <th style={th}>Exit Type</th>
+                  <th style={th}>Intended Last Day</th>
+                  <th style={th}>Reason</th>
+                  <th style={th}>Submitted</th>
+                  <th style={th}>Status</th>
+                  <th style={{ ...th, width: 60 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginated.map(req => {
+                  const s = STATUS_STYLE[req.status] ?? { bg: "#F3F4F6", color: "#6B7280", label: req.status }
+                  return (
+                    <tr key={req.id} style={{ transition: "background .1s", cursor: "pointer" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}
+                      onClick={() => setReviewReq(req)}>
+                      <td style={td}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                          <Av name={`${req.employee.firstName} ${req.employee.lastName}`} photo={req.employee.profilePhoto} />
+                          <div>
+                            <div style={{ fontWeight: 700 }}>
+                              <span style={{ fontWeight: 800 }}>{req.employee.lastName?.toUpperCase()}</span> {req.employee.firstName}
+                            </div>
+                            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{req.employee.department?.name ?? "—"}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td style={td}>{EXIT_LABEL[req.exitType] ?? req.exitType}</td>
+                      <td style={td}>{new Date(req.intendedLastDay).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</td>
+                      <td style={{ ...td, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.reason ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{new Date(req.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</td>
+                      <td style={td}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: s.bg, color: s.color, whiteSpace: "nowrap" }}>
+                          {s.label}
+                        </span>
+                      </td>
+                      <td style={{ ...td, textAlign: "right" }}>
+                        {canApproveExitRequest && (
+                          <button onClick={e => { e.stopPropagation(); setReviewReq(req) }} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", color: "var(--muted-foreground)" }}>
+                            <MoreHorizontal size={16} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {filtered.length > 0 && (
+          <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, color: "var(--muted-foreground)" }}>
+            <span>{start + 1}–{Math.min(start + perPage, filtered.length)} of {filtered.length} items</span>
+            {totalPages > 1 && (
+              <div style={{ display: "flex", gap: 4 }}>
+                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1} style={{ padding: "4px 10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.4 : 1 }}>‹</button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(pg => (
+                  <button key={pg} onClick={() => setPage(pg)} style={{ padding: "4px 10px", background: page === pg ? "var(--primary)" : "var(--muted)", border: `1px solid ${page === pg ? "var(--primary)" : "var(--border)"}`, borderRadius: 6, cursor: "pointer", color: page === pg ? "white" : "var(--foreground)", fontWeight: page === pg ? 700 : 400 }}>{pg}</button>
+                ))}
+                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages} style={{ padding: "4px 10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: page >= totalPages ? "default" : "pointer", opacity: page >= totalPages ? 0.4 : 1 }}>›</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {reviewReq && (
+        <ReviewPanel req={reviewReq} onClose={() => setReviewReq(null)} onDone={() => { setReviewReq(null); load() }} />
       )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

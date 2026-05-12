@@ -4,7 +4,7 @@ import { ShoppingBag, Users, Package, Wrench } from "lucide-react"
 
 export default function SSRequisitionsPage() {
   return (
-    <div style={{ maxWidth: 760, margin: "0 auto" }}>
+    <div>
       <Card>
         <div style={{ padding: "80px 40px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
           <div style={{ width: 72, height: 72, borderRadius: 20, background: "#FEF3C715", display: "flex", alignItems: "center", justifyContent: "center" }}>

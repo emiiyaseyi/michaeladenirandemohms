@@ -3,10 +3,10 @@ import {
   Bell, Search, Sun, Moon, Users, CalendarDays, Briefcase,
   LayoutDashboard, Building2, X, CheckCheck, Info, AlertTriangle,
   CheckCircle, XCircle, ChevronDown,
-  LogOut, UserCircle, Menu, MoreVertical,
+  LogOut, UserCircle, Menu, MoreVertical, Shield,
 } from "lucide-react"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { useTheme } from "@/components/ThemeProvider"
 import { signOut } from "next-auth/react"
 import { roleLabel } from "@/lib/rbac"
@@ -88,11 +88,13 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
+  const pathname = usePathname()
   const activeRole: string = user?.role ?? "STAFF"
-  const hasElevatedRole = ["ADMIN", "PROJECT_LEAD"].includes(activeRole)
+  const isElevated = !!(user?.isElevated)
+  const isInAdminPanel = pathname?.startsWith("/admin") ?? false
 
-  const roleBase = activeRole === "ADMIN" ? "/admin" : activeRole === "PROJECT_LEAD" ? "/project-lead" : "/staff"
-  const profileHref = `${roleBase}/self-service/profile`
+  const roleBase = activeRole === "SUPER_ADMIN" ? "/admin" : "/staff"
+  const profileHref = activeRole === "SUPER_ADMIN" ? "/admin/preferences" : `${roleBase}/self-service/profile`
 
   const fetchNotifications = useCallback(() => {
     fetch("/api/notifications")
@@ -322,7 +324,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
           )}
           {open && query && results.length === 0 && !loading && (
             <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1.5px solid var(--primary)", borderTop: "1px solid var(--border)", borderRadius: "0 0 12px 12px", boxShadow: "var(--shadow-lg)", padding: "24px 14px", textAlign: "center", zIndex: 100 }}>
-              <div style={{ fontSize: 22, marginBottom: 6 }}>🔍</div>
+              <div style={{ marginBottom: 8, display: "flex", justifyContent: "center" }}><Search size={28} style={{ color: "var(--muted-foreground)", opacity: 0.4 }} /></div>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>No results for "{query}"</div>
               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Try a name, job title, leave type, or feature</div>
             </div>
@@ -359,7 +361,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             </div>
             <div style={{ textAlign: "left" }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.2 }}>{user?.name ?? "User"}</div>
-              <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{roleLabel(user?.role ?? "")}</div>
+              <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{isInAdminPanel && isElevated ? "Admin" : roleLabel(user?.role ?? "")}</div>
             </div>
             <ChevronDown size={13} style={{ color: "var(--muted-foreground)", transform: userOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
           </button>
@@ -375,7 +377,8 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               </div>
               <div style={{ padding: "6px 0" }}>
                 {[
-                  { label: "My Profile", href: profileHref, icon: UserCircle, show: true },
+                  { label: activeRole === "SUPER_ADMIN" ? "Preferences" : "My Profile", href: profileHref, icon: UserCircle, show: true },
+                  { label: isInAdminPanel ? "Switch to Staff View" : "Switch to Admin Panel", href: isInAdminPanel ? "/staff" : "/admin", icon: isInAdminPanel ? UserCircle : Shield, show: isElevated },
                 ].filter(i => i.show).map(item => {
                   const Icon = item.icon
                   return (
@@ -544,7 +547,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name ?? "User"}</div>
-                <div style={{ fontSize: 11, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{roleLabel(user?.role ?? "")}</div>
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isInAdminPanel && isElevated ? "Admin" : roleLabel(user?.role ?? "")}</div>
               </div>
             </div>
 
@@ -558,6 +561,24 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               <UserCircle size={15} style={{ color: "var(--muted-foreground)" }} />
               <span style={{ fontSize: 13, color: "var(--foreground)" }}>My Profile</span>
             </button>
+
+            {/* Panel switcher — elevated staff only */}
+            {isElevated && (
+              <button
+                onClick={() => { setMobileMenuOpen(false); router.push(isInAdminPanel ? "/staff" : "/admin") }}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "transparent", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer", textAlign: "left" }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+              >
+                {isInAdminPanel
+                  ? <UserCircle size={15} style={{ color: "var(--muted-foreground)" }} />
+                  : <Shield size={15} style={{ color: "var(--muted-foreground)" }} />
+                }
+                <span style={{ fontSize: 13, color: "var(--foreground)" }}>
+                  {isInAdminPanel ? "Switch to Staff View" : "Switch to Admin Panel"}
+                </span>
+              </button>
+            )}
 
             {/* Logout */}
             <button

@@ -99,26 +99,156 @@ async function main() {
 
   // ── Production HR Admin (Super Admin) ────────────────────────────────────────
   {
-    const adminDept = await prisma.department.findFirst({ where: { name: "Administration & Facility" } })
     const hashed = await bcrypt.hash("Admin@DSN2024!", 12)
-    const adminUser = await prisma.user.upsert({
+    await prisma.user.upsert({
       where:  { email: "hr@datasciencenigeria.ai" },
       update: { role: "SUPER_ADMIN" as any, mustChangePassword: false },
       create: { name: "HR Admin", email: "hr@datasciencenigeria.ai", password: hashed, role: "SUPER_ADMIN" as any, mustChangePassword: false },
     })
-    await prisma.employee.upsert({
-      where:  { workEmail: "hr@datasciencenigeria.ai" },
-      update: {},
-      create: {
-        userId: adminUser.id, employeeId: "DSN-0001",
-        firstName: "HR", lastName: "Admin",
-        workEmail: "hr@datasciencenigeria.ai", jobTitle: "HR Admin",
-        departmentId: adminDept?.id ?? null,
-        employmentType: "FULL_TIME", employeeStatus: "ACTIVE", hireDate: new Date("2023-01-01"), gender: "FEMALE",
-      },
-    })
     console.log("  ✓ Admin account (hr@datasciencenigeria.ai)")
   }
+
+  // ── System Admin Roles ────────────────────────────────────────────────────────
+  const SYSTEM_ROLES = [
+    {
+      slug: "secondary-admin",
+      name: "Secondary Admin",
+      description: "Full admin panel access — same as Primary Admin except account management.",
+      permissions: {
+        canViewAllEmployees: true, canCreateEmployee: true, canEditEmployee: true, canDeleteEmployee: true, canApproveEmployee: true,
+        canViewOffers: true, canManageOffers: true, canViewOrgChart: true,
+        canViewCustomGroups: true, canManageCustomGroups: true, canViewCompensation: true,
+        canViewPersonalDetails: true, canManageProfileRequests: true, canViewPersonalDocuments: true,
+        canManageDepartments: true, canViewJobTitles: true, canManageJobTitles: true,
+        canViewJobs: true, canCreateJob: true, canEditJob: true, canDeleteJob: true, canPostJob: true, canApproveJob: true, canViewApplicants: true, canManageHiringSettings: true,
+        canViewAllLeave: true, canCreateLeave: true, canEditLeave: true, canDeleteLeave: true, canApproveLeave: true, canViewLeaveTypes: true, canManageLeaveTypes: true,
+        canViewLoans: true, canCreateLoan: true, canEditLoan: true, canDeleteLoan: true, canApproveLoan: true,
+        canViewSalaryAdvances: true, canCreateSalaryAdvance: true, canEditSalaryAdvance: true, canDeleteSalaryAdvance: true, canApproveSalaryAdvance: true,
+        canViewExitRequests: true, canCreateExitRequest: true, canEditExitRequest: true, canDeleteExitRequest: true, canApproveExitRequest: true,
+        canViewRedeployments: true, canCreateRedeployment: true, canEditRedeployment: true, canDeleteRedeployment: true, canApproveRedeployment: true,
+        canViewSurveys: true, canCreateSurvey: true, canEditSurvey: true, canDeleteSurvey: true,
+        canViewDocuments: true, canManageDocuments: true, canRecallDocuments: true, canDeleteDocuments: true, canMakeOffers: true, canManageOfferTemplates: true,
+        canViewBenefits: true, canManageBenefits: true,
+        canViewPerformance: true, canManagePerformancePeriods: true, canManageObjectives: true, canManageGroups: true, canManageReviews: true, canViewFeedback: true, canManageConversations: true,
+        canViewProjects: true, canCreateProject: true, canManageProjectAssignments: true, canCloseProject: true,
+        canViewAbsences: true, canCreateAbsence: true, canEditAbsence: true, canDeleteAbsence: true, canReviewAbsence: true,
+        canViewDisciplinary: true, canManageViolations: true, canManagePolicies: true, canManageViolationTypes: true, canManageTriggers: true, canViewSuspensions: true, canManageSuspensions: true,
+        canViewAnnouncements: true, canCreateAnnouncement: true, canEditAnnouncement: true, canDeleteAnnouncement: true, canManageAnnouncementGroups: true,
+        canViewAssets: true, canCreateAsset: true, canEditAsset: true, canDeleteAsset: true, canManageAssetAssignments: true,
+        canViewContractors: true, canManageContractors: true,
+        canViewRentDocuments: true, canManageRentDocuments: true,
+        canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
+        canViewAuditLog: true,
+        canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true, canManageCustomization: true,
+        canManageAdmins: true, canCreateCustomRole: true, canEditCustomRole: true, canDeleteCustomRole: true,
+      },
+    },
+    {
+      slug: "hr-admin",
+      name: "HR Admin",
+      description: "People management, hiring, leave, documents, benefits, and disciplinary.",
+      permissions: {
+        canViewAllEmployees: true, canCreateEmployee: true, canEditEmployee: true, canDeleteEmployee: true, canApproveEmployee: true,
+        canViewOffers: true, canManageOffers: true, canViewOrgChart: true,
+        canViewCustomGroups: true, canManageCustomGroups: true, canViewCompensation: true,
+        canViewPersonalDetails: true, canManageProfileRequests: true, canViewPersonalDocuments: true,
+        canManageDepartments: true, canViewJobTitles: true, canManageJobTitles: true,
+        canViewJobs: true, canCreateJob: true, canEditJob: true, canDeleteJob: true, canPostJob: true, canApproveJob: true, canViewApplicants: true, canManageHiringSettings: true,
+        canViewAllLeave: true, canCreateLeave: true, canEditLeave: true, canDeleteLeave: true, canApproveLeave: true, canViewLeaveTypes: true, canManageLeaveTypes: true,
+        canViewExitRequests: true, canCreateExitRequest: true, canEditExitRequest: true, canDeleteExitRequest: true, canApproveExitRequest: true,
+        canViewRedeployments: true, canCreateRedeployment: true, canEditRedeployment: true, canDeleteRedeployment: true, canApproveRedeployment: true,
+        canViewSurveys: true, canCreateSurvey: true, canEditSurvey: true, canDeleteSurvey: true,
+        canViewDocuments: true, canManageDocuments: true, canRecallDocuments: true, canDeleteDocuments: true, canMakeOffers: true, canManageOfferTemplates: true,
+        canViewBenefits: true, canManageBenefits: true,
+        canViewDisciplinary: true, canManageViolations: true, canManagePolicies: true, canManageViolationTypes: true, canManageTriggers: true, canViewSuspensions: true, canManageSuspensions: true,
+        canViewAnnouncements: true, canCreateAnnouncement: true, canEditAnnouncement: true, canDeleteAnnouncement: true, canManageAnnouncementGroups: true,
+        canViewContractors: true, canManageContractors: true,
+        canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
+        canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true,
+      },
+    },
+    {
+      slug: "time-leave-admin",
+      name: "Time Tracking and Leave Admin",
+      description: "Leave requests, leave types, and absence tracking.",
+      permissions: {
+        canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true,
+        canViewAllLeave: true, canCreateLeave: true, canEditLeave: true, canDeleteLeave: true, canApproveLeave: true, canViewLeaveTypes: true, canManageLeaveTypes: true,
+        canViewAbsences: true, canCreateAbsence: true, canEditAbsence: true, canDeleteAbsence: true, canReviewAbsence: true,
+      },
+    },
+    {
+      slug: "benefits-admin",
+      name: "Benefits Admin",
+      description: "Benefits plans and employee enrollments.",
+      permissions: {
+        canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true,
+        canViewBenefits: true, canManageBenefits: true,
+      },
+    },
+    {
+      slug: "loans-admin",
+      name: "Loans, Salary Advance and Tax Relief Admin",
+      description: "Loan requests and salary advance management.",
+      permissions: {
+        canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true, canViewCompensation: true,
+        canViewLoans: true, canCreateLoan: true, canEditLoan: true, canDeleteLoan: true, canApproveLoan: true,
+        canViewSalaryAdvances: true, canCreateSalaryAdvance: true, canEditSalaryAdvance: true, canDeleteSalaryAdvance: true, canApproveSalaryAdvance: true,
+      },
+    },
+    {
+      slug: "it-admin",
+      name: "IT Admin",
+      description: "Assets, document management, and audit log access.",
+      permissions: {
+        canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true,
+        canViewDocuments: true, canManageDocuments: true, canRecallDocuments: true, canDeleteDocuments: true,
+        canViewAssets: true, canCreateAsset: true, canEditAsset: true, canDeleteAsset: true, canManageAssetAssignments: true,
+        canViewAuditLog: true,
+      },
+    },
+    {
+      slug: "assets-admin",
+      name: "Assets Admin",
+      description: "Asset inventory and assignments.",
+      permissions: {
+        canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true,
+        canViewAssets: true, canCreateAsset: true, canEditAsset: true, canDeleteAsset: true, canManageAssetAssignments: true,
+      },
+    },
+    {
+      slug: "performance-admin",
+      name: "Performance Admin",
+      description: "Performance cycles, objectives, groups, and reviews.",
+      permissions: {
+        canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true,
+        canViewPerformance: true, canManagePerformancePeriods: true, canManageObjectives: true, canManageGroups: true, canManageReviews: true, canViewFeedback: true, canManageConversations: true,
+        canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
+      },
+    },
+    {
+      slug: "auditor",
+      name: "Auditor",
+      description: "Read-only access to audit logs, reports, and employee records.",
+      permissions: {
+        canViewAllEmployees: true, canViewOrgChart: true,
+        canViewAuditLog: true,
+        canViewReports: true, canDownloadReports: true,
+      },
+    },
+  ]
+
+  for (const r of SYSTEM_ROLES) {
+    await prisma.adminRole.upsert({
+      where:  { slug: r.slug },
+      update: { name: r.name, description: r.description },
+      create: { slug: r.slug, name: r.name, description: r.description, isSystem: true, permissions: r.permissions },
+    })
+  }
+  console.log(`  ✓ ${SYSTEM_ROLES.length} system admin roles seeded`)
+
+  // Resolve IDs for elevation assignments in demo data
+  const hrAdminRole = await prisma.adminRole.findUnique({ where: { slug: "hr-admin" } })
 
   console.log("\n✅ Seed complete.")
 
@@ -141,73 +271,79 @@ async function main() {
     return
   }
 
-  // 3 quick-login demo accounts
-  const demoAdmin = await prisma.user.upsert({
-    where: { email: "admin@dsn-hrms.com" },
-    update: { mustChangePassword: false, password: hash("Admin@DSN2024!") },
-    create: { name: "DSN Admin", email: "admin@dsn-hrms.com", password: hash("Admin@DSN2024!"), role: "ADMIN", mustChangePassword: false },
-  })
-  await prisma.employee.upsert({
-    where: { workEmail: "admin@dsn-hrms.com" },
-    update: { dateOfBirth: new Date("1990-07-15") },
-    create: { userId: demoAdmin.id, employeeId: "DSN-D001", firstName: "DSN", lastName: "Admin", workEmail: "admin@dsn-hrms.com", jobTitle: "System Administrator", departmentId: adminFacility.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-01-01"), grossSalary: 800000, gender: "FEMALE", dateOfBirth: new Date("1990-07-15") },
-  })
+  // Quick-login demo accounts (2 elevated admin + 2 staff + 2 project leads)
+  const demoStaffs = [
+    { email: "staff1@dsn-hrms.com", name: "Admin 1", empId: "DSN-D001", fn: "Admin", ln: "1", title: "HR Manager",  dept: adminFacility, gender: "FEMALE", dob: "1992-03-10", salary: 480000, role: "STAFF", elevate: true  },
+    { email: "staff3@dsn-hrms.com", name: "Staff 1", empId: "DSN-D003", fn: "Staff", ln: "1", title: "Data Analyst", dept: equalyzai,     gender: "FEMALE", dob: "1996-01-15", salary: 360000, role: "STAFF", elevate: false },
+    { email: "staff4@dsn-hrms.com", name: "Staff 2", empId: "DSN-D004", fn: "Staff", ln: "2", title: "Finance Officer", dept: finance,    gender: "MALE",   dob: "1991-09-05", salary: 390000, role: "STAFF", elevate: false },
+  ]
+  const demoEmpIds: Record<string, string> = {}
+  for (const s of demoStaffs) {
+    const u = await prisma.user.upsert({
+      where: { email: s.email },
+      update: { mustChangePassword: false, password: hash("dsn-demo"), role: "STAFF" as any },
+      create: { name: s.name, email: s.email, password: hash("dsn-demo"), role: "STAFF" as any, mustChangePassword: false },
+    })
+    const emp = await prisma.employee.upsert({
+      where: { userId: u.id },
+      update: { dateOfBirth: new Date(s.dob) },
+      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: s.salary, gender: s.gender as any, dateOfBirth: new Date(s.dob) },
+    })
+    demoEmpIds[s.email] = emp.id
+    if (s.elevate && hrAdminRole) {
+      await prisma.userAdminRole.upsert({
+        where: { userId_adminRoleId: { userId: u.id, adminRoleId: hrAdminRole.id } },
+        update: {},
+        create: { userId: u.id, adminRoleId: hrAdminRole.id },
+      })
+    }
+  }
 
-  const demoProjectLead = await prisma.user.upsert({
-    where: { email: "projectlead@dsn-hrms.com" },
-    update: { mustChangePassword: false },
-    create: { name: "Demo Project Lead", email: "projectlead@dsn-hrms.com", password: hash("dsn-demo"), role: "PROJECT_LEAD", mustChangePassword: false },
-  }).then(u => prisma.employee.upsert({
-    where: { workEmail: "projectlead@dsn-hrms.com" },
-    update: { dateOfBirth: new Date("1988-03-22") },
-    create: { userId: u.id, employeeId: "DSN-D002", firstName: "Demo", lastName: "Project Lead", workEmail: "projectlead@dsn-hrms.com", jobTitle: "Project Lead", departmentId: techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-03-01"), grossSalary: 600000, gender: "MALE", dateOfBirth: new Date("1988-03-22") },
-  }))
-
-  const demoProjectLead2 = await prisma.user.upsert({ // used as projectLeadId for staff2 below
-    where: { email: "projectlead2@dsn-hrms.com" },
-    update: { mustChangePassword: false },
-    create: { name: "Demo Project Lead 2", email: "projectlead2@dsn-hrms.com", password: hash("dsn-demo"), role: "PROJECT_LEAD", mustChangePassword: false },
-  }).then(u => prisma.employee.upsert({
-    where: { workEmail: "projectlead2@dsn-hrms.com" },
-    update: { dateOfBirth: new Date("1986-09-11") },
-    create: { userId: u.id, employeeId: "DSN-D004", firstName: "Demo", lastName: "Project Lead Two", workEmail: "projectlead2@dsn-hrms.com", jobTitle: "Project Lead", departmentId: equalyzai?.id ?? techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2023-06-01"), grossSalary: 580000, gender: "FEMALE", dateOfBirth: new Date("1986-09-11") },
-  }))
-
-  await prisma.user.upsert({
-    where: { email: "staff@dsn-hrms.com" },
-    update: { mustChangePassword: false },
-    create: { name: "Demo Staff", email: "staff@dsn-hrms.com", password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false },
-  }).then(u => prisma.employee.upsert({
-    where: { workEmail: "staff@dsn-hrms.com" },
-    update: { dateOfBirth: new Date("1995-11-08") },
-    create: { userId: u.id, employeeId: "DSN-D003", firstName: "Demo", lastName: "Staff", workEmail: "staff@dsn-hrms.com", jobTitle: "Staff", departmentId: techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: 380000, managerId: demoProjectLead.id, projectLeadId: demoProjectLead.id, gender: "FEMALE", dateOfBirth: new Date("1995-11-08") },
-  }))
-
-  // 5th demo account — extra staff
-  await prisma.user.upsert({
-    where: { email: "staff2@dsn-hrms.com" },
-    update: { mustChangePassword: false },
-    create: { name: "Demo Staff 2", email: "staff2@dsn-hrms.com", password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false },
-  }).then(u => prisma.employee.upsert({
-    where: { workEmail: "staff2@dsn-hrms.com" },
-    update: { dateOfBirth: new Date("1997-04-14") },
-    create: { userId: u.id, employeeId: "DSN-D005", firstName: "Demo", lastName: "Staff Two", workEmail: "staff2@dsn-hrms.com", jobTitle: "Staff", departmentId: equalyzai?.id ?? techDelivery.id, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-06-01"), grossSalary: 350000, projectLeadId: demoProjectLead2.id, gender: "MALE", dateOfBirth: new Date("1997-04-14") },
-  }))
+  // PROJECT_LEAD demo accounts
+  const demoPLs = [
+    { email: "lead1@dsn-hrms.com", name: "Lead 1", empId: "DSN-D005", fn: "Lead", ln: "1", title: "Team Lead — Technology",   dept: equalyzai,     gender: "MALE",   dob: "1990-06-15", salary: 550000, deptIds: [equalyzai?.id, techDelivery?.id].filter(Boolean) as string[] },
+    { email: "lead2@dsn-hrms.com", name: "Lead 2", empId: "DSN-D006", fn: "Lead", ln: "2", title: "Team Lead — Operations",   dept: adminFacility, gender: "FEMALE", dob: "1993-09-20", salary: 520000, deptIds: [adminFacility?.id, finance?.id].filter(Boolean) as string[] },
+  ]
+  const demoPLEmpIds: Record<string, string> = {}
+  const demoPLUserIds: Record<string, string> = {}
+  for (const pl of demoPLs) {
+    const u = await prisma.user.upsert({
+      where: { email: pl.email },
+      update: { mustChangePassword: false, password: hash("dsn-demo"), role: "PROJECT_LEAD" as any },
+      create: { name: pl.name, email: pl.email, password: hash("dsn-demo"), role: "PROJECT_LEAD" as any, mustChangePassword: false },
+    })
+    demoPLUserIds[pl.email] = u.id
+    const emp = await prisma.employee.upsert({
+      where: { userId: u.id },
+      update: { dateOfBirth: new Date(pl.dob) },
+      create: { userId: u.id, employeeId: pl.empId, firstName: pl.fn, lastName: pl.ln, jobTitle: pl.title, departmentId: pl.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: pl.salary, gender: pl.gender as any, dateOfBirth: new Date(pl.dob) },
+    })
+    demoPLEmpIds[pl.email] = emp.id
+    // Assign departments
+    for (const deptId of pl.deptIds) {
+      await prisma.projectLeadDepartment.upsert({
+        where: { userId_departmentId: { userId: u.id, departmentId: deptId } },
+        update: {},
+        create: { userId: u.id, departmentId: deptId },
+      })
+    }
+  }
+  console.log("  ✓ Demo accounts (admin, staff, project lead)")
 
   // 12 sample employees
   const samples = [
-    { name: "Emeka Okonkwo",   email: "emeka.okonkwo@datasciencenigeria.ai",   gender: "MALE",   title: "Senior Data Scientist",       dept: equalyzai!.id,        type: "FULL_TIME", hire: "2022-05-10", dob: "1990-05-14", cat: "TECHNICAL",     salary: 600000, role: "PROJECT_LEAD" },
-    { name: "Fatima Musa",     email: "fatima.musa@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Analyst",                dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-01-15", dob: "1996-06-02", cat: "TECHNICAL",     salary: 420000, role: "STAFF" },
-    { name: "Chidi Nwosu",     email: "chidi.nwosu@datasciencenigeria.ai",     gender: "MALE",   title: "Software Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-08-22", dob: "1993-08-30", cat: "TECHNICAL",     salary: 480000, role: "PROJECT_LEAD" },
-    { name: "Ngozi Eze",       email: "ngozi.eze@datasciencenigeria.ai",       gender: "FEMALE", title: "Product Designer",            dept: productDesign!.id,    type: "FULL_TIME", hire: "2023-03-01", dob: "1994-07-19", cat: "NON_TECHNICAL", salary: 550000, role: "PROJECT_LEAD" },
-    { name: "Tunde Adeyemi",   email: "tunde.adeyemi@datasciencenigeria.ai",   gender: "MALE",   title: "Programs Lead",               dept: solutionDelivery!.id, type: "FULL_TIME", hire: "2021-11-05", dob: "1988-04-25", cat: "NON_TECHNICAL", salary: 520000, role: "PROJECT_LEAD" },
-    { name: "Blessing Okafor", email: "blessing.okafor@datasciencenigeria.ai", gender: "FEMALE", title: "Brand & Comms Manager",       dept: brandComms!.id,       type: "FULL_TIME", hire: "2022-02-14", dob: "1991-05-08", cat: "NON_TECHNICAL", salary: 480000, role: "PROJECT_LEAD" },
-    { name: "Ibrahim Sule",    email: "ibrahim.sule@datasciencenigeria.ai",    gender: "MALE",   title: "Finance Officer",             dept: finance!.id,          type: "FULL_TIME", hire: "2022-07-18", dob: "1992-06-17", cat: "NON_TECHNICAL", salary: 400000, role: "STAFF" },
-    { name: "Aisha Garba",     email: "aisha.garba@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Engineer",               dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-06-01", dob: "1997-05-21", cat: "TECHNICAL",     salary: 450000, role: "STAFF" },
-    { name: "Kelechi Ibe",     email: "kelechi.ibe@datasciencenigeria.ai",     gender: "MALE",   title: "Frontend Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2023-09-11", dob: "1998-07-03", cat: "TECHNICAL",     salary: 380000, role: "STAFF" },
-    { name: "Zainab Hassan",   email: "zainab.hassan@datasciencenigeria.ai",   gender: "FEMALE", title: "Data Science Intern",         dept: equalyzai!.id,        type: "INTERN",    hire: "2024-01-08", dob: "2001-06-11", cat: "TECHNICAL",     salary: 120000, role: "STAFF" },
-    { name: "Olumide Adewale", email: "olumide.adewale@datasciencenigeria.ai", gender: "MALE",   title: "Backend Engineer",            dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-04-20", dob: "1993-04-28", cat: "TECHNICAL",     salary: 460000, role: "STAFF" },
-    { name: "Grace Okeke",     email: "grace.okeke@datasciencenigeria.ai",     gender: "FEMALE", title: "Business Development Officer",dept: bizDev!.id,           type: "CONTRACT",  hire: "2023-11-01", dob: "1995-05-30", cat: "NON_TECHNICAL", salary: 350000, role: "STAFF" },
+    { name: "Emeka Okonkwo",   email: "emeka.okonkwo@datasciencenigeria.ai",   gender: "MALE",   title: "Senior Data Scientist",       dept: equalyzai!.id,        type: "FULL_TIME", hire: "2022-05-10", dob: "1990-05-14", cat: "TECHNICAL",     salary: 600000, role: "STAFF", elevate: true },
+    { name: "Fatima Musa",     email: "fatima.musa@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Analyst",                dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-01-15", dob: "1996-06-02", cat: "TECHNICAL",     salary: 420000, role: "STAFF", elevate: false },
+    { name: "Chidi Nwosu",     email: "chidi.nwosu@datasciencenigeria.ai",     gender: "MALE",   title: "Software Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-08-22", dob: "1993-08-30", cat: "TECHNICAL",     salary: 480000, role: "STAFF", elevate: true },
+    { name: "Ngozi Eze",       email: "ngozi.eze@datasciencenigeria.ai",       gender: "FEMALE", title: "Product Designer",            dept: productDesign!.id,    type: "FULL_TIME", hire: "2023-03-01", dob: "1994-07-19", cat: "NON_TECHNICAL", salary: 550000, role: "STAFF", elevate: true },
+    { name: "Tunde Adeyemi",   email: "tunde.adeyemi@datasciencenigeria.ai",   gender: "MALE",   title: "Programs Lead",               dept: solutionDelivery!.id, type: "FULL_TIME", hire: "2021-11-05", dob: "1988-04-25", cat: "NON_TECHNICAL", salary: 520000, role: "STAFF", elevate: true },
+    { name: "Blessing Okafor", email: "blessing.okafor@datasciencenigeria.ai", gender: "FEMALE", title: "Brand & Comms Manager",       dept: brandComms!.id,       type: "FULL_TIME", hire: "2022-02-14", dob: "1991-05-08", cat: "NON_TECHNICAL", salary: 480000, role: "STAFF", elevate: true },
+    { name: "Ibrahim Sule",    email: "ibrahim.sule@datasciencenigeria.ai",    gender: "MALE",   title: "Finance Officer",             dept: finance!.id,          type: "FULL_TIME", hire: "2022-07-18", dob: "1992-06-17", cat: "NON_TECHNICAL", salary: 400000, role: "STAFF", elevate: false },
+    { name: "Aisha Garba",     email: "aisha.garba@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Engineer",               dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-06-01", dob: "1997-05-21", cat: "TECHNICAL",     salary: 450000, role: "STAFF", elevate: false },
+    { name: "Kelechi Ibe",     email: "kelechi.ibe@datasciencenigeria.ai",     gender: "MALE",   title: "Frontend Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2023-09-11", dob: "1998-07-03", cat: "TECHNICAL",     salary: 380000, role: "STAFF", elevate: false },
+    { name: "Zainab Hassan",   email: "zainab.hassan@datasciencenigeria.ai",   gender: "FEMALE", title: "Data Science Intern",         dept: equalyzai!.id,        type: "INTERN",    hire: "2024-01-08", dob: "2001-06-11", cat: "TECHNICAL",     salary: 120000, role: "STAFF", elevate: false },
+    { name: "Olumide Adewale", email: "olumide.adewale@datasciencenigeria.ai", gender: "MALE",   title: "Backend Engineer",            dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-04-20", dob: "1993-04-28", cat: "TECHNICAL",     salary: 460000, role: "STAFF", elevate: false },
+    { name: "Grace Okeke",     email: "grace.okeke@datasciencenigeria.ai",     gender: "FEMALE", title: "Business Development Officer",dept: bizDev!.id,           type: "CONTRACT",  hire: "2023-11-01", dob: "1995-05-30", cat: "NON_TECHNICAL", salary: 350000, role: "STAFF", elevate: false },
   ]
 
   const defaultPwd = hash("dsn-staff")
@@ -230,14 +366,27 @@ async function main() {
     } else {
       counter++
       emp = await prisma.employee.upsert({
-        where: { workEmail: s.email },
+        where: { userId: u.id },
         update: { category: s.cat as any, grossSalary: s.salary, dateOfBirth: new Date(s.dob) },
-        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), workEmail: s.email, gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
+        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
       })
     }
     empRecords[s.email] = emp
   }
   console.log("  ✓ Sample employees")
+
+  // Elevate sample employees that have elevate: true to hr-admin
+  if (hrAdminRole) {
+    for (const s of samples.filter(s => s.elevate)) {
+      const u = await prisma.user.findUnique({ where: { email: s.email }, select: { id: true } })
+      if (u) {
+        await prisma.userAdminRole.upsert({
+          where: { userId_adminRoleId: { userId: u.id, adminRoleId: hrAdminRole.id } },
+          update: {}, create: { userId: u.id, adminRoleId: hrAdminRole.id },
+        })
+      }
+    }
+  }
 
   // Manager / dept lead relationships
   const emeka = empRecords["emeka.okonkwo@datasciencenigeria.ai"]
@@ -245,12 +394,12 @@ async function main() {
   const tunde = empRecords["tunde.adeyemi@datasciencenigeria.ai"]
   const blessing = empRecords["blessing.okafor@datasciencenigeria.ai"]
   await Promise.all([
-    prisma.employee.update({ where: { workEmail: "fatima.musa@datasciencenigeria.ai" },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
-    prisma.employee.update({ where: { workEmail: "aisha.garba@datasciencenigeria.ai" },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
-    prisma.employee.update({ where: { workEmail: "zainab.hassan@datasciencenigeria.ai" },  data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
-    prisma.employee.update({ where: { workEmail: "kelechi.ibe@datasciencenigeria.ai" },    data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
-    prisma.employee.update({ where: { workEmail: "olumide.adewale@datasciencenigeria.ai" },data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
-    prisma.employee.update({ where: { workEmail: "grace.okeke@datasciencenigeria.ai" },    data: { managerId: blessing?.id } }),
+    prisma.employee.update({ where: { id: empRecords["fatima.musa@datasciencenigeria.ai"]?.id },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
+    prisma.employee.update({ where: { id: empRecords["aisha.garba@datasciencenigeria.ai"]?.id },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
+    prisma.employee.update({ where: { id: empRecords["zainab.hassan@datasciencenigeria.ai"]?.id },  data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
+    prisma.employee.update({ where: { id: empRecords["kelechi.ibe@datasciencenigeria.ai"]?.id },    data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
+    prisma.employee.update({ where: { id: empRecords["olumide.adewale@datasciencenigeria.ai"]?.id },data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
+    prisma.employee.update({ where: { id: empRecords["grace.okeke@datasciencenigeria.ai"]?.id },    data: { managerId: blessing?.id } }),
   ])
 
   // Projects
@@ -294,13 +443,17 @@ async function main() {
   }
   console.log("  ✓ Job postings & applications")
 
-  // Leave balances
+  // Leave balances — all employees including demo accounts
   const annualLeave = await prisma.leaveType.findFirst({ where: { name: "Annual Leave" } })
   const sickLeave   = await prisma.leaveType.findFirst({ where: { name: "Sick Leave" } })
-  const allEmps = Object.values(empRecords).filter(Boolean)
-  for (const emp of allEmps) {
-    if (annualLeave) await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: annualLeave.id, year: 2026 } }, update: {}, create: { employeeId: emp.id, leaveTypeId: annualLeave.id, year: 2026, allocated: 21, used: 0, pending: 0 } })
-    if (sickLeave)   await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: sickLeave.id,   year: 2026 } }, update: {}, create: { employeeId: emp.id, leaveTypeId: sickLeave.id,   year: 2026, allocated: 14, used: 0, pending: 0 } })
+  const allEmpIds = [
+    ...Object.values(empRecords).filter(Boolean).map((e: any) => e.id as string),
+    ...Object.values(demoEmpIds),
+    ...Object.values(demoPLEmpIds),
+  ]
+  for (const empId of allEmpIds) {
+    if (annualLeave) await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: empId, leaveTypeId: annualLeave.id, year: 2026 } }, update: {}, create: { employeeId: empId, leaveTypeId: annualLeave.id, year: 2026, allocated: 21, used: 0, pending: 0 } })
+    if (sickLeave)   await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: empId, leaveTypeId: sickLeave.id,   year: 2026 } }, update: {}, create: { employeeId: empId, leaveTypeId: sickLeave.id,   year: 2026, allocated: 14, used: 0, pending: 0 } })
   }
   console.log("  ✓ Leave balances")
 
@@ -318,6 +471,7 @@ async function main() {
   console.log("  ✓ Payslips")
 
   // Announcements
+  const superAdminUser = await prisma.user.findUnique({ where: { email: "hr@datasciencenigeria.ai" }, select: { id: true } })
   const annDefs = [
     { title: "Welcome to DSN HRMS",              body: "We're excited to launch the new DSN HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
     { title: "Q2 2026 Leave Reminder",           body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF"] as string[] },
@@ -325,20 +479,52 @@ async function main() {
     { title: "Public Holiday Notice — Workers' Day", body: "May 1, 2026 (Workers' Day) is a public holiday. All offices will be closed.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: [] as string[] },
     { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF"] as string[] },
   ]
-  for (const ann of annDefs) {
-    const exists = await prisma.announcement.findFirst({ where: { title: ann.title } })
-    if (!exists) await prisma.announcement.create({ data: { ...ann, type: "TEXT", status: "PUBLISHED", sendEmail: false, publishedAt: new Date(), createdById: demoAdmin.id } })
+  if (superAdminUser) {
+    for (const ann of annDefs) {
+      const exists = await prisma.announcement.findFirst({ where: { title: ann.title } })
+      if (!exists) await prisma.announcement.create({ data: { ...ann, type: "TEXT", status: "PUBLISHED", sendEmail: false, publishedAt: new Date(), createdById: superAdminUser.id } })
+    }
+    console.log("  ✓ Announcements")
   }
-  console.log("  ✓ Announcements")
+
+  // ── Company Details ───────────────────────────────────────────────────────────
+  await prisma.systemSetting.upsert({
+    where:  { key: "company_details" },
+    update: {},
+    create: {
+      key:   "company_details",
+      value: { companyName: "Data Science Nigeria" },
+    },
+  })
+
+  const existingWorkplace = await prisma.workplace.findFirst({ where: { displayName: "Data Science Nigeria" } })
+  if (!existingWorkplace) {
+    await prisma.workplace.create({
+      data: {
+        displayName:  "Data Science Nigeria",
+        addressLine1: "33 Queen Street, Alagomeji-Yaba, Lagos",
+        city:         "Yaba",
+        state:        "Lagos",
+        country:      "Nigeria",
+        zipCode:      "11011",
+        phone:        "08140000853",
+        email:        "info@datasciencenigeria.ai",
+        isFiling:     true,
+        isMailing:    true,
+        isActive:     true,
+      },
+    })
+  }
+  console.log("  ✓ Company details & workplace")
 
   console.log("\n✅ Demo data complete.")
   console.log("\n🔑 Demo login accounts:")
-  console.log("   HR Admin:      hr@datasciencenigeria.ai      /  Admin@DSN2024!")
-  console.log("   Admin:         admin@dsn-hrms.com            /  Admin@DSN2024!")
-  console.log("   Project Lead:  projectlead@dsn-hrms.com      /  dsn-demo")
-  console.log("   Project Lead 2: projectlead2@dsn-hrms.com   /  dsn-demo")
-  console.log("   Staff:         staff@dsn-hrms.com            /  dsn-demo")
-  console.log("   Staff 2:       staff2@dsn-hrms.com           /  dsn-demo")
+  console.log("   HR Admin:  hr@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")
+  console.log("   Admin 1:   staff1@dsn-hrms.com       /  dsn-demo        (STAFF + HR Admin role — elevated)")
+  console.log("   Staff 1:   staff3@dsn-hrms.com       /  dsn-demo        (plain STAFF)")
+  console.log("   Staff 2:   staff4@dsn-hrms.com       /  dsn-demo        (plain STAFF)")
+  console.log("   Lead 1:    lead1@dsn-hrms.com        /  dsn-demo        (PROJECT_LEAD — EqualyzAI + Tech Delivery)")
+  console.log("   Lead 2:    lead2@dsn-hrms.com        /  dsn-demo        (PROJECT_LEAD — Admin & Facility + Finance)")
 }
 
 main()

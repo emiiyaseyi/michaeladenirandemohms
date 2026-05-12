@@ -1,22 +1,18 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = ["ADMIN", "SUPER_ADMIN"].includes(user.role)
+  const isAdmin = caps(user.role).canViewAllEmployees
 
   if (isAdmin) {
     const status = req.nextUrl.searchParams.get("status") ?? undefined
-    const isSuperAdmin = user.role === "SUPER_ADMIN"
-
-    // SUPER_ADMIN sees all requests; ADMIN only sees requests from non-admin employees
-    const roleFilter = isSuperAdmin ? {} : { employee: { user: { role: { notIn: ["ADMIN", "SUPER_ADMIN"] as any } } } }
 
     const requests = await prisma.profileUpdateRequest.findMany({
-      where: { ...(status ? { status: status as any } : {}), ...roleFilter },
+      where: { ...(status ? { status: status as any } : {}) },
       include: {
         employee: {
           select: {

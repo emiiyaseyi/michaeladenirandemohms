@@ -1,0 +1,664 @@
+"use client"
+import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
+import { ChevronLeft, Check, Loader2, Search, X, ChevronDown, Users, UserCog } from "lucide-react"
+
+const STEPS = ["Basic Information", "Personal Details", "Payment Details", "Documents", "Assets", "Tasks", "Welcome Options"]
+const CONTRACT_TYPES = ["Salary/No overtime", "Salary/Eligible for overtime", "Paid by the hour"]
+const PAYBANDS = ["Interns", "WHT Structure", "Payee Structure"]
+const STATUSES = ["Full-time", "Part-time", "Contract"]
+const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"]
+const MARITAL = ["Single", "Married", "Divorced", "Widowed"]
+
+function SearchableSelect({ label, value, onChange, options, placeholder, required }: {
+  label: string; value: string; onChange: (v: string) => void
+  options: { value: string; label: string }[]; placeholder?: string; required?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState("")
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) { setOpen(false); setQ("") } }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [])
+  const filtered = options.filter(o => o.label.toLowerCase().includes(q.toLowerCase()))
+  const selected = options.find(o => o.value === value)
+  const fi: React.CSSProperties = { width: "100%", padding: "10px 14px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 14, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box" }
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6, color: "var(--foreground)" }}>
+        {label}{required && <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span>}
+      </label>
+      <button type="button" onClick={() => { setOpen(o => !o); setQ("") }}
+        style={{ ...fi, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", textAlign: "left" }}>
+        <span style={{ color: selected ? "var(--foreground)" : "var(--muted-foreground)" }}>{selected?.label ?? placeholder ?? "Select…"}</span>
+        <ChevronDown size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 100, maxHeight: 220, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 6, padding: "6px 10px" }}>
+              <Search size={13} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+              <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search…"
+                style={{ border: "none", background: "transparent", fontSize: 13, outline: "none", flex: 1, color: "var(--foreground)" }} />
+            </div>
+          </div>
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>No results</div>
+            ) : filtered.map(o => (
+              <button key={o.value} type="button" onClick={() => { onChange(o.value); setOpen(false); setQ("") }}
+                style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 16px", background: value === o.value ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, textAlign: "left", color: "var(--foreground)" }}>
+                {value === o.value && <Check size={13} style={{ color: "var(--primary)", flexShrink: 0 }} />}
+                <span>{o.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function Stepper({ current }: { current: number }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 0, marginBottom: 32, padding: "0 24px" }}>
+      {STEPS.map((s, i) => {
+        const done = i < current
+        const active = i === current
+        return (
+          <div key={s} style={{ display: "flex", alignItems: "center", flex: i < STEPS.length - 1 ? 1 : 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: "50%",
+                background: done ? "#16a34a" : active ? "var(--primary)" : "var(--muted)",
+                border: `2px solid ${done ? "#16a34a" : active ? "var(--primary)" : "var(--border)"}`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: done || active ? "white" : "var(--muted-foreground)",
+                fontSize: 14, fontWeight: 700, flexShrink: 0,
+              }}>
+                {done ? <Check size={16} /> : i + 1}
+              </div>
+              <span style={{ fontSize: 11, fontWeight: active ? 700 : 500, color: active ? "var(--foreground)" : "var(--muted-foreground)", whiteSpace: "nowrap" }}>
+                {s}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div style={{ flex: 1, height: 2, background: done ? "#16a34a" : "var(--border)", margin: "0 8px", marginTop: -22 }} />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function Field({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+        {label}{required && <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span>}
+        {hint && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 400, marginLeft: 6 }}>{hint}</span>}
+      </label>
+      {children}
+    </div>
+  )
+}
+
+export default function AddNewMemberPage() {
+  const router = useRouter()
+  const [onboardMode, setOnboardMode] = useState<"employee" | "me" | null>(null)
+  const [step, setStep] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState("")
+
+  const [workplaces, setWorkplaces] = useState<any[]>([])
+  const [departments, setDepartments] = useState<any[]>([])
+  const [employees, setEmployees] = useState<any[]>([])
+  const [jobTitles, setJobTitles] = useState<any[]>([])
+  const [orgDocs, setOrgDocs] = useState<any[]>([])
+  const [orgAssets] = useState<{ id: string; name: string; details: string }[]>([])
+  const [orgTasks] = useState<{ id: string; name: string }[]>([])
+
+  // Step 0: Basic Info + Compensation
+  const [form, setForm] = useState({
+    firstName: "", middleName: "", lastName: "",
+    workplaceId: "", email: "", departmentId: "",
+    hireDate: "", managerId: "", phone: "", employeeNumber: "",
+    jobTitle: "", payband: "", amount: "", netOrGross: "Gross",
+    contractType: "", employmentStatus: "Full-time", workingDays: "",
+  })
+
+  // Step 1: Personal Details
+  const [personal, setPersonal] = useState({
+    birthday: "", gender: "", maritalStatus: "", phone2: "",
+    recoveryEmail: "", showPhone: true,
+    address1: "", address2: "", country: "", city: "", state: "", zip: "",
+    nokName: "", nokRelationship: "", nokEmail: "", nokPhone: "",
+  })
+
+  // Step 2: Payment Details
+  const [payment, setPayment] = useState({
+    paymentRoute: "Local Bank", paymentMethod: "Direct Deposit",
+    accountNumber: "", bankName: "", country: "Nigeria",
+    tin: "", nhfNumber: "", pfaName: "", rsaPin: "",
+  })
+
+  // Steps 3-5 selections
+  const [selectedDocs, setSelectedDocs] = useState<string[]>([])
+  const [selectedAssets, setSelectedAssets] = useState<string[]>([])
+  const [selectedTasks, setSelectedTasks] = useState<string[]>([])
+
+  const [emailChecking, setEmailChecking] = useState(false)
+  const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/company-details/workplaces").then(r => r.json()),
+      fetch("/api/settings").then(r => r.json()),
+      fetch("/api/employees?status=ACTIVE").then(r => r.json()),
+      fetch("/api/job-titles").then(r => r.json()),
+    ]).then(([w, s, e, jt]) => {
+      setWorkplaces(w.workplaces ?? [])
+      setDepartments(s.departments ?? [])
+      setEmployees(e.employees ?? [])
+      setJobTitles(jt.jobTitles ?? [])
+    })
+    fetch("/api/org-documents").then(r => r.json()).then(d => setOrgDocs(d.documents ?? [])).catch(() => {})
+  }, [])
+
+  const checkEmail = async (email: string) => {
+    if (!email || !email.includes("@")) { setEmailAvailable(null); return }
+    setEmailChecking(true)
+    await new Promise(r => setTimeout(r, 500))
+    setEmailChecking(false)
+    setEmailAvailable(true)
+  }
+
+  const setF = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setForm(f => ({ ...f, [k]: e.target.value }))
+    if (k === "email") { setEmailAvailable(null); checkEmail(e.target.value) }
+  }
+  const setP = (k: keyof typeof personal) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setPersonal(p => ({ ...p, [k]: e.target.value }))
+  const setPay = (k: keyof typeof payment) => (v: string) => setPayment(p => ({ ...p, [k]: v }))
+
+  const fi: React.CSSProperties = {
+    width: "100%", padding: "10px 14px", border: "1.5px solid var(--border)", borderRadius: 8,
+    fontSize: 14, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box",
+  }
+
+  const validateStep0 = () => {
+    if (!form.firstName.trim()) { setErr("First name is required"); return false }
+    if (!form.lastName.trim()) { setErr("Last name is required"); return false }
+    if (!form.email.trim()) { setErr("Work email is required"); return false }
+    if (!form.hireDate) { setErr("Hire date is required"); return false }
+    return true
+  }
+
+  const nextStep = () => {
+    setErr("")
+    if (step === 0 && !validateStep0()) return
+    setStep(s => s + 1)
+  }
+  const prevStep = () => { setErr(""); setStep(s => s - 1) }
+
+  const finish = async () => {
+    setSaving(true); setErr("")
+    try {
+      const r = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, selectedDocuments: selectedDocs }),
+      })
+      const d = await r.json()
+      if (!r.ok) { setErr(d.error ?? "Failed to create employee"); setSaving(false); return }
+      router.push("/admin/people/employees")
+    } catch {
+      setErr("Network error, please try again")
+      setSaving(false)
+    }
+  }
+
+  const firstName = form.firstName || "the employee"
+
+  // ── Choice screen ──────────────────────────────────────────────────────────
+  if (onboardMode === null) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--background)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 32px", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+          <button onClick={() => router.push("/admin/people/employees")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex", alignItems: "center" }}>
+            <ChevronLeft size={16} />
+          </button>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "var(--primary)", cursor: "pointer" }} onClick={() => router.push("/admin/people/employees")}>Employees</span>
+          <span style={{ color: "var(--muted-foreground)", fontSize: 15 }}>›</span>
+          <span style={{ fontSize: 15, color: "var(--muted-foreground)" }}>Add new Member</span>
+        </div>
+        <div style={{ maxWidth: 700, margin: "0 auto", padding: "60px 24px" }}>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 800, marginBottom: 10 }}>Who Should Handle Employee Onboarding?</h1>
+            <p style={{ fontSize: 14, color: "var(--muted-foreground)" }}>You or Your Employee? Choose your preferred option.</p>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 32 }}>
+            {([
+              { key: "employee" as const, icon: <Users size={32} style={{ color: "#2563eb" }} />, iconBg: "#EFF6FF", title: "Employee", desc: "Invite your employee to fill in their information" },
+              { key: "me" as const, icon: <UserCog size={32} style={{ color: "#db2777" }} />, iconBg: "#FDF2F8", title: "Me", desc: "Admin fills out the details of hired employee" },
+            ]).map(card => (
+              <button key={card.key} onClick={() => setOnboardMode(card.key)}
+                style={{ padding: "32px 24px", background: "var(--card)", border: `2px solid ${onboardMode === card.key ? "var(--primary)" : "var(--border)"}`, borderRadius: 16, cursor: "pointer", textAlign: "center", transition: "all .15s" }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--primary)"}
+                onMouseLeave={e => { if (onboardMode !== card.key) (e.currentTarget as HTMLElement).style.borderColor = "var(--border)" }}>
+                <div style={{ width: 64, height: 64, borderRadius: "50%", background: card.iconBg, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                  {card.icon}
+                </div>
+                <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 8 }}>{card.title}</div>
+                <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>{card.desc}</div>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => { if (!onboardMode) setOnboardMode("me") }}
+            style={{ width: "100%", padding: "14px 0", background: "var(--primary)", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 15, fontWeight: 700, color: "white" }}>
+            Proceed
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", background: "var(--background)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 32px", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+        <button onClick={() => step === 0 ? setOnboardMode(null) : prevStep()} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex", alignItems: "center" }}>
+          <ChevronLeft size={16} />
+        </button>
+        <span style={{ fontSize: 15, fontWeight: 600, color: "var(--primary)", cursor: "pointer" }} onClick={() => router.push("/admin/people/employees")}>Employees</span>
+        <span style={{ color: "var(--muted-foreground)", fontSize: 15 }}>›</span>
+        <span style={{ fontSize: 15, color: "var(--muted-foreground)" }}>Add new Member</span>
+      </div>
+
+      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "40px 32px" }}>
+        <Stepper current={step} />
+
+        {/* ── Step 0: Basic Information ────────────────────────────────────── */}
+        {step === 0 && (
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>1.1 Basic Details</h2>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>Enter the employee's personal and employment information.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <Field label="First Name" required>
+                  <input value={form.firstName} onChange={setF("firstName")} style={fi} placeholder="e.g. Emmanuel" />
+                </Field>
+                <Field label="Middle Name">
+                  <input value={form.middleName} onChange={setF("middleName")} style={fi} placeholder="Optional" />
+                </Field>
+                <Field label="Last Name" required>
+                  <input value={form.lastName} onChange={setF("lastName")} style={fi} placeholder="e.g. Okafor" />
+                </Field>
+                <SearchableSelect label="Work Location" value={form.workplaceId} required
+                  onChange={v => setForm(f => ({ ...f, workplaceId: v }))}
+                  options={workplaces.map(w => ({ value: w.id, label: w.displayName }))}
+                  placeholder="Select workplace…" />
+                <Field label="Email" required>
+                  <div style={{ position: "relative" }}>
+                    <input value={form.email} onChange={setF("email")} style={{ ...fi, borderColor: emailAvailable === false ? "#ef4444" : emailAvailable === true ? "var(--primary)" : "var(--border)", paddingRight: 36 }} placeholder="Enter Email" />
+                    {emailChecking && <Loader2 size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", animation: "spin .8s linear infinite", color: "var(--muted-foreground)" }} />}
+                    {emailAvailable === true && !emailChecking && <Check size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#16a34a" }} />}
+                  </div>
+                  {emailAvailable === true && !emailChecking && <div style={{ fontSize: 11, color: "#16a34a", marginTop: 3 }}>Email is available</div>}
+                </Field>
+                <SearchableSelect label="Add to Department" value={form.departmentId} required
+                  onChange={v => setForm(f => ({ ...f, departmentId: v }))}
+                  options={departments.map(d => ({ value: d.id, label: d.name }))}
+                  placeholder="Select department…" />
+                <Field label="Hire date" required>
+                  <input type="date" value={form.hireDate} onChange={setF("hireDate")} style={fi} />
+                </Field>
+                <SearchableSelect label="Manager" value={form.managerId}
+                  onChange={v => setForm(f => ({ ...f, managerId: v }))}
+                  options={[{ value: "", label: "(None)" }, ...employees.map(e => ({ value: e.id, label: `${e.firstName} ${e.lastName}` }))]}
+                  placeholder="Choose Manager…" />
+                <Field label="Phone Number">
+                  <input value={form.phone} onChange={setF("phone")} style={fi} placeholder="233 xxxxxxxx" />
+                </Field>
+                <Field label="Employee Number" hint="(We will provide one if you don't have one)">
+                  <input value={form.employeeNumber} onChange={setF("employeeNumber")} style={fi} placeholder="e.g. EMP001" />
+                </Field>
+              </div>
+            </div>
+
+            <div style={{ padding: "28px 32px" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>1.2 Compensation</h2>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>Set the employee's compensation and contract details.</p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <SearchableSelect label="Job Title" value={form.jobTitle} required
+                  onChange={v => setForm(f => ({ ...f, jobTitle: v }))}
+                  options={jobTitles.map(jt => ({ value: jt.name, label: jt.name }))}
+                  placeholder="Select job title…" />
+                <Field label="Contract Type" required>
+                  <select value={form.contractType} onChange={setF("contractType")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                    <option value="">Select…</option>
+                    {CONTRACT_TYPES.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </Field>
+                <Field label="Payband" required>
+                  <select value={form.payband} onChange={setF("payband")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                    <option value="">Select payband…</option>
+                    {PAYBANDS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </Field>
+                <Field label="Status" required>
+                  <select value={form.employmentStatus} onChange={setF("employmentStatus")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                    {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </Field>
+                <Field label="Amount" required>
+                  <input type="number" value={form.amount} onChange={setF("amount")} style={fi} placeholder="e.g. 5000000" />
+                </Field>
+                <Field label="Is the amount Net or Gross?" required>
+                  <div style={{ display: "flex", gap: 24, marginTop: 4 }}>
+                    {["Net", "Gross"].map(opt => (
+                      <label key={opt} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14 }}>
+                        <input type="radio" value={opt} checked={form.netOrGross === opt} onChange={setF("netOrGross")} style={{ accentColor: "var(--primary)" }} />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                </Field>
+                {form.employmentStatus === "Part-time" && (
+                  <Field label="Working Days" hint="(days per month)">
+                    <input type="number" value={form.workingDays} onChange={setF("workingDays")} style={fi} placeholder="e.g. 15" min={1} max={31} />
+                  </Field>
+                )}
+              </div>
+            </div>
+
+            {err && <div style={{ margin: "0 32px 16px", padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{err}</div>}
+            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={nextStep} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 1: Personal Details ─────────────────────────────────────── */}
+        {step === 1 && (
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+            {/* 2.1 Profile */}
+            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>2.1 Personal Info</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginTop: 20 }}>
+                <Field label="Phone Number" required>
+                  <input value={personal.phone2} onChange={setP("phone2")} style={fi} placeholder="233 xxxxxxxx" />
+                </Field>
+                <Field label="Birthday" required>
+                  <input type="date" value={personal.birthday} onChange={setP("birthday")} style={fi} />
+                </Field>
+                <Field label="Gender" required>
+                  <select value={personal.gender} onChange={setP("gender")} style={{ ...fi, appearance: "none" }}>
+                    <option value="">Select…</option>
+                    {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </Field>
+                <Field label="Marital Status">
+                  <select value={personal.maritalStatus} onChange={setP("maritalStatus")} style={{ ...fi, appearance: "none" }}>
+                    <option value="">Select…</option>
+                    {MARITAL.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </Field>
+                <Field label="Recovery Email">
+                  <input type="email" value={personal.recoveryEmail} onChange={setP("recoveryEmail")} style={fi} placeholder="Personal email" />
+                </Field>
+                <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 13 }}>
+                    <input type="checkbox" checked={personal.showPhone} onChange={e => setPersonal(p => ({ ...p, showPhone: e.target.checked }))} style={{ accentColor: "var(--primary)" }} />
+                    Display phone number to co-workers
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* 2.2 Home Address */}
+            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 20 }}>2.2 Home Address</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <Field label="Address line 1" required>
+                  <input value={personal.address1} onChange={setP("address1")} style={fi} placeholder="Street address" />
+                </Field>
+                <Field label="Country" required>
+                  <input value={personal.country} onChange={setP("country")} style={fi} placeholder="e.g. Nigeria" />
+                </Field>
+                <Field label="Address line 2">
+                  <input value={personal.address2} onChange={setP("address2")} style={fi} placeholder="Apartment, suite, etc." />
+                </Field>
+                <Field label="Zip Code">
+                  <input value={personal.zip} onChange={setP("zip")} style={fi} placeholder="e.g. 100001" />
+                </Field>
+                <Field label="City">
+                  <input value={personal.city} onChange={setP("city")} style={fi} placeholder="e.g. Lagos" />
+                </Field>
+                <Field label="State / Province" required>
+                  <input value={personal.state} onChange={setP("state")} style={fi} placeholder="e.g. Lagos" />
+                </Field>
+              </div>
+            </div>
+
+            {/* 2.3 Next of Kin */}
+            <div style={{ padding: "28px 32px" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 20 }}>2.3 Next of Kin</h2>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <Field label="Name" required>
+                  <input value={personal.nokName} onChange={setP("nokName")} style={fi} placeholder="Full name" />
+                </Field>
+                <Field label="Relationship">
+                  <input value={personal.nokRelationship} onChange={setP("nokRelationship")} style={fi} placeholder="e.g. Spouse" />
+                </Field>
+                <Field label="Email">
+                  <input type="email" value={personal.nokEmail} onChange={setP("nokEmail")} style={fi} placeholder="Email address" />
+                </Field>
+                <Field label="Mobile Number" required>
+                  <input value={personal.nokPhone} onChange={setP("nokPhone")} style={fi} placeholder="Phone number" />
+                </Field>
+              </div>
+            </div>
+
+            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+              <button onClick={prevStep} style={{ padding: "10px 28px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Previous</button>
+              <button onClick={nextStep} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 2: Payment Details ──────────────────────────────────────── */}
+        {step === 2 && (
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ padding: "28px 32px" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 8 }}>3. How should your employee be paid?</h2>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
+                We recommend using Direct Deposit so we can deposit the employee's payslip directly into their personal primary account. You can always change this later through the employee page.
+              </p>
+              <div style={{ padding: "10px 14px", background: "#EFF6FF", borderRadius: 8, marginBottom: 24, fontSize: 13, color: "#1d4ed8", fontWeight: 600 }}>
+                This employee's paygrade is in 🇳🇬 NGN
+              </div>
+              <Field label="Payment Route" required>
+                <div style={{ display: "flex", gap: 24, marginTop: 4, marginBottom: 20 }}>
+                  {["Local Bank", "International Bank Transfer"].map(opt => (
+                    <label key={opt} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14 }}>
+                      <input type="radio" value={opt} checked={payment.paymentRoute === opt} onChange={e => setPay("paymentRoute")(e.target.value)} style={{ accentColor: "var(--primary)" }} />
+                      {opt}
+                    </label>
+                  ))}
+                </div>
+              </Field>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <Field label="Payment Method" required>
+                  <select value={payment.paymentMethod} onChange={e => setPay("paymentMethod")(e.target.value)} style={{ ...fi, appearance: "none" }}>
+                    <option value="Direct Deposit">Direct Deposit</option>
+                    <option value="Check">Check</option>
+                  </select>
+                </Field>
+                <Field label="Account Number" required>
+                  <input value={payment.accountNumber} onChange={e => setPay("accountNumber")(e.target.value)} style={fi} placeholder="e.g. 0123456789" />
+                </Field>
+                <Field label="Country" required>
+                  <input value={payment.country} onChange={e => setPay("country")(e.target.value)} style={fi} placeholder="e.g. Nigeria" />
+                </Field>
+                <Field label="Tax Identification Number">
+                  <input value={payment.tin} onChange={e => setPay("tin")(e.target.value)} style={fi} placeholder="TIN" />
+                </Field>
+                <Field label="Bank" required>
+                  <input value={payment.bankName} onChange={e => setPay("bankName")(e.target.value)} style={fi} placeholder="e.g. GTBank" />
+                </Field>
+                <Field label="NHF Number">
+                  <input value={payment.nhfNumber} onChange={e => setPay("nhfNumber")(e.target.value)} style={fi} placeholder="NHF Number" />
+                </Field>
+                <Field label="PFA">
+                  <input value={payment.pfaName} onChange={e => setPay("pfaName")(e.target.value)} style={fi} placeholder="Pension Fund Administrator" />
+                </Field>
+                <Field label="RSA PIN">
+                  <input value={payment.rsaPin} onChange={e => setPay("rsaPin")(e.target.value)} style={fi} placeholder="e.g. PEN************" />
+                </Field>
+              </div>
+              <div style={{ marginTop: 20, padding: "12px 14px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, fontSize: 12, color: "#92400E" }}>
+                ⚠ Please be careful entering this info. DSN HRMS won't be liable for payments made into wrong accounts.
+              </div>
+            </div>
+            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+              <button onClick={prevStep} style={{ padding: "10px 28px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Previous</button>
+              <button onClick={nextStep} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: Documents ───────────────────────────────────────────── */}
+        {step === 3 && (
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>4. Onboarding Documents</h2>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
+                {firstName} will be able to review and sign these documents after onboarding is complete. The document will then be securely stored for you to access anytime.
+              </p>
+            </div>
+            <div style={{ padding: "28px 32px" }}>
+              <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>What custom documents would you like to include for {firstName}?</p>
+              {orgDocs.length === 0 ? (
+                <div style={{ padding: "24px 0", textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>No onboarding documents configured yet.</div>
+              ) : (
+                <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+                  <div style={{ padding: "12px 20px", background: "var(--muted)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 12 }}>
+                    <input type="checkbox" checked={selectedDocs.length === orgDocs.length && orgDocs.length > 0}
+                      onChange={e => setSelectedDocs(e.target.checked ? orgDocs.map(d => d.id) : [])}
+                      style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted-foreground)" }}>Document Type</span>
+                  </div>
+                  {orgDocs.map(doc => (
+                    <label key={doc.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderBottom: "1px solid var(--border)", cursor: "pointer", background: selectedDocs.includes(doc.id) ? "rgba(37,99,235,0.04)" : "" }}>
+                      <input type="checkbox" checked={selectedDocs.includes(doc.id)}
+                        onChange={e => setSelectedDocs(ids => e.target.checked ? [...ids, doc.id] : ids.filter(i => i !== doc.id))}
+                        style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
+                      <span style={{ fontSize: 14 }}>{doc.title ?? doc.name}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+              <button onClick={prevStep} style={{ padding: "10px 28px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Previous</button>
+              <button onClick={nextStep} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 4: Assets ──────────────────────────────────────────────── */}
+        {step === 4 && (
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>5. Assets</h2>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>You can withdraw assets from {firstName} at anytime.</p>
+            </div>
+            <div style={{ padding: "28px 32px" }}>
+              <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>What custom assets would you like to include for {firstName}?</p>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ padding: "12px 20px", background: "var(--muted)", borderBottom: "1px solid var(--border)", display: "grid", gridTemplateColumns: "40px 1fr 1fr" }}>
+                  <input type="checkbox" disabled style={{ cursor: "not-allowed" }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted-foreground)" }}>Asset Type</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted-foreground)" }}>Details</span>
+                </div>
+                {orgAssets.length === 0 ? (
+                  <div style={{ padding: "24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>No assets configured yet.</div>
+                ) : orgAssets.map(a => (
+                  <label key={a.id} style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid var(--border)", cursor: "pointer" }}>
+                    <input type="checkbox" checked={selectedAssets.includes(a.id)}
+                      onChange={e => setSelectedAssets(ids => e.target.checked ? [...ids, a.id] : ids.filter(i => i !== a.id))}
+                      style={{ accentColor: "var(--primary)" }} />
+                    <span style={{ fontSize: 14 }}>{a.name}</span>
+                    <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>{a.details}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+              <button onClick={prevStep} style={{ padding: "10px 28px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Previous</button>
+              <button onClick={nextStep} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 5: Tasks ───────────────────────────────────────────────── */}
+        {step === 5 && (
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>6. {firstName}'s Tasks</h2>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Assign tasks to {firstName}</p>
+            </div>
+            <div style={{ padding: "28px 32px" }}>
+              <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Which tasks will you like to assign to {firstName}?</p>
+              <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
+                <div style={{ padding: "12px 20px", background: "var(--muted)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 12 }}>
+                  <input type="checkbox" disabled style={{ cursor: "not-allowed" }} />
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted-foreground)" }}>Task</span>
+                </div>
+                {orgTasks.length === 0 ? (
+                  <div style={{ padding: "24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>No tasks configured yet.</div>
+                ) : orgTasks.map(t => (
+                  <label key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderBottom: "1px solid var(--border)", cursor: "pointer" }}>
+                    <input type="checkbox" checked={selectedTasks.includes(t.id)}
+                      onChange={e => setSelectedTasks(ids => e.target.checked ? [...ids, t.id] : ids.filter(i => i !== t.id))}
+                      style={{ accentColor: "var(--primary)" }} />
+                    <span style={{ fontSize: 14 }}>{t.name}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+              <button onClick={prevStep} style={{ padding: "10px 28px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Previous</button>
+              <button onClick={nextStep} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Next</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 6: Welcome Options ─────────────────────────────────────── */}
+        {step === 6 && (
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", maxWidth: 600, margin: "0 auto" }}>
+            <div style={{ padding: "48px 40px" }}>
+              <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, lineHeight: 1.6 }}>
+                {firstName} has already joined Data Science Nigeria, so we'll skip the welcome options this time.
+              </p>
+              <p style={{ fontSize: 14, color: "var(--muted-foreground)", lineHeight: 1.7, marginBottom: 28 }}>
+                {firstName} will have access to Data Science Nigeria once you approve their information under Needs Attention in your People Menu.
+              </p>
+              {err && <div style={{ padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626", marginBottom: 20 }}>{err}</div>}
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <button onClick={prevStep} style={{ padding: "10px 28px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Previous</button>
+                <button onClick={finish} disabled={saving} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: saving ? "wait" : "pointer", fontSize: 14, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 8 }}>
+                  {saving ? <><Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : "Finish"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
+}

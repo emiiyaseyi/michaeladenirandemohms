@@ -1,8 +1,5 @@
+import { redirect } from "next/navigation"
+
 export default function SingleSignOnPage() {
-  return (
-    <div>
-      <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>Single Sign-On</h1>
-      <p style={{ color: "var(--muted-foreground)", marginTop: 4 }}>Coming soon.</p>
-    </div>
-  )
+  redirect("/admin/settings")
 }

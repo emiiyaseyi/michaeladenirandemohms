@@ -1,11 +1,35 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, roleBasePath } from "@/lib/api-auth"
+import { requireAuth, roleBasePath } from "@/lib/api-auth"
+
+async function getHRAdminRecipients(): Promise<{ userId: string; employeeId?: string }[]> {
+  const [superAdmins, assignments] = await Promise.all([
+    prisma.user.findMany({ where: { role: "SUPER_ADMIN", isActive: true }, select: { id: true, employee: { select: { id: true } } } }),
+    prisma.userAdminRole.findMany({
+      include: { adminRole: { select: { permissions: true } }, user: { select: { id: true, isActive: true, employee: { select: { id: true } } } } },
+    }),
+  ])
+  const permsMap = new Map<string, Record<string, boolean>>()
+  const infoMap = new Map<string, { employeeId?: string }>()
+  for (const { user: u, adminRole } of assignments) {
+    if (!u.isActive) continue
+    const merged = permsMap.get(u.id) ?? {}
+    for (const [k, v] of Object.entries(adminRole.permissions as Record<string, boolean>)) if (v) merged[k] = true
+    permsMap.set(u.id, merged)
+    infoMap.set(u.id, { employeeId: u.employee?.id })
+  }
+  const out = new Map<string, { userId: string; employeeId?: string }>()
+  for (const u of superAdmins) out.set(u.id, { userId: u.id, employeeId: u.employee?.id })
+  for (const [id, perms] of permsMap.entries()) {
+    if (perms["canApproveLeave"] && perms["canViewAllLeave"]) out.set(id, { userId: id, employeeId: infoMap.get(id)?.employeeId })
+  }
+  return [...out.values()]
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canApproveLeave && !caps(user.role).canViewAllLeave) {
+  if (!user.permissions["canApproveLeave"] && !user.permissions["canViewAllLeave"] && user.role !== "SUPER_ADMIN" && user.role !== "PROJECT_LEAD") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 })
   }
 
@@ -47,24 +71,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ ok: true, nudged: relief.length })
   }
 
-  // Nudge HR Admin (Super Admin)
+  // Nudge HR Admin — use proper recipient lookup (not employee record)
   if (stage === "HR_ADMIN") {
-    const hrAdmins = await prisma.employee.findMany({
-      where: { user: { role: "SUPER_ADMIN" } },
-      select: { id: true, userId: true },
-    })
-    if (hrAdmins.length === 0) return NextResponse.json({ error: "No HR Admin found" }, { status: 400 })
+    const hrRecipients = await getHRAdminRecipients()
+    if (hrRecipients.length === 0) return NextResponse.json({ error: "No HR Admin found" }, { status: 400 })
     await prisma.notification.createMany({
-      data: hrAdmins.map(a => ({
-        userId: a.userId,
-        employeeId: a.id,
+      data: hrRecipients.map(r => ({
+        userId: r.userId,
+        employeeId: r.employeeId ?? null,
         title: "Leave Approval Reminder",
-        message: `${requesterName} is waiting for your final HR approval on their ${leaveName} leave request.`,
+        message: `${requesterName} is waiting for final HR approval on their ${leaveName} leave request.`,
         type: "WARNING" as const,
         link: `/admin/requests/leave?highlight=${id}`,
       })),
     })
-    return NextResponse.json({ ok: true, nudged: hrAdmins.length })
+    return NextResponse.json({ ok: true, nudged: hrRecipients.length })
   }
 
   // Nudge PROJECT_LEAD (approval record created at submission)

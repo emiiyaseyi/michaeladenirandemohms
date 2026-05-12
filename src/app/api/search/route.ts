@@ -71,9 +71,8 @@ export async function GET(req: NextRequest) {
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
   const role = (session.user as any).role ?? "STAFF"
-  const roleBase = role === "ADMIN" || role === "SUPER_ADMIN" ? "/admin"
-    : role === "PROJECT_LEAD" ? "/project-lead"
-    : "/staff"
+  const isElevated = !!(session.user as any).isElevated
+  const roleBase = (role === "SUPER_ADMIN" || isElevated) ? "/admin" : "/staff"
 
   const q = req.nextUrl.searchParams.get("q")?.trim() ?? ""
   if (q.length < 1) return NextResponse.json({ results: [] })
@@ -94,7 +93,7 @@ export async function GET(req: NextRequest) {
           { firstName: { contains: q, mode: "insensitive" } },
           { lastName:  { contains: q, mode: "insensitive" } },
           { jobTitle:  { contains: q, mode: "insensitive" } },
-          { workEmail: { contains: q, mode: "insensitive" } },
+          { user: { email: { contains: q, mode: "insensitive" } } },
           { department: { name: { contains: q, mode: "insensitive" } } },
         ],
       },
@@ -131,7 +130,7 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  const employeeBase = role === "ADMIN" || role === "SUPER_ADMIN"
+  const employeeBase = role === "SUPER_ADMIN" || isElevated
     ? `${roleBase}/people/employees`
     : `${roleBase}/people/teams`
 
@@ -155,14 +154,14 @@ export async function GET(req: NextRequest) {
       type: "job",
       label: j.title,
       desc: `${j.department?.name ?? ""} · ${j.employmentType ?? ""}`,
-      href: role === "ADMIN" || role === "SUPER_ADMIN" ? `${roleBase}/recruitment/jobs` : `${roleBase}/job-pay`,
+      href: role === "SUPER_ADMIN" || isElevated ? `${roleBase}/recruitment/jobs` : `${roleBase}/job-pay`,
       meta: j.status,
     })),
     ...departments.map(d => ({
       type: "department",
       label: d.name,
       desc: "Department",
-      href: role === "ADMIN" || role === "SUPER_ADMIN" ? `${roleBase}/people/departments` : `${roleBase}/people/org-chart`,
+      href: role === "SUPER_ADMIN" || isElevated ? `${roleBase}/people/departments` : `${roleBase}/people/org-chart`,
     })),
     ...navResults,
   ]

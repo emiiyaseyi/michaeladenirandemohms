@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -31,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         include: { project: { select: { id: true, name: true, status: true } } },
         where: { project: { status: "ACTIVE" } },
       },
-      user: { select: { role: true, additionalRoles: true } },
+      user: { select: { role: true, email: true, projectLeadDepartments: { include: { department: { select: { id: true, name: true } } } } } },
     },
   })
 
@@ -43,6 +43,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canEditAnyEmployee) return forbidden("Insufficient permissions to edit employees")
+  const perm = requirePermission(user, "canEditEmployee")
+  if (perm) return perm
 
   const { id } = await params
 
@@ -60,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     "departmentId", "jobTitle", "employmentType", "employeeStatus",
     "hireDate", "confirmationDate", "endDate",
     "managerId", "projectLeadId", "teamId",
-    "bankName", "bankAccountNo", "bankAccountName", "pensionPin", "tin", "nhfNo",
+    "bankName", "bankAccountNo", "bankAccountName", "pensionPin", "tin", "nhfNo", "nin", "aiMembership",
     "grossSalary", "onProbation", "probationEndDate",
     "nokName", "nokPhone", "nokRelationship", "nokAddress",
     "annualLeaveBalance", "sickLeaveBalance",
@@ -113,15 +115,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
-  if (Array.isArray(body.additionalRoles)) {
-    userUpdate.additionalRoles = body.additionalRoles
-  }
   if (Object.keys(userUpdate).length > 0) {
     await prisma.user.update({ where: { id: employee.userId }, data: userUpdate })
   }
 
   if (roleChanged && previousRole) {
-    const ROLE_LABEL: Record<string, string> = { STAFF: "Staff", PROJECT_LEAD: "Project Lead", ADMIN: "Admin" }
+    const ROLE_LABEL: Record<string, string> = { STAFF: "Staff", SUPER_ADMIN: "Super Admin" }
     await prisma.notification.create({
       data: {
         userId: employee.userId,

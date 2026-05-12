@@ -4,12 +4,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { signOut } from "next-auth/react"
 import {
-  ChevronRight, LogOut, ChevronDown,
+  ChevronRight, LogOut, ChevronDown, ArrowLeftRight,
   LayoutDashboard, UserCircle, Users, CalendarDays, Briefcase, TrendingUp,
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, FolderOpen, Layers,
   Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck,
   ClipboardList, DollarSign, Gift, Clock, Scale, Package, FileText,
-  Calendar, ShoppingBag, MessageSquare,
+  Calendar, ShoppingBag, MessageSquare, House, Banknote,
   type LucideIcon,
 } from "lucide-react"
 import { roleLabel, type NavItem } from "@/lib/rbac"
@@ -19,7 +19,7 @@ const ICON_MAP: Record<string, LucideIcon> = {
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, FolderOpen, Layers,
   Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck,
   ClipboardList, DollarSign, Gift, Clock, Scale, Package, FileText,
-  Calendar, ShoppingBag, MessageSquare,
+  Calendar, ShoppingBag, MessageSquare, House, Banknote,
 }
 
 function resolveIcon(name: string): LucideIcon {
@@ -70,9 +70,46 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
     }
   }
 
+  // Permission filtering only applies in the admin panel for elevated STAFF.
+  // Staff panel, SUPER_ADMIN, and ADMIN always see their full nav.
+  const isAdminPanel = homeUrl?.startsWith("/admin") ?? false
+  const hasPermission = (permission?: string): boolean => {
+    if (!permission) return true
+    if (!isAdminPanel) return true
+    if (user?.role === "SUPER_ADMIN") return true
+    return !!user?.permissions?.[permission]
+  }
+
+  // Pre-filter nav: remove items the user doesn't have permission for,
+  // filter dropdown children, and hide groups with no visible children.
+  const role = user?.role as string | undefined
+  const filteredNav: NavItem[] = []
+  for (const item of nav) {
+    if (item.spacer) { filteredNav.push(item); continue }
+    if (item.children) {
+      if (!hasPermission(item.permission)) continue
+      const visibleChildren = item.children.filter(c =>
+        !c.excludeRoles?.includes(role as any) && hasPermission(c.permission)
+      )
+      if (visibleChildren.length === 0) continue
+      filteredNav.push({ ...item, children: visibleChildren })
+    } else {
+      if (!hasPermission(item.permission)) continue
+      filteredNav.push(item)
+    }
+  }
+
+  // Re-compute section labels after filtering
+  const seenSections = new Set<string>()
+  const navWithSections = filteredNav.map(item => {
+    const showSection = !!(item.section && !seenSections.has(item.section))
+    if (item.section) seenSections.add(item.section)
+    return { item, showSection }
+  })
+
   const [openDropdowns, setOpenDropdowns] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {}
-    for (const item of nav) {
+    for (const item of filteredNav) {
       if (item.children?.some(c => path === c.href || path.startsWith(c.href + "/"))) {
         init[item.label] = true
       }
@@ -81,7 +118,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
   })
 
   useEffect(() => {
-    nav.forEach(item => {
+    filteredNav.forEach(item => {
       if (item.children?.some(c => path === c.href || path.startsWith(c.href + "/"))) {
         setOpenDropdowns(prev => ({ ...prev, [item.label]: true }))
       }
@@ -134,18 +171,23 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
       {/* Scrollable Nav */}
       <nav style={{ flex: 1, padding: "10px 10px", overflowY: "auto", overflowX: "hidden" }}>
-        {nav.map(item => {
+        {navWithSections.map(({ item, showSection }) => {
+          const shouldShowSection = showSection && user?.role !== "STAFF"
           const Icon = resolveIcon(item.icon)
+
+          if (item.spacer) {
+            return (
+              <div key={item.label} style={{ height: 6, margin: "6px 0", borderTop: "1px solid rgba(255,255,255,0.08)" }} />
+            )
+          }
 
           if (item.children) {
             const isOpen   = openDropdowns[item.label] ?? false
             const isActive = item.children.some(c => path === c.href || path.startsWith(c.href + "/"))
-            const role     = user?.role as string | undefined
-            const visible  = item.children.filter(c => !c.excludeRoles?.includes(role as any))
 
             return (
               <div key={item.label}>
-                {item.section && (
+                {shouldShowSection && (
                   <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--sidebar-fg)", padding: "10px 10px 4px", textTransform: "uppercase", marginTop: 4 }}>
                     {item.section}
                   </div>
@@ -173,8 +215,8 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
                 {isOpen && (
                   <div style={{ marginBottom: 4 }}>
-                    {visible.map(child => {
-                      const childActive = path === child.href
+                    {item.children.map(child => {
+                      const childActive = path === child.href || (!child.exact && path.startsWith(child.href + "/"))
                       return (
                         <NavLink key={child.href} href={child.href} label={child.label} active={childActive} indent />
                       )
@@ -191,7 +233,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 
           return (
             <div key={item.href ?? item.label}>
-              {item.section && (
+              {shouldShowSection && (
                 <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: "var(--sidebar-fg)", padding: "10px 10px 4px", textTransform: "uppercase", marginTop: 4 }}>
                   {item.section}
                 </div>
@@ -202,9 +244,40 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
         })}
       </nav>
 
+      {/* Panel switcher for elevated users */}
+      {user?.isElevated && (
+        <div style={{ padding: "6px 10px", flexShrink: 0 }}>
+          {homeUrl?.startsWith("/project-lead") ? (
+            <Link href="/admin" onClick={closeMobileNav}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, background: "rgba(255,255,255,0.06)", textDecoration: "none", color: "var(--sidebar-fg)", fontSize: 12, fontWeight: 600, transition: "background .15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)" }}
+            >
+              <ArrowLeftRight size={13} /> Switch to Admin
+            </Link>
+          ) : homeUrl?.startsWith("/admin") && user?.role === "PROJECT_LEAD" ? (
+            <Link href="/project-lead" onClick={closeMobileNav}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, background: "rgba(255,255,255,0.06)", textDecoration: "none", color: "var(--sidebar-fg)", fontSize: 12, fontWeight: 600, transition: "background .15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)" }}
+            >
+              <ArrowLeftRight size={13} /> Switch to PL View
+            </Link>
+          ) : homeUrl?.startsWith("/admin") && user?.role === "STAFF" ? (
+            <Link href="/staff" onClick={closeMobileNav}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", borderRadius: 8, background: "rgba(255,255,255,0.06)", textDecoration: "none", color: "var(--sidebar-fg)", fontSize: 12, fontWeight: 600, transition: "background .15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.12)" }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.06)" }}
+            >
+              <ArrowLeftRight size={13} /> Switch to Staff View
+            </Link>
+          ) : null}
+        </div>
+      )}
+
       {/* User + Logout */}
       <div style={{ padding: "10px", borderTop: "1px solid var(--sidebar-border)", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)", marginBottom: 6 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px", borderRadius: 8, background: "rgba(255,255,255,0.03)" }}>
           <div style={{
             width: 32, height: 32, borderRadius: "50%", background: "var(--primary)",
             display: "flex", alignItems: "center", justifyContent: "center",
@@ -220,21 +293,20 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
               {roleLabel(user?.role ?? "")}
             </div>
           </div>
+          <button
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            title="Sign out"
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              color: "white", padding: 4, display: "flex", alignItems: "center",
+              borderRadius: 6, flexShrink: 0, transition: "background 0.15s",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.1)" }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none" }}
+          >
+            <LogOut size={15} />
+          </button>
         </div>
-        <button
-          onClick={() => signOut({ callbackUrl: "/login" })}
-          style={{
-            width: "100%", display: "flex", alignItems: "center", gap: 8,
-            padding: "8px 10px", borderRadius: 8, background: "rgba(248,113,113,0.08)",
-            border: "1px solid rgba(248,113,113,0.2)", cursor: "pointer",
-            color: "#F87171", fontSize: 12, fontWeight: 600, transition: "all 0.15s",
-          }}
-          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(248,113,113,0.18)" }}
-          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(248,113,113,0.08)" }}
-        >
-          <LogOut size={14} />
-          Sign Out
-        </button>
       </div>
     </aside>
   )

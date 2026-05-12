@@ -1,2 +1,4 @@
-import Page from "@/components/pages/SettingsPage"
-export default Page
+import { redirect } from "next/navigation"
+export default function SettingsIndexPage() {
+  redirect("/admin/settings/admins")
+}

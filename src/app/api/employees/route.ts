@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 import bcrypt from "bcryptjs"
 
 export async function GET(req: NextRequest) {
@@ -15,8 +15,9 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status") ?? ""
   const dept = searchParams.get("dept") ?? ""
 
-  // Staff get a limited public directory — no salary, bank, or sensitive fields
-  if (isStaff) {
+  // Staff AND Project Lead use the same public directory (no sensitive fields).
+  // Team-scoped views for PLs go through /api/project-lead/team instead.
+  if (isStaff || user.role === "PROJECT_LEAD") {
     try {
       const employees = await prisma.employee.findMany({
         where: {
@@ -31,26 +32,24 @@ export async function GET(req: NextRequest) {
         select: {
           id: true, firstName: true, lastName: true, jobTitle: true,
           profilePhoto: true, gender: true, employeeId: true,
-          employeeStatus: true,
+          employeeStatus: true, phone: true,
           departmentId: true, department: { select: { id: true, name: true } },
           managerId: true, projectLeadId: true,
-          user: { select: { role: true } },
+          user: { select: { role: true, email: true } },
         },
         orderBy: { firstName: "asc" },
       })
-      return NextResponse.json({ employees, departments: [] })
+      const departments = await prisma.department.findMany({ orderBy: { name: "asc" } })
+      return NextResponse.json({ employees, departments })
     } catch (e: any) {
-      console.error("[GET /api/employees staff]", e)
+      console.error("[GET /api/employees staff/pl]", e)
       return NextResponse.json({ employees: [], departments: [] })
     }
   }
 
-  // Scope filter for PROJECT_LEAD
   let scopeFilter: any = {}
   if (!c.canViewAllEmployees && c.canViewTeamEmployees) {
-    if (user.role === "PROJECT_LEAD") {
-      scopeFilter = { managerId: user.employeeId }
-    }
+    scopeFilter = { managerId: user.employeeId }
   }
 
   try {
@@ -62,7 +61,7 @@ export async function GET(req: NextRequest) {
             search ? { OR: [
               { firstName: { contains: search, mode: "insensitive" } },
               { lastName: { contains: search, mode: "insensitive" } },
-              { workEmail: { contains: search, mode: "insensitive" } },
+              { user: { email: { contains: search, mode: "insensitive" } } },
               { employeeId: { contains: search, mode: "insensitive" } },
               { jobTitle: { contains: search, mode: "insensitive" } },
             ]} : {},
@@ -76,7 +75,7 @@ export async function GET(req: NextRequest) {
           projectAssignments: {
             include: { project: { select: { id: true, name: true, status: true } } },
           },
-          user: { select: { role: true, additionalRoles: true } },
+          user: { select: { role: true, email: true } },
         },
         orderBy: { createdAt: "desc" },
       }),
@@ -94,15 +93,17 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canCreateEmployee) return forbidden()
+  const perm = requirePermission(user, "canCreateEmployee")
+  if (perm) return perm
 
   const body = await req.json()
-  const { firstName, lastName, middleName, workEmail, phone, jobTitle, departmentId, employmentType, hireDate, dateOfBirth, gender, category, grossSalary, projectLeadEmail, role: bodyRole } = body
+  const { firstName, lastName, middleName, email: workEmail, phone, jobTitle, departmentId, employmentType, hireDate, dateOfBirth, gender, category, grossSalary, projectLeadEmail, role: bodyRole } = body
 
   if (!firstName || !lastName || !workEmail || !phone || !jobTitle || !hireDate || !gender || !departmentId || !category) {
     return NextResponse.json({ error: "First name, last name, email, phone, job title, hire date, gender, department and category are required" }, { status: 400 })
   }
 
-  const existing = await prisma.employee.findFirst({ where: { workEmail } })
+  const existing = await prisma.user.findFirst({ where: { email: workEmail } })
   if (existing) return NextResponse.json({ error: "Email already in use" }, { status: 400 })
 
   const count = await prisma.employee.count()
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
   // Look up project lead by email
   let projectLeadId: string | null = null
   if (projectLeadEmail?.trim()) {
-    const lead = await prisma.employee.findFirst({ where: { workEmail: projectLeadEmail.trim().toLowerCase() } })
+    const lead = await prisma.employee.findFirst({ where: { user: { email: projectLeadEmail.trim().toLowerCase() } } })
     projectLeadId = lead?.id ?? null
   }
 
@@ -133,7 +134,7 @@ export async function POST(req: NextRequest) {
 
   const employee = await prisma.employee.create({
     data: {
-      userId: newUser.id, employeeId, firstName, lastName, middleName: middleName || null, workEmail,
+      userId: newUser.id, employeeId, firstName, lastName, middleName: middleName || null,
       phone: phone || null, jobTitle: jobTitle || null,
       departmentId: departmentId || null,
       employmentType: (employmentType ?? "FULL_TIME") as any,

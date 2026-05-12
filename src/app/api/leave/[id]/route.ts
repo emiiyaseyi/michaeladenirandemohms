@@ -39,8 +39,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const isAdmin = caps(user.role).canViewAllLeave
   const isOwner = request.employeeId === user.employeeId
 
-  // Project lead with a pending approval on this request may adjust dates
-  const isPLEdit = !isAdmin && !isOwner && user.role === "PROJECT_LEAD" && !!user.employeeId &&
+  // Approver with a pending approval on this request may adjust dates
+  const isPLEdit = !isAdmin && !isOwner && !!user.employeeId &&
     !!(await prisma.leaveApproval.findFirst({
       where: { leaveRequestId: id, stage: "PROJECT_LEAD", employeeId: user.employeeId, action: null },
     }))

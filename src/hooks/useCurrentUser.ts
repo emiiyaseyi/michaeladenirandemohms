@@ -9,6 +9,10 @@ export interface CurrentUser {
   role: SystemRole
   employeeId?: string
   caps: RoleCapabilities
+  isElevated: boolean
+  isAdmin: boolean
+  permissions: Record<string, boolean>
+  can: (key: string) => boolean
 }
 
 export function useCurrentUser(): { user: CurrentUser | null; loading: boolean } {
@@ -19,6 +23,10 @@ export function useCurrentUser(): { user: CurrentUser | null; loading: boolean }
 
   const u = session.user as any
   const role = (u.role ?? "STAFF") as SystemRole
+  const isElevated = !!(u.isElevated)
+  const isAdmin = role === "SUPER_ADMIN" || isElevated
+  const permissions = (u.permissions ?? {}) as Record<string, boolean>
+  const can = (key: string) => role === "SUPER_ADMIN" || !!permissions[key]
 
   return {
     user: {
@@ -28,6 +36,10 @@ export function useCurrentUser(): { user: CurrentUser | null; loading: boolean }
       role,
       employeeId: u.employeeId,
       caps: getCapabilities(role),
+      isElevated,
+      isAdmin,
+      permissions,
+      can,
     },
     loading: false,
   }

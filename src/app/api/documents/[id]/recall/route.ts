@@ -1,0 +1,21 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canManageSettings) return forbidden()
+
+  const { id } = await params
+  const { mode } = await req.json() // "acknowledged" | "all"
+
+  if (mode === "all") {
+    await prisma.docAck.deleteMany({ where: { documentId: id } })
+  } else {
+    // Only remove acknowledged ones
+    await prisma.docAck.deleteMany({ where: { documentId: id, acknowledged: true } })
+  }
+
+  return NextResponse.json({ ok: true })
+}

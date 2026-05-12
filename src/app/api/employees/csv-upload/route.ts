@@ -4,7 +4,7 @@ import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 import bcrypt from "bcryptjs"
 
 // Required CSV columns
-const REQUIRED = ["firstName", "lastName", "workEmail"]
+const REQUIRED = ["firstName", "lastName", "email"]
 
 function parseCSV(text: string): Record<string, string>[] {
   const lines = text.split(/\r?\n/).filter(l => l.trim())
@@ -55,16 +55,16 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    const { firstName, middleName, lastName, workEmail, phone, jobTitle, hireDate, dateOfBirth, gender, employmentType, departmentName, projectLeadEmail, grossSalary, category, role: rowRole } = row
+    const { firstName, middleName, lastName, email, phone, jobTitle, hireDate, dateOfBirth, gender, employmentType, departmentName, projectLeadEmail, grossSalary, category, role: rowRole } = row
 
-    if (!firstName?.trim() || !lastName?.trim() || !workEmail?.trim()) {
+    if (!firstName?.trim() || !lastName?.trim() || !email?.trim()) {
       results.push({ row: i + 2, status: "skipped", error: "Missing required fields" })
       continue
     }
 
-    const existing = await prisma.employee.findFirst({ where: { workEmail: workEmail.trim().toLowerCase() } })
+    const existing = await prisma.user.findFirst({ where: { email: email.trim().toLowerCase() } })
     if (existing) {
-      results.push({ row: i + 2, status: "skipped", email: workEmail, error: "Email already exists" })
+      results.push({ row: i + 2, status: "skipped", email, error: "Email already exists" })
       continue
     }
 
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       // Look up project lead by email
       let projectLeadId: string | null = null
       if (projectLeadEmail?.trim()) {
-        const lead = await prisma.employee.findFirst({ where: { workEmail: projectLeadEmail.trim().toLowerCase() } })
+        const lead = await prisma.employee.findFirst({ where: { user: { email: projectLeadEmail.trim().toLowerCase() } } })
         projectLeadId = lead?.id ?? null
       }
 
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
       nextNum++
 
       const newUser = await prisma.user.create({
-        data: { name: fullName, email: workEmail.trim().toLowerCase(), password: hashedPwd, role: (["STAFF","PROJECT_LEAD","ADMIN"].includes(rowRole?.trim().toUpperCase() ?? "") ? rowRole!.trim().toUpperCase() : "STAFF") as any },
+        data: { name: fullName, email: email.trim().toLowerCase(), password: hashedPwd, role: "STAFF" },
       })
 
       const catUpper = category?.trim().toUpperCase()
@@ -100,7 +100,6 @@ export async function POST(req: NextRequest) {
           firstName: firstName.trim(),
           middleName: mid,
           lastName: lastName.trim(),
-          workEmail: workEmail.trim().toLowerCase(),
           phone: phone?.trim() || null,
           jobTitle: jobTitle?.trim() || null,
           hireDate: hireDate?.trim() ? new Date(hireDate.trim()) : null,
@@ -116,9 +115,9 @@ export async function POST(req: NextRequest) {
         },
       })
 
-      results.push({ row: i + 2, status: "created", email: workEmail })
+      results.push({ row: i + 2, status: "created", email })
     } catch (e: any) {
-      results.push({ row: i + 2, status: "skipped", email: workEmail, error: e.message ?? "Unknown error" })
+      results.push({ row: i + 2, status: "skipped", email, error: e.message ?? "Unknown error" })
     }
   }
 
@@ -130,12 +129,12 @@ export async function POST(req: NextRequest) {
 // GET: download CSV template
 export async function GET() {
   const headers = [
-    "firstName", "middleName", "lastName", "workEmail", "phone", "jobTitle",
+    "firstName", "middleName", "lastName", "email", "phone", "jobTitle",
     "hireDate", "dateOfBirth", "gender", "employmentType", "departmentName",
     "projectLeadEmail", "grossSalary", "category", "role",
   ]
   const example = [
-    "John", "", "Doe", "john.doe@datasciencenigeria.ai", "08012345678",
+    "John", "", "Doe", "john@datasciencenigeria.ai", "08012345678",
     "Software Engineer", "2024-01-15", "1995-06-20", "MALE", "FULL_TIME",
     "Technical Delivery (Service & Consulting)", "lead@datasciencenigeria.ai", "450000", "TECHNICAL", "STAFF",
   ]

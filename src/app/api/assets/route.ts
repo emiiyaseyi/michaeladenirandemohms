@@ -1,0 +1,66 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url)
+  const search = searchParams.get("search") ?? ""
+  const status = searchParams.get("status") ?? ""
+
+  const where: any = {}
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { identifier: { contains: search, mode: "insensitive" } },
+      { description: { contains: search, mode: "insensitive" } },
+    ]
+  }
+  if (status === "active") where.isActive = true
+  if (status === "inactive") where.isActive = false
+
+  const assets = await prisma.asset.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    include: {
+      assetType: { select: { id: true, name: true } },
+      _count: { select: { assignments: { where: { status: "ASSIGNED" } } } },
+    },
+  })
+
+  return NextResponse.json({ assets })
+}
+
+export async function POST(req: NextRequest) {
+  const body = await req.json()
+  const { name, assetTypeId, description, identifier, commissionDate, isMultiAssignable, maxAssignees, assignments } = body
+
+  if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })
+  if (!commissionDate) return NextResponse.json({ error: "Commission date is required" }, { status: 400 })
+
+  const asset = await prisma.asset.create({
+    data: {
+      name: name.trim(),
+      assetTypeId: assetTypeId || null,
+      description: description?.trim() || null,
+      identifier: identifier?.trim() || null,
+      commissionDate: new Date(commissionDate),
+      isMultiAssignable: !!isMultiAssignable,
+      maxAssignees: isMultiAssignable && maxAssignees ? parseInt(maxAssignees) : null,
+    },
+  })
+
+  if (assignments && Array.isArray(assignments) && assignments.length > 0) {
+    await prisma.assetAssignment.createMany({
+      data: assignments.map((a: any) => ({
+        assetId: asset.id,
+        employeeId: a.employeeId,
+        assignedOn: a.assignedOn ? new Date(a.assignedOn) : null,
+        period: a.period ? parseInt(a.period) : null,
+        periodUnit: a.periodUnit || null,
+        description: a.description?.trim() || null,
+        status: "ASSIGNED",
+      })),
+    })
+  }
+
+  return NextResponse.json({ asset }, { status: 201 })
+}

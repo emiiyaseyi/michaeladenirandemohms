@@ -37,7 +37,7 @@ const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
   RETIRED: { bg: "rgba(156,163,175,0.2)", color: "#6B7280" },
 }
 
-const ALL_ROLES = ["ADMIN","ADMIN","ADMIN","PROJECT_LEAD","PROJECT_LEAD","PROJECT_LEAD","STAFF","STAFF","ADMIN","ADMIN","ADMIN"]
+const ALL_ROLES = ["SUPER_ADMIN", "STAFF"]
 const ROLE_LABELS: Record<string, string> = {
   SUPER_ADMIN:"Super Admin", ADMIN:"Admin", HR_ADMIN:"HR Admin", MANAGER:"Manager",
   DEPARTMENT_LEAD:"Dept Lead", PROJECT_MANAGER:"Project Manager", STAFF:"Staff",
@@ -286,7 +286,10 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AnnouncementsPage() {
   const { user } = useCurrentUser()
-  const isAdmin = ["ADMIN","ADMIN","ADMIN","PROJECT_LEAD"].includes(user?.role ?? "")
+  const isAdmin = user?.isAdmin ?? false
+  const canCreateAnnouncement = user?.can("canCreateAnnouncement") ?? false
+  const canEditAnnouncement = user?.can("canEditAnnouncement") ?? false
+  const canDeleteAnnouncement = user?.can("canDeleteAnnouncement") ?? false
 
   const [announcements, setAnnouncements] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -331,7 +334,7 @@ export default function AnnouncementsPage() {
             {isAdmin ? "Create and manage announcements for all employees." : "Company announcements and updates."}
           </p>
         </div>
-        {isAdmin && <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Announcement</Button>}
+        {canCreateAnnouncement && <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Announcement</Button>}
       </div>
 
       {/* Status filter tabs */}
@@ -368,7 +371,7 @@ export default function AnnouncementsPage() {
             <div style={{ fontSize:13, color:"var(--muted-foreground)" }}>
               {isAdmin ? "Create your first announcement to share updates with employees." : "Check back later for updates from HR."}
             </div>
-            {isAdmin && announcements.length === 0 && <Button onClick={() => setShowCreate(true)} style={{ marginTop:12 }}><Plus size={14} /> Create Announcement</Button>}
+            {canCreateAnnouncement && announcements.length === 0 && <Button onClick={() => setShowCreate(true)} style={{ marginTop:12 }}><Plus size={14} /> Create Announcement</Button>}
           </div>
         </Card>
       ) : (
@@ -400,24 +403,28 @@ export default function AnnouncementsPage() {
                       {ann.publishedAt && <span>· Published {formatDate(ann.publishedAt)}</span>}
                     </div>
                   </div>
-                  {isAdmin && (
+                  {(isAdmin || canEditAnnouncement || canDeleteAnnouncement) && (
                     <div style={{ display:"flex", gap:4, flexShrink:0 }}>
-                      {ann.status === "DRAFT" && (
+                      {isAdmin && ann.status === "DRAFT" && (
                         <button onClick={() => changeStatus(ann.id, "PUBLISHED")} title="Publish" style={{ padding:"6px 10px", borderRadius:8, border:"none", cursor:"pointer", background:"rgba(16,185,129,0.1)", color:"#10B981", display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:700 }}>
                           <Send size={12} /> Publish
                         </button>
                       )}
-                      {ann.status === "PUBLISHED" && (
+                      {isAdmin && ann.status === "PUBLISHED" && (
                         <button onClick={() => changeStatus(ann.id, "RETIRED")} title="Retire" style={{ padding:"6px 10px", borderRadius:8, border:"none", cursor:"pointer", background:"var(--muted)", color:"var(--muted-foreground)", display:"flex", alignItems:"center", gap:4, fontSize:11, fontWeight:700 }}>
                           <Archive size={12} /> Retire
                         </button>
                       )}
-                      <button onClick={() => setEditAnn(ann)} title="Edit" style={{ padding:"6px 8px", borderRadius:8, border:"1px solid var(--border)", cursor:"pointer", background:"var(--muted)", color:"var(--foreground)", display:"flex", alignItems:"center" }}>
-                        <Edit2 size={13} />
-                      </button>
-                      <button onClick={() => deleteAnn(ann.id)} disabled={deleting===ann.id} title="Delete" style={{ padding:"6px 8px", borderRadius:8, border:"1px solid rgba(239,68,68,0.2)", cursor:"pointer", background:"rgba(239,68,68,0.08)", color:"#EF4444", display:"flex", alignItems:"center" }}>
-                        {deleting===ann.id ? <Loader2 size={13} style={{ animation:"spin .8s linear infinite" }} /> : <Trash2 size={13} />}
-                      </button>
+                      {canEditAnnouncement && (
+                        <button onClick={() => setEditAnn(ann)} title="Edit" style={{ padding:"6px 8px", borderRadius:8, border:"1px solid var(--border)", cursor:"pointer", background:"var(--muted)", color:"var(--foreground)", display:"flex", alignItems:"center" }}>
+                          <Edit2 size={13} />
+                        </button>
+                      )}
+                      {canDeleteAnnouncement && (
+                        <button onClick={() => deleteAnn(ann.id)} disabled={deleting===ann.id} title="Delete" style={{ padding:"6px 8px", borderRadius:8, border:"1px solid rgba(239,68,68,0.2)", cursor:"pointer", background:"rgba(239,68,68,0.08)", color:"#EF4444", display:"flex", alignItems:"center" }}>
+                          {deleting===ann.id ? <Loader2 size={13} style={{ animation:"spin .8s linear infinite" }} /> : <Trash2 size={13} />}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

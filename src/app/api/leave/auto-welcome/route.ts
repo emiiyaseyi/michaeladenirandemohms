@@ -72,7 +72,7 @@ export async function POST() {
 
     // Add all admins/HR
     const admins = await prisma.user.findMany({
-      where: { role: { in: ["ADMIN", "SUPER_ADMIN"] }, isActive: true },
+      where: { role: { in: ["SUPER_ADMIN"] }, isActive: true },
       select: { id: true },
     })
     for (const a of admins) notifyUserIds.add(a.id)

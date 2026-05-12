@@ -282,7 +282,7 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DepartmentsPage() {
   const { user } = useCurrentUser()
-  const isAdmin = ["ADMIN","ADMIN","ADMIN"].includes(user?.role ?? "")
+  const isAdmin = user?.isAdmin ?? false
 
   const [departments, setDepartments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)

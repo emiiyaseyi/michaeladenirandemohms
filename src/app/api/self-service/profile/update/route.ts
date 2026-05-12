@@ -8,7 +8,11 @@ const UPDATABLE_FIELDS = [
   "gender", "dateOfBirth", "maritalStatus", "nationality", "stateOfOrigin",
   "nokName", "nokPhone", "nokRelationship", "nokAddress",
   "bankName", "bankAccountNo", "bankAccountName",
+  "nin", "aiMembership",
 ]
+
+// Fields that skip the approval workflow and are saved directly
+const DIRECT_FIELDS = ["nin", "aiMembership"]
 
 export async function PATCH(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -24,12 +28,22 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json()
 
   const changes: Record<string, any> = {}
+  const directChanges: Record<string, any> = {}
   for (const field of UPDATABLE_FIELDS) {
-    if (field in body) changes[field] = body[field] || null
+    if (field in body) {
+      const val = body[field] || null
+      if (DIRECT_FIELDS.includes(field)) directChanges[field] = val
+      else changes[field] = val
+    }
+  }
+
+  // Apply direct fields immediately (no approval workflow)
+  if (Object.keys(directChanges).length > 0) {
+    await prisma.employee.update({ where: { id: empId }, data: directChanges })
   }
 
   if (Object.keys(changes).length === 0) {
-    return NextResponse.json({ error: "No valid fields to update" }, { status: 400 })
+    return NextResponse.json({ direct: true, message: "Profile updated" })
   }
 
   // SUPER_ADMIN: apply directly, no approval needed
@@ -49,9 +63,8 @@ export async function PATCH(req: NextRequest) {
 
   // ADMIN requests → notify only SUPER_ADMIN
   // Staff/TL requests → notify ADMIN + SUPER_ADMIN (excluding submitter)
-  const targetRoles: string[] = user.role === "ADMIN" ? ["SUPER_ADMIN"] : ["ADMIN", "SUPER_ADMIN"]
   const reviewers = await prisma.user.findMany({
-    where: { role: { in: targetRoles as any }, isActive: true, NOT: { id: user.id } },
+    where: { role: { in: ["SUPER_ADMIN"] }, isActive: true, NOT: { id: user.id } },
     select: { id: true },
   })
   if (reviewers.length > 0) {

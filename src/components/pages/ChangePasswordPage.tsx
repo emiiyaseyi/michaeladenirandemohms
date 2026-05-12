@@ -100,7 +100,7 @@ export default function ChangePasswordPage() {
   )
 
   return (
-    <div style={{ maxWidth: 520, margin: "0 auto" }}>
+    <div>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 20, fontWeight: 800 }}>Change Password</h1>
         <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>

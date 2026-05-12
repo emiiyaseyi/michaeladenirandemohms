@@ -52,7 +52,7 @@ function BalanceCard({ lb }: { lb: any }) {
 }
 
 function StageBar({ approvals }: { approvals: any[] }) {
-  const STAGE_ORDER = ["PROJECT_LEAD", "ADMIN"]
+  const STAGE_ORDER = ["PROJECT_LEAD", "HR_ADMIN"]
   const labels: Record<string, string> = { PROJECT_LEAD: "Project Lead", HR_ADMIN: "HR/Admin" }
   const stages = STAGE_ORDER.filter(s => approvals.some(a => a.stage === s))
   return (
@@ -85,6 +85,8 @@ function ReliefOfficerSearch({ employees, selected, onChange }: { employees: any
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
+
+  
   useEffect(() => {
     const handler = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
     document.addEventListener("mousedown", handler)
@@ -149,9 +151,9 @@ function ReliefOfficerSearch({ employees, selected, onChange }: { employees: any
 
 type PLEntry = { employeeId: string; taskName: string; taskDescription: string; relieverId: string }
 
-function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, employeeGender, onSuccess, userCaps, isAdmin, currentUserEmployeeId }: {
-  open: boolean; onClose: () => void; leaveTypes: any[]; employees: any[];
-  balances: any[]; employeeGender?: string; onSuccess: () => void; userCaps: any; isAdmin: boolean; currentUserEmployeeId?: string
+function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmployees, balances, employeeGender, onSuccess, userCaps, isAdmin, currentUserEmployeeId, currentUserId }: {
+  open: boolean; onClose: () => void; leaveTypes: any[]; employees: any[]; projectLeadEmployees: any[];
+  balances: any[]; employeeGender?: string; onSuccess: () => void; userCaps: any; isAdmin: boolean; currentUserEmployeeId?: string; currentUserId?: string
 }) {
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
@@ -161,6 +163,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
   const [docUploading, setDocUploading] = useState(false)
   const [plSearch, setPLSearch] = useState("")
   const [plDropOpen, setPLDropOpen] = useState(false)
+  const [plDropRect, setPlDropRect] = useState<{ top: number; left: number; width: number } | null>(null)
   const plSearchRef = useRef<HTMLDivElement>(null)
   const [form, setForm] = useState({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", documentUrl: "", projectLeads: [] as PLEntry[] })
 
@@ -187,8 +190,22 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
 
   useEffect(() => {
     const handler = (e: MouseEvent) => { if (!plSearchRef.current?.contains(e.target as Node)) setPLDropOpen(false) }
-    document.addEventListener("mousedown", handler); return () => document.removeEventListener("mousedown", handler)
+    const onResize = () => setPLDropOpen(false)
+    document.addEventListener("mousedown", handler)
+    window.addEventListener("resize", onResize)
+    return () => {
+      document.removeEventListener("mousedown", handler)
+      window.removeEventListener("resize", onResize)
+    }
   }, [])
+
+  const openPLDrop = () => {
+    if (plSearchRef.current) {
+      const r = plSearchRef.current.getBoundingClientRect()
+      setPlDropRect({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    setPLDropOpen(true)
+  }
 
   const updatePL = (i: number, field: keyof PLEntry, value: string) => {
     setForm(f => { const pls = [...f.projectLeads]; pls[i] = { ...pls[i], [field]: value }; return { ...f, projectLeads: pls } })
@@ -204,8 +221,10 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
 
   const applicantId = form.employeeId || currentUserEmployeeId
   const selectedPLIds = form.projectLeads.map(p => p.employeeId)
-  const filteredPLs = employees.filter((e: any) =>
-    e.id !== applicantId && !selectedPLIds.includes(e.id) &&
+  const filteredPLs = projectLeadEmployees.filter((e: any) =>
+    e.id !== applicantId &&
+    (currentUserId ? e.userId !== currentUserId : true) &&
+    !selectedPLIds.includes(e.id) &&
     `${e.firstName} ${e.lastName}`.toLowerCase().includes(plSearch.toLowerCase())
   )
 
@@ -237,7 +256,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
   const prev = () => setStep(s => Math.max(1, s - 1))
 
   const reset = () => {
-    setStep(1); setCalcDays(0); setHolidays([]); setErrors({}); setPLSearch("")
+    setStep(1); setCalcDays(0); setHolidays([]); setErrors({}); setPLSearch(""); setPLDropOpen(false); setPlDropRect(null)
     setForm({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", documentUrl: "", projectLeads: [] })
   }
 
@@ -251,26 +270,26 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
     else { const d = await r.json(); setErrors({ submit: d.error ?? "Submission failed" }) }
   }
 
-  const steps = [{ n: 1, l: "Leave Type" }, { n: 2, l: "Dates" }, { n: 3, l: "Project Lead(s)" }, { n: 4, l: "Handover" }, { n: 5, l: "Review" }]
+  const steps = [{ n: 1, l: "Type" }, { n: 2, l: "Dates" }, { n: 3, l: "Lead(s)" }, { n: 4, l: "Handover" }, { n: 5, l: "Review" }]
 
   return (
     <Modal open={open} onClose={() => { onClose(); reset() }} title="Apply for Leave" width={640}>
-      {/* Step bar */}
-      <div style={{ display: "flex", padding: "14px 24px 0", gap: 0 }}>
+      {/* Step bar — sticky so it never scrolls away */}
+      <div style={{ display: "flex", padding: "12px 20px 4px", gap: 0, position: "sticky", top: 0, background: "var(--card)", zIndex: 10 }}>
         {steps.map((s, i) => (
-          <div key={s.n} style={{ display: "flex", alignItems: "center", flex: i < steps.length - 1 ? 1 : 0 }}>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: step > s.n ? "var(--success)" : step === s.n ? "var(--primary)" : "var(--muted)", color: step >= s.n ? "white" : "var(--muted-foreground)", transition: "all .2s" }}>
-                {step > s.n ? <Check size={12} /> : s.n}
+          <div key={s.n} style={{ display: "flex", alignItems: "center", flex: i < steps.length - 1 ? 1 : 0, minWidth: 0 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, minWidth: 0 }}>
+              <div style={{ width: 24, height: 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: step > s.n ? "var(--success)" : step === s.n ? "var(--primary)" : "var(--muted)", color: step >= s.n ? "white" : "var(--muted-foreground)", transition: "all .2s", flexShrink: 0 }}>
+                {step > s.n ? <Check size={11} /> : s.n}
               </div>
-              <span style={{ fontSize: 10, fontWeight: 600, color: step === s.n ? "var(--primary)" : "var(--muted-foreground)", textAlign: "center", maxWidth: 65, lineHeight: 1.2 }}>{s.l}</span>
+              <span className="modal-step-label" style={{ fontSize: 10, fontWeight: 600, color: step === s.n ? "var(--primary)" : "var(--muted-foreground)", textAlign: "center", maxWidth: 56, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.l}</span>
             </div>
-            {i < steps.length - 1 && <div style={{ flex: 1, height: 2, background: step > s.n ? "var(--success)" : "var(--border)", margin: "0 4px 14px", transition: "background .2s" }} />}
+            {i < steps.length - 1 && <div className="modal-step-connector" style={{ flex: 1, height: 2, background: step > s.n ? "var(--success)" : "var(--border)", margin: "0 3px 14px", transition: "background .2s", minWidth: 8 }} />}
           </div>
         ))}
       </div>
 
-      <div style={{ padding: 24, minHeight: 300, overflowY: "auto", maxHeight: "60vh" }}>
+      <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, minHeight: 0 }}>
         {/* Step 1: Leave type */}
         {step === 1 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -418,21 +437,21 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
               )
             })}
 
-            <div ref={plSearchRef} style={{ position: "relative" }}>
+            <div ref={plSearchRef}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px dashed var(--border)", borderRadius: 8, padding: "9px 12px", background: "var(--background)" }}>
                 <Plus size={14} style={{ color: "var(--primary)", flexShrink: 0 }} />
-                <input value={plSearch} onChange={e => { setPLSearch(e.target.value); setPLDropOpen(true) }} onFocus={() => setPLDropOpen(true)}
+                <input value={plSearch} onChange={e => { setPLSearch(e.target.value); openPLDrop() }} onFocus={() => openPLDrop()}
                   placeholder={form.projectLeads.length === 0 ? "Add a Project Lead…" : "Add another Project Lead…"}
                   style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, flex: 1, color: "var(--foreground)" }} />
               </div>
-              {plDropOpen && filteredPLs.length > 0 && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+              {plDropOpen && filteredPLs.length > 0 && plDropRect && (
+                <div style={{ position: "fixed", top: plDropRect.top, left: plDropRect.left, width: plDropRect.width, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.15)", zIndex: 9999, maxHeight: 220, overflowY: "auto" }}>
                   {filteredPLs.slice(0, 8).map((e: any) => (
                     <button key={e.id} onClick={() => addPL(e.id)}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
                       onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
                       onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = "transparent"}>
-                      <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={28} />
+                      <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={32} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
                         {e.jobTitle && <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle}</div>}
@@ -463,7 +482,11 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
                       <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Relief Officer <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)" }}>(optional)</span></label>
                       <select value={pl.relieverId} onChange={e => updatePL(i, "relieverId", e.target.value)} style={fi}>
                         <option value="">No relief needed</option>
-                        {employees.filter((e: any) => e.id !== applicantId).map((e: any) => (
+                        {employees.filter((e: any) => {
+                          if (applicantId && e.id === applicantId) return false
+                          if (currentUserId && e.userId === currentUserId) return false
+                          return true
+                        }).map((e: any) => (
                           <option key={e.id} value={e.id}>{e.firstName} {e.lastName}{e.jobTitle ? ` — ${e.jobTitle}` : ""}</option>
                         ))}
                       </select>
@@ -568,7 +591,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, balances, emplo
         )}
       </div>
 
-      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
+      <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", position: "sticky", bottom: 0, background: "var(--card)", zIndex: 10, flexShrink: 0 }}>
         <Button variant="secondary" onClick={step === 1 ? () => { onClose(); reset() } : prev}>{step === 1 ? "Cancel" : <><ChevronLeft size={13} /> Back</>}</Button>
         {step < 5
           ? <Button onClick={next}>Next <ChevronRight size={13} /></Button>
@@ -781,10 +804,121 @@ function LeaveDetailModal({ req, onClose, isAdmin, currentUserEmployeeId }: { re
   )
 }
 
+// ── PL Approve Modal ──────────────────────────────────────────────────────────
+
+function PLApproveModal({ req, employees, currentUserEmployeeId, onClose, onDone }: {
+  req: any; employees: any[]; currentUserEmployeeId?: string; onClose: () => void; onDone: () => void;
+}) {
+  const [handover, setHandover] = useState<any[]>(() => {
+    try { return JSON.parse(req.handoverNotes ?? "[]") } catch { return [] }
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
+
+  const myEntryIdx = handover.findIndex((e: any) => e.projectLeadId === currentUserEmployeeId)
+  const myEntry = myEntryIdx >= 0 ? handover[myEntryIdx] : null
+  const currentRelieverId = myEntry?.relieverId ?? ""
+
+  const setRelief = (id: string) => {
+    setError("")
+    setHandover(prev => {
+      const idx = prev.findIndex((e: any) => e.projectLeadId === currentUserEmployeeId)
+      if (idx >= 0) {
+        const next = [...prev]; next[idx] = { ...next[idx], relieverId: id }; return next
+      }
+      return [...prev, { projectLeadId: currentUserEmployeeId, taskName: "", taskDescription: null, relieverId: id }]
+    })
+  }
+
+  const submit = async () => {
+    const entry = handover.find((e: any) => e.projectLeadId === currentUserEmployeeId)
+    const relieverId = entry?.relieverId ?? ""
+    if (!relieverId) { setError("Select a relief officer before approving."); return }
+    setSubmitting(true); setError("")
+    const patch = await fetch(`/api/leave/${req.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ handoverNotes: handover.length > 0 ? JSON.stringify(handover) : null }),
+    })
+    if (!patch.ok) { const d = await patch.json(); setError(d.error ?? "Failed to save"); setSubmitting(false); return }
+    await fetch(`/api/leave/${req.id}/approve`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "APPROVED" }),
+    })
+    setSubmitting(false); onDone(); onClose()
+  }
+
+  const meEmployee = currentUserEmployeeId ? employees.find((e: any) => e.id === currentUserEmployeeId) : null
+  const otherOptions = employees.filter((e: any) => e.id !== req.employeeId && e.id !== currentUserEmployeeId)
+
+  return (
+    <Modal open onClose={onClose} title="Approve Leave Request" width={480}>
+      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ background: "var(--muted)", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{req.employee?.firstName} {req.employee?.lastName}</div>
+          {([["Leave Type", req.leaveType?.name], ["Period", `${formatDate(req.startDate, "MMM d")} → ${formatDate(req.endDate, "MMM d")}`], ["Duration", `${req.days} day${req.days !== 1 ? "s" : ""}`]] as [string, string][]).map(([label, value]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+              <span style={{ color: "var(--muted-foreground)" }}>{label}</span>
+              <span style={{ fontWeight: 600 }}>{value}</span>
+            </div>
+          ))}
+          {/* Balance summary */}
+          {req.employeeLeaveBalance && (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "var(--muted-foreground)" }}>Balance ({req.leaveType?.name})</span>
+              <span style={{ fontWeight: 600, color: req.days > req.employeeLeaveBalance.remaining ? "var(--accent)" : "var(--foreground)" }}>
+                {req.employeeLeaveBalance.remaining} / {req.employeeLeaveBalance.allocated} days remaining
+              </span>
+            </div>
+          )}
+          {req.reason && <div style={{ fontSize: 12, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2 }}>{req.reason}</div>}
+          {req.documentUrl && (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2 }}>
+              <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--primary)", textDecoration: "none" }}>
+                <CalendarCheck size={12} /> View Supporting Document
+              </a>
+            </div>
+          )}
+        </div>
+        {req.employeeLeaveBalance && req.days > req.employeeLeaveBalance.remaining && (
+          <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8, fontWeight: 600 }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            This request ({req.days}d) exceeds the employee's remaining balance ({req.employeeLeaveBalance.remaining}d). You may still approve — HR will see the shortfall.
+          </div>
+        )}
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+            Relief Officer <span style={{ color: "var(--accent)" }}>*</span>
+            <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)", marginLeft: 6 }}>Required — can be yourself</span>
+          </label>
+          <select value={currentRelieverId} onChange={e => setRelief(e.target.value)}
+            style={{ width: "100%", padding: "9px 12px", border: `1px solid ${error ? "var(--accent)" : "var(--border)"}`, borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)" }}>
+            <option value="">Select relief officer…</option>
+            {meEmployee && <option value={meEmployee.id}>Myself — {meEmployee.firstName} {meEmployee.lastName}</option>}
+            {otherOptions.map((e: any) => (
+              <option key={e.id} value={e.id}>{e.firstName} {e.lastName}{e.jobTitle ? ` — ${e.jobTitle}` : ""}</option>
+            ))}
+          </select>
+          {error && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 4 }}>{error}</div>}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button size="sm" onClick={submit} disabled={submitting || !currentRelieverId}>
+            {submitting ? <><Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} /> Approving…</> : <><Check size={12} /> Confirm Approval</>}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Edit Leave Modal ──────────────────────────────────────────────────────────
 
-function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, employees = [], currentUserEmployeeId, noReliefWarning }: {
-  req: any; onClose: () => void; onDone: () => void; isAdmin: boolean; isPLEdit?: boolean; employees?: any[]; currentUserEmployeeId?: string; noReliefWarning?: string
+function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, employees = [], currentUserEmployeeId }: {
+  req: any; onClose: () => void; onDone: () => void; isAdmin: boolean; isPLEdit?: boolean; employees?: any[]; currentUserEmployeeId?: string;
 }) {
   const [form, setForm] = useState({
     startDate: req.startDate ? req.startDate.split("T")[0] : "",
@@ -868,12 +1002,6 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, emplo
   return (
     <Modal open onClose={onClose} title={isPLEdit ? "Review Leave Request" : "Edit Leave Request"} width={560}>
       <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
-        {isPLEdit && noReliefWarning && (
-          <div style={{ background: "var(--danger-bg)", border: "1px solid var(--accent)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--accent)", display: "flex", gap: 8, fontWeight: 600 }}>
-            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-            {noReliefWarning}
-          </div>
-        )}
         {isPLEdit && (
           <div style={{ background: "var(--info-bg)", border: "1px solid var(--info)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--info)", display: "flex", gap: 8 }}>
             <Info size={14} style={{ flexShrink: 0 }} />
@@ -1122,6 +1250,12 @@ function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: 
                             </div>
                           )
                         })()}
+                        {req.documentUrl && (
+                          <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, fontSize: 12, fontWeight: 600, color: "var(--primary)", textDecoration: "none" }}>
+                            <CalendarCheck size={12} /> View Leave Document
+                          </a>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -1191,10 +1325,19 @@ function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: 
                           const myEntries = entries.filter((e: any) => e.relieverId === currentUserEmployeeId)
                           if (myEntries.length === 0) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
                           return (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                               {myEntries.map((e: any, idx: number) => (
-                                <div key={idx} style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
+                                <div key={idx}>
+                                  <div style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
+                                  {e.taskDescription && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{e.taskDescription}</div>}
+                                </div>
                               ))}
+                              {req.documentUrl && (
+                                <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
+                                  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--primary)", textDecoration: "none", marginTop: 2 }}>
+                                  <CalendarCheck size={10} /> View Document
+                                </a>
+                              )}
                             </div>
                           )
                         })()}
@@ -1257,30 +1400,37 @@ export default function LeavePage() {
   const [requests, setRequests] = useState<any[]>([])
   const [leaveTypes, setLeaveTypes] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
+  const [projectLeadEmployees, setProjectLeadEmployees] = useState<any[]>([])
   const [balances, setBalances] = useState<any[]>([])
   const [teamOnLeave, setTeamOnLeave] = useState<any[]>([])
   const [employeeGender, setEmployeeGender] = useState<string | undefined>()
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>("ALL")
-  const [mainTab, setMainTab] = useState<MainTab>(() => {
-    // Will be corrected in useEffect after hydration
-    return "ALL"
-  })
+  const [mainTab, setMainTab] = useState<MainTab>("ALL")
   const [applyOpen, setApplyOpen] = useState(false)
   const [rejectId, setRejectId] = useState("")
-  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editLeave, setEditLeave] = useState<any | null>(null)
   const [viewLeave, setViewLeave] = useState<any | null>(null)
   const [cancelTargetId, setCancelTargetId] = useState<string | null>(null)
   const [sentNudges, setSentNudges] = useState<Set<string>>(new Set())
   const [approveTarget, setApproveTarget] = useState<{ id: string; stage?: string; req: any } | null>(null)
   const [approving, setApproving] = useState(false)
-  const [editLeaveWarning, setEditLeaveWarning] = useState("")
+  const [plApproveTarget, setPLApproveTarget] = useState<any | null>(null)
+  const [reviewReq, setReviewReq] = useState<any | null>(null)
+  const [search, setSearch] = useState("")
+  const [page, setPage] = useState(1)
+  const PAGE_SIZE = 20
 
-  const canApprove = user?.caps?.canApproveLeave
+  const canApprove = user?.role === "PROJECT_LEAD" || (user?.can("canApproveLeave") ?? false)
   const canSubmit = user?.caps?.canSubmitLeave
-  const isAdmin = user?.caps?.canViewAllLeave
+  const isInAdminPanel = pathname?.startsWith("/admin") ?? false
+  const isAdmin = isInAdminPanel || user?.role === "SUPER_ADMIN" || (user?.can("canViewAllLeave") ?? false)
   const isSuperAdmin = user?.role === "SUPER_ADMIN"
+  const isHRApprover = isAdmin && (user?.can("canApproveLeave") ?? false)
+  const isPLApprover = user?.role === "PROJECT_LEAD" || (canApprove && !isHRApprover)
+  const canCreateLeave = user?.can("canCreateLeave") ?? false
+  const canEditLeave = user?.can("canEditLeave") ?? false
+  const canDeleteLeave = user?.can("canDeleteLeave") ?? false
 
   // Sync mainTab from URL ?tab=relief
   useEffect(() => {
@@ -1295,34 +1445,30 @@ export default function LeavePage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    // Fetch leave data; profile fetch is best-effort (admins may not have employee profile)
-    const [leaveRes] = await Promise.all([
-      fetch(`/api/leave?status=${tab === "ALL" ? "" : tab}`),
-    ])
+    const leaveRes = await fetch(`/api/leave?status=${tab === "ALL" ? "" : tab}`)
     const ld = await leaveRes.json()
     setRequests(ld.requests ?? [])
     setLeaveTypes(ld.leaveTypes ?? [])
     setEmployees(ld.employees ?? [])
-
-    // Profile & gender: best-effort, don't block main load
-    fetch("/api/self-service/profile")
-      .then(r => r.ok ? r.json() : null)
-      .then(pd => {
-        if (!pd) return
-        setBalances(pd.leaveBalances ?? [])
-        setTeamOnLeave(pd.teamOnLeave ?? [])
-      })
-      .catch(() => {})
-
-    fetch("/api/self-service/employee-raw")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.employee?.gender) setEmployeeGender(d.employee.gender) })
-      .catch(() => {})
-
+    setProjectLeadEmployees(ld.projectLeadEmployees ?? [])
     setLoading(false)
   }, [tab])
 
   useEffect(() => { load() }, [load])
+
+  // Profile & gender data — only for users with an employee account (avoid 404s for pure admins)
+  const employeeId = user?.employeeId
+  useEffect(() => {
+    if (!employeeId) return
+    fetch("/api/self-service/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then(pd => { if (pd) { setBalances(pd.leaveBalances ?? []); setTeamOnLeave(pd.teamOnLeave ?? []) } })
+      .catch(() => {})
+    fetch("/api/self-service/employee-raw")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.employee?.gender) setEmployeeGender(d.employee.gender) })
+      .catch(() => {})
+  }, [employeeId])
 
   const approve = async (id: string, stage?: string) => {
     setApproving(true)
@@ -1350,6 +1496,23 @@ export default function LeavePage() {
 
   const statusTabs: Tab[] = ["ALL", "PENDING", "APPROVED", "REJECTED", "CANCELLED"]
 
+  const filteredRequests = requests.filter(r => {
+    if (!search.trim()) return true
+    const q = search.toLowerCase()
+    return (
+      `${r.employee?.firstName} ${r.employee?.lastName}`.toLowerCase().includes(q) ||
+      r.leaveType?.name?.toLowerCase().includes(q) ||
+      r.employee?.department?.name?.toLowerCase().includes(q)
+    )
+  })
+  const pendingCount = requests.filter(r => {
+    if (r.status !== "PENDING") return false
+    if (isHRApprover && r.currentStage === "PENDING_HR_ADMIN") return true
+    return r.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action)
+  }).length
+  const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE))
+  const pagedRequests = filteredRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
@@ -1361,14 +1524,27 @@ export default function LeavePage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {canSubmit && !isSuperAdmin && <Button size="sm" onClick={() => setApplyOpen(true)}><Plus size={13} /> Apply for Leave</Button>}
+          {canCreateLeave && isInAdminPanel && (
+            <button onClick={() => router.push("/admin/requests/leave/record")}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+              <Plus size={13} /> Record Leave for an Employee
+            </button>
+          )}
+          {canSubmit && !isInAdminPanel && (
+            <button onClick={() => {
+              const base = pathname?.startsWith("/project-lead") ? "/project-lead" : "/staff"
+              router.push(`${base}/requests/leave/apply`)
+            }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+              <Plus size={13} /> Apply for Leave
+            </button>
+          )}
         </div>
       </div>
 
       {/* Main navigation tabs */}
       <div style={{ display: "flex", gap: 0, borderBottom: "2px solid var(--border)" }}>
         {[
-          { key: "ALL", label: "My Requests" },
+          { key: "ALL", label: "Requests" },
           { key: "RELIEF", label: "Relief Duties", icon: ShieldCheck },
         ].map(({ key, label, icon: Icon }) => {
           const activeActual = mainTab === key
@@ -1389,8 +1565,8 @@ export default function LeavePage() {
       {/* Relief Duties panel */}
       {mainTab === "RELIEF" && <ReliefDutiesPanel currentUserEmployeeId={user?.employeeId} />}
 
-      {/* Leave content — hidden when on Relief tab */}
-      {mainTab !== "RELIEF" && balances.length > 0 && (
+      {/* Leave content */}
+      {mainTab !== "RELIEF" && !isAdmin && balances.length > 0 && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Your Leave Balances</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(170px,1fr))", gap: 10 }}>
@@ -1422,14 +1598,18 @@ export default function LeavePage() {
 
       {/* Requests table */}
       {mainTab !== "RELIEF" && <Card>
-        <div style={{ padding: "13px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div style={{ fontSize: 13, fontWeight: 700 }}>{canApprove ? "Leave Requests" : "My Leave History"}</div>
-          <div style={{ display: "flex", gap: 3, background: "var(--muted)", borderRadius: 7, padding: 3 }}>
+        <div style={{ padding: "13px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 3, background: "var(--muted)", borderRadius: 7, padding: 3, flexShrink: 0 }}>
             {statusTabs.map(t => (
-              <button key={t} onClick={() => setTab(t)} style={{ padding: "4px 10px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: tab === t ? "var(--card)" : "transparent", color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", transition: "all .15s" }}>
+              <button key={t} onClick={() => { setTab(t); setPage(1) }} style={{ padding: "4px 10px", borderRadius: 5, border: "none", cursor: "pointer", fontSize: 11, fontWeight: 700, background: tab === t ? "var(--card)" : "transparent", color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", transition: "all .15s" }}>
                 {t.charAt(0) + t.slice(1).toLowerCase()}
               </button>
             ))}
+          </div>
+          <div style={{ position: "relative" }}>
+            <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)", pointerEvents: "none" }} />
+            <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search employee or leave type…"
+              style={{ paddingLeft: 30, paddingRight: 10, paddingTop: 7, paddingBottom: 7, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", width: 220, outline: "none" }} />
           </div>
         </div>
 
@@ -1437,146 +1617,223 @@ export default function LeavePage() {
           <div style={{ padding: 50, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--muted-foreground)" }}>
             <Loader2 size={16} style={{ animation: "spin .8s linear infinite" }} /> Loading…
           </div>
-        ) : requests.length === 0 ? (
-          <EmptyState icon={CalendarDays} title="No leave requests" description="No requests match this filter." />
+        ) : pagedRequests.length === 0 ? (
+          <EmptyState icon={CalendarDays} title="No leave requests" description={search ? "No requests match your search." : "No requests match this filter."} />
         ) : (
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Employee", "Leave Type", "Days", "Dates", "Status", "Approval"].map(h => (
+                  {["Employee", "Leave Type", "Period", "Days", "Status", "Stage"].map(h => (
                     <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
-                  <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap", position: "sticky", right: 0, background: "var(--card)", zIndex: 2, boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", minWidth: 160 }}>Actions</th>
+                  <th style={{ padding: "10px 14px", textAlign: "right", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>Action</th>
                 </tr>
               </thead>
               <tbody>
-                {requests.map((req: any) => {
-                  const canEditAsPL = !isAdmin && !!canApprove && req.currentStage === "PENDING_PROJECT_LEAD"
-                  const plAlreadyActed = !isAdmin && !!canApprove && req.approvals?.some((a: any) =>
-                    a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !!a.action
-                  )
-                  return <React.Fragment key={req.id}>
-                    <tr style={{ borderBottom: "1px solid var(--border)" }}
+                {pagedRequests.map((req: any) => {
+                  return (
+                    <tr key={req.id}
+                      onClick={() => setReviewReq(req)}
+                      style={{ borderBottom: "1px solid var(--border)", cursor: "pointer" }}
                       onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
                       onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
-                      <td style={{ padding: "11px 14px" }}>
+                      <td style={{ padding: "12px 14px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
                           <Avatar name={`${req.employee?.firstName} ${req.employee?.lastName}`} photo={req.employee?.profilePhoto} size={30} />
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: 13 }}>{req.employee?.firstName} {req.employee?.lastName}</div>
+                            <div style={{ fontSize: 13 }}>
+                              <span style={{ fontWeight: 800, textTransform: "uppercase" }}>{req.employee?.lastName}</span>{" "}{req.employee?.firstName}
+                            </div>
                             <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{req.employee?.department?.name ?? "—"}</div>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: "11px 14px", fontSize: 13 }}>{req.leaveType?.name}</td>
-                      <td style={{ padding: "11px 14px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
-                      <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
-                      <td style={{ padding: "11px 14px" }}><Badge status={req.currentStage ?? req.status} /></td>
-                      <td style={{ padding: "11px 14px" }}>
+                      <td style={{ padding: "12px 14px", fontSize: 13 }}>{req.leaveType?.name}</td>
+                      <td style={{ padding: "12px 14px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
+                      <td style={{ padding: "12px 14px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
+                      <td style={{ padding: "12px 14px" }}><Badge status={req.currentStage ?? req.status} /></td>
+                      <td style={{ padding: "12px 14px" }}>
                         {req.currentStage === "AWAITING_RELIEF" ? (
                           <div style={{ fontSize: 11, color: "var(--warning)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
                             <Clock size={11} />
-                            {(req.reliefOfficersList ?? []).filter((r: any) => r.status === "PENDING").length} relief pending
+                            {(req.reliefOfficersList ?? []).filter((r: any) => r.status === "PENDING").length} pending
                           </div>
-                        ) : (
-                          <>
-                            {req.approvals?.length > 0 && <StageBar approvals={req.approvals} />}
+                        ) : req.approvals?.length > 0 ? (
+                          <div>
+                            <StageBar approvals={req.approvals} />
                             {req.status === "PENDING" && req.approvals?.find((a: any) => !a.action) && (
                               <div style={{ marginTop: 3 }}><CountdownTimer deadline={req.approvals.find((a: any) => !a.action)?.deadline} /></div>
                             )}
-                          </>
-                        )}
+                          </div>
+                        ) : <span style={{ color: "var(--muted-foreground)", fontSize: 12 }}>—</span>}
                       </td>
-                      <td style={{ padding: "11px 14px", position: "sticky", right: 0, background: "var(--card)", boxShadow: "-2px 0 6px rgba(0,0,0,0.06)", zIndex: 1 }}>
-                        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                          {req.status === "PENDING" && canApprove && (<>
-
-                            {/* HR ADMIN (SUPER_ADMIN): remind PL while waiting, approve/reject at HR stage */}
-                            {isSuperAdmin && (<>
-                              {req.currentStage === "PENDING_PROJECT_LEAD" && (
-                                <button onClick={() => nudge(req.id, "PROJECT_LEAD")} style={{ background: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> {sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "Sent" : "Remind PL"}
-                                </button>
-                              )}
-                              {req.currentStage === "PENDING_HR_ADMIN" && (<>
-                                <button onClick={() => setApproveTarget({ id: req.id, stage: "HR_ADMIN", req })} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
-                                <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
-                              </>)}
-                            </>)}
-
-                            {/* ADMIN (not super): nudge at non-admin stages, approve/reject at their stage */}
-                            {isAdmin && !isSuperAdmin && (<>
-                              {req.currentStage === "PENDING_PROJECT_LEAD" && (
-                                <button onClick={() => nudge(req.id, "PROJECT_LEAD")} style={{ background: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> {sentNudges.has(`${req.id}:PROJECT_LEAD`) ? "Sent" : "Remind PL"}
-                                </button>
-                              )}
-                              {req.currentStage === "PENDING_ADMIN" && (<>
-                                <button onClick={() => setApproveTarget({ id: req.id, stage: "ADMIN", req })} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
-                                <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
-                              </>)}
-                            </>)}
-
-                            {/* PROJECT LEAD: approve/reject at their stage, remind admin while waiting */}
-                            {!isAdmin && (<>
-                              {req.currentStage === "PENDING_PROJECT_LEAD" && !plAlreadyActed && (<>
-                                <button onClick={() => {
-                                  let handover: any[] = []
-                                  try { handover = JSON.parse(req.handoverNotes ?? "[]") } catch {}
-                                  const myEntry = handover.find((e: any) => e.projectLeadId === user?.employeeId)
-                                  if (myEntry && !myEntry.relieverId) {
-                                    setEditLeaveWarning("You must assign a relief officer before you can approve.")
-                                    setEditLeave(req)
-                                  } else {
-                                    setApproveTarget({ id: req.id, req })
-                                  }
-                                }} style={{ background: "var(--success-bg)", color: "var(--success)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><Check size={11} /> Approve</button>
-                                <button onClick={() => setRejectId(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 9px", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", gap: 3 }}><X size={11} /> Reject</button>
-                              </>)}
-                              {req.currentStage === "PENDING_PROJECT_LEAD" && plAlreadyActed && (
-                                <span style={{ fontSize: 11, color: "var(--success)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
-                                  <Check size={11} /> Approved · awaiting others
-                                </span>
-                              )}
-                              {req.currentStage === "PENDING_ADMIN" && (
-                                <button onClick={() => nudge(req.id, "ADMIN")} style={{ background: sentNudges.has(`${req.id}:ADMIN`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${req.id}:ADMIN`) ? "var(--success)" : "var(--warning)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                                  <Bell size={10} /> {sentNudges.has(`${req.id}:ADMIN`) ? "Sent" : "Remind HR"}
-                                </button>
-                              )}
-                            </>)}
-                          </>)}
-
-                          {req.status === "PENDING" && (
-                            (req.employeeId === user?.employeeId && (isAdmin || !(req.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING"))) ||
-                            isAdmin || canEditAsPL
-                          ) && (
-                            <button onClick={() => setEditLeave(req)} style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                              <Edit3 size={11} /> Edit
-                            </button>
-                          )}
-                          {req.status === "PENDING" && (req.employeeId === user?.employeeId || isAdmin) && (
-                            <button onClick={() => cancel(req.id)} style={{ background: "var(--danger-bg)", color: "var(--accent)", border: "none", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                              <Trash2 size={11} /> Cancel
-                            </button>
-                          )}
-                          <button onClick={() => setViewLeave(req)} style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)", cursor: "pointer", borderRadius: 6, padding: "4px 8px", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", gap: 2 }}>
-                            <Eye size={11} /> View
-                          </button>
-                        </div>
+                      <td style={{ padding: "12px 14px", textAlign: "right" }}>
+                        <button onClick={e => { e.stopPropagation(); setReviewReq(req) }}
+                          style={{ padding: "5px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "var(--foreground)", whiteSpace: "nowrap" }}>
+                          Review
+                        </button>
                       </td>
                     </tr>
-                  </React.Fragment>
+                  )
                 })}
               </tbody>
             </table>
           </div>
         )}
+        {!loading && filteredRequests.length > PAGE_SIZE && (
+          <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
+              {((page - 1) * PAGE_SIZE) + 1}–{Math.min(page * PAGE_SIZE, filteredRequests.length)} of {filteredRequests.length} requests
+            </span>
+            <div style={{ display: "flex", gap: 4 }}>
+              <button disabled={page === 1} onClick={() => setPage(p => p - 1)}
+                style={{ padding: "5px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", cursor: page === 1 ? "not-allowed" : "pointer", fontSize: 12, opacity: page === 1 ? 0.5 : 1, display: "flex", alignItems: "center" }}>
+                <ChevronLeft size={14} />
+              </button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const p = Math.max(1, Math.min(page - 2, totalPages - 4)) + i
+                return p <= totalPages ? (
+                  <button key={p} onClick={() => setPage(p)}
+                    style={{ padding: "5px 10px", border: "1px solid var(--border)", borderRadius: 6, background: p === page ? "var(--primary)" : "var(--muted)", color: p === page ? "white" : "var(--foreground)", cursor: "pointer", fontSize: 12, fontWeight: p === page ? 700 : 400 }}>
+                    {p}
+                  </button>
+                ) : null
+              })}
+              <button disabled={page === totalPages} onClick={() => setPage(p => p + 1)}
+                style={{ padding: "5px 10px", border: "1px solid var(--border)", borderRadius: 6, background: "var(--muted)", cursor: page === totalPages ? "not-allowed" : "pointer", fontSize: 12, opacity: page === totalPages ? 0.5 : 1, display: "flex", alignItems: "center" }}>
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </Card>}
 
-      <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />
+      {/* Review slide-in panel */}
+      {reviewReq && (
+        <>
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.18)", zIndex: 40 }} onClick={() => setReviewReq(null)} />
+          <div className="side-panel" style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: 520, background: "var(--card)", borderLeft: "1px solid var(--border)", zIndex: 50, display: "flex", flexDirection: "column", boxShadow: "-8px 0 32px rgba(0,0,0,0.12)", overflowY: "auto" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--card)", zIndex: 10 }}>
+              <div style={{ fontSize: 15, fontWeight: 700 }}>Leave Request</div>
+              <button onClick={() => setReviewReq(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 4, borderRadius: 6, display: "flex" }}><X size={18} /></button>
+            </div>
+            <div style={{ padding: "20px", borderBottom: "1px solid var(--border)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <Avatar name={`${reviewReq.employee?.firstName} ${reviewReq.employee?.lastName}`} photo={reviewReq.employee?.profilePhoto} size={44} />
+                <div>
+                  <div style={{ fontSize: 15 }}><span style={{ fontWeight: 800, textTransform: "uppercase" }}>{reviewReq.employee?.lastName}</span> {reviewReq.employee?.firstName}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{reviewReq.employee?.department?.name ?? "—"}</div>
+                </div>
+              </div>
+            </div>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", flexDirection: "column", gap: 12 }}>
+              {([
+                ["Leave Type", reviewReq.leaveType?.name ?? "—"],
+                ["Duration", `${reviewReq.days} day${reviewReq.days !== 1 ? "s" : ""}`],
+                ["Start Date", formatDate(reviewReq.startDate, "MMM d, yyyy")],
+                ["End Date", formatDate(reviewReq.endDate, "MMM d, yyyy")],
+                ...(reviewReq.reason ? [["Reason", reviewReq.reason]] : []),
+              ] as [string, string][]).map(([label, value]) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", gap: 16 }}>
+                  <span style={{ fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600, flexShrink: 0 }}>{label}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, textAlign: "right" }}>{value}</span>
+                </div>
+              ))}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600 }}>Status</span>
+                <Badge status={reviewReq.currentStage ?? reviewReq.status} />
+              </div>
+            </div>
+            {reviewReq.approvals?.length > 0 && (
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Approval Chain</div>
+                <div style={{ marginBottom: 8 }}><StageBar approvals={reviewReq.approvals} /></div>
+                {reviewReq.status === "PENDING" && reviewReq.approvals?.find((a: any) => !a.action) && (
+                  <CountdownTimer deadline={reviewReq.approvals.find((a: any) => !a.action)?.deadline} />
+                )}
+              </div>
+            )}
+            {(reviewReq.reliefOfficersList ?? []).length > 0 && (
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Relief Officers</div>
+                {(reviewReq.reliefOfficersList ?? []).map((r: any, i: number) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: i > 0 ? 8 : 0, paddingBottom: 8, borderBottom: i < reviewReq.reliefOfficersList.length - 1 ? "1px solid var(--border)" : "none" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600 }}>{r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : (r.name ?? r.relieverId)}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: r.status === "ACCEPTED" ? "var(--success-bg)" : r.status === "DECLINED" ? "var(--danger-bg)" : "var(--warning-bg)", color: r.status === "ACCEPTED" ? "var(--success)" : r.status === "DECLINED" ? "var(--accent)" : "var(--warning)" }}>{r.status}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {reviewReq.documentUrl && (
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>Supporting Document</div>
+                <a href={reviewReq.documentUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--primary)", fontWeight: 600, textDecoration: "none", background: "var(--primary-50)", padding: "7px 12px", borderRadius: 8 }}>
+                  <CalendarCheck size={13} /> View Document →
+                </a>
+              </div>
+            )}
+            <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 8, marginTop: "auto", borderTop: "1px solid var(--border)" }}>
+              <button onClick={() => { setViewLeave(reviewReq); setReviewReq(null) }}
+                style={{ width: "100%", padding: "10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <Eye size={14} /> View Full Details
+              </button>
+              {reviewReq.status === "PENDING" && isHRApprover && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && (
+                <button onClick={() => nudge(reviewReq.id, "PROJECT_LEAD")}
+                  style={{ width: "100%", padding: "10px", background: sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Bell size={14} /> {sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "Reminder Sent" : "Remind Project Lead"}
+                </button>
+              )}
+              {reviewReq.status === "PENDING" && isHRApprover && reviewReq.currentStage === "PENDING_HR_ADMIN" && (<>
+                <button onClick={() => { setApproveTarget({ id: reviewReq.id, stage: "HR_ADMIN", req: reviewReq }); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--success-bg)", color: "var(--success)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Check size={14} /> Approve Leave
+                </button>
+                <button onClick={() => { setRejectId(reviewReq.id); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <X size={14} /> Reject Leave
+                </button>
+              </>)}
+              {reviewReq.status === "PENDING" && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && reviewReq.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action) && (<>
+                <button onClick={() => { setPLApproveTarget(reviewReq); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--success-bg)", color: "var(--success)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Check size={14} /> Approve
+                </button>
+                <button onClick={() => { setRejectId(reviewReq.id); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <X size={14} /> Reject
+                </button>
+              </>)}
+              {reviewReq.status === "PENDING" && reviewReq.currentStage === "PENDING_HR_ADMIN" && reviewReq.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD") && (
+                <button onClick={() => nudge(reviewReq.id, "HR_ADMIN")}
+                  style={{ width: "100%", padding: "10px", background: sentNudges.has(`${reviewReq.id}:HR_ADMIN`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${reviewReq.id}:HR_ADMIN`) ? "var(--success)" : "var(--warning)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Bell size={14} /> {sentNudges.has(`${reviewReq.id}:HR_ADMIN`) ? "Sent" : "Remind HR Admin"}
+                </button>
+              )}
+              {canEditLeave && reviewReq.status === "PENDING" && (
+                (reviewReq.employeeId === user?.employeeId && (isAdmin || !(reviewReq.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING"))) || isAdmin
+              ) && (
+                <button onClick={() => { setEditLeave(reviewReq); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Edit3 size={14} /> Edit Request
+                </button>
+              )}
+              {canDeleteLeave && reviewReq.status === "PENDING" && (reviewReq.employeeId === user?.employeeId || isAdmin) && (
+                <button onClick={() => { cancel(reviewReq.id); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Trash2 size={14} /> Cancel Request
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} projectLeadEmployees={projectLeadEmployees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} currentUserId={user?.id} />
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
-      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={!isAdmin && !!canApprove && editLeave?.currentStage === "PENDING_PROJECT_LEAD"} onClose={() => { setEditLeave(null); setEditLeaveWarning("") }} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} noReliefWarning={editLeaveWarning} />}
+      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={editLeave?.currentStage === "PENDING_PROJECT_LEAD" && editLeave?.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action)} onClose={() => setEditLeave(null)} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} />}
+      {plApproveTarget && <PLApproveModal req={plApproveTarget} employees={employees} currentUserEmployeeId={user?.employeeId} onClose={() => setPLApproveTarget(null)} onDone={load} />}
       {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />}
 
       {/* Approve confirmation modal */}

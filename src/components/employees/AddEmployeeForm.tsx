@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button"
 export default function AddEmployeeForm({ departments, onSuccess, currentUserRole }: { departments: any[]; onSuccess: () => void; currentUserRole?: string }) {
   const [form, setForm] = useState({
     firstName: "", middleName: "", lastName: "",
-    workEmail: "", phone: "", jobTitle: "",
+    email: "", phone: "", jobTitle: "",
     departmentId: "", employmentType: "FULL_TIME",
     hireDate: "", dateOfBirth: "", gender: "",
     category: "", projectLeadEmail: "", grossSalary: "",
@@ -43,7 +43,7 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
         {field("First Name", "firstName")}
         {field("Last Name", "lastName")}
         {field("Middle Name", "middleName", "text", false)}
-        {field("Work Email", "workEmail", "email")}
+        {field("Work Email", "email", "email")}
         {field("Phone", "phone", "tel")}
         {field("Job Title", "jobTitle")}
         {field("Hire Date", "hireDate", "date")}
@@ -85,8 +85,6 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
           <label style={labelStyle}>System Role</label>
           <select value={form.role} onChange={e => set("role", e.target.value)} style={inputStyle}>
             <option value="STAFF">Staff</option>
-            <option value="PROJECT_LEAD">Project Lead</option>
-            {(currentUserRole === "SUPER_ADMIN") && <option value="ADMIN">Admin</option>}
           </select>
         </div>
         <div />

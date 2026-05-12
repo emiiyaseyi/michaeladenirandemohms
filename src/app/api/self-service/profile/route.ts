@@ -186,12 +186,14 @@ export async function GET() {
       employeeStatus: employee.employeeStatus,
       gender: employee.gender,
       // Contact & personal
-      email: employee.workEmail ?? employee.personalEmail,
+      email: user.email ?? employee.personalEmail,
       phone: employee.phone,
       city: employee.city,
       state: employee.state,
       maritalStatus: employee.maritalStatus,
       bankName: employee.bankName,
+      nin: employee.nin,
+      aiMembership: employee.aiMembership,
     },
     leaveBalances: filteredBalances,
     teamOnLeave: (teamOnLeave as any[]).map(m => ({

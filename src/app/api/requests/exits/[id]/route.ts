@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden, roleBasePath } from "@/lib/api-auth"
+import { requireAuth, requirePermission, roleBasePath } from "@/lib/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageOffboarding) return forbidden()
+  const perm = requirePermission(user, "canApproveExitRequest")
+  if (perm) return perm
 
   const { id } = await params
   const { action, declineReason } = await req.json()

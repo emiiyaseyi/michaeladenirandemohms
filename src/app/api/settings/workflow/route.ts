@@ -5,28 +5,24 @@ import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 const KEY = "approval_workflow"
 
 const DEFAULT_WORKFLOW = {
-  categories: [
+  sections: [
     {
-      id: "leave", name: "Leave", description: "Leave request approval chain", isSystem: true,
-      chain: [
-        { role: "STAFF", label: "Relief Officer", deadlineHours: 24 },
-        { role: "PROJECT_LEAD",   label: "Project Lead",   deadlineHours: 24 },
-        { role: "PROJECT_LEAD",      label: "Project Lead",      deadlineHours: 48 },
-        { role: "PROJECT_LEAD",        label: "Manager",        deadlineHours: 48 },
-        { role: "ADMIN",       label: "HR Admin",       deadlineHours: 72 },
+      id: "hr",
+      name: "HR",
+      categories: [
+        { id: "people", name: "People", description: "Approval workflow for HR-related employee requests e.g document, redeployment and exit", chain: [] },
+        { id: "time_leave", name: "Time Tracking and Leave", description: "Approval workflow for employee hours and leave requests", chain: ["Head of Department", "Manager", "HR Admin"] },
+        { id: "loans_salary_tax", name: "Loans, Salary Advance and Tax Relief", description: "Approval workflow for loans, salary advance and tax-relief requests", chain: ["Manager", "HR Admin"] },
       ],
     },
     {
-      id: "performance", name: "Performance Reviews", description: "Appraisal sign-off chain", isSystem: true,
-      chain: [
-        { role: "PROJECT_LEAD",  label: "Manager",  deadlineHours: 72 },
-        { role: "ADMIN", label: "HR Admin", deadlineHours: 72 },
-      ],
-    },
-    {
-      id: "profile_changes", name: "Employee Profile Changes", description: "Profile update requests", isSystem: true,
-      chain: [
-        { role: "ADMIN", label: "HR Admin", deadlineHours: 48 },
+      id: "payroll",
+      name: "Payroll",
+      categories: [
+        { id: "payrolls_regular", name: "Payrolls and Regular Payment Schedules", description: "Approval workflow for regular and custom payroll", chain: ["Payroll Admin", "Primary Admin", "Secondary Admin"] },
+        { id: "expense_claims", name: "Expense Claims", description: "Approval workflow for employee expense claims", chain: ["Payroll Admin", "Primary Admin", "Secondary Admin"] },
+        { id: "payroll_changes", name: "Payroll Changes", description: "Approval workflow for payroll changes e.g bonuses, deductions and payables", chain: ["Payroll Admin", "Primary Admin", "Secondary Admin"] },
+        { id: "custom_payment", name: "Custom Payment Schedules", description: "Approval workflow for custom payment schedules", chain: [] },
       ],
     },
   ],
@@ -38,9 +34,8 @@ export async function GET() {
   if (!setting) {
     setting = await prisma.systemSetting.findUnique({ where: { key: "leave_approval_workflow" } })
   }
-  const value = setting ? (setting.value as any) : DEFAULT_WORKFLOW
-  // Normalise: if old format (has .stages but no .categories), return defaults
-  const workflow = value.categories ? value : DEFAULT_WORKFLOW
+  const value = setting ? (setting.value as any) : null
+  const workflow = value?.sections ? value : DEFAULT_WORKFLOW
   return NextResponse.json({ workflow })
 }
 
