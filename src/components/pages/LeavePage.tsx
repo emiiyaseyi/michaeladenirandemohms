@@ -872,6 +872,14 @@ function PLApproveModal({ req, employees, currentUserEmployeeId, onClose, onDone
             </div>
           )}
           {req.reason && <div style={{ fontSize: 12, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2 }}>{req.reason}</div>}
+          {req.documentUrl && (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2 }}>
+              <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--primary)", textDecoration: "none" }}>
+                <CalendarCheck size={12} /> View Supporting Document
+              </a>
+            </div>
+          )}
         </div>
         {req.employeeLeaveBalance && req.days > req.employeeLeaveBalance.remaining && (
           <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8, fontWeight: 600 }}>
@@ -1317,10 +1325,19 @@ function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: 
                           const myEntries = entries.filter((e: any) => e.relieverId === currentUserEmployeeId)
                           if (myEntries.length === 0) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
                           return (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                               {myEntries.map((e: any, idx: number) => (
-                                <div key={idx} style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
+                                <div key={idx}>
+                                  <div style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
+                                  {e.taskDescription && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{e.taskDescription}</div>}
+                                </div>
                               ))}
+                              {req.documentUrl && (
+                                <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
+                                  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--primary)", textDecoration: "none", marginTop: 2 }}>
+                                  <CalendarCheck size={10} /> View Document
+                                </a>
+                              )}
                             </div>
                           )
                         })()}
@@ -1746,6 +1763,15 @@ export default function LeavePage() {
                     <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: r.status === "ACCEPTED" ? "var(--success-bg)" : r.status === "DECLINED" ? "var(--danger-bg)" : "var(--warning-bg)", color: r.status === "ACCEPTED" ? "var(--success)" : r.status === "DECLINED" ? "var(--accent)" : "var(--warning)" }}>{r.status}</span>
                   </div>
                 ))}
+              </div>
+            )}
+            {reviewReq.documentUrl && (
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>Supporting Document</div>
+                <a href={reviewReq.documentUrl} target="_blank" rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--primary)", fontWeight: 600, textDecoration: "none", background: "var(--primary-50)", padding: "7px 12px", borderRadius: 8 }}>
+                  <CalendarCheck size={13} /> View Document →
+                </a>
               </div>
             )}
             <div style={{ padding: "16px 20px", display: "flex", flexDirection: "column", gap: 8, marginTop: "auto", borderTop: "1px solid var(--border)" }}>

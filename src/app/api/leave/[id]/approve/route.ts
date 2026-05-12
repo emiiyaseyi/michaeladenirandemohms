@@ -86,9 +86,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const existing = request.approvals.find(a => a.stage === "HR_ADMIN" && !a.action)
     if (existing) {
       await prisma.leaveApproval.update({ where: { id: existing.id }, data: { action: action as any, comment: comment || null, actedAt: new Date() } })
-    } else {
+    } else if (user.employeeId) {
       await prisma.leaveApproval.create({
-        data: { leaveRequestId: id, employeeId: user.employeeId!, stage: "HR_ADMIN", action: action as any, comment: comment || null, actedAt: new Date(), deadline: new Date() },
+        data: { leaveRequestId: id, employeeId: user.employeeId, stage: "HR_ADMIN", action: action as any, comment: comment || null, actedAt: new Date(), deadline: new Date() },
       })
     }
   }
