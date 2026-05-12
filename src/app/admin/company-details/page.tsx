@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { Plus, Loader2, MapPin, Phone, Mail } from "lucide-react"
+import { Loader2, MapPin, Phone, Mail } from "lucide-react"
 
 const card: React.CSSProperties = {
   background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden",
@@ -88,10 +88,7 @@ export default function CompanyDetailsPage() {
               </div>
             ))
           )}
-          <button onClick={() => router.push("/admin/company-details/workplaces/add")}
-            style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, width: "fit-content", marginTop: 4 }}>
-            <Plus size={14} /> Add more
-          </button>
+
         </div>
       </div>
 
