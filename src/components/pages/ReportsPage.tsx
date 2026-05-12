@@ -131,12 +131,55 @@ export default function ReportsPage() {
   const [schedTime, setSchedTime] = useState("08:00")
   const [schedRecipients, setSchedRecipients] = useState("")
 
-  const handleGenerate = () => {
+  const [reportToast, setReportToast] = useState<{ text: string; ok: boolean } | null>(null)
+  const showToast = (text: string, ok: boolean) => {
+    setReportToast({ text, ok })
+    setTimeout(() => setReportToast(null), 5000)
+  }
+
+  const handleGenerate = async () => {
     setGenerating(true)
-    setTimeout(() => setGenerating(false), 1400)
+    try {
+      const res = await fetch("/api/reports/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          category: selectedCategory.id,
+          reportType: selectedReport,
+          dateFrom,
+          dateTo,
+          departmentId: department,
+          empType,
+          status,
+          employeeId,
+          format: selectedFormat,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        showToast(data.error ?? "Failed to generate report", false)
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      const cd = res.headers.get("Content-Disposition") ?? ""
+      const match = cd.match(/filename="?([^"]+)"?/)
+      a.download = match?.[1] ?? "report.csv"
+      a.href = url
+      a.click()
+      URL.revokeObjectURL(url)
+      showToast(`${selectedReport} downloaded successfully`, true)
+    } catch {
+      showToast("Failed to generate report. Please try again.", false)
+    } finally {
+      setGenerating(false)
+    }
   }
 
   const handleScheduleSave = () => {
+    if (!schedRecipients.trim()) { showToast("Please enter at least one recipient email", false); return }
+    showToast(`Report scheduled — ${schedFreq} at ${schedTime}`, true)
     setScheduleOpen(false)
   }
 
@@ -240,9 +283,10 @@ export default function ReportsPage() {
                 <select value={status} onChange={e => setStatus(e.target.value)} style={inp}>
                   <option value="all">All</option>
                   <option value="ACTIVE">Active</option>
-                  <option value="INACTIVE">Inactive</option>
-                  <option value="EXITED">Exited</option>
-                  <option value="RETIRED">Retired</option>
+                  <option value="ON_LEAVE">On Leave</option>
+                  <option value="SUSPENDED">Suspended</option>
+                  <option value="TERMINATED">Terminated</option>
+                  <option value="RESIGNED">Resigned</option>
                 </select>
               </div>
               {/* Single employee filter */}
@@ -358,6 +402,14 @@ export default function ReportsPage() {
           </Card>
         </div>
       </div>
+
+      {/* ── Toast ── */}
+      {reportToast && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 500, padding: "12px 20px", borderRadius: 10, background: reportToast.ok ? "#DCFCE7" : "#FEE2E2", color: reportToast.ok ? "#15803d" : "#DC2626", fontSize: 13, fontWeight: 600, boxShadow: "0 4px 16px rgba(0,0,0,0.15)", maxWidth: 400, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ flex: 1 }}>{reportToast.text}</span>
+          <button onClick={() => setReportToast(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: 0.6 }}><X size={14} /></button>
+        </div>
+      )}
 
       {/* ── Schedule Report Modal ── */}
       <Modal open={scheduleOpen} onClose={() => setScheduleOpen(false)} title="Schedule Report" width={480}>
