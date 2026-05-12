@@ -134,3 +134,38 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   return NextResponse.json({ employee })
 }
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (user.role !== "SUPER_ADMIN" && !user.permissions["canDeleteEmployee"]) return forbidden()
+
+  const { id } = await params
+  if (id === user.employeeId) return forbidden("You cannot delete your own employee record")
+
+  const employee = await prisma.employee.findUnique({ where: { id }, select: { id: true, userId: true } })
+  if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Null out self-referential manager/PL pointers on other employees
+      await tx.employee.updateMany({ where: { managerId: id }, data: { managerId: null } })
+      await tx.employee.updateMany({ where: { projectLeadId: id }, data: { projectLeadId: null } })
+      // Clean up non-cascade child records
+      await tx.docAck.deleteMany({ where: { employeeId: id } })
+      await tx.leaveReliefOfficer.deleteMany({ where: { employeeId: id } })
+      await tx.violation.deleteMany({ where: { OR: [{ employeeId: id }, { recordedById: id }] } })
+      await tx.disciplinaryTrigger.deleteMany({ where: { employeeId: id } })
+      await tx.suspension.deleteMany({ where: { employeeId: id } })
+      await tx.absenceRecord.deleteMany({ where: { employeeId: id } })
+      // Delete employee (cascades all onDelete: Cascade children)
+      await tx.employee.delete({ where: { id } })
+      // Delete user account
+      await tx.user.delete({ where: { id: employee.userId } })
+    })
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    console.error("[DELETE /api/employees/:id]", e)
+    return NextResponse.json({ error: "Failed to delete employee" }, { status: 500 })
+  }
+}

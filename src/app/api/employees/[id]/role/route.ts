@@ -5,7 +5,7 @@ import { requireAuth, forbidden } from "@/lib/api-auth"
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN") return forbidden("Only Super Admins can change user roles")
+  if (user.role !== "SUPER_ADMIN" && !user.permissions["canEditEmployee"]) return forbidden("Insufficient permissions to change user roles")
 
   const { id } = await params
   const { role } = await req.json()

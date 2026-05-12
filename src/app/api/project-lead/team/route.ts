@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true, firstName: true, lastName: true, jobTitle: true,
       profilePhoto: true, employeeId: true, employeeStatus: true,
-      phone: true,
+      employmentType: true, phone: true,
       department: { select: { id: true, name: true } },
       user: { select: { email: true } },
     },

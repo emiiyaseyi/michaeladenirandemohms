@@ -135,29 +135,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     })
   }
 
-  // After PL approves — check if ALL PLs done
+  // After PL approves — check if ALL PLs done, then notify HR Admins only
   if (isApproval && stage === "PROJECT_LEAD") {
     const refreshed = await prisma.leaveApproval.findMany({ where: { leaveRequestId: id, stage: "PROJECT_LEAD" } })
     const allDone = refreshed.length > 0 && refreshed.every(a => a.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action as string))
     if (allDone) {
-      // Create relief officer records silently — notifications sent only after HR Admin approves
-      if (request.handoverNotes) {
-        let handoverData: any[] = []
-        try { handoverData = JSON.parse(request.handoverNotes as string) } catch {}
-        const uniqueRelief = [...new Map(
-          handoverData.filter((h: any) => h.relieverId).map((h: any) => [h.relieverId, h])
-        ).values()]
-        for (const h of uniqueRelief) {
-          const existing = await prisma.leaveReliefOfficer.findFirst({ where: { leaveRequestId: id, employeeId: h.relieverId } })
-          if (!existing) {
-            await prisma.leaveReliefOfficer.create({
-              data: { leaveRequestId: id, employeeId: h.relieverId, status: "ACCEPTED" },
-            })
-          }
-        }
-      }
-
-      // Notify HR Admins for final approval
       const hrRecipients = await getHRAdminRecipients()
       for (const hr of hrRecipients) {
         await prisma.notification.create({
@@ -174,14 +156,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  // After HR Admin approves — notify all confirmed relief officers
+  // After HR Admin approves — create relief records then notify relief officers
   if (isApproval && stage === "HR_ADMIN") {
+    let handoverData: any[] = []
+    try { handoverData = JSON.parse(request.handoverNotes as string ?? "[]") } catch {}
+
+    // Create relief officer records now (not before, so relief sees nothing until fully approved)
+    const uniqueRelief = [...new Map(
+      handoverData.filter((h: any) => h.relieverId).map((h: any) => [h.relieverId, h])
+    ).values()]
+    for (const h of uniqueRelief) {
+      const existing = await prisma.leaveReliefOfficer.findFirst({ where: { leaveRequestId: id, employeeId: h.relieverId } })
+      if (!existing) {
+        await prisma.leaveReliefOfficer.create({
+          data: { leaveRequestId: id, employeeId: h.relieverId, status: "ACCEPTED" },
+        })
+      }
+    }
+
+    // Notify all confirmed relief officers
     const reliefList = await prisma.leaveReliefOfficer.findMany({
       where: { leaveRequestId: id },
       include: { employee: { select: { userId: true, user: { select: { role: true } } } } },
     })
-    let handoverData: any[] = []
-    try { handoverData = JSON.parse(request.handoverNotes as string ?? "[]") } catch {}
     for (const relief of reliefList) {
       const handoverEntries = handoverData.filter((h: any) => h.relieverId === relief.employeeId)
       const taskNames = handoverEntries.map((h: any) => h.taskName).filter(Boolean)

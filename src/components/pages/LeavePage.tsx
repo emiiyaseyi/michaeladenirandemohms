@@ -873,10 +873,11 @@ function PLApproveModal({ req, employees, currentUserEmployeeId, onClose, onDone
           )}
           {req.reason && <div style={{ fontSize: 12, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2 }}>{req.reason}</div>}
           {req.documentUrl && (
-            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2 }}>
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, marginTop: 4 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 6 }}>Supporting Document</div>
               <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: "var(--primary)", textDecoration: "none" }}>
-                <CalendarCheck size={12} /> View Supporting Document
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--primary)", textDecoration: "none", background: "var(--primary-50, rgba(22,163,74,0.08))", padding: "7px 12px", borderRadius: 8 }}>
+                <CalendarCheck size={14} /> View Uploaded Document →
               </a>
             </div>
           )}
@@ -1318,29 +1319,27 @@ function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: 
                       </td>
                       <td style={{ padding: "11px 16px", fontSize: 13 }}>{req.leaveType?.name}</td>
                       <td style={{ padding: "11px 16px", fontSize: 12 }}>
-                        {(() => {
-                          if (!req.handoverNotes) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
-                          let entries: any[] = []
-                          try { entries = JSON.parse(req.handoverNotes) } catch { return <span style={{ color: "var(--muted-foreground)" }}>—</span> }
-                          const myEntries = entries.filter((e: any) => e.relieverId === currentUserEmployeeId)
-                          if (myEntries.length === 0) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
-                          return (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                              {myEntries.map((e: any, idx: number) => (
-                                <div key={idx}>
-                                  <div style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
-                                  {e.taskDescription && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{e.taskDescription}</div>}
-                                </div>
-                              ))}
-                              {req.documentUrl && (
-                                <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
-                                  style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--primary)", textDecoration: "none", marginTop: 2 }}>
-                                  <CalendarCheck size={10} /> View Document
-                                </a>
-                              )}
-                            </div>
-                          )
-                        })()}
+                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                          {(() => {
+                            if (!req.handoverNotes) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
+                            let entries: any[] = []
+                            try { entries = JSON.parse(req.handoverNotes) } catch { return <span style={{ color: "var(--muted-foreground)" }}>—</span> }
+                            const myEntries = entries.filter((e: any) => e.relieverId === currentUserEmployeeId)
+                            if (myEntries.length === 0) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
+                            return myEntries.map((e: any, idx: number) => (
+                              <div key={idx}>
+                                <div style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
+                                {e.taskDescription && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{e.taskDescription}</div>}
+                              </div>
+                            ))
+                          })()}
+                          {req.documentUrl && (
+                            <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
+                              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--primary)", textDecoration: "none", marginTop: 2 }}>
+                              <CalendarCheck size={10} /> View Document
+                            </a>
+                          )}
+                        </div>
                       </td>
                       <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
                       <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>

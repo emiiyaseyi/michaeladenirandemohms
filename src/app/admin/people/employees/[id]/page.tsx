@@ -4,8 +4,9 @@ import { useRouter, useParams } from "next/navigation"
 import {
   ChevronLeft, ChevronDown, Edit2, Upload, Loader2,
   Building2, User, CreditCard, FileText, Briefcase, MapPin,
-  Receipt, Shield, X, Search, Check,
+  Receipt, Shield, X, Search, Check, UserCog,
 } from "lucide-react"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const TABS = ["Job & Pay", "Personal", "Request", "Documents", "Benefits", "Assets", "Tasks", "Disciplinary", "Notes", "Logs"]
 
@@ -114,9 +115,12 @@ function Av({ name, photo, size = 80 }: { name: string; photo?: string | null; s
 
 function PLDepartmentsCard({ emp }: { emp: any }) {
   const [allDepts, setAllDepts] = useState<any[]>([])
-  const [assigned, setAssigned] = useState<string[]>(
-    (emp.user?.projectLeadDepartments ?? []).map((d: any) => d.departmentId)
-  )
+  const [assigned, setAssigned] = useState<string[]>(() => {
+    const plDepts = (emp.user?.projectLeadDepartments ?? []).map((d: any) => d.departmentId)
+    if (plDepts.length > 0) return plDepts
+    // Fall back to the employee's own department so at least one is pre-selected
+    return emp.departmentId ? [emp.departmentId] : []
+  })
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
@@ -810,6 +814,9 @@ export default function EmployeeProfilePage() {
   const params = useParams()
   const router = useRouter()
   const id = params.id as string
+  const { user: currentUser } = useCurrentUser()
+  const canDelete = currentUser?.role === "SUPER_ADMIN" || (currentUser?.can("canDeleteEmployee") ?? false)
+  const canChangeRole = currentUser?.role === "SUPER_ADMIN" || (currentUser?.can("canEditEmployee") ?? false)
   const [emp, setEmp] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("Job & Pay")
@@ -828,6 +835,11 @@ export default function EmployeeProfilePage() {
 
   // Manage state
   const [resetMsg, setResetMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [roleChangeOpen, setRoleChangeOpen] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<"STAFF" | "PROJECT_LEAD">("STAFF")
+  const [roleChanging, setRoleChanging] = useState(false)
 
   // Upload state
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, string>>({})
@@ -930,6 +942,51 @@ export default function EmployeeProfilePage() {
       alert("Upload failed — network error")
     }
     setUploadingKey(null)
+  }
+
+  const doDelete = async () => {
+    setDeleting(true)
+    try {
+      const r = await fetch(`/api/employees/${id}`, { method: "DELETE" })
+      if (r.ok) {
+        router.push("/admin/people/employees")
+      } else {
+        const d = await r.json()
+        setResetMsg({ ok: false, text: d.error ?? "Failed to delete employee" })
+        setTimeout(() => setResetMsg(null), 5000)
+      }
+    } catch {
+      setResetMsg({ ok: false, text: "Delete failed — network error" })
+      setTimeout(() => setResetMsg(null), 5000)
+    }
+    setDeleting(false)
+    setDeleteConfirm(false)
+  }
+
+  const doChangeRole = async () => {
+    if (!emp?.userId) return
+    setRoleChanging(true)
+    try {
+      const r = await fetch(`/api/employees/${id}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: selectedRole }),
+      })
+      if (r.ok) {
+        setEmp((prev: any) => ({ ...prev, user: { ...prev.user, role: selectedRole } }))
+        setRoleChangeOpen(false)
+        setResetMsg({ ok: true, text: `Role updated to ${selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}. The employee must sign out and back in for the change to take effect.` })
+        setTimeout(() => setResetMsg(null), 6000)
+      } else {
+        const d = await r.json()
+        setResetMsg({ ok: false, text: d.error ?? "Failed to change role" })
+        setTimeout(() => setResetMsg(null), 5000)
+      }
+    } catch {
+      setResetMsg({ ok: false, text: "Role change failed — network error" })
+      setTimeout(() => setResetMsg(null), 5000)
+    }
+    setRoleChanging(false)
   }
 
   const renderModal = () => {
@@ -1198,10 +1255,16 @@ export default function EmployeeProfilePage() {
               Manage <ChevronDown size={14} />
             </button>
             {manageOpen && (
-              <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", zIndex: 50, minWidth: 180, padding: "4px 0" }}>
-                <button style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
-                  Remove Profile
-                </button>
+              <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.2)", zIndex: 50, minWidth: 190, padding: "4px 0" }}>
+                {canChangeRole && emp?.userId && (
+                  <button onClick={() => {
+                    setManageOpen(false)
+                    setSelectedRole((emp.user?.role === "PROJECT_LEAD" ? "STAFF" : "PROJECT_LEAD") as "STAFF" | "PROJECT_LEAD")
+                    setRoleChangeOpen(true)
+                  }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+                    <UserCog size={13} style={{ flexShrink: 0 }} /> Change Role
+                  </button>
+                )}
                 <button onClick={async () => {
                     setManageOpen(false)
                     try {
@@ -1220,10 +1283,14 @@ export default function EmployeeProfilePage() {
                   style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
                   Reset Password
                 </button>
-                <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
-                <button style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#DC2626", textAlign: "left" }}>
-                  Delete
-                </button>
+                {canDelete && (
+                  <>
+                    <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
+                    <button onClick={() => { setManageOpen(false); setDeleteConfirm(true) }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#DC2626", textAlign: "left" }}>
+                      Delete Employee
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1268,6 +1335,52 @@ export default function EmployeeProfilePage() {
           <div style={{ background: "var(--card)", borderRadius: 12, padding: "24px 32px", display: "flex", alignItems: "center", gap: 12, fontSize: 14, fontWeight: 600 }}>
             <Loader2 size={20} style={{ animation: "spin .8s linear infinite", color: "var(--primary)" }} />
             Uploading…
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Modal */}
+      {deleteConfirm && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: 440, boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, color: "#DC2626" }}>Delete Employee</h2>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 8 }}>
+              Are you sure you want to permanently delete <strong>{emp?.firstName} {emp?.lastName}</strong>?
+            </p>
+            <p style={{ fontSize: 13, color: "#DC2626", marginBottom: 24, fontWeight: 600 }}>
+              This action cannot be undone. All employee data, records, and history will be removed.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setDeleteConfirm(false)} disabled={deleting} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
+              <button onClick={doDelete} disabled={deleting} style={{ padding: "9px 20px", background: "#DC2626", border: "none", borderRadius: 8, cursor: deleting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 7 }}>
+                {deleting ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Deleting…</> : "Delete Permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Role Change Modal */}
+      {roleChangeOpen && emp && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 500, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: 440, boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Change Role</h2>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
+              Change the role of <strong>{emp.firstName} {emp.lastName}</strong> from{" "}
+              <strong>{(emp.user?.role ?? "STAFF") === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</strong> to{" "}
+              <strong>{selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</strong>?
+            </p>
+            <div style={{ padding: "14px 16px", borderRadius: 10, border: "2px solid var(--primary)", background: "rgba(37,99,235,0.05)", marginBottom: 24 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{selectedRole === "PROJECT_LEAD" ? "Can approve leave requests for their assigned departments. Access to the Project Lead portal." : "Standard employee access. Leave requests routed to their Project Lead."}</div>
+            </div>
+            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 20 }}>The employee must sign out and back in for this change to take effect.</p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+              <button onClick={() => setRoleChangeOpen(false)} disabled={roleChanging} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
+              <button onClick={doChangeRole} disabled={roleChanging} style={{ padding: "9px 22px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: roleChanging ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 7 }}>
+                {roleChanging ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : "Confirm Change"}
+              </button>
+            </div>
           </div>
         </div>
       )}

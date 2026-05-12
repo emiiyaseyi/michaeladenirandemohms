@@ -1,7 +1,17 @@
 "use client"
 import { useState, useRef, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ChevronLeft, Check, Upload, Download, X, ChevronDown } from "lucide-react"
+import { ChevronLeft, Check, Upload, Download, X, ChevronDown, Loader2 } from "lucide-react"
+
+function Toast({ msg, onClose }: { msg: { text: string; ok: boolean } | null; onClose: () => void }) {
+  if (!msg) return null
+  return (
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 500, padding: "12px 20px", borderRadius: 10, background: msg.ok ? "#DCFCE7" : "#FEE2E2", color: msg.ok ? "#15803d" : "#DC2626", fontSize: 13, fontWeight: 600, boxShadow: "0 4px 16px rgba(0,0,0,0.15)", maxWidth: 400, display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ flex: 1 }}>{msg.text}</span>
+      <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: 0.6 }}><X size={14} /></button>
+    </div>
+  )
+}
 
 export default function BulkUpdateEmployeesPage() {
   const router = useRouter()
@@ -14,6 +24,9 @@ export default function BulkUpdateEmployeesPage() {
   const [employees, setEmployees] = useState<any[]>([])
   const [empSearch, setEmpSearch] = useState("")
   const [empDropOpen, setEmpDropOpen] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const scopeRef = useRef<HTMLDivElement>(null)
   const empRef = useRef<HTMLDivElement>(null)
@@ -34,16 +47,70 @@ export default function BulkUpdateEmployeesPage() {
     return () => document.removeEventListener("mousedown", h)
   }, [])
 
+  const showToast = (text: string, ok: boolean) => {
+    setToast({ text, ok })
+    setTimeout(() => setToast(null), 5000)
+  }
+
   const handleFile = (f: File | null) => {
     if (!f) return
-    if (!f.name.endsWith(".xlsx")) { alert("Only XLSX files are allowed"); return }
-    if (f.size > 2 * 1024 * 1024) { alert("Maximum file size is 2MB"); return }
+    if (!f.name.endsWith(".csv") && !f.name.endsWith(".xlsx")) {
+      showToast("Only CSV files are allowed", false); return
+    }
+    if (f.size > 2 * 1024 * 1024) { showToast("Maximum file size is 2MB", false); return }
     setFile(f)
   }
 
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault(); setDragOver(false)
     handleFile(e.dataTransfer.files[0])
+  }
+
+  const handleDownload = async () => {
+    if (!employeeScope) { showToast("Please choose an employee scope first", false); return }
+    setDownloading(true)
+    try {
+      const params = new URLSearchParams()
+      if (employeeScope === "Specific Employees") {
+        params.set("scope", "specific")
+        params.set("ids", specificEmployees.join(","))
+      } else {
+        params.set("scope", "all")
+      }
+      params.set("includeExited", String(includeExited))
+
+      const res = await fetch(`/api/employees/bulk-update?${params}`)
+      if (!res.ok) { showToast("Failed to download template", false); return }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = "employees_bulk_update.csv"
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      showToast("Failed to download template", false)
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  const handleUpload = async () => {
+    if (!file) return
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch("/api/employees/bulk-update", { method: "POST", body: fd })
+      const data = await res.json()
+      if (!res.ok) { showToast(data.error ?? "Upload failed", false); return }
+      showToast(`${data.updated} employee${data.updated !== 1 ? "s" : ""} updated${data.skipped > 0 ? `, ${data.skipped} skipped` : ""}`, true)
+      setFile(null)
+    } catch {
+      showToast("Upload failed. Please try again.", false)
+    } finally {
+      setUploading(false)
+    }
   }
 
   const SCOPES = ["Choose", "All Employees", "Specific Employees"]
@@ -147,8 +214,10 @@ export default function BulkUpdateEmployeesPage() {
             <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 16 }}>
               We recommend that you download a new spreadsheet before each bulk employee update. This ensures that your lookup data is up-to-date.
             </p>
-            <button style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white", opacity: employeeScope ? 1 : 0.5 }} disabled={!employeeScope}>
-              <Download size={16} /> Download
+            <button onClick={handleDownload} disabled={!employeeScope || downloading}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: employeeScope && !downloading ? "pointer" : "not-allowed", fontSize: 14, fontWeight: 700, color: "white", opacity: employeeScope && !downloading ? 1 : 0.5 }}>
+              {downloading ? <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> : <Download size={16} />}
+              {downloading ? "Downloading…" : "Download"}
             </button>
           </div>
 
@@ -156,7 +225,7 @@ export default function BulkUpdateEmployeesPage() {
           <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>3. Upload spreadsheet</h3>
             <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 4 }}>We recommend that you double-check to be sure you have filled the spreadsheet correctly.</p>
-            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>Note: Maximum allowed file size is 2MB.</p>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>Note: Maximum allowed file size is 2MB. Use CSV format.</p>
             <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragOver(true) }} onDragLeave={() => setDragOver(false)} onClick={() => inputRef.current?.click()}
               style={{ border: `2px dashed ${dragOver ? "var(--primary)" : "var(--border)"}`, borderRadius: 12, padding: "48px 32px", textAlign: "center", cursor: "pointer", background: "var(--muted)", transition: "all .15s" }}>
               <Upload size={40} style={{ color: "var(--primary)", margin: "0 auto 16px" }} />
@@ -167,23 +236,28 @@ export default function BulkUpdateEmployeesPage() {
                 </div>
               ) : (
                 <>
-                  <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Drop your files here</p>
-                  <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 16 }}>Only XLSX with max size of 2MB</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Drop your file here</p>
+                  <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 16 }}>CSV with max size of 2MB</p>
                   <button style={{ padding: "10px 24px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Choose file</button>
                 </>
               )}
-              <input ref={inputRef} type="file" accept=".xlsx" style={{ display: "none" }} onChange={e => handleFile(e.target.files?.[0] ?? null)} />
+              <input ref={inputRef} type="file" accept=".csv,.xlsx" style={{ display: "none" }} onChange={e => handleFile(e.target.files?.[0] ?? null)} />
             </div>
           </div>
 
           <div style={{ padding: "16px 32px", display: "flex", justifyContent: "flex-end", gap: 12 }}>
             <button onClick={() => router.push("/admin/people/employees")} style={{ padding: "10px 24px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Cancel</button>
-            <button disabled={!file} style={{ padding: "10px 28px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: file ? "pointer" : "not-allowed", fontSize: 14, fontWeight: 700, color: "white", opacity: file ? 1 : 0.5 }}>
-              Update Employees
+            <button onClick={handleUpload} disabled={!file || uploading}
+              style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 28px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: file && !uploading ? "pointer" : "not-allowed", fontSize: 14, fontWeight: 700, color: "white", opacity: file && !uploading ? 1 : 0.5 }}>
+              {uploading && <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} />}
+              {uploading ? "Updating…" : "Update Employees"}
             </button>
           </div>
         </div>
       </div>
+
+      <Toast msg={toast} onClose={() => setToast(null)} />
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }
