@@ -487,6 +487,36 @@ async function main() {
     console.log("  ✓ Announcements")
   }
 
+  // ── Company Details ───────────────────────────────────────────────────────────
+  await prisma.systemSetting.upsert({
+    where:  { key: "company_details" },
+    update: {},
+    create: {
+      key:   "company_details",
+      value: { companyName: "Data Science Nigeria" },
+    },
+  })
+
+  const existingWorkplace = await prisma.workplace.findFirst({ where: { displayName: "Data Science Nigeria" } })
+  if (!existingWorkplace) {
+    await prisma.workplace.create({
+      data: {
+        displayName:  "Data Science Nigeria",
+        addressLine1: "33 Queen Street, Alagomeji-Yaba, Lagos",
+        city:         "Yaba",
+        state:        "Lagos",
+        country:      "Nigeria",
+        zipCode:      "11011",
+        phone:        "08140000853",
+        email:        "info@datasciencenigeria.ai",
+        isFiling:     true,
+        isMailing:    true,
+        isActive:     true,
+      },
+    })
+  }
+  console.log("  ✓ Company details & workplace")
+
   console.log("\n✅ Demo data complete.")
   console.log("\n🔑 Demo login accounts:")
   console.log("   HR Admin:  hr@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")

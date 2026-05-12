@@ -361,7 +361,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             </div>
             <div style={{ textAlign: "left" }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)", lineHeight: 1.2 }}>{user?.name ?? "User"}</div>
-              <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{roleLabel(user?.role ?? "")}</div>
+              <div style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{isInAdminPanel && isElevated ? "Admin" : roleLabel(user?.role ?? "")}</div>
             </div>
             <ChevronDown size={13} style={{ color: "var(--muted-foreground)", transform: userOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }} />
           </button>
@@ -547,7 +547,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user?.name ?? "User"}</div>
-                <div style={{ fontSize: 11, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{roleLabel(user?.role ?? "")}</div>
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isInAdminPanel && isElevated ? "Admin" : roleLabel(user?.role ?? "")}</div>
               </div>
             </div>
 

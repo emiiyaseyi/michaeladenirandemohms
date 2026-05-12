@@ -21,7 +21,7 @@ const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }>
   TO_REVIEW: { bg: "#FEF3C7", color: "#D97706", label: "Pending" },
 }
 
-export default function StaffDisciplinaryPage() {
+export default function StaffDisciplinaryPage({ basePath = "/staff" }: { basePath?: string }) {
   const router = useRouter()
   const [tab, setTab] = useState<Tab>("for_me")
   const [violations, setViolations] = useState<Violation[]>([])
@@ -80,7 +80,7 @@ export default function StaffDisciplinaryPage() {
           </div>
           {tab === "by_me" && (
             <button
-              onClick={() => router.push("/staff/disciplinary/record")}
+              onClick={() => router.push(`${basePath}/disciplinary/record`)}
               style={{ padding: "8px 18px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
               Record Violations
             </button>

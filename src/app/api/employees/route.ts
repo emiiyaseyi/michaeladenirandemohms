@@ -15,8 +15,9 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status") ?? ""
   const dept = searchParams.get("dept") ?? ""
 
-  // Staff get a limited public directory — no salary, bank, or sensitive fields
-  if (isStaff) {
+  // Staff AND Project Lead use the same public directory (no sensitive fields).
+  // Team-scoped views for PLs go through /api/project-lead/team instead.
+  if (isStaff || user.role === "PROJECT_LEAD") {
     try {
       const employees = await prisma.employee.findMany({
         where: {
@@ -31,17 +32,17 @@ export async function GET(req: NextRequest) {
         select: {
           id: true, firstName: true, lastName: true, jobTitle: true,
           profilePhoto: true, gender: true, employeeId: true,
-          employeeStatus: true,
+          employeeStatus: true, phone: true,
           departmentId: true, department: { select: { id: true, name: true } },
           managerId: true, projectLeadId: true,
-          user: { select: { role: true } },
+          user: { select: { role: true, email: true } },
         },
         orderBy: { firstName: "asc" },
       })
       const departments = await prisma.department.findMany({ orderBy: { name: "asc" } })
       return NextResponse.json({ employees, departments })
     } catch (e: any) {
-      console.error("[GET /api/employees staff]", e)
+      console.error("[GET /api/employees staff/pl]", e)
       return NextResponse.json({ employees: [], departments: [] })
     }
   }

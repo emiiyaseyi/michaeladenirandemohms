@@ -11,7 +11,7 @@ import {
 import { formatDate } from "@/lib/utils"
 import { addBusinessDays, format, parseISO, isWeekend } from "date-fns"
 
-type PLEntry = { employeeId: string; taskName: string; taskDescription: string; relieverId: string }
+type PLEntry = { employeeId: string; taskName: string; taskDescription: string; relieverId: string; documentUrl: string }
 
 type Form = {
   employeeId: string
@@ -106,6 +106,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
   const [calcDays, setCalcDays] = useState(0)
   const [holidays, setHolidays] = useState<any[]>([])
   const [docUploading, setDocUploading] = useState(false)
+  const [plDocUploading, setPlDocUploading] = useState<Record<number, boolean>>({})
 
   const [plSearch, setPLSearch] = useState("")
   const [plDropOpen, setPLDropOpen] = useState(false)
@@ -183,7 +184,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
   const removePL = (i: number) => setForm(f => ({ ...f, projectLeads: f.projectLeads.filter((_, idx) => idx !== i) }))
   const addPL = (empId: string) => {
     if (form.projectLeads.some(p => p.employeeId === empId)) return
-    setForm(f => ({ ...f, projectLeads: [...f.projectLeads, { employeeId: empId, taskName: "", taskDescription: "", relieverId: "" }] }))
+    setForm(f => ({ ...f, projectLeads: [...f.projectLeads, { employeeId: empId, taskName: "", taskDescription: "", relieverId: "", documentUrl: "" }] }))
     setErrors(e => { const n = { ...e }; delete n.pl; return n })
     setPLSearch(""); setPLDropOpen(false)
   }
@@ -556,6 +557,36 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                                   placeholder="Describe what the relief officer needs to know…"
                                   style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
                               </div>
+                              <div>
+                                <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Handover Document <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)" }}>(optional)</span></label>
+                                {pl.documentUrl ? (
+                                  <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--success-bg)", border: "1px solid var(--success)", borderRadius: 8, padding: "10px 14px" }}>
+                                    <Check size={14} style={{ color: "var(--success)", flexShrink: 0 }} />
+                                    <span style={{ fontSize: 12, color: "var(--success)", flex: 1, fontWeight: 600 }}>Document uploaded</span>
+                                    <a href={pl.documentUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "var(--primary)", textDecoration: "underline" }}>View</a>
+                                    <button onClick={() => updatePL(i, "documentUrl", "")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 0, display: "flex" }}><X size={13} /></button>
+                                  </div>
+                                ) : (
+                                  <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "2px dashed var(--border)", borderRadius: 8, cursor: plDocUploading[i] ? "not-allowed" : "pointer", fontSize: 13, color: "var(--muted-foreground)" }}
+                                    onMouseEnter={e => { if (!plDocUploading[i]) (e.currentTarget as HTMLElement).style.borderColor = "var(--primary)" }}
+                                    onMouseLeave={e => { if (!plDocUploading[i]) (e.currentTarget as HTMLElement).style.borderColor = "var(--border)" }}>
+                                    {plDocUploading[i] ? <><Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> Uploading…</> : <><FileText size={14} /> Attach document (PDF, JPG, PNG — max 5MB)</>}
+                                    <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} disabled={!!plDocUploading[i]}
+                                      onChange={async ev => {
+                                        const file = ev.target.files?.[0]; if (!file) return
+                                        setPlDocUploading(p => ({ ...p, [i]: true }))
+                                        const fd = new FormData(); fd.append("file", file)
+                                        const r = await fetch("/api/leave/upload-doc", { method: "POST", body: fd })
+                                        const d = await r.json()
+                                        setPlDocUploading(p => ({ ...p, [i]: false }))
+                                        if (d.url) updatePL(i, "documentUrl", d.url)
+                                        else setErrors(err => ({ ...err, [`plDoc_${i}`]: d.error ?? "Upload failed" }))
+                                        ev.target.value = ""
+                                      }} />
+                                  </label>
+                                )}
+                                {errors[`plDoc_${i}`] && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 4 }}>{errors[`plDoc_${i}`]}</div>}
+                              </div>
                             </div>
                           </div>
                         )
@@ -636,6 +667,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                                 <div style={{ fontWeight: 700 }}>{plEmp ? `${plEmp.firstName} ${plEmp.lastName}` : "—"} — <span style={{ color: "var(--primary)" }}>{pl.taskName}</span></div>
                                 {reliefEmp && <div style={{ color: "var(--muted-foreground)", marginTop: 2 }}>Relief: {reliefEmp.firstName} {reliefEmp.lastName}</div>}
                                 {pl.taskDescription && <div style={{ color: "var(--muted-foreground)", marginTop: 2, fontStyle: "italic" }}>{pl.taskDescription.slice(0, 80)}{pl.taskDescription.length > 80 ? "…" : ""}</div>}
+                                {pl.documentUrl && <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}><FileText size={11} style={{ color: "var(--success)" }} /><a href={pl.documentUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "var(--primary)", textDecoration: "underline" }}>Handover document</a></div>}
                               </div>
                             )
                           })}

@@ -84,18 +84,17 @@ export async function GET(req: NextRequest) {
   if (canViewAll) {
     scopeFilter = status ? { status: status as any } : {}
   } else if (isPL && user.id) {
-    // PROJECT_LEAD sees own requests + all requests from their assigned departments
-    const plDepts = await prisma.projectLeadDepartment.findMany({
-      where: { userId: user.id },
-      select: { departmentId: true },
+    // PROJECT_LEAD sees own requests + requests they are designated to approve
+    const myApprovals = await prisma.leaveApproval.findMany({
+      where: { employeeId: user.employeeId ?? "none", stage: "PROJECT_LEAD" },
+      select: { leaveRequestId: true },
     })
-    const deptIds = plDepts.map(d => d.departmentId)
-    const statusFilter = status ? { status: status as any } : {}
+    const approvalLeaveIds = myApprovals.map(a => a.leaveRequestId)
     scopeFilter = {
-      ...statusFilter,
+      ...(status ? { status: status as any } : {}),
       OR: [
-        { employeeId: user.employeeId ?? "none" },
-        ...(deptIds.length > 0 ? [{ departmentId: { in: deptIds } }] : []),
+        ...(user.employeeId ? [{ employeeId: user.employeeId }] : []),
+        ...(approvalLeaveIds.length > 0 ? [{ id: { in: approvalLeaveIds } }] : []),
       ],
     }
   } else if (canApprove) {
@@ -157,8 +156,16 @@ export async function GET(req: NextRequest) {
     if (perms["canApproveLeave"]) canApproveUsers.add(uid)
   }
 
-  // Filter employees list to those with PROJECT_LEAD role
-  const projectLeadEmployees = employees.filter(e => (e.user as any)?.role === "PROJECT_LEAD")
+  // PROJECT_LEAD role + secondary admins with canApproveLeave but NOT canViewAllLeave
+  // (canViewAllLeave means HR-level final approver — excluded from PL picker)
+  const projectLeadEmployees = employees.filter(e => {
+    const u = e.user as any
+    if (!u) return false
+    if (u.role === "PROJECT_LEAD") return true
+    if (!e.userId) return false
+    const perms = permsMap.get(e.userId)
+    return !!(perms?.["canApproveLeave"] && !perms?.["canViewAllLeave"])
+  })
 
   const enriched = requests.map(r => ({ ...r, currentStage: computeStage(r) }))
   return NextResponse.json({ requests: enriched, leaveTypes, employees, projectLeadEmployees })

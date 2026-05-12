@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { Edit3, Loader2 } from "lucide-react"
+import { Plus, Loader2, MapPin, Phone, Mail } from "lucide-react"
 
 const card: React.CSSProperties = {
   background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden",
@@ -26,9 +26,6 @@ export default function CompanyDetailsPage() {
     })
   }, [])
 
-  const filing  = workplaces.find((w: any) => w.isFiling)
-  const mailing = workplaces.find((w: any) => w.isMailing)
-
   if (loading) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 80, gap: 10, color: "var(--muted-foreground)" }}>
@@ -51,13 +48,8 @@ export default function CompanyDetailsPage() {
           <Image src={details?.logoUrl || "/company.png"} alt="" width={180} height={170} style={{ objectFit: "contain", objectPosition: "bottom" }} />
         </div>
         <div style={{ flex: 1, position: "relative", zIndex: 1 }}>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: "white" }}>{details?.companyName || "Your Company"}</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: "white" }}>{details?.companyName || "Data Science Nigeria"}</h1>
         </div>
-        <button
-          onClick={() => router.push("/admin/company-details/edit")}
-          style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: "pointer", background: "white", color: "#15803d", border: "none", flexShrink: 0, position: "relative", zIndex: 1 }}>
-          <Edit3 size={12} /> Edit Company Information
-        </button>
       </div>
 
       {/* ── Workplaces ── */}
@@ -65,7 +57,7 @@ export default function CompanyDetailsPage() {
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 700 }}>Workplaces</h2>
-            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Filing &amp; Mailing Address</p>
+            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Company Address</p>
           </div>
           <button onClick={() => router.push("/admin/company-details/workplaces")}
             style={{ padding: "7px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer", color: "var(--foreground)" }}>
@@ -76,23 +68,30 @@ export default function CompanyDetailsPage() {
           {workplaces.length === 0 ? (
             <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No workplaces added yet.</p>
           ) : (
-            <>
-              {filing && (
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", marginBottom: 4 }}>Filing Address:</div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{filing.displayName}</div>
-                  <div style={{ fontSize: 13 }}>{[filing.addressLine1, filing.city, filing.state, filing.zipCode, filing.country].filter(Boolean).join(", ")}</div>
+            workplaces.map((w: any) => (
+              <div key={w.id}>
+                <div style={{ fontSize: 13, fontWeight: 700 }}>{w.displayName}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 13, color: "var(--muted-foreground)", marginTop: 3 }}>
+                  <MapPin size={11} />
+                  {[w.addressLine1, w.city, w.state, w.zipCode, w.country].filter(Boolean).join(", ")}
                 </div>
-              )}
-              {mailing && (
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", marginBottom: 4 }}>Mailing Address:</div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{mailing.displayName}</div>
-                  <div style={{ fontSize: 13 }}>{[mailing.addressLine1, mailing.city, mailing.state, mailing.zipCode, mailing.country].filter(Boolean).join(", ")}</div>
-                </div>
-              )}
-            </>
+                {w.phone && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>
+                    <Phone size={11} /> {w.phone}
+                  </div>
+                )}
+                {w.email && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>
+                    <Mail size={11} /> {w.email}
+                  </div>
+                )}
+              </div>
+            ))
           )}
+          <button onClick={() => router.push("/admin/company-details/workplaces/add")}
+            style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, width: "fit-content", marginTop: 4 }}>
+            <Plus size={14} /> Add more
+          </button>
         </div>
       </div>
 

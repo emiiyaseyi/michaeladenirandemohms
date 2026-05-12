@@ -3,8 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import { Info, ArrowRight, Loader2, Check, X, ChevronDown } from "lucide-react"
 
 const AVAILABLE_ROLES = [
-  "Head of Department",
-  "Manager",
+  "Project Lead",
   "HR Admin",
   "Payroll Admin",
   "Primary Admin",
@@ -17,7 +16,7 @@ const DEFAULT_SECTIONS = [
     name: "HR",
     categories: [
       { id: "people", name: "People", description: "Approval workflow for HR-related employee requests e.g document, redeployment and exit", chain: [] as string[] },
-      { id: "time_leave", name: "Time Tracking and Leave", description: "Approval workflow for employee hours and leave requests", chain: ["Head of Department", "Manager", "HR Admin"] },
+      { id: "time_leave", name: "Time Tracking and Leave", description: "Approval workflow for employee hours and leave requests", chain: ["Project Lead", "HR Admin"] },
       { id: "loans_salary_tax", name: "Loans, Salary Advance and Tax Relief", description: "Approval workflow for loans, salary advance and tax-relief requests", chain: ["Manager", "HR Admin"] },
     ],
   },

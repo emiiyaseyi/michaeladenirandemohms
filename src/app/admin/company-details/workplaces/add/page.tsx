@@ -37,7 +37,6 @@ export default function AddWorkplacePage() {
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
         <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
           <h1 style={{ fontSize: 18, fontWeight: 800 }}>Add workplace</h1>
-          <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>To automate your payroll filings, we need to have your company&apos;s accurate addresses. Please take a minute and enter them below.</p>
         </div>
         <div style={{ padding: 24 }}>
           <WorkplaceFormBody

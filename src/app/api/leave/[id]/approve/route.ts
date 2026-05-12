@@ -45,11 +45,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const isApproval = action === "APPROVED" || action === "APPROVED_WITH_COMMENT"
   const isRejected = action === "REJECTED"
 
-  const canApproveAtAll = user.role === "SUPER_ADMIN" || !!user.permissions["canApproveLeave"]
+  const canApproveAtAll = user.role === "SUPER_ADMIN" || user.role === "PROJECT_LEAD" || !!user.permissions["canApproveLeave"]
   if (!canApproveAtAll) return forbidden("You are not authorised to approve leave")
-
-  const isHR = user.role === "SUPER_ADMIN" || (user.isElevated && !!user.permissions["canApproveLeave"] && !!user.permissions["canViewAllLeave"])
-  const isPL = !isHR && !!user.permissions["canApproveLeave"]
 
   const request = await prisma.leaveRequest.findUnique({
     where: { id },
@@ -66,7 +63,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
   if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const stage: "PROJECT_LEAD" | "HR_ADMIN" = isHR ? "HR_ADMIN" : "PROJECT_LEAD"
+  // Determine stage: SUPER_ADMIN is always HR_ADMIN.
+  // For everyone else: if they have a pending PL approval record → PROJECT_LEAD stage.
+  // Otherwise (elevated admin acting as HR approver) → HR_ADMIN stage.
+  const hasPLRecord = user.role !== "SUPER_ADMIN" && request.approvals.some(
+    a => a.stage === "PROJECT_LEAD" && a.employeeId === (user.employeeId ?? "NONE") && !a.action
+  )
+  const stage: "PROJECT_LEAD" | "HR_ADMIN" = user.role === "SUPER_ADMIN" || !hasPLRecord ? "HR_ADMIN" : "PROJECT_LEAD"
 
   // HR admins / super admin can bypass the PL stage entirely
   // No allPLsDone gate for HR-level approvers

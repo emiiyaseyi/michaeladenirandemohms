@@ -27,7 +27,7 @@ export interface NavItem {
   permission?: string
 }
 
-export const ALL_ROLES: NavPanelRole[] = ["SUPER_ADMIN", "ADMIN", "PROJECT_LEAD", "STAFF"]
+export const ALL_ROLES: NavPanelRole[] = ["SUPER_ADMIN", "ADMIN", "STAFF"]
 
 export const NAV_ITEMS: NavItem[] = [
 
@@ -174,16 +174,28 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "FAQ",             href: "/faq",                          icon: "HelpCircle", roles: ["STAFF"] },
 
   // ── PROJECT LEAD items ────────────────────────────────────────────────────────
-  { label: "Dashboard",    href: "/dashboard",          icon: "LayoutDashboard", roles: ["PROJECT_LEAD"] },
+  { label: "Dashboard",    href: "/dashboard",             icon: "LayoutDashboard", roles: ["PROJECT_LEAD"] },
   { label: "__spacer_pl__", spacer: true, icon: "", roles: ["PROJECT_LEAD"] },
-  { label: "Requests",     href: "/requests/leave",     icon: "CalendarDays",    roles: ["PROJECT_LEAD"] },
-  { label: "My Team",      href: "/team",               icon: "Users",           roles: ["PROJECT_LEAD"] },
-  { label: "People",       href: "/people",             icon: "UserCheck",       roles: ["PROJECT_LEAD"] },
-  { label: "Job & Pay",    href: "/job-pay",             icon: "Banknote",        roles: ["PROJECT_LEAD"] },
-  { label: "Performance",  href: "/performance",        icon: "TrendingUp",      roles: ["PROJECT_LEAD"] },
-  { label: "Documents",    href: "/documents",          icon: "FolderOpen",      roles: ["PROJECT_LEAD"] },
-  { label: "Benefits",     href: "/benefits",           icon: "Gift",            roles: ["PROJECT_LEAD"] },
-  { label: "Payslips",     href: "/self-service/payslips", icon: "Receipt",      roles: ["PROJECT_LEAD"] },
+  { label: "People",       href: "/people",                icon: "UserCheck",       roles: ["PROJECT_LEAD"] },
+  { label: "My Team",      href: "/team",                  icon: "Users",           roles: ["PROJECT_LEAD"] },
+  { label: "Job & Pay",    href: "/job-pay",               icon: "Banknote",        roles: ["PROJECT_LEAD"] },
+  { label: "Requests",     href: "/requests",              icon: "CalendarDays",    roles: ["PROJECT_LEAD"] },
+  { label: "Documents",    href: "/documents",             icon: "FolderOpen",      roles: ["PROJECT_LEAD"] },
+  { label: "Surveys",      href: "/surveys",               icon: "ClipboardList",   roles: ["PROJECT_LEAD"] },
+  { label: "Benefits",     href: "/benefits",              icon: "Gift",            roles: ["PROJECT_LEAD"] },
+  { label: "Payslips",     href: "/self-service/payslips", icon: "Receipt",         roles: ["PROJECT_LEAD"] },
+  {
+    label: "Performance", icon: "TrendingUp", roles: ["PROJECT_LEAD"],
+    children: [
+      { label: "Overview",      href: "/performance", exact: true },
+      { label: "Objectives",    href: "/performance/objectives" },
+      { label: "Reviews",       href: "/performance/reviews" },
+      { label: "Conversations", href: "/performance/conversations" },
+      { label: "Feedback",      href: "/performance/feedback" },
+    ],
+  },
+  { label: "Assets",       href: "/assets",                icon: "Package",         roles: ["PROJECT_LEAD"] },
+  { label: "Disciplinary", href: "/disciplinary",          icon: "Scale",           roles: ["PROJECT_LEAD"] },
   { label: "__spacer_bottom_pl__", spacer: true, icon: "", roles: ["PROJECT_LEAD"] },
   { label: "Personal",        href: "/self-service/profile",         icon: "UserCircle", roles: ["PROJECT_LEAD"] },
   { label: "Change Password", href: "/self-service/change-password", icon: "Settings",   roles: ["PROJECT_LEAD"] },

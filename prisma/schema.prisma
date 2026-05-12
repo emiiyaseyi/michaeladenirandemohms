@@ -1312,6 +1312,7 @@ model Workplace {
   country      String   @default("Nigeria")
   zipCode      String?
   phone        String
+  email        String?
   taxOffice    String?
   taxId        String?
   nhfLocation  String?

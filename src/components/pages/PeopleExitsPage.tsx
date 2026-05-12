@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import Card from "@/components/ui/Card"
 import Badge from "@/components/ui/Badge"
 import Avatar from "@/components/ui/Avatar"
@@ -59,6 +59,8 @@ function RowMenu({ emp, onView, onRehire }: { emp: any; onView: () => void; onRe
 
 export default function PeopleExitsPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const base = pathname?.startsWith("/project-lead") ? "/project-lead" : pathname?.startsWith("/staff") ? "/staff" : "/admin"
   const [employees, setEmployees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
@@ -126,7 +128,7 @@ export default function PeopleExitsPage() {
               </thead>
               <tbody>
                 {filtered.map((emp: any) => (
-                  <tr key={emp.id} onClick={() => router.push(`/admin/people/employees/${emp.id}`)}
+                  <tr key={emp.id} onClick={() => router.push(`${base}/people/employees/${emp.id}`)}
                     style={{ borderBottom: "1px solid var(--border)", cursor: "pointer" }}
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
@@ -145,7 +147,7 @@ export default function PeopleExitsPage() {
                     <td style={td}><Badge status={emp.offboarding?.status ?? emp.employeeStatus} /></td>
                     <td style={{ ...td, textAlign: "right" }} onClick={e => e.stopPropagation()}>
                       <RowMenu emp={emp}
-                        onView={() => router.push(`/admin/people/employees/${emp.id}`)}
+                        onView={() => router.push(`${base}/people/employees/${emp.id}`)}
                         onRehire={() => setRehireTarget(emp)} />
                     </td>
                   </tr>

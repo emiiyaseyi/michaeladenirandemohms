@@ -7,7 +7,7 @@ import { WorkplaceFormBody, type WpForm } from "../../WorkplaceForm"
 export default function EditWorkplacePage() {
   const router = useRouter()
   const { id } = useParams() as { id: string }
-  const [form, setForm] = useState<WpForm>({ addressLine1: "", addressLine2: "", city: "", state: "", country: "Nigeria", zipCode: "", phone: "", displayName: "", taxOffice: "", taxId: "", nhfLocation: "" })
+  const [form, setForm] = useState<WpForm>({ addressLine1: "", addressLine2: "", city: "", state: "", country: "Nigeria", zipCode: "", phone: "", email: "", displayName: "" })
   const [isActive, setIsActive] = useState(true)
   const [isFilingOrMailing, setIsFilingOrMailing] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -28,10 +28,8 @@ export default function EditWorkplacePage() {
           country: wp.country ?? "Nigeria",
           zipCode: wp.zipCode ?? "",
           phone: wp.phone ?? "",
+          email: wp.email ?? "",
           displayName: wp.displayName ?? "",
-          taxOffice: wp.taxOffice ?? "",
-          taxId: wp.taxId ?? "",
-          nhfLocation: wp.nhfLocation ?? "",
         })
         setIsActive(wp.isActive ?? true)
         setIsFilingOrMailing(!!(wp.isFiling || wp.isMailing))
@@ -79,7 +77,6 @@ export default function EditWorkplacePage() {
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
         <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
           <h1 style={{ fontSize: 18, fontWeight: 800 }}>Edit workplace</h1>
-          <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>To automate your payroll filings, we need to have your company&apos;s accurate addresses. Please take a minute and enter them below.</p>
         </div>
         <div style={{ padding: 24 }}>
           <WorkplaceFormBody

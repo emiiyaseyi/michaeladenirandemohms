@@ -151,9 +151,9 @@ function ReliefOfficerSearch({ employees, selected, onChange }: { employees: any
 
 type PLEntry = { employeeId: string; taskName: string; taskDescription: string; relieverId: string }
 
-function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmployees, balances, employeeGender, onSuccess, userCaps, isAdmin, currentUserEmployeeId }: {
+function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmployees, balances, employeeGender, onSuccess, userCaps, isAdmin, currentUserEmployeeId, currentUserId }: {
   open: boolean; onClose: () => void; leaveTypes: any[]; employees: any[]; projectLeadEmployees: any[];
-  balances: any[]; employeeGender?: string; onSuccess: () => void; userCaps: any; isAdmin: boolean; currentUserEmployeeId?: string
+  balances: any[]; employeeGender?: string; onSuccess: () => void; userCaps: any; isAdmin: boolean; currentUserEmployeeId?: string; currentUserId?: string
 }) {
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
@@ -222,7 +222,9 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
   const applicantId = form.employeeId || currentUserEmployeeId
   const selectedPLIds = form.projectLeads.map(p => p.employeeId)
   const filteredPLs = projectLeadEmployees.filter((e: any) =>
-    e.id !== applicantId && !selectedPLIds.includes(e.id) &&
+    e.id !== applicantId &&
+    (currentUserId ? e.userId !== currentUserId : true) &&
+    !selectedPLIds.includes(e.id) &&
     `${e.firstName} ${e.lastName}`.toLowerCase().includes(plSearch.toLowerCase())
   )
 
@@ -1295,13 +1297,13 @@ export default function LeavePage() {
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 20
 
-  const canApprove = user?.can("canApproveLeave") ?? false
+  const canApprove = user?.role === "PROJECT_LEAD" || (user?.can("canApproveLeave") ?? false)
   const canSubmit = user?.caps?.canSubmitLeave
   const isInAdminPanel = pathname?.startsWith("/admin") ?? false
   const isAdmin = isInAdminPanel || user?.role === "SUPER_ADMIN" || (user?.can("canViewAllLeave") ?? false)
   const isSuperAdmin = user?.role === "SUPER_ADMIN"
-  const isHRApprover = isAdmin && canApprove
-  const isPLApprover = canApprove && !isHRApprover
+  const isHRApprover = isAdmin && (user?.can("canApproveLeave") ?? false)
+  const isPLApprover = user?.role === "PROJECT_LEAD" || (canApprove && !isHRApprover)
   const canCreateLeave = user?.can("canCreateLeave") ?? false
   const canEditLeave = user?.can("canEditLeave") ?? false
   const canDeleteLeave = user?.can("canDeleteLeave") ?? false
@@ -1384,12 +1386,11 @@ export default function LeavePage() {
       r.employee?.department?.name?.toLowerCase().includes(q)
     )
   })
-  const pendingCount = canApprove ? requests.filter(r => {
+  const pendingCount = requests.filter(r => {
     if (r.status !== "PENDING") return false
-    if (isHRApprover) return r.currentStage === "PENDING_HR_ADMIN"
-    return r.currentStage === "PENDING_PROJECT_LEAD" &&
-      !r.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !!a.action)
-  }).length : 0
+    if (isHRApprover && r.currentStage === "PENDING_HR_ADMIN") return true
+    return r.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action)
+  }).length
   const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE))
   const pagedRequests = filteredRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
@@ -1404,13 +1405,13 @@ export default function LeavePage() {
           </p>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {canCreateLeave && (
+          {canCreateLeave && isInAdminPanel && (
             <button onClick={() => router.push("/admin/requests/leave/record")}
               style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
               <Plus size={13} /> Record Leave for an Employee
             </button>
           )}
-          {canSubmit && !isAdmin && (
+          {canSubmit && !isInAdminPanel && (
             <button onClick={() => {
               const base = pathname?.startsWith("/project-lead") ? "/project-lead" : "/staff"
               router.push(`${base}/requests/leave/apply`)
@@ -1424,7 +1425,7 @@ export default function LeavePage() {
       {/* Main navigation tabs */}
       <div style={{ display: "flex", gap: 0, borderBottom: "2px solid var(--border)" }}>
         {[
-          { key: "ALL", label: "My Requests" },
+          { key: "ALL", label: "Requests" },
           { key: "RELIEF", label: "Relief Duties", icon: ShieldCheck },
         ].map(({ key, label, icon: Icon }) => {
           const activeActual = mainTab === key
@@ -1445,18 +1446,7 @@ export default function LeavePage() {
       {/* Relief Duties panel */}
       {mainTab === "RELIEF" && <ReliefDutiesPanel currentUserEmployeeId={user?.employeeId} />}
 
-      {/* Leave content — hidden when on Relief tab */}
-      {mainTab !== "RELIEF" && pendingCount > 0 && (
-        <div style={{ padding: "12px 16px", background: "rgba(234,179,8,0.1)", border: "1px solid var(--warning)", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
-          <AlertCircle size={16} style={{ color: "var(--warning)", flexShrink: 0 }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--warning)" }}>
-            {pendingCount} leave request{pendingCount !== 1 ? "s" : ""} awaiting your approval
-          </span>
-          <button onClick={() => setTab("PENDING")} style={{ marginLeft: "auto", fontSize: 12, fontWeight: 700, color: "var(--warning)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
-            Review now
-          </button>
-        </div>
-      )}
+      {/* Leave content */}
       {mainTab !== "RELIEF" && !isAdmin && balances.length > 0 && (
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Your Leave Balances</div>
@@ -1677,7 +1667,7 @@ export default function LeavePage() {
                   <X size={14} /> Reject Leave
                 </button>
               </>)}
-              {reviewReq.status === "PENDING" && isPLApprover && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && !reviewReq.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !!a.action) && (<>
+              {reviewReq.status === "PENDING" && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && reviewReq.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action) && (<>
                 <button onClick={() => {
                   let handover: any[] = []
                   try { handover = JSON.parse(reviewReq.handoverNotes ?? "[]") } catch {}
@@ -1693,7 +1683,7 @@ export default function LeavePage() {
                   <X size={14} /> Reject
                 </button>
               </>)}
-              {reviewReq.status === "PENDING" && isPLApprover && reviewReq.currentStage === "PENDING_HR_ADMIN" && (
+              {reviewReq.status === "PENDING" && reviewReq.currentStage === "PENDING_HR_ADMIN" && reviewReq.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD") && (
                 <button onClick={() => nudge(reviewReq.id, "HR_ADMIN")}
                   style={{ width: "100%", padding: "10px", background: sentNudges.has(`${reviewReq.id}:HR_ADMIN`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${reviewReq.id}:HR_ADMIN`) ? "var(--success)" : "var(--warning)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Bell size={14} /> {sentNudges.has(`${reviewReq.id}:HR_ADMIN`) ? "Sent" : "Remind HR Admin"}
@@ -1718,9 +1708,9 @@ export default function LeavePage() {
         </>
       )}
 
-      <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} projectLeadEmployees={projectLeadEmployees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />
+      <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} projectLeadEmployees={projectLeadEmployees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} currentUserId={user?.id} />
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
-      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={isPLApprover && editLeave?.currentStage === "PENDING_PROJECT_LEAD"} onClose={() => { setEditLeave(null); setEditLeaveWarning("") }} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} noReliefWarning={editLeaveWarning} />}
+      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={editLeave?.currentStage === "PENDING_PROJECT_LEAD" && editLeave?.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action)} onClose={() => { setEditLeave(null); setEditLeaveWarning("") }} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} noReliefWarning={editLeaveWarning} />}
       {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />}
 
       {/* Approve confirmation modal */}

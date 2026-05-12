@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import ReactDOM from "react-dom"
 import { ChevronDown, ChevronUp, MoreHorizontal, FileText, Plus } from "lucide-react"
 
@@ -46,6 +46,8 @@ interface MenuState {
 
 export default function DocumentsPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const base = pathname?.startsWith("/project-lead") ? "/project-lead" : pathname?.startsWith("/staff") ? "/staff" : "/admin"
   const [tab, setTab] = useState<"employee" | "company">("employee")
   const [offerOpen, setOfferOpen] = useState(false)
   const [empDocsOpen, setEmpDocsOpen] = useState(false)
@@ -83,7 +85,7 @@ export default function DocumentsPage() {
     setMenu({ id, type, top: rect.bottom + 4, right: window.innerWidth - rect.right })
   }
 
-  const finishTemplate = (id: string) => router.push(`/admin/documents/offer-template/${id}/edit`)
+  const finishTemplate = (id: string) => router.push(`${base}/documents/offer-template/${id}/edit`)
   const deleteTemplate = async (id: string) => {
     if (!confirm("Delete this offer template?")) return
     await fetch(`/api/offer-templates/${id}`, { method: "DELETE" })
@@ -91,7 +93,7 @@ export default function DocumentsPage() {
     setMenu(null)
   }
 
-  const viewDoc = (id: string) => router.push(`/admin/documents/${id}`)
+  const viewDoc = (id: string) => router.push(`${base}/documents/${id}`)
   const softDeleteDoc = async (id: string) => {
     if (!confirm("Delete this document? It will be hidden but can be restored later.")) return
     await fetch(`/api/documents/${id}`, { method: "DELETE" })
@@ -162,7 +164,7 @@ export default function DocumentsPage() {
           <button style={tabStyle(tab === "company")} onClick={() => setTab("company")}>Company</button>
         </div>
         <button
-          onClick={() => router.push("/admin/documents/new")}
+          onClick={() => router.push(`${base}/documents/new`)}
           style={{ padding: "10px 20px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
         >
           Create new document

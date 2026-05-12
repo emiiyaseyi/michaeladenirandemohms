@@ -61,7 +61,7 @@ function Dropdown({ label, options, value, onSelect, placeholder }: {
   )
 }
 
-export default function RecordViolationPage() {
+export default function RecordViolationPage({ basePath = "/staff" }: { basePath?: string }) {
   const router = useRouter()
 
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -114,7 +114,7 @@ export default function RecordViolationPage() {
       setSubmitting(false)
       return
     }
-    router.push("/staff/disciplinary")
+    router.push(`${basePath}/disciplinary`)
   }
 
   const employeeOptions = employees.map(e => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }))
@@ -127,7 +127,7 @@ export default function RecordViolationPage() {
     <div>
       {/* Breadcrumb */}
       <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
-        <Link href="/staff/disciplinary" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 600 }}>Disciplinary</Link>
+        <Link href={`${basePath}/disciplinary`} style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 600 }}>Disciplinary</Link>
         <ChevronRight size={14} />
         <span>Record Violation</span>
       </div>
@@ -248,7 +248,7 @@ export default function RecordViolationPage() {
           {/* Footer */}
           <div style={{ height: 1, background: "var(--border)", marginBottom: 20 }} />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 12 }}>
-            <button type="button" onClick={() => router.push("/staff/disciplinary")}
+            <button type="button" onClick={() => router.push(`${basePath}/disciplinary`)}
               style={{ padding: "9px 22px", border: "1px solid var(--border)", background: "var(--card)", borderRadius: 8, fontSize: 13, cursor: "pointer", color: "var(--foreground)", fontWeight: 500 }}>
               Cancel
             </button>

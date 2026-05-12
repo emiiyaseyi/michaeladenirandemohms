@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const body = await req.json()
-  const { displayName, addressLine1, addressLine2, city, state, country, zipCode, phone, taxOffice, taxId, nhfLocation, isActive } = body
+  const { displayName, addressLine1, addressLine2, city, state, country, zipCode, phone, email, isActive } = body
 
   if (!displayName?.trim()) return NextResponse.json({ error: "Display name is required" }, { status: 400 })
   if (!addressLine1?.trim()) return NextResponse.json({ error: "Address line 1 is required" }, { status: 400 })
@@ -29,9 +29,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     country: country?.trim() || "Nigeria",
     zipCode: zipCode?.trim() || null,
     phone: phone.trim(),
-    taxOffice: taxOffice?.trim() || null,
-    taxId: taxId?.trim() || null,
-    nhfLocation: nhfLocation?.trim() || null,
+    email: email?.trim() || null,
   }
   if (typeof isActive === "boolean") updateData.isActive = isActive
 

@@ -1,6 +1,6 @@
 "use client"
 import { Loader2 } from "lucide-react"
-import { NIGERIAN_STATES, TAX_OFFICES, NHF_LOCATIONS, COUNTRIES } from "@/lib/nigeria-data"
+import { NIGERIAN_STATES } from "@/lib/nigeria-data"
 
 const fi: React.CSSProperties = {
   width: "100%", padding: "9px 13px", border: "1px solid var(--border)",
@@ -16,14 +16,12 @@ export type WpForm = {
   country: string
   zipCode: string
   phone: string
+  email: string
   displayName: string
-  taxOffice: string
-  taxId: string
-  nhfLocation: string
 }
 
 export function emptyWpForm(): WpForm {
-  return { addressLine1: "", addressLine2: "", city: "", state: "", country: "Nigeria", zipCode: "", phone: "", displayName: "", taxOffice: "", taxId: "", nhfLocation: "" }
+  return { addressLine1: "", addressLine2: "", city: "", state: "", country: "Nigeria", zipCode: "", phone: "", email: "", displayName: "" }
 }
 
 interface Props {
@@ -44,12 +42,6 @@ export function WorkplaceFormBody({ form, setForm, saving, error, onCancel, onSa
 
   return (
     <>
-      {isFilingOrMailing && (
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "12px 16px", background: "#FFFBEB", border: "1px solid #FDE68A", borderLeft: "4px solid #F59E0B", borderRadius: 8, fontSize: 13, color: "#92400E", marginBottom: 24, lineHeight: 1.6 }}>
-          Remember to update your filing and mailing address with relevant government authorities. This is your current filing and mailing address, so remember to update your filing and mailing address with relevant government authorities. To deactivate this workplace, use another workplace as your filing and mailing address.
-        </div>
-      )}
-
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <div>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Address line 1 <span style={{ color: "#ef4444" }}>*</span></label>
@@ -80,29 +72,15 @@ export function WorkplaceFormBody({ form, setForm, saving, error, onCancel, onSa
           <input value="Nigeria" readOnly style={{ ...fi, background: "var(--muted)", color: "var(--muted-foreground)", cursor: "not-allowed" }} />
         </div>
         <div>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Tax Office</label>
-          <select value={form.taxOffice} onChange={set("taxOffice")} style={sel}>
-            <option value="">Please select</option>
-            {TAX_OFFICES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-        <div>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>State/Province <span style={{ color: "#ef4444" }}>*</span></label>
           <select value={form.state} onChange={set("state")} style={sel}>
             <option value="">Please select</option>
             {NIGERIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
-        <div>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Tax ID</label>
-          <input value={form.taxId} onChange={set("taxId")} style={fi} placeholder="Tax identification number" />
-        </div>
-        <div style={{ gridColumn: "2" }}>
-          <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>NHF Location</label>
-          <select value={form.nhfLocation} onChange={set("nhfLocation")} style={sel}>
-            <option value="">Please select</option>
-            {NHF_LOCATIONS.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
+        <div style={{ gridColumn: "1 / -1" }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Email</label>
+          <input value={form.email} onChange={set("email")} style={{ ...fi, maxWidth: 400 }} placeholder="e.g. info@datasciencenigeria.ai" type="email" />
         </div>
       </div>
 
