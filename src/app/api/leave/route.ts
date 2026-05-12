@@ -159,6 +159,8 @@ export async function GET(req: NextRequest) {
   // PROJECT_LEAD role + secondary admins with canApproveLeave but NOT canViewAllLeave
   // (canViewAllLeave means HR-level final approver — excluded from PL picker)
   const projectLeadEmployees = employees.filter(e => {
+    if (user.employeeId && e.id === user.employeeId) return false
+    if (user.id && e.userId === user.id) return false
     const u = e.user as any
     if (!u) return false
     if (u.role === "PROJECT_LEAD") return true

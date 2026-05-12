@@ -482,7 +482,11 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
                       <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Relief Officer <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)" }}>(optional)</span></label>
                       <select value={pl.relieverId} onChange={e => updatePL(i, "relieverId", e.target.value)} style={fi}>
                         <option value="">No relief needed</option>
-                        {employees.filter((e: any) => e.id !== applicantId).map((e: any) => (
+                        {employees.filter((e: any) => {
+                          if (applicantId && e.id === applicantId) return false
+                          if (currentUserId && e.userId === currentUserId) return false
+                          return true
+                        }).map((e: any) => (
                           <option key={e.id} value={e.id}>{e.firstName} {e.lastName}{e.jobTitle ? ` — ${e.jobTitle}` : ""}</option>
                         ))}
                       </select>
@@ -800,10 +804,98 @@ function LeaveDetailModal({ req, onClose, isAdmin, currentUserEmployeeId }: { re
   )
 }
 
+// ── PL Approve Modal ──────────────────────────────────────────────────────────
+
+function PLApproveModal({ req, employees, currentUserEmployeeId, onClose, onDone }: {
+  req: any; employees: any[]; currentUserEmployeeId?: string; onClose: () => void; onDone: () => void;
+}) {
+  const [handover, setHandover] = useState<any[]>(() => {
+    try { return JSON.parse(req.handoverNotes ?? "[]") } catch { return [] }
+  })
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState("")
+
+  const myEntryIdx = handover.findIndex((e: any) => e.projectLeadId === currentUserEmployeeId)
+  const myEntry = myEntryIdx >= 0 ? handover[myEntryIdx] : null
+  const currentRelieverId = myEntry?.relieverId ?? ""
+
+  const setRelief = (id: string) => {
+    setError("")
+    setHandover(prev => {
+      const idx = prev.findIndex((e: any) => e.projectLeadId === currentUserEmployeeId)
+      if (idx >= 0) {
+        const next = [...prev]; next[idx] = { ...next[idx], relieverId: id }; return next
+      }
+      return [...prev, { projectLeadId: currentUserEmployeeId, taskName: "", taskDescription: null, relieverId: id }]
+    })
+  }
+
+  const submit = async () => {
+    const entry = handover.find((e: any) => e.projectLeadId === currentUserEmployeeId)
+    const relieverId = entry?.relieverId ?? ""
+    if (!relieverId) { setError("Select a relief officer before approving."); return }
+    setSubmitting(true); setError("")
+    const patch = await fetch(`/api/leave/${req.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ handoverNotes: handover.length > 0 ? JSON.stringify(handover) : null }),
+    })
+    if (!patch.ok) { const d = await patch.json(); setError(d.error ?? "Failed to save"); setSubmitting(false); return }
+    await fetch(`/api/leave/${req.id}/approve`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "APPROVED" }),
+    })
+    setSubmitting(false); onDone(); onClose()
+  }
+
+  const meEmployee = currentUserEmployeeId ? employees.find((e: any) => e.id === currentUserEmployeeId) : null
+  const otherOptions = employees.filter((e: any) => e.id !== req.employeeId && e.id !== currentUserEmployeeId)
+
+  return (
+    <Modal open onClose={onClose} title="Approve Leave Request" width={480}>
+      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ background: "var(--muted)", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{req.employee?.firstName} {req.employee?.lastName}</div>
+          {([["Leave Type", req.leaveType?.name], ["Period", `${formatDate(req.startDate, "MMM d")} → ${formatDate(req.endDate, "MMM d")}`], ["Duration", `${req.days} day${req.days !== 1 ? "s" : ""}`]] as [string, string][]).map(([label, value]) => (
+            <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13 }}>
+              <span style={{ color: "var(--muted-foreground)" }}>{label}</span>
+              <span style={{ fontWeight: 600 }}>{value}</span>
+            </div>
+          ))}
+          {req.reason && <div style={{ fontSize: 12, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2 }}>{req.reason}</div>}
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
+            Relief Officer <span style={{ color: "var(--accent)" }}>*</span>
+            <span style={{ fontSize: 11, fontWeight: 400, color: "var(--muted-foreground)", marginLeft: 6 }}>Required — can be yourself</span>
+          </label>
+          <select value={currentRelieverId} onChange={e => setRelief(e.target.value)}
+            style={{ width: "100%", padding: "9px 12px", border: `1px solid ${error ? "var(--accent)" : "var(--border)"}`, borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)" }}>
+            <option value="">Select relief officer…</option>
+            {meEmployee && <option value={meEmployee.id}>Myself — {meEmployee.firstName} {meEmployee.lastName}</option>}
+            {otherOptions.map((e: any) => (
+              <option key={e.id} value={e.id}>{e.firstName} {e.lastName}{e.jobTitle ? ` — ${e.jobTitle}` : ""}</option>
+            ))}
+          </select>
+          {error && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 4 }}>{error}</div>}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 4 }}>
+          <Button variant="secondary" size="sm" onClick={onClose} disabled={submitting}>Cancel</Button>
+          <Button size="sm" onClick={submit} disabled={submitting || !currentRelieverId}>
+            {submitting ? <><Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} /> Approving…</> : <><Check size={12} /> Confirm Approval</>}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Edit Leave Modal ──────────────────────────────────────────────────────────
 
-function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, employees = [], currentUserEmployeeId, noReliefWarning }: {
-  req: any; onClose: () => void; onDone: () => void; isAdmin: boolean; isPLEdit?: boolean; employees?: any[]; currentUserEmployeeId?: string; noReliefWarning?: string
+function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, employees = [], currentUserEmployeeId }: {
+  req: any; onClose: () => void; onDone: () => void; isAdmin: boolean; isPLEdit?: boolean; employees?: any[]; currentUserEmployeeId?: string;
 }) {
   const [form, setForm] = useState({
     startDate: req.startDate ? req.startDate.split("T")[0] : "",
@@ -887,12 +979,6 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, emplo
   return (
     <Modal open onClose={onClose} title={isPLEdit ? "Review Leave Request" : "Edit Leave Request"} width={560}>
       <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
-        {isPLEdit && noReliefWarning && (
-          <div style={{ background: "var(--danger-bg)", border: "1px solid var(--accent)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--accent)", display: "flex", gap: 8, fontWeight: 600 }}>
-            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-            {noReliefWarning}
-          </div>
-        )}
         {isPLEdit && (
           <div style={{ background: "var(--info-bg)", border: "1px solid var(--info)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--info)", display: "flex", gap: 8 }}>
             <Info size={14} style={{ flexShrink: 0 }} />
@@ -1291,7 +1377,7 @@ export default function LeavePage() {
   const [sentNudges, setSentNudges] = useState<Set<string>>(new Set())
   const [approveTarget, setApproveTarget] = useState<{ id: string; stage?: string; req: any } | null>(null)
   const [approving, setApproving] = useState(false)
-  const [editLeaveWarning, setEditLeaveWarning] = useState("")
+  const [plApproveTarget, setPLApproveTarget] = useState<any | null>(null)
   const [reviewReq, setReviewReq] = useState<any | null>(null)
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
@@ -1668,14 +1754,8 @@ export default function LeavePage() {
                 </button>
               </>)}
               {reviewReq.status === "PENDING" && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && reviewReq.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action) && (<>
-                <button onClick={() => {
-                  let handover: any[] = []
-                  try { handover = JSON.parse(reviewReq.handoverNotes ?? "[]") } catch {}
-                  const myEntry = handover.find((e: any) => e.projectLeadId === user?.employeeId)
-                  if (myEntry && !myEntry.relieverId) { setEditLeaveWarning("You must assign a relief officer before you can approve."); setEditLeave(reviewReq) }
-                  else setApproveTarget({ id: reviewReq.id, req: reviewReq })
-                  setReviewReq(null)
-                }} style={{ width: "100%", padding: "10px", background: "var(--success-bg)", color: "var(--success)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                <button onClick={() => { setPLApproveTarget(reviewReq); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--success-bg)", color: "var(--success)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Check size={14} /> Approve
                 </button>
                 <button onClick={() => { setRejectId(reviewReq.id); setReviewReq(null) }}
@@ -1710,7 +1790,8 @@ export default function LeavePage() {
 
       <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} projectLeadEmployees={projectLeadEmployees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} currentUserId={user?.id} />
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
-      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={editLeave?.currentStage === "PENDING_PROJECT_LEAD" && editLeave?.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action)} onClose={() => { setEditLeave(null); setEditLeaveWarning("") }} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} noReliefWarning={editLeaveWarning} />}
+      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={editLeave?.currentStage === "PENDING_PROJECT_LEAD" && editLeave?.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action)} onClose={() => setEditLeave(null)} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} />}
+      {plApproveTarget && <PLApproveModal req={plApproveTarget} employees={employees} currentUserEmployeeId={user?.employeeId} onClose={() => setPLApproveTarget(null)} onDone={load} />}
       {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />}
 
       {/* Approve confirmation modal */}
