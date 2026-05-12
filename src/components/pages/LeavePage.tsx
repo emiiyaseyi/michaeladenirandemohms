@@ -862,8 +862,23 @@ function PLApproveModal({ req, employees, currentUserEmployeeId, onClose, onDone
               <span style={{ fontWeight: 600 }}>{value}</span>
             </div>
           ))}
+          {/* Balance summary */}
+          {req.employeeLeaveBalance && (
+            <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
+              <span style={{ color: "var(--muted-foreground)" }}>Balance ({req.leaveType?.name})</span>
+              <span style={{ fontWeight: 600, color: req.days > req.employeeLeaveBalance.remaining ? "var(--accent)" : "var(--foreground)" }}>
+                {req.employeeLeaveBalance.remaining} / {req.employeeLeaveBalance.allocated} days remaining
+              </span>
+            </div>
+          )}
           {req.reason && <div style={{ fontSize: 12, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2 }}>{req.reason}</div>}
         </div>
+        {req.employeeLeaveBalance && req.days > req.employeeLeaveBalance.remaining && (
+          <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8, fontWeight: 600 }}>
+            <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+            This request ({req.days}d) exceeds the employee's remaining balance ({req.employeeLeaveBalance.remaining}d). You may still approve — HR will see the shortfall.
+          </div>
+        )}
 
         <div>
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}>
@@ -1227,6 +1242,12 @@ function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: 
                             </div>
                           )
                         })()}
+                        {req.documentUrl && (
+                          <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
+                            style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, fontSize: 12, fontWeight: 600, color: "var(--primary)", textDecoration: "none" }}>
+                            <CalendarCheck size={12} /> View Leave Document
+                          </a>
+                        )}
                       </div>
                     </div>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -1407,35 +1428,30 @@ export default function LeavePage() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    // Fetch leave data; profile fetch is best-effort (admins may not have employee profile)
-    const [leaveRes] = await Promise.all([
-      fetch(`/api/leave?status=${tab === "ALL" ? "" : tab}`),
-    ])
+    const leaveRes = await fetch(`/api/leave?status=${tab === "ALL" ? "" : tab}`)
     const ld = await leaveRes.json()
     setRequests(ld.requests ?? [])
     setLeaveTypes(ld.leaveTypes ?? [])
     setEmployees(ld.employees ?? [])
     setProjectLeadEmployees(ld.projectLeadEmployees ?? [])
-
-    // Profile & gender: best-effort, don't block main load
-    fetch("/api/self-service/profile")
-      .then(r => r.ok ? r.json() : null)
-      .then(pd => {
-        if (!pd) return
-        setBalances(pd.leaveBalances ?? [])
-        setTeamOnLeave(pd.teamOnLeave ?? [])
-      })
-      .catch(() => {})
-
-    fetch("/api/self-service/employee-raw")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.employee?.gender) setEmployeeGender(d.employee.gender) })
-      .catch(() => {})
-
     setLoading(false)
   }, [tab])
 
   useEffect(() => { load() }, [load])
+
+  // Profile & gender data — only for users with an employee account (avoid 404s for pure admins)
+  const employeeId = user?.employeeId
+  useEffect(() => {
+    if (!employeeId) return
+    fetch("/api/self-service/profile")
+      .then(r => r.ok ? r.json() : null)
+      .then(pd => { if (pd) { setBalances(pd.leaveBalances ?? []); setTeamOnLeave(pd.teamOnLeave ?? []) } })
+      .catch(() => {})
+    fetch("/api/self-service/employee-raw")
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.employee?.gender) setEmployeeGender(d.employee.gender) })
+      .catch(() => {})
+  }, [employeeId])
 
   const approve = async (id: string, stage?: string) => {
     setApproving(true)

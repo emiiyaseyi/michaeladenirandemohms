@@ -115,12 +115,13 @@ export async function GET(req: NextRequest) {
 
   // Employees for relief officer picker (all active)
   // Project lead picker: only employees whose user has canApproveLeave permission
+  const currentYear = new Date().getFullYear()
   const [requests, leaveTypes, employees, allAssignments] = await Promise.all([
     prisma.leaveRequest.findMany({
       where: scopeFilter,
       include: {
         employee: { include: { department: true } },
-        leaveType: true,
+        leaveType: { select: { id: true, name: true, defaultDays: true, requiresDoc: true, minDocDays: true, genderSpecific: true, waitingDays: true, excludeWeekends: true, rolloverPolicy: true, isActive: true, description: true } },
         approvals: { include: { employee: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { createdAt: "asc" } },
         reliefOfficersList: { include: { employee: { select: { id: true, firstName: true, lastName: true } } } },
       },
@@ -169,7 +170,21 @@ export async function GET(req: NextRequest) {
     return !!(perms?.["canApproveLeave"] && !perms?.["canViewAllLeave"])
   })
 
-  const enriched = requests.map(r => ({ ...r, currentStage: computeStage(r) }))
+  // Batch-fetch leave balances for all request employee+leaveType pairs
+  const pairs = [...new Map(requests.map(r => [`${r.employeeId}:${r.leaveTypeId}`, { employeeId: r.employeeId, leaveTypeId: r.leaveTypeId }])).values()]
+  const leaveBalances = pairs.length > 0
+    ? await prisma.leaveBalance.findMany({ where: { year: currentYear, OR: pairs } })
+    : []
+  const balanceMap = new Map(leaveBalances.map(b => [`${b.employeeId}:${b.leaveTypeId}`, b]))
+
+  const enriched = requests.map(r => {
+    const b = balanceMap.get(`${r.employeeId}:${r.leaveTypeId}`)
+    return {
+      ...r,
+      currentStage: computeStage(r),
+      employeeLeaveBalance: b ? { allocated: b.allocated, used: b.used, pending: b.pending, remaining: Math.max(0, b.allocated - b.used - b.pending) } : null,
+    }
+  })
   return NextResponse.json({ requests: enriched, leaveTypes, employees, projectLeadEmployees })
 }
 
