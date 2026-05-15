@@ -18,6 +18,15 @@ const CATEGORIES = [
   { key: "selfDev",         hoursKey: "selfDevHours",        label: "Self Development" },
 ]
 
+const DAYS_LIST = ["monday","tuesday","wednesday","thursday","friday"] as const
+type DayKey = typeof DAYS_LIST[number]
+
+const initEntries = (): Record<string, Record<DayKey, {tasks: string, hours: string}>> =>
+  Object.fromEntries(CATEGORIES.map(c => [
+    c.key,
+    Object.fromEntries(DAYS_LIST.map(d => [d, { tasks: "", hours: "" }])) as Record<DayKey, {tasks: string, hours: string}>
+  ]))
+
 type Settings = { submissionDay: number; openHour: number; lateHour: number; closeHour: number; lateDeduction: number }
 
 const DEFAULTS: Settings = { submissionDay: 5, openHour: 16, lateHour: 20, closeHour: 24, lateDeduction: 2 }
@@ -68,12 +77,7 @@ function StatusBadge({ status }: { status: string }) {
 
 export default function InternReportPage() {
   const [cfg, setCfg] = useState<Settings>(DEFAULTS)
-  const [hours, setHours] = useState<Record<string, string>>(
-    Object.fromEntries(CATEGORIES.map(c => [c.hoursKey, ""]))
-  )
-  const [descs, setDescs] = useState<Record<string, string>>(
-    Object.fromEntries(CATEGORIES.map(c => [c.key, ""]))
-  )
+  const [entries, setEntries] = useState<Record<string, Record<DayKey, {tasks: string, hours: string}>>>(initEntries())
   const [reflection, setReflection] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr] = useState("")
@@ -116,6 +120,12 @@ export default function InternReportPage() {
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
+  const setEntry = (catKey: string, day: DayKey, field: "tasks"|"hours", val: string) =>
+    setEntries(e => ({ ...e, [catKey]: { ...e[catKey], [day]: { ...e[catKey][day], [field]: val } } }))
+
+  const catTotal = (catKey: string) =>
+    DAYS_LIST.reduce((s, d) => s + (parseFloat(entries[catKey]?.[d]?.hours || "0") || 0), 0)
+
   const addReviewer = (emp: any) => {
     if (extraReviewerIds.includes(emp.id)) return
     setExtraReviewerIds(ids => [...ids, emp.id])
@@ -130,7 +140,7 @@ export default function InternReportPage() {
     return !q || `${e.firstName} ${e.lastName} ${e.jobTitle ?? ""} ${e.department?.name ?? ""}`.toLowerCase().includes(q)
   })
 
-  const totalHours = CATEGORIES.reduce((s, c) => s + (parseFloat(hours[c.hoursKey]) || 0), 0)
+  const totalHours = CATEGORIES.reduce((s, c) => s + catTotal(c.key), 0)
 
   const wat = new Date(new Date().getTime() + 60 * 60 * 1000)
   const day = wat.getDay()
@@ -148,8 +158,8 @@ export default function InternReportPage() {
   const handleSubmit = async () => {
     if (!window.open) return
     setSubmitting(true); setSubmitErr("")
-    const hoursPayload = Object.fromEntries(CATEGORIES.map(c => [c.hoursKey, parseFloat(hours[c.hoursKey]) || 0]))
-    const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, descs[c.key].trim()]))
+    const hoursPayload = Object.fromEntries(CATEGORIES.map(c => [c.hoursKey, catTotal(c.key)]))
+    const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, entries[c.key]]))
     const res = await fetch("/api/intern-reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -216,61 +226,56 @@ export default function InternReportPage() {
                 </div>
 
                 {/* Task table */}
-                <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", marginBottom: 20 }}>
-                  {/* Table header */}
-                  <div style={{ display: "grid", gridTemplateColumns: "180px 1fr 90px", background: "var(--muted)", padding: "10px 14px", gap: 12 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Category</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Tasks Done This Week</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", textAlign: "center" }}>Hours</span>
-                  </div>
-
-                  {CATEGORIES.map((cat, i) => (
-                    <div key={cat.key} style={{
-                      display: "grid", gridTemplateColumns: "180px 1fr 90px",
-                      padding: "10px 14px", gap: 12, alignItems: "center",
-                      borderTop: i > 0 ? "1px solid var(--border)" : "none",
-                      background: i % 2 === 0 ? "transparent" : "var(--muted)08",
-                    }}>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>{cat.label}</span>
-                      <input
-                        type="text"
-                        value={descs[cat.key]}
-                        onChange={e => setDescs(d => ({ ...d, [cat.key]: e.target.value }))}
-                        disabled={!window.open}
-                        placeholder="Describe tasks performed…"
-                        style={{
-                          width: "100%", padding: "7px 10px", border: "1.5px solid var(--border)",
-                          borderRadius: 6, fontSize: 13, background: "var(--background)",
-                          color: "var(--foreground)", outline: "none", boxSizing: "border-box",
-                          opacity: !window.open ? 0.6 : 1,
-                        }}
-                      />
-                      <input
-                        type="number" min={0} max={40} step={0.5}
-                        value={hours[cat.hoursKey]}
-                        onChange={e => setHours(h => ({ ...h, [cat.hoursKey]: e.target.value }))}
-                        disabled={!window.open}
-                        placeholder="0"
-                        style={{
-                          width: "100%", padding: "7px 10px", border: "1.5px solid var(--border)",
-                          borderRadius: 6, fontSize: 14, background: "var(--background)",
-                          color: "var(--foreground)", outline: "none", textAlign: "center",
-                          boxSizing: "border-box", opacity: !window.open ? 0.6 : 1,
-                        }}
-                      />
-                    </div>
-                  ))}
-
-                  {/* Total row */}
-                  <div style={{
-                    display: "grid", gridTemplateColumns: "180px 1fr 90px",
-                    padding: "12px 14px", gap: 12, alignItems: "center",
-                    borderTop: "2px solid var(--border)", background: "var(--muted)",
-                  }}>
-                    <span style={{ fontSize: 13, fontWeight: 800 }}>Total Hours</span>
-                    <span />
-                    <span style={{ fontSize: 16, fontWeight: 900, color: "var(--primary)", textAlign: "center" }}>{totalHours.toFixed(1)}</span>
-                  </div>
+                <div style={{ overflowX: "auto", marginBottom: 20 }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900, fontSize: 12 }}>
+                    <thead>
+                      <tr style={{ background: "var(--muted)" }}>
+                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 150, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Category</th>
+                        {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(d => (
+                          <th key={d} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 160 }}>{d}</th>
+                        ))}
+                        <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {CATEGORIES.map((cat, i) => (
+                        <tr key={cat.key} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
+                          <td style={{ padding: "10px 12px", fontWeight: 600, fontSize: 12, color: "var(--foreground)", verticalAlign: "middle", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{cat.label}</td>
+                          {DAYS_LIST.map(day => (
+                            <td key={day} style={{ padding: "6px 8px", verticalAlign: "top" }}>
+                              <textarea
+                                value={entries[cat.key][day].tasks}
+                                onChange={e => setEntry(cat.key, day, "tasks", e.target.value)}
+                                disabled={!window.open}
+                                placeholder="Tasks…"
+                                rows={2}
+                                style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, marginBottom: 4 }}
+                              />
+                              <input
+                                type="number" min={0} max={24} step={0.25}
+                                value={entries[cat.key][day].hours}
+                                onChange={e => setEntry(cat.key, day, "hours", e.target.value)}
+                                disabled={!window.open}
+                                placeholder="Hrs"
+                                style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, textAlign: "center" }}
+                              />
+                            </td>
+                          ))}
+                          <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--primary)", verticalAlign: "middle" }}>
+                            {catTotal(cat.key).toFixed(1)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
+                        <td style={{ padding: "12px", fontWeight: 800, fontSize: 13, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total Hours</td>
+                        {DAYS_LIST.map(day => {
+                          const dayTotal = CATEGORIES.reduce((s, c) => s + (parseFloat(entries[c.key][day].hours || "0") || 0), 0)
+                          return <td key={day} style={{ padding: "12px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--muted-foreground)" }}>{dayTotal > 0 ? dayTotal.toFixed(1) : "—"}</td>
+                        })}
+                        <td style={{ padding: "12px 8px", textAlign: "center", fontWeight: 900, fontSize: 16, color: "var(--primary)" }}>{totalHours.toFixed(1)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
 
                 {/* Reflection */}
@@ -428,29 +433,52 @@ export default function InternReportPage() {
 
             <div style={{ padding: "20px 24px" }}>
               {/* Task breakdown table */}
-              <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", marginBottom: 20 }}>
-                <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 70px", background: "var(--muted)", padding: "9px 14px", gap: 12 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Category</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase" }}>Tasks</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", textAlign: "center" }}>Hrs</span>
-                </div>
-                {CATEGORIES.map((cat, i) => {
-                  const hrs = (viewReport[cat.hoursKey] ?? 0)
-                  const desc = (viewReport.taskDescriptions as any)?.[cat.key] ?? ""
-                  if (!hrs && !desc) return null
-                  return (
-                    <div key={cat.key} style={{ display: "grid", gridTemplateColumns: "160px 1fr 70px", padding: "10px 14px", gap: 12, borderTop: i > 0 ? "1px solid var(--border)" : "none", alignItems: "start" }}>
-                      <span style={{ fontSize: 12, fontWeight: 600 }}>{cat.label}</span>
-                      <span style={{ fontSize: 12, color: desc ? "var(--foreground)" : "var(--muted-foreground)", fontStyle: desc ? "normal" : "italic" }}>{desc || "—"}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, textAlign: "center", color: "var(--primary)" }}>{hrs.toFixed(1)}</span>
-                    </div>
-                  )
-                })}
-                <div style={{ display: "grid", gridTemplateColumns: "160px 1fr 70px", padding: "10px 14px", gap: 12, borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
-                  <span style={{ fontSize: 13, fontWeight: 800 }}>Total</span>
-                  <span />
-                  <span style={{ fontSize: 14, fontWeight: 900, color: "var(--primary)", textAlign: "center" }}>{(viewReport.totalHours ?? 0).toFixed(1)}</span>
-                </div>
+              <div style={{ overflowX: "auto", marginBottom: 20 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 800, fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "var(--muted)" }}>
+                      <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 130, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Category</th>
+                      {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(d => (
+                        <th key={d} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 140 }}>{d}</th>
+                      ))}
+                      <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 60 }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CATEGORIES.map((cat, i) => {
+                      const dayData = (viewReport.taskDescriptions as any)?.[cat.key]
+                      const hasData = DAYS_LIST.some(d => dayData?.[d]?.tasks || dayData?.[d]?.hours)
+                      const weekTotal = DAYS_LIST.reduce((s, d) => s + (parseFloat(dayData?.[d]?.hours || "0") || 0), 0)
+                      const isLegacy = typeof dayData === "string"
+                      const legacyHrs = viewReport[cat.hoursKey] ?? 0
+                      if (!hasData && !isLegacy && !legacyHrs) return null
+                      return (
+                        <tr key={cat.key} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
+                          <td style={{ padding: "8px 12px", fontWeight: 600, fontSize: 12, verticalAlign: "top", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{cat.label}</td>
+                          {isLegacy ? (
+                            <>
+                              <td style={{ padding: "8px 12px", fontSize: 11, color: "var(--foreground)" }} colSpan={5}>{dayData}</td>
+                            </>
+                          ) : (
+                            DAYS_LIST.map(day => {
+                              const cell = dayData?.[day]
+                              return (
+                                <td key={day} style={{ padding: "8px 12px", fontSize: 11, verticalAlign: "top" }}>
+                                  {cell?.tasks && <div style={{ marginBottom: 2, color: "var(--foreground)" }}>{cell.tasks}</div>}
+                                  {cell?.hours && parseFloat(cell.hours) > 0 && <div style={{ fontWeight: 700, color: "var(--primary)" }}>{parseFloat(cell.hours).toFixed(1)}h</div>}
+                                  {!cell?.tasks && !cell?.hours && <span style={{ color: "var(--border)" }}>—</span>}
+                                </td>
+                              )
+                            })
+                          )}
+                          <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "top" }}>
+                            {isLegacy ? legacyHrs.toFixed(1) : weekTotal > 0 ? weekTotal.toFixed(1) : "—"}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
 
               {viewReport.personalReflection && (

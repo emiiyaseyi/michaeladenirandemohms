@@ -16,24 +16,41 @@ const CATEGORIES = [
   { key: "selfDev",        hoursKey: "selfDevHours",        label: "Self Development" },
 ]
 
+const DAYS_LIST = ["monday","tuesday","wednesday","thursday","friday"] as const
+
 export function generateInternReportXlsx(report: {
   weekStart: Date; weekEnd: Date;
   employee: { firstName: string; lastName: string; jobTitle?: string | null; department?: { name: string } | null };
   totalHours: number; lateFlag: boolean; status: string; personalReflection?: string | null;
-  taskDescriptions?: Record<string, string> | null;
+  taskDescriptions?: Record<string, any> | null;
   [key: string]: any
 }): Buffer {
   const wb = XLSX.utils.book_new()
-  const descs: Record<string, string> = (report.taskDescriptions as any) ?? {}
 
-  // Sheet 1: Hours Breakdown
-  const hoursData = [
-    ["Category", "Tasks Done This Week", "Hours"],
-    ...CATEGORIES.map(r => [r.label, descs[r.key] || "", +(report[r.hoursKey] ?? 0)]),
-    ["TOTAL", "", report.totalHours ?? 0],
-  ]
-  const ws1 = XLSX.utils.aoa_to_sheet(hoursData)
-  ws1["!cols"] = [{ wch: 30 }, { wch: 50 }, { wch: 10 }]
+  // Sheet 1: Daily breakdown
+  const rows: any[][] = []
+  rows.push(["Category", "Monday", "", "Tuesday", "", "Wednesday", "", "Thursday", "", "Friday", "", "Weekly Total"])
+  rows.push(["", "Tasks", "Hours", "Tasks", "Hours", "Tasks", "Hours", "Tasks", "Hours", "Tasks", "Hours", ""])
+  for (const cat of CATEGORIES) {
+    const dayData = (report.taskDescriptions as any)?.[cat.key]
+    if (typeof dayData === "string") {
+      // Legacy format: single row
+      rows.push([cat.label, dayData, report[cat.hoursKey] ?? 0, "", "", "", "", "", "", "", "", report[cat.hoursKey] ?? 0])
+    } else {
+      const weekTotal = DAYS_LIST.reduce((s, d) => s + (parseFloat(dayData?.[d]?.hours || "0") || 0), 0)
+      rows.push([
+        cat.label,
+        dayData?.monday?.tasks ?? "", parseFloat(dayData?.monday?.hours || "0") || "",
+        dayData?.tuesday?.tasks ?? "", parseFloat(dayData?.tuesday?.hours || "0") || "",
+        dayData?.wednesday?.tasks ?? "", parseFloat(dayData?.wednesday?.hours || "0") || "",
+        dayData?.thursday?.tasks ?? "", parseFloat(dayData?.thursday?.hours || "0") || "",
+        dayData?.friday?.tasks ?? "", parseFloat(dayData?.friday?.hours || "0") || "",
+        weekTotal > 0 ? weekTotal : ""
+      ])
+    }
+  }
+  const ws1 = XLSX.utils.aoa_to_sheet(rows)
+  ws1["!cols"] = [{ wch: 28 }, { wch: 28 }, { wch: 8 }, { wch: 28 }, { wch: 8 }, { wch: 28 }, { wch: 8 }, { wch: 28 }, { wch: 8 }, { wch: 28 }, { wch: 8 }, { wch: 12 }]
   XLSX.utils.book_append_sheet(wb, ws1, "Hours Breakdown")
 
   // Sheet 2: Details

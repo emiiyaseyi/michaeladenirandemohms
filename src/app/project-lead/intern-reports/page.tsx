@@ -19,6 +19,9 @@ const CATEGORIES = [
   { key: "selfDev",        hoursKey: "selfDevHours",        label: "Self Development" },
 ]
 
+const DAYS_LIST = ["monday","tuesday","wednesday","thursday","friday"] as const
+type DayKey = typeof DAYS_LIST[number]
+
 const RATING_CRITERIA: Record<string, { label: string; criteria: [number, string][] }> = {
   productivityRating: {
     label: "Productivity & Time Utilization",
@@ -369,27 +372,53 @@ export default function PLInternReportsPage() {
               <button onClick={() => setViewingId(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted-foreground)" }}>×</button>
             </div>
             <div style={{ padding: "20px 24px" }}>
-              {/* Header row */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: "0 16px", padding: "6px 0", borderBottom: "2px solid var(--border)", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                <span>Category</span>
-                <span>Tasks Done This Week</span>
-                <span style={{ textAlign: "right" }}>Hours</span>
-              </div>
-              {CATEGORIES.filter(cat => {
-                const hours = viewingReport[cat.hoursKey] ?? 0
-                const desc = viewingReport.taskDescriptions?.[cat.key] || ""
-                return hours > 0 || desc
-              }).map(cat => (
-                <div key={cat.key} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: "0 16px", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
-                  <span style={{ fontWeight: 500 }}>{cat.label}</span>
-                  <span style={{ color: "var(--muted-foreground)" }}>{viewingReport.taskDescriptions?.[cat.key] || "—"}</span>
-                  <strong style={{ textAlign: "right" }}>{(viewingReport[cat.hoursKey] ?? 0).toFixed(1)}h</strong>
-                </div>
-              ))}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: "0 16px", padding: "10px 0", fontWeight: 700, fontSize: 14 }}>
-                <span>Total Hours</span>
-                <span></span>
-                <span style={{ color: "var(--primary)", textAlign: "right" }}>{(viewingReport.totalHours ?? 0).toFixed(1)}h</span>
+              {/* Task breakdown table */}
+              <div style={{ overflowX: "auto", marginBottom: 20 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 800, fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "var(--muted)" }}>
+                      <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 130, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Category</th>
+                      {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(d => (
+                        <th key={d} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 140 }}>{d}</th>
+                      ))}
+                      <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 60 }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CATEGORIES.map((cat, i) => {
+                      const dayData = (viewingReport.taskDescriptions as any)?.[cat.key]
+                      const hasData = DAYS_LIST.some(d => dayData?.[d]?.tasks || dayData?.[d]?.hours)
+                      const weekTotal = DAYS_LIST.reduce((s, d) => s + (parseFloat(dayData?.[d]?.hours || "0") || 0), 0)
+                      const isLegacy = typeof dayData === "string"
+                      const legacyHrs = viewingReport[cat.hoursKey] ?? 0
+                      if (!hasData && !isLegacy && !legacyHrs) return null
+                      return (
+                        <tr key={cat.key} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
+                          <td style={{ padding: "8px 12px", fontWeight: 600, fontSize: 12, verticalAlign: "top", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{cat.label}</td>
+                          {isLegacy ? (
+                            <>
+                              <td style={{ padding: "8px 12px", fontSize: 11, color: "var(--foreground)" }} colSpan={5}>{dayData}</td>
+                            </>
+                          ) : (
+                            DAYS_LIST.map(day => {
+                              const cell = dayData?.[day]
+                              return (
+                                <td key={day} style={{ padding: "8px 12px", fontSize: 11, verticalAlign: "top" }}>
+                                  {cell?.tasks && <div style={{ marginBottom: 2, color: "var(--foreground)" }}>{cell.tasks}</div>}
+                                  {cell?.hours && parseFloat(cell.hours) > 0 && <div style={{ fontWeight: 700, color: "var(--primary)" }}>{parseFloat(cell.hours).toFixed(1)}h</div>}
+                                  {!cell?.tasks && !cell?.hours && <span style={{ color: "var(--border)" }}>—</span>}
+                                </td>
+                              )
+                            })
+                          )}
+                          <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "top" }}>
+                            {isLegacy ? legacyHrs.toFixed(1) : weekTotal > 0 ? weekTotal.toFixed(1) : "—"}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
               </div>
               {viewingReport.personalReflection && (
                 <div style={{ marginTop: 16 }}>

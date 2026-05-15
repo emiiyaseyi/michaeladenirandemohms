@@ -12,6 +12,7 @@
 import "dotenv/config"
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
+import { EMAIL_EVENTS } from "../src/lib/email-events"
 
 const prisma = new PrismaClient()
 
@@ -286,19 +287,38 @@ async function main() {
   })
   console.log(`  ✓ ${JOB_TITLES.length} job titles seeded`)
 
-  // ── Email Settings (auto-enable defaults so emails work out of the box) ─────
+  // ── Email Settings (disabled by default until email is configured) ──────────
   await prisma.emailSettings.upsert({
     where: { id: "singleton" },
     update: {},
     create: {
       id: "singleton",
-      enabled: true,
+      enabled: false,
       fromName: "DSN HRMS",
       fromEmail: "no-reply@datasciencenigeria.ai",
       eventToggles: {},
     },
   })
-  console.log("  ✓ Email settings (defaults enabled)")
+  console.log("  ✓ Email settings (defaults, disabled until configured)")
+
+  // ── Email Templates (seed defaults, inactive by default until email is configured) ──
+  let templateCount = 0
+  for (const [eventKey, def] of Object.entries(EMAIL_EVENTS)) {
+    await prisma.emailTemplate.upsert({
+      where: { eventKey },
+      update: {}, // never overwrite customised templates
+      create: {
+        eventKey,
+        name: def.name,
+        subject: def.defaultSubject,
+        body: def.defaultBody,
+        variables: def.variables,
+        isActive: true,
+      },
+    })
+    templateCount++
+  }
+  console.log(`  ✓ ${templateCount} email templates seeded (defaults, isActive=true)`)
 
   // Resolve IDs for elevation assignments in demo data
   const hrAdminRole = await prisma.adminRole.findUnique({ where: { slug: "hr-admin" } })
