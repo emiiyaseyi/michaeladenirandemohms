@@ -60,5 +60,23 @@ export async function POST(req: NextRequest) {
     include: { createdBy: { select: { name: true } } },
   })
 
+  // Send email if publishing with sendEmail flag
+  if (ann.status === "PUBLISHED" && ann.sendEmail) {
+    const { sendEmailToMany } = await import("@/lib/email")
+    const where: any = { isActive: true }
+    if (targetRoles.length > 0) where.role = { in: targetRoles }
+    const recipients = await prisma.user.findMany({ where, select: { id: true } })
+    const userIds = recipients.map((u: any) => u.id)
+    const creator = await prisma.user.findUnique({ where: { id: user.id }, select: { name: true } })
+    sendEmailToMany(userIds, {
+      eventKey: "announcement_published",
+      variables: {
+        announcementTitle: ann.title,
+        announcementBody: ann.body ?? "",
+        publishedBy: creator?.name ?? "Admin",
+      },
+    }).catch(() => {})
+  }
+
   return NextResponse.json({ announcement: ann }, { status: 201 })
 }

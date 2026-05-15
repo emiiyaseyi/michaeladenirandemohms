@@ -471,6 +471,21 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       P("Log in to your dashboard to view the full feedback.") +
       NOTE(),
   },
+
+  announcement_published: {
+    name: "Announcement Published",
+    category: "Admin",
+    description: "Sent to target audience when an announcement is published with email delivery enabled.",
+    variables: ["announcementTitle", "announcementBody", "publishedBy"],
+    defaultSubject: "📢 New Announcement: {{announcementTitle}}",
+    defaultBody:
+      LOGO +
+      H("New Announcement") +
+      P("<strong>{{announcementTitle}}</strong>") +
+      P("{{announcementBody}}") +
+      `<p style="font-size:12px;color:#9ca3af;margin-top:16px;">— {{publishedBy}}</p>` +
+      NOTE("Log in to your HRMS portal for more information."),
+  },
 }
 
 export const EVENT_CATEGORIES = ["Leave", "Documents", "People", "Admin"] as const

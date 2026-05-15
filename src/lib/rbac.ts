@@ -147,10 +147,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Audit Log",      href: "/audit-log",      icon: "FileText", roles: ["ADMIN"], permission: "canViewAuditLog" },
   {
     label: "Announcements", icon: "Megaphone", roles: ["ADMIN"], permission: "canViewAnnouncements",
-    children: [
-      { label: "Overview", href: "/announcements", exact: true },
-      { label: "Groups",   href: "/announcements/groups" },
-    ],
+    href: "/announcements",
   },
   { label: "Analytics",     href: "/analytics",     icon: "BarChart3",     roles: ["ADMIN"], permission: "canViewAnalytics" },
   { label: "Intern Reports", href: "/intern-reports", icon: "ClipboardList", roles: ["ADMIN"], permission: "canViewInternReports" },
