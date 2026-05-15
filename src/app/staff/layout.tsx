@@ -20,14 +20,10 @@ export default async function StaffLayout({ children }: { children: React.ReactN
       where: { userId },
       select: {
         onboardingTasks: { where: { status: { not: "COMPLETED" } }, take: 1 },
-        offboarding: { select: { status: true } },
       },
     })
     if (employee?.onboardingTasks.length) {
       nav.push({ label: "Onboarding", href: "/staff/onboarding", icon: "UserCheck", roles: ["STAFF"] })
-    }
-    if (employee?.offboarding && !["COMPLETED","CANCELLED"].includes(employee.offboarding.status)) {
-      nav.push({ label: "Offboarding", href: "/staff/offboarding", icon: "UserMinus", roles: ["STAFF"] })
     }
   }
 

@@ -7,7 +7,7 @@ import Link from "next/link"
 import {
   Building2, UserCheck, CalendarDays, Clock, Edit2,
   ChevronRight, Cake, Award, Loader2, AlertCircle,
-  CalendarCheck, Star, FileText, Users,
+  CalendarCheck, Star, Users,
   Search, Briefcase, TrendingUp,
   Gift, Megaphone, ChevronLeft,
   Target, ClipboardList, Globe, Building,
@@ -335,7 +335,6 @@ function HeroCard({ profile, onTakeTour }: { profile: any; onTakeTour: () => voi
 // ─── Quick Actions ────────────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
   { label:"Request Leave",   href:"/staff/requests/leave",              color:"#6366F1", icon:CalendarDays },
-  { label:"View Payslip",    href:"/staff/self-service/payslips",       color:"#10B981", icon:FileText },
   { label:"Set KPI Goals",   href:"/staff/performance/objectives",      color:"#F59E0B", icon:Target },
   { label:"Take Appraisal",  href:"/staff/performance/reviews",         color:"#EC4899", icon:TrendingUp },
   { label:"My Documents",    href:"/staff/documents",                   color:"#8B5CF6", icon:ClipboardList },

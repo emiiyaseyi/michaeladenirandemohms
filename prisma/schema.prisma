@@ -67,7 +67,6 @@ model User {
   personalDocReviews     PersonalDocument[]    @relation("PersonalDocReviewer")
   passwordResetRequests  PasswordResetRequest[] @relation("PasswordResetUser")
   resolvedResetRequests  PasswordResetRequest[] @relation("PasswordResetResolver")
-  exitRequestReviews     ExitRequest[]
   projectLeadDepartments ProjectLeadDepartment[]
 }
 
@@ -92,27 +91,10 @@ model Department {
   parent        Department?    @relation("DeptHierarchy", fields: [parentId], references: [id])
   children      Department[]   @relation("DeptHierarchy")
   employees              Employee[]
-  teams                  Team[]
   jobPostings            JobPosting[]
   leaveRequests          LeaveRequest[]
-  redeployedFromHere     RedeploymentRequest[] @relation("RedeployFromDept")
-  redeployedToHere       RedeploymentRequest[] @relation("RedeployToDept")
   offerLetters           OfferLetter[]
   projectLeads           ProjectLeadDepartment[]
-}
-
-model Team {
-  id           String           @id @default(cuid())
-  name         String
-  category     EmployeeCategory @default(NON_TECHNICAL)
-  departmentId String?
-  headId       String?
-  description  String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  department   Department?      @relation(fields: [departmentId], references: [id])
-  head         Employee?        @relation("TeamHead", fields: [headId], references: [id])
-  members      Employee[]       @relation("TeamMembership")
 }
 
 model Employee {
@@ -139,7 +121,6 @@ model Employee {
   departmentId       String?
   jobTitle           String?
   employmentType     EmploymentType       @default(FULL_TIME)
-  category           EmployeeCategory     @default(NON_TECHNICAL)
   employeeStatus     EmployeeStatus       @default(ACTIVE)
   hireDate           DateTime?
   confirmationDate   DateTime?
@@ -148,24 +129,16 @@ model Employee {
   projectLeadId             String?
   secondaryProjectLeadIds   String[]  @default([])
   secondaryDepartmentIds    String[]  @default([])
-  teamId                    String?
-  bankName           String?
-  bankAccountNo      String?
-  bankAccountName    String?
-  pensionPin         String?
-  tin                String?
-  nhfNo              String?
   nin                String?
   aiMembership       String?
-  grossSalary        Float?
   nokName            String?
   nokPhone           String?
   nokRelationship    String?
   nokAddress         String?
   onProbation        Boolean              @default(false)
   probationEndDate   DateTime?
-  annualLeaveBalance Int                  @default(21)
-  sickLeaveBalance   Int                  @default(14)
+  annualLeaveBalance Int                  @default(10)
+  sickLeaveBalance   Int                  @default(5)
   createdAt          DateTime             @default(now())
   updatedAt          DateTime             @updatedAt
   docAcks            DocAck[]
@@ -175,8 +148,6 @@ model Employee {
   projectLeadOf      Employee[]           @relation("ProjectLeadRelation")
   manager            Employee?            @relation("ManagerRelation", fields: [managerId], references: [id])
   directReports      Employee[]           @relation("ManagerRelation")
-  team               Team?                @relation("TeamMembership", fields: [teamId], references: [id])
-  ledTeams           Team[]               @relation("TeamHead")
   profileUpdateRequests ProfileUpdateRequest[]
   personalDocuments  PersonalDocument[]
   user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -190,15 +161,8 @@ model Employee {
   leaveRequests      LeaveRequest[]       @relation("EmployeeLeave")
   reliefFor          LeaveRequest[]       @relation("ReliefOfficer")
   notifications      Notification[]       @relation("EmployeeNotifications")
-  offboarding        Offboarding?
-  exitRequests       ExitRequest[]
   onboardingTasks    OnboardingTask[]
   projectAssignments ProjectAssignment[]
-  payslips           Payslip[]
-  signatoryRecord    CompanySignatory?
-  loanRequests         LoanRequest[]
-  salaryAdvances       SalaryAdvanceRequest[]
-  redeploymentRequests RedeploymentRequest[]
   documentRequests     DocumentRequest[]
   offerLettersSent     OfferLetter[]        @relation("OfferManager")
   customGroupMemberships CustomGroupMember[]
@@ -216,6 +180,11 @@ model Employee {
   policyExemptions            DisciplinaryPolicyExemption[]
   assetAssignments            AssetAssignment[]
   benefitEnrollments          BenefitEnrollment[]
+  invite             EmployeeInvite?
+  internReports       InternWeeklyReport[] @relation("InternReports")
+  tlReviews           InternWeeklyReport[] @relation("TLReviews")
+  attendanceFills     InternWeeklyReport[] @relation("AttendanceFills")
+  internReportReviews InternReportReviewer[] @relation("InternReportReviews")
 }
 
 model Document {
@@ -432,14 +401,17 @@ model LeaveType {
   id              String         @id @default(cuid())
   name            String         @unique
   description     String?
-  defaultDays     Int            @default(21)
-  genderSpecific  Gender?
-  waitingDays     Int            @default(0)
-  rolloverPolicy  Boolean        @default(false)
-  excludeWeekends Boolean        @default(true)
-  requiresDoc     Boolean        @default(false)
-  minDocDays      Int            @default(2)
-  isActive        Boolean        @default(true)
+  defaultDays      Int            @default(21)
+  genderSpecific   Gender?
+  waitingDays      Int            @default(0)
+  rolloverPolicy   Boolean        @default(false)
+  excludeWeekends  Boolean        @default(true)
+  requiresDoc      Boolean        @default(false)
+  minDocDays       Int            @default(2)
+  minNoticeDays    Int            @default(10)
+  internOnly       Boolean        @default(false)
+  deductFromAnnual Boolean        @default(false)
+  isActive         Boolean        @default(true)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   leaveBalances   LeaveBalance[]
@@ -463,41 +435,6 @@ model JobTitle {
   updatedAt DateTime @updatedAt
 }
 
-model LoanRequest {
-  id               String   @id @default(cuid())
-  employeeId       String
-  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  policyName       String?
-  amount           Float
-  repaymentTenor   Int
-  interval         String   @default("Months")
-  reason           String?
-  noteForUser      String?
-  documentUrl      String?
-  status           String   @default("PENDING")
-  disburseWithPayroll Boolean @default(false)
-  deductFromPayroll   Boolean @default(false)
-  declineReason    String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-}
-
-model SalaryAdvanceRequest {
-  id             String   @id @default(cuid())
-  employeeId     String
-  employee       Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  policyName     String?
-  amount         Float
-  repaymentTenor Int
-  interval       String   @default("Months")
-  reason         String?
-  noteForUser    String?
-  documentUrl    String?
-  status         String   @default("PENDING")
-  declineReason  String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-}
 
 model LeaveFreezeperiod {
   id        String   @id @default(cuid())
@@ -809,52 +746,6 @@ model ProjectAssignment {
   @@unique([projectId, employeeId])
 }
 
-model Offboarding {
-  id             String            @id @default(cuid())
-  employeeId     String            @unique
-  exitType       ExitType
-  lastWorkingDay DateTime
-  reason         String?
-  status         OffboardingStatus @default(INITIATED)
-  initiatedAt    DateTime          @default(now())
-  completedAt    DateTime?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  employee       Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  tasks          OffboardingTask[]
-}
-
-model OffboardingTask {
-  id            String      @id @default(cuid())
-  offboardingId String
-  title         String
-  assignedTo    String?
-  category      String?
-  status        TaskStatus  @default(PENDING)
-  dueDate       DateTime?
-  completedAt   DateTime?
-  notes         String?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  offboarding   Offboarding @relation(fields: [offboardingId], references: [id], onDelete: Cascade)
-}
-
-model ExitRequest {
-  id              String    @id @default(cuid())
-  employeeId      String
-  exitType        ExitType
-  intendedLastDay DateTime
-  reason          String?
-  documentUrl     String?
-  status          String    @default("PENDING")
-  reviewedById    String?
-  reviewedAt      DateTime?
-  declineReason   String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  reviewedBy      User?     @relation(fields: [reviewedById], references: [id])
-}
 
 model LeaveBalance {
   id          String    @id @default(cuid())
@@ -976,17 +867,13 @@ enum EmploymentType {
   NYSC
 }
 
-enum EmployeeCategory {
-  TECHNICAL
-  NON_TECHNICAL
-}
-
 enum EmployeeStatus {
   ACTIVE
   ON_LEAVE
   SUSPENDED
   TERMINATED
   RESIGNED
+  NEEDS_ATTENTION
 }
 
 enum DocumentType {
@@ -1254,53 +1141,6 @@ enum ProjectStatus {
   CANCELLED
 }
 
-enum ExitType {
-  RESIGNATION
-  TERMINATION
-  RETIREMENT
-  CONTRACT_END
-  REDUNDANCY
-}
-
-enum OffboardingStatus {
-  INITIATED
-  IN_PROGRESS
-  COMPLETED
-  CANCELLED
-}
-
-enum PayslipStatus {
-  DRAFT
-  PENDING
-  RELEASED
-}
-
-model Payslip {
-  id              String        @id @default(cuid())
-  employeeId      String
-  month           Int           // 1-12
-  year            Int
-  grossSalary     Float
-  basicSalary     Float
-  housing         Float         @default(0)
-  transport       Float         @default(0)
-  meal            Float         @default(0)
-  otherAllowances Float         @default(0)
-  payeTax         Float         @default(0)
-  pension         Float         @default(0)
-  nhf             Float         @default(0)
-  healthInsurance Float         @default(0)
-  otherDeductions Float         @default(0)
-  netPay          Float
-  status          PayslipStatus @default(DRAFT)
-  notes           String?
-  releasedAt      DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([employeeId, month, year])
-}
 
 model Workplace {
   id           String   @id @default(cuid())
@@ -1321,14 +1161,6 @@ model Workplace {
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-}
-
-model CompanySignatory {
-  id         String   @id @default(cuid())
-  employeeId String   @unique
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 enum NotificationType {
@@ -1409,24 +1241,6 @@ model PersonalDocument {
   reviewer    User?             @relation("PersonalDocReviewer", fields: [reviewedBy], references: [id])
 }
 
-model RedeploymentRequest {
-  id               String   @id @default(cuid())
-  employeeId       String
-  fromDepartmentId String?
-  toDepartmentId   String?
-  fromJobTitle     String?
-  toJobTitle       String?
-  effectiveDate    DateTime?
-  reason           String?
-  noteForUser      String?
-  status           String   @default("PENDING")
-  declineReason    String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  employee         Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  fromDepartment   Department? @relation("RedeployFromDept", fields: [fromDepartmentId], references: [id])
-  toDepartment     Department? @relation("RedeployToDept", fields: [toDepartmentId], references: [id])
-}
 
 model DocumentRequest {
   id           String   @id @default(cuid())
@@ -1614,4 +1428,108 @@ model ProjectLeadDepartment {
   department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, departmentId])
+}
+
+// ── Email ─────────────────────────────────────────────────────────────────────
+
+model EmailSettings {
+  id           String   @id @default("singleton")
+  enabled      Boolean  @default(false)
+  fromName     String   @default("DSN HRMS")
+  fromEmail    String   @default("no-reply@datasciencenigeria.ai")
+  eventToggles Json     @default("{}")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  eventKey  String   @unique
+  name      String
+  subject   String
+  body      String   @db.Text
+  variables String[]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model EmployeeInvite {
+  id         String    @id @default(cuid())
+  token      String    @unique @default(cuid())
+  employeeId String    @unique
+  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  viewedAt   DateTime?
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+}
+
+// ── Intern Weekly Reports ─────────────────────────────────────────────────────
+
+enum InternReportStatus {
+  DRAFT
+  SUBMITTED
+  LATE
+  REVIEWED
+}
+
+model InternWeeklyReport {
+  id                   String             @id @default(cuid())
+  employeeId           String
+  weekStart            DateTime
+  weekEnd              DateTime
+  mainProjectHours     Float              @default(0)
+  consultingHours      Float              @default(0)
+  specialProjectHours  Float              @default(0)
+  trainingHours        Float              @default(0)
+  newBusinessHours     Float              @default(0)
+  reportingDocHours    Float              @default(0)
+  operationalHours     Float              @default(0)
+  researchHours        Float              @default(0)
+  meetingsHours        Float              @default(0)
+  communityHours       Float              @default(0)
+  representationHours  Float              @default(0)
+  selfDevHours         Float              @default(0)
+  totalHours           Float              @default(0)
+  personalReflection   String?
+  submittedAt          DateTime?
+  lateFlag             Boolean            @default(false)
+  status               InternReportStatus @default(DRAFT)
+  productivityRating   Int?
+  ldRating             Int?
+  reflectionsRating    Int?
+  tlComment            String?
+  tlReviewedAt         DateTime?
+  tlReviewerId         String?
+  attendanceRating     Int?
+  attendanceComment    String?
+  attendanceFilledAt   DateTime?
+  attendanceFilledById String?
+  pointDeduction       Int                @default(0)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  employee         Employee  @relation("InternReports", fields: [employeeId], references: [id], onDelete: Cascade)
+  tlReviewer       Employee? @relation("TLReviews", fields: [tlReviewerId], references: [id])
+  attendanceFiller Employee? @relation("AttendanceFills", fields: [attendanceFilledById], references: [id])
+  reviewers        InternReportReviewer[]
+
+  @@unique([employeeId, weekStart])
+}
+
+model InternReportReviewer {
+  id                 String    @id @default(cuid())
+  reportId           String
+  reviewerEmployeeId String
+  isPrimary          Boolean   @default(false)
+  comment            String?
+  reviewedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  report   InternWeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  reviewer Employee           @relation("InternReportReviews", fields: [reviewerEmployeeId], references: [id])
+
+  @@unique([reportId, reviewerEmployeeId])
 }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { requireAuth, forbidden, requirePermission } from "@/lib/api-auth"
-import { eachDayOfInterval, isWeekend, format, parseISO, addHours } from "date-fns"
+import { eachDayOfInterval, isWeekend, format, parseISO, addHours, addDays } from "date-fns"
 
 async function calcDays(startDate: Date, endDate: Date, leaveTypeId: string) {
   const lt = await prisma.leaveType.findUnique({ where: { id: leaveTypeId }, select: { excludeWeekends: true } })
@@ -224,6 +225,44 @@ export async function POST(req: NextRequest) {
   })
   if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
 
+  // Fetch leave type for policy checks
+  const leaveType = await prisma.leaveType.findUnique({
+    where: { id: leaveTypeId },
+    select: { name: true, minNoticeDays: true, internOnly: true },
+  })
+  if (!leaveType) return NextResponse.json({ error: "Leave type not found" }, { status: 404 })
+
+  // Intern-only check
+  if (leaveType.internOnly) {
+    const isIntern = (employee.jobTitle ?? "").toLowerCase().includes("intern")
+    if (!isIntern) {
+      return NextResponse.json({ error: `${leaveType.name} is only available to interns.` }, { status: 400 })
+    }
+  }
+
+  // Working-days notice check
+  const minNotice = leaveType.minNoticeDays ?? 10
+  if (minNotice > 0) {
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const year = start.getFullYear()
+    const holidays = await prisma.publicHoliday.findMany({
+      where: { year: { in: [year, year - 1] } },
+      select: { date: true },
+    })
+    const holidaySet = new Set(holidays.map(h => format(h.date, "yyyy-MM-dd")))
+    const tomorrow = addDays(today, 1)
+    // start >= tomorrow to have any notice at all
+    const noticeDaysGiven = start < tomorrow ? 0 : eachDayOfInterval({ start: tomorrow, end: start })
+      .filter(day => !isWeekend(day) && !holidaySet.has(format(day, "yyyy-MM-dd"))).length
+    if (noticeDaysGiven < minNotice) {
+      let d = new Date(today); let counted = 0
+      while (counted < minNotice) { d = addDays(d, 1); if (!isWeekend(d) && !holidaySet.has(format(d, "yyyy-MM-dd"))) counted++ }
+      return NextResponse.json({
+        error: `${leaveType.name} requires at least ${minNotice} working days notice. Earliest start date: ${format(d, "MMM d, yyyy")}.`,
+      }, { status: 400 })
+    }
+  }
+
   const freeze = await prisma.leaveFreezeperiod.findFirst({
     where: { startDate: { lte: end }, endDate: { gte: start } },
   })
@@ -292,6 +331,7 @@ export async function POST(req: NextRequest) {
           link: plLink,
         },
       })
+      sendEmail({ eventKey: "leave_submitted_pl", toUserId: plEmp.userId, variables: { employeeName: `${employee.firstName} ${employee.lastName}`, leaveType: request.leaveType.name, startDate: format(start, "MMM d, yyyy"), endDate: format(end, "MMM d, yyyy"), days: String(request.days), reason: request.reason } }).catch(() => {})
     }
   }
 
@@ -308,6 +348,7 @@ export async function POST(req: NextRequest) {
         link: `/admin/requests/leave`,
       },
     })
+    sendEmail({ eventKey: "leave_submitted_hr", toUserId: hr.userId, variables: { employeeName: `${employee.firstName} ${employee.lastName}`, leaveType: request.leaveType.name, startDate: format(start, "MMM d, yyyy"), endDate: format(end, "MMM d, yyyy"), days: String(request.days) } }).catch(() => {})
   }
 
   return NextResponse.json({ request }, { status: 201 })

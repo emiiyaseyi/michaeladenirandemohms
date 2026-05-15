@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { getDay, getHours } from "date-fns"
 import { roleBasePath } from "@/lib/api-auth"
 
@@ -60,6 +61,10 @@ export async function POST(req: NextRequest) {
   })
 
   await prisma.notification.createMany({ data: notifications })
+
+  for (const approval of overdueApprovals) {
+    sendEmail({ eventKey: "leave_auto_nudge", toUserId: approval.employee.userId, variables: { requesterName: `${approval.leaveRequest.employee.firstName} ${approval.leaveRequest.employee.lastName}`, leaveType: approval.leaveRequest.leaveType.name } }).catch(() => {})
+  }
 
   return NextResponse.json({ ok: true, nudged: overdueApprovals.length })
 }

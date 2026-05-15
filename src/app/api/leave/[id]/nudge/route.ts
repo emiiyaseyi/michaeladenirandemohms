@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { requireAuth, roleBasePath } from "@/lib/api-auth"
 
 async function getHRAdminRecipients(): Promise<{ userId: string; employeeId?: string }[]> {
@@ -68,6 +69,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         link: `${roleBasePath((r.employee as any).user?.role ?? "STAFF")}/requests/leave?tab=relief`,
       })),
     })
+    for (const r of relief) {
+      sendEmail({ eventKey: "leave_nudge_pl", toUserId: r.employee.userId, variables: { requesterName, leaveType: leaveName } }).catch(() => {})
+    }
     return NextResponse.json({ ok: true, nudged: relief.length })
   }
 
@@ -85,6 +89,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         link: `/admin/requests/leave?highlight=${id}`,
       })),
     })
+    for (const r of hrRecipients) {
+      sendEmail({ eventKey: "leave_nudge_hr", toUserId: r.userId, variables: { requesterName, leaveType: leaveName } }).catch(() => {})
+    }
     return NextResponse.json({ ok: true, nudged: hrRecipients.length })
   }
 
@@ -115,6 +122,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
 
   await prisma.notification.createMany({ data: notifications })
+
+  for (const approval of pendingApprovals) {
+    sendEmail({ eventKey: "leave_nudge_pl", toUserId: approval.employee.userId, variables: { requesterName, leaveType: leaveName } }).catch(() => {})
+  }
 
   return NextResponse.json({ ok: true, nudged: pendingApprovals.length })
 }

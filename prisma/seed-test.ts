@@ -15,6 +15,7 @@
  *   relief1.test@datasciencenigeria.ai      (STAFF)
  *   relief2.test@datasciencenigeria.ai      (STAFF)
  *   ada.obi@datasciencenigeria.ai           (STAFF, reports to projectlead.test)
+ *   intern@dsn-hrms.com                      (STAFF/Intern) — reports to lead1@dsn-hrms.com
  *
  * Run: npm run db:seed:test
  */
@@ -52,8 +53,31 @@ async function main() {
   const hrEmp = await prisma.employee.upsert({
     where:  { userId: hrUser.id },
     update: {},
-    create: { userId: hrUser.id, employeeId: "DSN0001", firstName: "Amina", lastName: "Bello", phone: "+234 801 234 5678", gender: "FEMALE", jobTitle: "HR Manager", departmentId: adminFacility.id, employmentType: "FULL_TIME", category: "NON_TECHNICAL", grossSalary: 750000, employeeStatus: "ACTIVE", hireDate: new Date("2021-03-01") },
+    create: { userId: hrUser.id, employeeId: "DSN0001", firstName: "Amina", lastName: "Bello", phone: "+234 801 234 5678", gender: "FEMALE", jobTitle: "HR Manager", departmentId: adminFacility.id, employmentType: "FULL_TIME", employeeStatus: "ACTIVE", hireDate: new Date("2021-03-01") },
   })
+
+  // ── Intern test account (reports to lead1@dsn-hrms.com) ──────────────────
+  // Clean up legacy intern.test account if it exists
+  const oldInternUser = await prisma.user.findUnique({ where: { email: "intern@dsn-hrms.com" } })
+  if (oldInternUser) {
+    await prisma.employee.deleteMany({ where: { userId: oldInternUser.id } })
+    await prisma.user.delete({ where: { id: oldInternUser.id } })
+  }
+  // Also free up the DSN-IN01 employeeId if held by someone else
+  await prisma.employee.deleteMany({ where: { employeeId: "DSN-IN01", NOT: { user: { email: "intern@dsn-hrms.com" } } } })
+
+  const lead1Emp = await prisma.employee.findFirst({ where: { user: { email: "lead1@dsn-hrms.com" } } })
+  const internTestUser = await prisma.user.upsert({
+    where:  { email: "intern@dsn-hrms.com" },
+    update: { mustChangePassword: false, password: hash("dsn-demo") },
+    create: { name: "Intern Demo", email: "intern@dsn-hrms.com", password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false },
+  })
+  await prisma.employee.upsert({
+    where:  { userId: internTestUser.id },
+    update: { projectLeadId: lead1Emp?.id ?? null },
+    create: { userId: internTestUser.id, employeeId: "DSN-IN01", firstName: "Intern", lastName: "Demo", jobTitle: "Data Science Intern", departmentId: techDelivery.id, employmentType: "INTERN", employeeStatus: "ACTIVE", hireDate: new Date("2024-06-01"), gender: "FEMALE", projectLeadId: lead1Emp?.id },
+  })
+  console.log("  ✓ Intern test account")
 
   // ── Quick-login demo staff accounts ──────────────────────────────────────────
   const demoStaffs = [
@@ -71,7 +95,7 @@ async function main() {
     await prisma.employee.upsert({
       where:  { userId: u.id },
       update: { dateOfBirth: new Date(s.dob) },
-      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.deptId, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: s.salary, gender: s.gender as any, dateOfBirth: new Date(s.dob) },
+      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.deptId, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), gender: s.gender as any, dateOfBirth: new Date(s.dob) },
     })
   }
   console.log("  ✓ Demo login accounts")
@@ -108,13 +132,13 @@ async function main() {
     const existingEmp = await prisma.employee.findFirst({ where: { userId: u.id } })
     let emp: any
     if (existingEmp) {
-      emp = await prisma.employee.update({ where: { id: existingEmp.id }, data: { category: s.cat as any, grossSalary: s.salary, jobTitle: s.title, departmentId: s.dept, dateOfBirth: new Date(s.dob) } })
+      emp = await prisma.employee.update({ where: { id: existingEmp.id }, data: { jobTitle: s.title, departmentId: s.dept, dateOfBirth: new Date(s.dob) } })
     } else {
       counter++
       emp = await prisma.employee.upsert({
         where:  { userId: u.id },
-        update: { category: s.cat as any, grossSalary: s.salary, dateOfBirth: new Date(s.dob) },
-        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
+        update: { dateOfBirth: new Date(s.dob) },
+        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
       })
     }
     empRecords[s.email] = emp
@@ -237,25 +261,13 @@ async function main() {
   // ── Leave Balances ────────────────────────────────────────────────────────────
   const annualLeave = await prisma.leaveType.findFirst({ where: { name: "Annual Leave" } })
   const sickLeave   = await prisma.leaveType.findFirst({ where: { name: "Sick Leave" } })
-  const allEmps = [hrEmp, ...Object.values(empRecords), ...Object.values(leaveEmpRecords)].filter(Boolean)
+  const internTestEmp = await prisma.employee.findFirst({ where: { user: { email: "intern@dsn-hrms.com" } } })
+  const allEmps = [hrEmp, ...Object.values(empRecords), ...Object.values(leaveEmpRecords), internTestEmp].filter(Boolean)
   for (const emp of allEmps) {
     if (annualLeave) await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: annualLeave.id, year: 2026 } }, update: {}, create: { employeeId: emp.id, leaveTypeId: annualLeave.id, year: 2026, allocated: 21, used: 0, pending: 0 } })
     if (sickLeave)   await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: sickLeave.id,   year: 2026 } }, update: {}, create: { employeeId: emp.id, leaveTypeId: sickLeave.id,   year: 2026, allocated: 14, used: 0, pending: 0 } })
   }
   console.log("  ✓ Leave balances")
-
-  // ── Payslips (Jan–Mar 2026) ───────────────────────────────────────────────────
-  const forPay = [{ emp: hrEmp, salary: 750000 }, ...samples.map(s => ({ emp: empRecords[s.email], salary: s.salary }))].filter(e => e.emp)
-  for (const { emp, salary } of forPay) {
-    const basic = salary * 0.5; const housing = salary * 0.2; const transport = salary * 0.1; const meal = salary * 0.05
-    const pension = Math.round(basic * 0.08); const nhf = Math.round(basic * 0.025); const paye = Math.round(Math.max(0, (salary - 200000) * 0.07))
-    const net = Math.round(salary - pension - nhf - paye - 15000)
-    for (const month of [1, 2, 3]) {
-      const ex = await prisma.payslip.findUnique({ where: { employeeId_month_year: { employeeId: emp.id, month, year: 2026 } } })
-      if (!ex) await prisma.payslip.create({ data: { employeeId: emp.id, month, year: 2026, grossSalary: salary, basicSalary: basic, housing, transport, meal, otherAllowances: 0, payeTax: paye, pension, nhf, healthInsurance: 15000, otherDeductions: 0, netPay: net, status: "RELEASED", releasedAt: new Date(`2026-0${month}-28`) } })
-    }
-  }
-  console.log("  ✓ Payslips")
 
   // ── Announcements ─────────────────────────────────────────────────────────────
   for (const ann of [
@@ -282,6 +294,8 @@ async function main() {
   console.log("   Relief 1:      relief1.test@datasciencenigeria.ai       (STAFF)")
   console.log("   Relief 2:      relief2.test@datasciencenigeria.ai       (STAFF)")
   console.log("   Employee:      ada.obi@datasciencenigeria.ai            (STAFF)")
+  console.log("\n🎓 Intern test account (password: dsn-demo):")
+  console.log("   Intern:        intern@dsn-hrms.com        (STAFF/Intern → lead1@dsn-hrms.com)")
 }
 
 main()

@@ -27,6 +27,7 @@ const fi: React.CSSProperties = {
   width: "100%", padding: "10px 14px", border: "1.5px solid var(--border)", borderRadius: 8,
   fontSize: 14, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box",
 }
+const maxDob = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 13); return d.toISOString().split("T")[0] })()
 
 function Modal({ title, onClose, onSave, saving, err, wide, children }: {
   title: string; onClose: () => void; onSave: () => void; saving: boolean; err: string; wide?: boolean; children: React.ReactNode
@@ -41,7 +42,7 @@ function Modal({ title, onClose, onSave, saving, err, wide, children }: {
         </div>
         <div style={{ padding: "24px" }}>
           <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
-            This information is used for Payroll, Benefits, and HR, so please make sure it's accurate.
+            This information is used for Benefits and HR, so please make sure it's accurate.
           </p>
           {children}
         </div>
@@ -191,29 +192,10 @@ function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any
         <InfoRow label="Employee No." value={emp.employeeId} />
       </InfoCard>
 
-      <InfoCard icon={<CreditCard size={16} color="#6b7280" />} iconBg="#F3F4F6" title="Compensation"
-        onEdit={() => openModal("compensation", { employmentType: emp.employmentType ?? "FULL_TIME", jobTitle: emp.jobTitle ?? "", grossSalary: emp.grossSalary ?? "" })}>
+      <InfoCard icon={<CreditCard size={16} color="#6b7280" />} iconBg="#F3F4F6" title="Employment Details"
+        onEdit={() => openModal("compensation", { employmentType: emp.employmentType ?? "FULL_TIME", jobTitle: emp.jobTitle ?? "" })}>
         <InfoRow label="Employee type" value={emp.employmentType ? EMP_TYPE_LABEL[emp.employmentType] : null} />
         <InfoRow label="Title" value={emp.jobTitle} />
-        <InfoRow label="Payband" value={emp.payband ?? "—"} />
-        <InfoRow label="Gross pay" value={fmt(emp.grossSalary)} />
-      </InfoCard>
-
-      <InfoCard icon={<Receipt size={16} color="#d97706" />} iconBg="#FEF3C7" title="Payment Method"
-        onEdit={() => openModal("payment", { bankName: emp.bankName ?? "", bankAccountNo: emp.bankAccountNo ?? "", bankAccountName: emp.bankAccountName ?? "" })}>
-        {emp.bankName || emp.bankAccountNo ? (
-          <>
-            <InfoRow label="Payment Method" value="Direct Deposit" />
-            <InfoRow label="Bank" value={emp.bankName} />
-            <InfoRow label="Account No." value={emp.bankAccountNo} />
-            <InfoRow label="Account Name" value={emp.bankAccountName} />
-            <div style={{ marginTop: 8, padding: "8px 12px", background: "#FEF3C7", borderRadius: 8, fontSize: 12, color: "#92400e" }}>
-              Payouts will be made into this Primary Account
-            </div>
-          </>
-        ) : (
-          <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No payment method configured</p>
-        )}
       </InfoCard>
 
       <InfoCard icon={<FileText size={16} color="#d97706" />} iconBg="#FEF3C7" title="Payslips">
@@ -377,11 +359,8 @@ function TabPersonal({ emp, openModal, onUpload, uploadedDocs }: {
 }
 
 const REQUEST_TYPES = [
-  { key: "salary-advances", label: "Salary Advances" },
-  { key: "loans", label: "Loans" },
   { key: "leave", label: "Leave" },
   { key: "exits", label: "Exits" },
-  { key: "redeployments", label: "Redeployments" },
   { key: "documents", label: "Documents" },
 ]
 
@@ -397,14 +376,10 @@ function TabRequest({ emp }: { emp: any }) {
     const urls: Record<string, string> = {
       leave: `/api/leave/requests?employeeId=${emp.id}&limit=50`,
       exits: `/api/requests/exits?employeeId=${emp.id}`,
-      loans: `/api/requests/loans?employeeId=${emp.id}`,
-      "salary-advances": `/api/requests/salary-advances?employeeId=${emp.id}`,
-      redeployments: `/api/requests/redeployments?employeeId=${emp.id}`,
       documents: `/api/requests/documents?employeeId=${emp.id}`,
     }
     const keys: Record<string, string> = {
-      leave: "requests", exits: "requests", loans: "loans",
-      "salary-advances": "advances", redeployments: "requests", documents: "requests",
+      leave: "requests", exits: "requests", documents: "requests",
     }
     fetch(urls[activeType]).then(r => r.json())
       .then(d => { setRows(d[keys[activeType]] ?? d.leaveRequests ?? []); setLoading(false) })
@@ -425,11 +400,8 @@ function TabRequest({ emp }: { emp: any }) {
   }
 
   const recordRoutes: Record<string, string> = {
-    "salary-advances": "/admin/requests/salary-advances/record",
-    loans: "/admin/requests/loans/record",
     leave: "/admin/requests/leave/record",
     exits: "/admin/requests/exits/record",
-    redeployments: "/admin/requests/redeployments",
     documents: "/admin/requests/documents",
   }
 
@@ -481,12 +453,7 @@ function TabRequest({ emp }: { emp: any }) {
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Days</th>
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Status</th>
                   </>}
-                  {(activeType === "loans" || activeType === "salary-advances") && <>
-                    <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Amount</th>
-                    <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Date</th>
-                    <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Status</th>
-                  </>}
-                  {(activeType === "exits" || activeType === "redeployments" || activeType === "documents") && <>
+                  {(activeType === "exits" || activeType === "documents") && <>
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Details</th>
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Date</th>
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Status</th>
@@ -502,14 +469,9 @@ function TabRequest({ emp }: { emp: any }) {
                       <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>{row.days} day(s)</td>
                       <td style={{ padding: "12px 16px" }}>{statusBadge(row.status)}</td>
                     </>}
-                    {(activeType === "loans" || activeType === "salary-advances") && <>
-                      <td style={{ padding: "12px 16px", fontSize: 13 }}>₦{Number(row.amount).toLocaleString()}</td>
-                      <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>{fmtDate(row.createdAt)}</td>
-                      <td style={{ padding: "12px 16px" }}>{statusBadge(row.status)}</td>
-                    </>}
-                    {(activeType === "exits" || activeType === "redeployments" || activeType === "documents") && <>
+                    {(activeType === "exits" || activeType === "documents") && <>
                       <td style={{ padding: "12px 16px", fontSize: 13 }}>
-                        {activeType === "exits" ? row.exitType : activeType === "documents" ? row.documentType : `${row.fromJobTitle ?? "—"} → ${row.toJobTitle ?? "—"}`}
+                        {activeType === "exits" ? row.exitType : row.documentType}
                       </td>
                       <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>{fmtDate(row.createdAt)}</td>
                       <td style={{ padding: "12px 16px" }}>{statusBadge(row.status)}</td>
@@ -1002,7 +964,7 @@ export default function EmployeeProfilePage() {
             <MF label="First Name" required><input value={mf.firstName ?? ""} onChange={setMF("firstName")} style={fi} /></MF>
             <MF label="Last Name" required><input value={mf.lastName ?? ""} onChange={setMF("lastName")} style={fi} /></MF>
             <MF label="Middle Name"><input value={mf.middleName ?? ""} onChange={setMF("middleName")} style={fi} /></MF>
-            <MF label="Date of Birth"><input type="date" value={mf.dateOfBirth ?? ""} onChange={setMF("dateOfBirth")} style={fi} /></MF>
+            <MF label="Date of Birth"><input type="date" value={mf.dateOfBirth ?? ""} onChange={setMF("dateOfBirth")} max={maxDob} style={fi} /></MF>
             <MF label="Gender">
               <select value={mf.gender ?? ""} onChange={setMF("gender")} style={{ ...fi, appearance: "none" }}>
                 <option value="">Select…</option>
@@ -1075,7 +1037,7 @@ export default function EmployeeProfilePage() {
         ),
       },
       compensation: {
-        title: "Edit Compensation",
+        title: "Edit Employment Details",
         wide: true,
         content: (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -1089,28 +1051,6 @@ export default function EmployeeProfilePage() {
               </select>
             </MF>
             <MF label="Job Title"><input value={mf.jobTitle ?? ""} onChange={setMF("jobTitle")} style={fi} placeholder="e.g. Senior Engineer" /></MF>
-            <MF label="Gross Salary (₦)" required>
-              <div style={{ position: "relative" }}>
-                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "var(--muted-foreground)" }}>₦</span>
-                <input type="number" value={mf.grossSalary ?? ""} onChange={setMF("grossSalary")} style={{ ...fi, paddingLeft: 28 }} placeholder="e.g. 5000000" />
-              </div>
-            </MF>
-          </div>
-        ),
-      },
-      payment: {
-        title: "Edit Payment Method",
-        wide: true,
-        content: (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <MF label="Bank Name" required><input value={mf.bankName ?? ""} onChange={setMF("bankName")} style={fi} placeholder="e.g. GTBank" /></MF>
-            <MF label="Account Number" required><input value={mf.bankAccountNo ?? ""} onChange={setMF("bankAccountNo")} style={fi} placeholder="e.g. 0123456789" /></MF>
-            <div style={{ gridColumn: "1 / -1" }}>
-              <MF label="Account Name"><input value={mf.bankAccountName ?? ""} onChange={setMF("bankAccountName")} style={fi} placeholder="Full name as on account" /></MF>
-            </div>
-            <div style={{ gridColumn: "1 / -1", padding: "10px 14px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, fontSize: 12, color: "#92400E" }}>
-              ⚠ Please be careful entering this info. DSN HRMS won't be liable for payments made into wrong accounts.
-            </div>
           </div>
         ),
       },

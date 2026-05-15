@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import { Search, MoreHorizontal, Loader2, Shield, X, Plus } from "lucide-react"
+import { Search, MoreHorizontal, Loader2, Shield, X, Plus, Upload } from "lucide-react"
 
 function Av({ name, photo, size = 36 }: { name: string; photo?: string | null; size?: number }) {
   if (photo) return <img src={photo} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover" }} />
@@ -159,10 +159,16 @@ export default function ExternalAdminsPage() {
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search admins…"
             style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", width: 240, outline: "none" }} />
         </div>
-        <button onClick={() => { setShowAdd(true); setErr("") }}
-          style={{ padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 6 }}>
-          <Plus size={14} /> Add External Admin
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => router.push("/admin/people/external-admins/bulk-upload")}
+            style={{ padding: "9px 18px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+            <Upload size={14} /> Bulk Upload
+          </button>
+          <button onClick={() => { setShowAdd(true); setErr("") }}
+            style={{ padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 6 }}>
+            <Plus size={14} /> Add External Admin
+          </button>
+        </div>
       </div>
 
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14 }}>
@@ -255,7 +261,7 @@ export default function ExternalAdminsPage() {
                 <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="e.g. 08012345678" style={fi} />
               </div>
               <div style={{ padding: "10px 14px", background: "var(--muted)", borderRadius: 8, fontSize: 12, color: "var(--muted-foreground)" }}>
-                A temporary password will be set. The admin will be prompted to change it on first login.
+                Temporary password: <strong style={{ color: "var(--foreground)", fontFamily: "monospace" }}>Welcome@DSN1</strong> — the admin will be prompted to change it on first login.
               </div>
               {err && <div style={{ padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{err}</div>}
             </div>

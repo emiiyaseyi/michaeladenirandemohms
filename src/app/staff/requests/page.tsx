@@ -1,16 +1,12 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Wallet, Banknote, CalendarDays, LogOut, ArrowRightLeft, FileText, Inbox, Loader2 } from "lucide-react"
+import { CalendarDays, FileText, Inbox, Loader2 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
 const SECTIONS = [
-  { id: "leave",            label: "Leave",            icon: CalendarDays,   path: "/requests/leave" },
-  { id: "salary-advances",  label: "Salary Advances",  icon: Wallet,         path: "/requests/salary-advances" },
-  { id: "loans",            label: "Loans",            icon: Banknote,       path: "/requests/loans" },
-  { id: "exits",            label: "Exits",            icon: LogOut,         path: "/requests/exit" },
-  { id: "redeployments",    label: "Redeployments",    icon: ArrowRightLeft, path: "/requests/redeployments" },
-  { id: "documents",        label: "Documents",        icon: FileText,       path: "/requests/documents" },
+  { id: "leave",     label: "Leave",     icon: CalendarDays, path: "/requests/leave" },
+  { id: "documents", label: "Documents", icon: FileText,     path: "/requests/documents" },
 ]
 
 const LEAVE_COLS = ["Type", "Start Date", "End Date", "Days", "Status"]

@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react"
 import { ChevronDown, ChevronUp } from "lucide-react"
+import EmailConfigSection from "@/components/settings/EmailConfigSection"
 
 function Section({ title, description }: { title: string; description: string }) {
   const [open, setOpen] = useState(false)
@@ -27,6 +28,7 @@ export default function CustomizationSettingsPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <Section title="Branding" description="Upload your organisation logo, set your primary brand colour, and configure the dashboard wallpaper." />
       <Section title="Theme" description="Customise the appearance of the HRMS interface — colours, fonts, and layout preferences for your team." />
+      <EmailConfigSection />
     </div>
   )
 }

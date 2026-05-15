@@ -21,12 +21,6 @@ export default function EditEmployeeModal({ employee, departments, employees: al
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [saved, setSaved] = useState(false)
-  const [teams, setTeams] = useState<any[]>([])
-
-  useEffect(() => {
-    fetch("/api/teams").then(r => r.ok ? r.json() : { teams: [] }).then(d => setTeams(d.teams ?? []))
-  }, [])
-
   useEffect(() => {
     if (!employee) return
     setForm({
@@ -55,14 +49,8 @@ export default function EditEmployeeModal({ employee, departments, employees: al
       confirmationDate: employee.confirmationDate ? employee.confirmationDate.split("T")[0] : "",
       managerId: employee.managerId ?? "",
       projectLeadId: employee.projectLeadId ?? "",
-      teamId: employee.teamId ?? "",
-      category: employee.category ?? "TECHNICAL",
-      grossSalary: employee.grossSalary ?? "",
-      annualLeaveBalance: employee.annualLeaveBalance ?? 21,
+      annualLeaveBalance: employee.annualLeaveBalance ?? 10,
       sickLeaveBalance: employee.sickLeaveBalance ?? 14,
-      bankName: employee.bankName ?? "",
-      bankAccountNo: employee.bankAccountNo ?? "",
-      bankAccountName: employee.bankAccountName ?? "",
       nokName: employee.nokName ?? "",
       nokPhone: employee.nokPhone ?? "",
       nokRelationship: employee.nokRelationship ?? "",
@@ -74,14 +62,6 @@ export default function EditEmployeeModal({ employee, departments, employees: al
     const value = e.target.value
     setForm(f => {
       const updated = { ...f, [k]: value }
-
-      if (k === "teamId" && value) {
-        const team = teams.find((t: any) => t.id === value)
-        if (team) {
-          if (team.department?.id) updated.departmentId = team.department.id
-          if (team.head?.id) updated.managerId = team.head.id
-        }
-      }
 
       return updated
     })
@@ -109,6 +89,8 @@ export default function EditEmployeeModal({ employee, departments, employees: al
     </F>
   )
 
+  const maxDob = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 13); return d.toISOString().split("T")[0] })()
+
   const inp = (label: string, key: string, type = "text", req = false) => (
     <F label={label} required={req}>
       <input type={type} value={form[key] ?? ""} onChange={set(key)} style={fi} />
@@ -132,7 +114,9 @@ export default function EditEmployeeModal({ employee, departments, employees: al
           {inp("Last Name", "lastName", "text", true)}
           {inp("Middle Name", "middleName")}
           {sel("Gender", "gender", [["MALE", "Male"], ["FEMALE", "Female"]])}
-          {inp("Date of Birth", "dateOfBirth", "date")}
+          <F label="Date of Birth">
+            <input type="date" value={form.dateOfBirth ?? ""} onChange={set("dateOfBirth")} max={maxDob} style={fi} />
+          </F>
           {sel("Marital Status", "maritalStatus", [["SINGLE","Single"],["MARRIED","Married"],["DIVORCED","Divorced"],["WIDOWED","Widowed"]])}
           {inp("Nationality", "nationality")}
           {inp("State of Origin", "stateOfOrigin")}
@@ -161,23 +145,10 @@ export default function EditEmployeeModal({ employee, departments, employees: al
           {sel("Status", "employeeStatus", [["ACTIVE","Active"],["ON_LEAVE","On Leave"],["SUSPENDED","Suspended"],["TERMINATED","Terminated"],["RESIGNED","Resigned"]])}
           {inp("Hire Date", "hireDate", "date")}
           {inp("Confirmation Date", "confirmationDate", "date")}
-          {sel("Category", "category", [["TECHNICAL", "Technical"], ["NON_TECHNICAL", "Non-Technical"]])}
-          {inp("Gross Salary (₦)", "grossSalary", "number")}
           {inp("Annual Leave Balance", "annualLeaveBalance", "number")}
           {inp("Sick Leave Balance", "sickLeaveBalance", "number")}
 
-          {section("Team & Reporting")}
-          <F label="Team">
-            <select value={form.teamId ?? ""} onChange={set("teamId")} style={fi}>
-              <option value="">No team</option>
-              {teams.map((t: any) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}{t.department ? ` · ${t.department.name}` : ""}
-                </option>
-              ))}
-            </select>
-          </F>
-          <div />
+          {section("Reporting")}
           <F label="Manager">
             <select value={form.managerId ?? ""} onChange={set("managerId")} style={fi}>
               <option value="">None</option>
@@ -214,11 +185,6 @@ export default function EditEmployeeModal({ employee, departments, employees: al
           {inp("NOK Phone", "nokPhone", "tel")}
           {sel("NOK Relationship", "nokRelationship", [["Spouse","Spouse"],["Parent","Parent"],["Sibling","Sibling"],["Child","Child"],["Other","Other"]])}
           <div style={{ gridColumn: "1/-1" }}>{inp("NOK Address", "nokAddress")}</div>
-
-          {section("Bank Details")}
-          {inp("Bank Name", "bankName")}
-          {inp("Account Number", "bankAccountNo")}
-          {inp("Account Name", "bankAccountName")}
         </div>
 
         {error && (

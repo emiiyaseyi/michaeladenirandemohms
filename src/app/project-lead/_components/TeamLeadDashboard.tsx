@@ -15,15 +15,7 @@ export default async function ProjectLeadDashboard() {
   const hour = new Date().getHours()
   const greeting = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"
 
-  // Find the team this lead heads
-  const myTeam = employeeId
-    ? await prisma.team.findFirst({
-        where: { headId: employeeId },
-        select: { id: true, name: true },
-      })
-    : null
-
-  const memberFilter = myTeam ? { teamId: myTeam.id } : { id: "none" }
+  const memberFilter = employeeId ? { projectLeadId: employeeId } : { id: "none" }
 
   const [
     teamSize,
@@ -64,8 +56,6 @@ export default async function ProjectLeadDashboard() {
     }),
   ])
 
-  const teamLabel = myTeam?.name ?? null
-
   return (
     <div>
       <DashboardAnnouncements />
@@ -75,9 +65,7 @@ export default async function ProjectLeadDashboard() {
           Good {greeting}, {name} 👋
         </h1>
         <p style={{ color: "var(--muted-foreground)", marginTop: 4 }}>
-          {teamLabel
-            ? <>Here's an overview of the <strong>{teamLabel}</strong> team.</>
-            : <>No team assigned yet — ask admin to create a team and set you as the head.</>}
+          Here's an overview of your team members.
         </p>
       </div>
 
@@ -99,7 +87,7 @@ export default async function ProjectLeadDashboard() {
       <ProjectLeadQuickActionsBar />
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap: 20 }}>
-        <RecentEmployeesPanel employees={teamMembers} viewAllHref="/project-lead/people/teams" />
+        <RecentEmployeesPanel employees={teamMembers} viewAllHref="/project-lead/people/employees" />
         <PendingLeavePanel leaveRequests={pendingLeaveRequests} viewAllHref="/project-lead/requests/leave" />
         <CelebrationsCard />
       </div>

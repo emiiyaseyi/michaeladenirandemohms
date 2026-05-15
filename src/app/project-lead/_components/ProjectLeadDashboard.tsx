@@ -9,7 +9,7 @@ import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
 import Link from "next/link"
 import {
-  CalendarDays, FileText, Target, TrendingUp, ClipboardList,
+  CalendarDays, Target, TrendingUp, ClipboardList,
   Users, Edit2, Clock, Building2,
 } from "lucide-react"
 
@@ -17,7 +17,6 @@ const ACCENTS = ["#6366F1", "#10B981", "#F59E0B", "#EC4899", "#0EA5E9", "#8B5CF6
 
 const QUICK_ACTIONS = [
   { label: "Request Leave",  href: "/project-lead/requests/leave",        color: "#6366F1", icon: CalendarDays },
-  { label: "View Payslip",   href: "/project-lead/self-service/payslips", color: "#10B981", icon: FileText },
   { label: "Set KPI Goals",  href: "/project-lead/performance/objectives", color: "#F59E0B", icon: Target },
   { label: "Appraisals",     href: "/project-lead/performance/reviews",   color: "#EC4899", icon: TrendingUp },
   { label: "My Documents",   href: "/project-lead/documents",             color: "#8B5CF6", icon: ClipboardList },
@@ -27,7 +26,7 @@ const QUICK_ACTIONS = [
 const REQUIRED_FIELDS = [
   "firstName", "lastName", "gender", "dateOfBirth", "maritalStatus",
   "personalEmail", "phone", "address", "city", "state",
-  "profilePhoto", "nokName", "nokPhone", "bankName", "bankAccountNo",
+  "profilePhoto", "nokName", "nokPhone",
 ]
 function calcCompleteness(emp: any): number {
   const filled = REQUIRED_FIELDS.filter(f => emp[f] != null && emp[f] !== "").length

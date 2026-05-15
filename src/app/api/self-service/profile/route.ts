@@ -6,7 +6,7 @@ import { differenceInMonths, differenceInYears, format } from "date-fns"
 const REQUIRED_FIELDS = [
   "firstName", "lastName", "gender", "dateOfBirth", "maritalStatus",
   "personalEmail", "phone", "address", "city", "state",
-  "profilePhoto", "nokName", "nokPhone", "bankName", "bankAccountNo",
+  "profilePhoto", "nokName", "nokPhone",
 ]
 
 function calcCompleteness(emp: any): number {
@@ -191,7 +191,6 @@ export async function GET() {
       city: employee.city,
       state: employee.state,
       maritalStatus: employee.maritalStatus,
-      bankName: employee.bankName,
       nin: employee.nin,
       aiMembership: employee.aiMembership,
     },

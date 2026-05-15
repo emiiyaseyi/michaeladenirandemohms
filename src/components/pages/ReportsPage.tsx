@@ -404,8 +404,11 @@ export default function ReportsPage() {
                 <label style={labelStyle}>Employee Type</label>
                 <select value={empType} onChange={e => setEmpType(e.target.value)} style={inp}>
                   <option value="all">All</option>
-                  <option value="TECHNICAL">Technical</option>
-                  <option value="NON_TECHNICAL">Non-Technical</option>
+                  <option value="FULL_TIME">Full-time</option>
+                  <option value="PART_TIME">Part-time</option>
+                  <option value="CONTRACT">Contract</option>
+                  <option value="INTERN">Intern</option>
+                  <option value="NYSC">NYSC</option>
                 </select>
               </div>
               <div>

@@ -26,14 +26,10 @@ export default async function ProjectLeadLayout({ children }: { children: React.
       where: { userId },
       select: {
         onboardingTasks: { where: { status: { not: "COMPLETED" } }, take: 1 },
-        offboarding: { select: { status: true } },
       },
     })
     if (employee?.onboardingTasks.length) {
       nav.push({ label: "Onboarding", href: "/project-lead/onboarding", icon: "UserCheck", roles: ["PROJECT_LEAD"] })
-    }
-    if (employee?.offboarding && !["COMPLETED", "CANCELLED"].includes(employee.offboarding.status)) {
-      nav.push({ label: "Offboarding", href: "/project-lead/offboarding", icon: "UserMinus", roles: ["PROJECT_LEAD"] })
     }
   }
 

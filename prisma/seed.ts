@@ -117,15 +117,11 @@ async function main() {
       permissions: {
         canViewAllEmployees: true, canCreateEmployee: true, canEditEmployee: true, canDeleteEmployee: true, canApproveEmployee: true,
         canViewOffers: true, canManageOffers: true, canViewOrgChart: true,
-        canViewCustomGroups: true, canManageCustomGroups: true, canViewCompensation: true,
+        canViewCustomGroups: true, canManageCustomGroups: true,
         canViewPersonalDetails: true, canManageProfileRequests: true, canViewPersonalDocuments: true,
         canManageDepartments: true, canViewJobTitles: true, canManageJobTitles: true,
         canViewJobs: true, canCreateJob: true, canEditJob: true, canDeleteJob: true, canPostJob: true, canApproveJob: true, canViewApplicants: true, canManageHiringSettings: true,
         canViewAllLeave: true, canCreateLeave: true, canEditLeave: true, canDeleteLeave: true, canApproveLeave: true, canViewLeaveTypes: true, canManageLeaveTypes: true,
-        canViewLoans: true, canCreateLoan: true, canEditLoan: true, canDeleteLoan: true, canApproveLoan: true,
-        canViewSalaryAdvances: true, canCreateSalaryAdvance: true, canEditSalaryAdvance: true, canDeleteSalaryAdvance: true, canApproveSalaryAdvance: true,
-        canViewExitRequests: true, canCreateExitRequest: true, canEditExitRequest: true, canDeleteExitRequest: true, canApproveExitRequest: true,
-        canViewRedeployments: true, canCreateRedeployment: true, canEditRedeployment: true, canDeleteRedeployment: true, canApproveRedeployment: true,
         canViewSurveys: true, canCreateSurvey: true, canEditSurvey: true, canDeleteSurvey: true,
         canViewDocuments: true, canManageDocuments: true, canRecallDocuments: true, canDeleteDocuments: true, canMakeOffers: true, canManageOfferTemplates: true,
         canViewBenefits: true, canManageBenefits: true,
@@ -150,13 +146,11 @@ async function main() {
       permissions: {
         canViewAllEmployees: true, canCreateEmployee: true, canEditEmployee: true, canDeleteEmployee: true, canApproveEmployee: true,
         canViewOffers: true, canManageOffers: true, canViewOrgChart: true,
-        canViewCustomGroups: true, canManageCustomGroups: true, canViewCompensation: true,
+        canViewCustomGroups: true, canManageCustomGroups: true,
         canViewPersonalDetails: true, canManageProfileRequests: true, canViewPersonalDocuments: true,
         canManageDepartments: true, canViewJobTitles: true, canManageJobTitles: true,
         canViewJobs: true, canCreateJob: true, canEditJob: true, canDeleteJob: true, canPostJob: true, canApproveJob: true, canViewApplicants: true, canManageHiringSettings: true,
         canViewAllLeave: true, canCreateLeave: true, canEditLeave: true, canDeleteLeave: true, canApproveLeave: true, canViewLeaveTypes: true, canManageLeaveTypes: true,
-        canViewExitRequests: true, canCreateExitRequest: true, canEditExitRequest: true, canDeleteExitRequest: true, canApproveExitRequest: true,
-        canViewRedeployments: true, canCreateRedeployment: true, canEditRedeployment: true, canDeleteRedeployment: true, canApproveRedeployment: true,
         canViewSurveys: true, canCreateSurvey: true, canEditSurvey: true, canDeleteSurvey: true,
         canViewDocuments: true, canManageDocuments: true, canRecallDocuments: true, canDeleteDocuments: true, canMakeOffers: true, canManageOfferTemplates: true,
         canViewBenefits: true, canManageBenefits: true,
@@ -184,16 +178,6 @@ async function main() {
       permissions: {
         canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true,
         canViewBenefits: true, canManageBenefits: true,
-      },
-    },
-    {
-      slug: "loans-admin",
-      name: "Loans, Salary Advance and Tax Relief Admin",
-      description: "Loan requests and salary advance management.",
-      permissions: {
-        canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true, canViewCompensation: true,
-        canViewLoans: true, canCreateLoan: true, canEditLoan: true, canDeleteLoan: true, canApproveLoan: true,
-        canViewSalaryAdvances: true, canCreateSalaryAdvance: true, canEditSalaryAdvance: true, canDeleteSalaryAdvance: true, canApproveSalaryAdvance: true,
       },
     },
     {
@@ -247,6 +231,75 @@ async function main() {
   }
   console.log(`  ✓ ${SYSTEM_ROLES.length} system admin roles seeded`)
 
+  // ── Job Titles ────────────────────────────────────────────────────────────────
+  const JOB_TITLES = [
+    // Leadership & Executive
+    "CEO/Founder",
+    "Chief Finance Officer",
+    "Executive Director, Talent & Process",
+    "Director, AI Solutions Delivery",
+    // Technology & Engineering
+    "AI/DPI Lead",
+    "Data Analyst",
+    "Data Analyst/Geospatial Lead",
+    "Data Analyst/ML Engineer",
+    "EqualyzAI AI Solutions",
+    "Enterprise Technical Solutions/Products Consultant",
+    "Northern Nigeria Technical Project Lead",
+    "Quality Assurance Engineer",
+    "Senior Quality Assurance Engineer",
+    "Software Analyst",
+    "System Support Analyst",
+    "System Support/Admin Analyst",
+    "Technical Delivery (Consultant) Lead",
+    "Technical Delivery (Solutions and Training) Lead",
+    "UI/UX Designer",
+    "UI/UX Designer (Associate)",
+    // Programs & Delivery
+    "Business Development Lead",
+    "Community Project Analyst",
+    "Product Lead",
+    "Program Manager",
+    "Programe Assistant",
+    "Project Analyst",
+    "Project Assistant",
+    "Project Data Analyst",
+    "Project/Delivery Coordinator",
+    // Creative & Brand
+    "Brand Analyst",
+    "Content Creator and Social Media Manager",
+    "Creative Analyst",
+    // Operations & Administration
+    "Admin/Executive Assistant",
+    "Finance Officer",
+    "HR Analyst",
+    "Legal/Administrative Lead",
+    // Interns
+    "Admin Intern",
+    "Finance Intern",
+    "Legal Intern",
+    "Intern",
+  ]
+  await prisma.jobTitle.createMany({
+    data: JOB_TITLES.map(name => ({ name })),
+    skipDuplicates: true,
+  })
+  console.log(`  ✓ ${JOB_TITLES.length} job titles seeded`)
+
+  // ── Email Settings (auto-enable defaults so emails work out of the box) ─────
+  await prisma.emailSettings.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: {
+      id: "singleton",
+      enabled: true,
+      fromName: "DSN HRMS",
+      fromEmail: "no-reply@datasciencenigeria.ai",
+      eventToggles: {},
+    },
+  })
+  console.log("  ✓ Email settings (defaults enabled)")
+
   // Resolve IDs for elevation assignments in demo data
   const hrAdminRole = await prisma.adminRole.findUnique({ where: { slug: "hr-admin" } })
 
@@ -287,7 +340,7 @@ async function main() {
     const emp = await prisma.employee.upsert({
       where: { userId: u.id },
       update: { dateOfBirth: new Date(s.dob) },
-      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: s.salary, gender: s.gender as any, dateOfBirth: new Date(s.dob) },
+      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), gender: s.gender as any, dateOfBirth: new Date(s.dob) },
     })
     demoEmpIds[s.email] = emp.id
     if (s.elevate && hrAdminRole) {
@@ -316,7 +369,7 @@ async function main() {
     const emp = await prisma.employee.upsert({
       where: { userId: u.id },
       update: { dateOfBirth: new Date(pl.dob) },
-      create: { userId: u.id, employeeId: pl.empId, firstName: pl.fn, lastName: pl.ln, jobTitle: pl.title, departmentId: pl.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: pl.salary, gender: pl.gender as any, dateOfBirth: new Date(pl.dob) },
+      create: { userId: u.id, employeeId: pl.empId, firstName: pl.fn, lastName: pl.ln, jobTitle: pl.title, departmentId: pl.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), gender: pl.gender as any, dateOfBirth: new Date(pl.dob) },
     })
     demoPLEmpIds[pl.email] = emp.id
     // Assign departments
@@ -362,13 +415,13 @@ async function main() {
     const existingEmp = await prisma.employee.findFirst({ where: { userId: u.id } })
     let emp: any
     if (existingEmp) {
-      emp = await prisma.employee.update({ where: { id: existingEmp.id }, data: { category: s.cat as any, grossSalary: s.salary, jobTitle: s.title, departmentId: s.dept, dateOfBirth: new Date(s.dob) } })
+      emp = await prisma.employee.update({ where: { id: existingEmp.id }, data: { jobTitle: s.title, departmentId: s.dept, dateOfBirth: new Date(s.dob) } })
     } else {
       counter++
       emp = await prisma.employee.upsert({
         where: { userId: u.id },
-        update: { category: s.cat as any, grossSalary: s.salary, dateOfBirth: new Date(s.dob) },
-        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
+        update: { dateOfBirth: new Date(s.dob) },
+        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
       })
     }
     empRecords[s.email] = emp
@@ -391,7 +444,6 @@ async function main() {
   // Manager / dept lead relationships
   const emeka = empRecords["emeka.okonkwo@datasciencenigeria.ai"]
   const chidi = empRecords["chidi.nwosu@datasciencenigeria.ai"]
-  const tunde = empRecords["tunde.adeyemi@datasciencenigeria.ai"]
   const blessing = empRecords["blessing.okafor@datasciencenigeria.ai"]
   await Promise.all([
     prisma.employee.update({ where: { id: empRecords["fatima.musa@datasciencenigeria.ai"]?.id },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
@@ -456,19 +508,6 @@ async function main() {
     if (sickLeave)   await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: empId, leaveTypeId: sickLeave.id,   year: 2026 } }, update: {}, create: { employeeId: empId, leaveTypeId: sickLeave.id,   year: 2026, allocated: 14, used: 0, pending: 0 } })
   }
   console.log("  ✓ Leave balances")
-
-  // Payslips (Jan–Mar 2026)
-  const forPay = samples.map(s => ({ emp: empRecords[s.email], salary: s.salary })).filter(e => e.emp)
-  for (const { emp, salary } of forPay) {
-    const basic = salary * 0.5; const housing = salary * 0.2; const transport = salary * 0.1; const meal = salary * 0.05
-    const pension = Math.round(basic * 0.08); const nhf = Math.round(basic * 0.025); const paye = Math.round(Math.max(0, (salary - 200000) * 0.07))
-    const net = Math.round(salary - pension - nhf - paye - 15000)
-    for (const month of [1, 2, 3]) {
-      const ex = await prisma.payslip.findUnique({ where: { employeeId_month_year: { employeeId: emp.id, month, year: 2026 } } })
-      if (!ex) await prisma.payslip.create({ data: { employeeId: emp.id, month, year: 2026, grossSalary: salary, basicSalary: basic, housing, transport, meal, otherAllowances: 0, payeTax: paye, pension, nhf, healthInsurance: 15000, otherDeductions: 0, netPay: net, status: "RELEASED", releasedAt: new Date(`2026-0${month}-28`) } })
-    }
-  }
-  console.log("  ✓ Payslips")
 
   // Announcements
   const superAdminUser = await prisma.user.findUnique({ where: { email: "hr@datasciencenigeria.ai" }, select: { id: true } })

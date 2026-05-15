@@ -15,7 +15,6 @@ export async function GET() {
       gender: true, dateOfBirth: true, maritalStatus: true,
       nationality: true, stateOfOrigin: true,
       nokName: true, nokPhone: true, nokRelationship: true, nokAddress: true,
-      bankName: true, bankAccountNo: true, bankAccountName: true,
     },
   })
 

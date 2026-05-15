@@ -7,7 +7,7 @@ import Badge from "@/components/ui/Badge"
 import Link from "next/link"
 import {
   Building2, UserCheck, Users, CalendarDays, Clock,
-  Briefcase, Mail, Phone, MapPin, Banknote, Heart,
+  Briefcase, Mail, Phone, MapPin, Heart,
   Edit2, Loader2, AlertCircle, CheckCircle2, Upload, Pencil, X,
 } from "lucide-react"
 import { roleLabel } from "@/lib/rbac"
@@ -430,7 +430,6 @@ export default function SSProfilePage() {
           <InfoRow icon={Phone}   label="Phone"         value={profile.phone} />
           <InfoRow icon={MapPin}  label="City / State"  value={profile.city ? `${profile.city}${profile.state ? `, ${profile.state}` : ""}` : undefined} />
           <InfoRow icon={Heart}   label="Marital Status" value={profile.maritalStatus} />
-          <InfoRow icon={Banknote} label="Bank"         value={profile.bankName} />
         </div>
       </Card>
 

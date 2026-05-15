@@ -8,11 +8,9 @@ const FAQS = [
   { cat: "Leave", q: "How are leave days calculated?", a: "Leave days are calculated as working days only — weekends (Saturday and Sunday) and public holidays are automatically excluded." },
   { cat: "Leave", q: "Can I cancel an approved leave?", a: "Yes, you can cancel a pending or approved leave request from the Leave section at any time. Admins can cancel on behalf of any employee." },
   { cat: "Leave", q: "What is a relief officer?", a: "A relief officer is a colleague who covers your responsibilities during your leave. You nominate them when applying, and they can accept or decline the assignment." },
-  { cat: "Profile", q: "How do I update my profile?", a: "Go to Self Service → My Profile or Dashboard → Edit Profile. You can update personal info, contact, address, next of kin, and bank details." },
+  { cat: "Profile", q: "How do I update my profile?", a: "Go to Self Service → My Profile or Dashboard → Edit Profile. You can update personal info, contact, address, and next of kin." },
   { cat: "Profile", q: "Why can't I change my name or role?", a: "Name, employee ID, job title, and system role are managed by HR and can only be updated by an Admin or HR Admin." },
-  { cat: "Profile", q: "How is profile completeness calculated?", a: "Profile completeness is based on 15 required fields: personal info, contact, address, next of kin, and bank details." },
-  { cat: "Payroll", q: "When is salary paid?", a: "Salaries are processed on the last working day of each month. Contact HR or your Finance team if there are any discrepancies." },
-  { cat: "Payroll", q: "How do I update my bank details?", a: "Update your bank details under Self Service → My Profile → Bank Details. Bank detail changes are reviewed by HR before taking effect." },
+  { cat: "Profile", q: "How is profile completeness calculated?", a: "Profile completeness is based on required fields: personal info, contact, address, and next of kin." },
   { cat: "General", q: "How do I contact HR?", a: "You can raise a Grievance via Self Service → Grievance, or send an email directly to hr@datasciencenigeria.ai." },
   { cat: "General", q: "How do I get my login credentials?", a: "Your login credentials are issued by HR when your account is created. Contact hr@datasciencenigeria.ai if you have not received them or need a reset." },
 ]

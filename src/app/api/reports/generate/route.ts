@@ -78,8 +78,8 @@ export async function POST(req: NextRequest) {
 
       } else {
         title = "Employee Roster"; filename = "employee_roster"
-        headers = ["Employee ID", "First Name", "Last Name", "Email", "Job Title", "Department", "Employment Type", "Category", "Status", "Hire Date"]
-        rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, (e.user as any)?.email ?? "", e.jobTitle ?? "", (e.department as any)?.name ?? "", e.employmentType, e.category, e.employeeStatus, e.hireDate ? format(e.hireDate, "yyyy-MM-dd") : ""])
+        headers = ["Employee ID", "First Name", "Last Name", "Email", "Job Title", "Department", "Employment Type", "Status", "Hire Date"]
+        rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, (e.user as any)?.email ?? "", e.jobTitle ?? "", (e.department as any)?.name ?? "", e.employmentType, e.employeeStatus, e.hireDate ? format(e.hireDate, "yyyy-MM-dd") : ""])
       }
 
     } else if (category === "leave") {
@@ -134,22 +134,17 @@ export async function POST(req: NextRequest) {
 
       if (reportType === "Payslips Summary") {
         title = "Payslips Summary"; filename = "payslips_summary"
-        headers = ["Employee ID", "First Name", "Last Name", "Job Title", "Department", "Gross Salary (₦)", "Employment Type"]
-        rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, e.jobTitle ?? "", (e.department as any)?.name ?? "", e.grossSalary ?? 0, e.employmentType])
+        headers = ["Employee ID", "First Name", "Last Name", "Job Title", "Department", "Employment Type"]
+        rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, e.jobTitle ?? "", (e.department as any)?.name ?? "", e.employmentType])
       } else {
-        title = "Salary Analysis"; filename = "salary_analysis"
-        const byDept = new Map<string, { count: number; total: number; min: number; max: number }>()
+        title = "Headcount by Department"; filename = "headcount_by_department"
+        const byDept = new Map<string, number>()
         for (const e of employees) {
           const d = (e.department as any)?.name ?? "No Department"
-          const sal = e.grossSalary ?? 0
-          const cur = byDept.get(d) ?? { count: 0, total: 0, min: Infinity, max: -Infinity }
-          cur.count++; cur.total += sal
-          if (sal < cur.min) cur.min = sal
-          if (sal > cur.max) cur.max = sal
-          byDept.set(d, cur)
+          byDept.set(d, (byDept.get(d) ?? 0) + 1)
         }
-        headers = ["Department", "Headcount", "Total Salary (₦)", "Average Salary (₦)", "Min Salary (₦)", "Max Salary (₦)"]
-        rows = [...byDept.entries()].map(([dept, d]) => [dept, d.count, d.total, d.count > 0 ? Math.round(d.total / d.count) : 0, d.min === Infinity ? 0 : d.min, d.max === -Infinity ? 0 : d.max])
+        headers = ["Department", "Headcount"]
+        rows = [...byDept.entries()].map(([dept, count]) => [dept, count])
       }
 
     } else if (category === "performance") {
@@ -189,11 +184,10 @@ export async function POST(req: NextRequest) {
       const where: any = {}
       if (status && status !== "all") where.employeeStatus = status
       if (departmentId && departmentId !== "all") where.departmentId = departmentId
-      if (empType && empType !== "all") where.category = empType
       if (employeeId && employeeId !== "all") where.id = employeeId
       const employees = await prisma.employee.findMany({ where, include: { department: true, user: { select: { email: true } } }, orderBy: { firstName: "asc" } })
-      headers = ["Employee ID", "First Name", "Last Name", "Email", "Job Title", "Department", "Status", "Employment Type", "Category", "Hire Date", "Gross Salary (₦)"]
-      rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, (e.user as any)?.email ?? "", e.jobTitle ?? "", (e.department as any)?.name ?? "", e.employeeStatus, e.employmentType, e.category, e.hireDate ? format(e.hireDate, "yyyy-MM-dd") : "", e.grossSalary ?? ""])
+      headers = ["Employee ID", "First Name", "Last Name", "Email", "Job Title", "Department", "Status", "Employment Type", "Hire Date"]
+      rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, (e.user as any)?.email ?? "", e.jobTitle ?? "", (e.department as any)?.name ?? "", e.employeeStatus, e.employmentType, e.hireDate ? format(e.hireDate, "yyyy-MM-dd") : ""])
     }
 
     return NextResponse.json({ title, subtitle, headers, rows, filename: filename + ".csv", generatedAt: new Date().toISOString(), rowCount: rows.length })

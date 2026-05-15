@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 
 const VALID_TYPES = ["SSCE", "FIRST_DEGREE", "NYSC", "PROFESSIONAL_CERT", "UTILITY_BILL", "NIN_SLIP", "OTHER"]
@@ -112,6 +113,9 @@ export async function POST(req: NextRequest) {
         link: `/employees/personal-docs`,
       })),
     })
+    for (const a of admins) {
+      sendEmail({ eventKey: "personal_doc_uploaded", toUserId: a.id, variables: { employeeName: `${emp?.firstName ?? ""} ${emp?.lastName ?? ""}`, documentType: typeLabel[type] ?? type } }).catch(() => {})
+    }
   }
 
   return NextResponse.json({ doc }, { status: 201 })

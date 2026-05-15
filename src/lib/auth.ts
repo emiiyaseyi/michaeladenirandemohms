@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
-          include: { employee: { select: { id: true, profilePhoto: true } } },
+          include: { employee: { select: { id: true, profilePhoto: true, jobTitle: true } } },
         })
         if (!user || !user.password) return null
         const valid = await bcrypt.compare(credentials.password, user.password)
@@ -50,6 +50,7 @@ export const authOptions: NextAuthOptions = {
             }
           }
         }
+        const isIntern = (user.employee?.jobTitle ?? "").toLowerCase().includes("intern")
         return {
           id: user.id, email: user.email, name: user.name, role: user.role,
           employeeId: user.employee?.id, image: user.employee?.profilePhoto ?? user.image,
@@ -57,6 +58,7 @@ export const authOptions: NextAuthOptions = {
           mustChangePassword: user.mustChangePassword,
           isElevated,
           permissions,
+          isIntern,
         }
       },
     }),
@@ -70,6 +72,7 @@ export const authOptions: NextAuthOptions = {
         token.mustChangePassword = (user as any).mustChangePassword ?? false
         token.isElevated = (user as any).isElevated ?? false
         token.permissions = (user as any).permissions ?? {}
+        token.isIntern = (user as any).isIntern ?? false
       }
       return token
     },
@@ -82,6 +85,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).mustChangePassword = token.mustChangePassword ?? false
         ;(session.user as any).isElevated = token.isElevated ?? false
         ;(session.user as any).permissions = token.permissions ?? {}
+        ;(session.user as any).isIntern = token.isIntern ?? false
       }
       return session
     },

@@ -25,6 +25,7 @@ export interface NavItem {
   skipForRoles?: SystemRole[]
   spacer?: boolean
   permission?: string
+  requiresIntern?: true
 }
 
 export const ALL_ROLES: NavPanelRole[] = ["SUPER_ADMIN", "ADMIN", "STAFF"]
@@ -40,8 +41,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "__spacer_top_staff__", spacer: true, icon: "", roles: ["STAFF"] },
 
   // ── STAFF items after spacer ─────────────────────────────────────────────────
-  { label: "People",    href: "/people",  icon: "Users",    roles: ["STAFF"] },
-  { label: "Job & Pay", href: "/job-pay", icon: "Banknote", roles: ["STAFF"] },
+  { label: "People",        href: "/people",        icon: "Users",         roles: ["STAFF"] },
+  { label: "Weekly Report", href: "/intern-report", icon: "ClipboardList", roles: ["STAFF"], requiresIntern: true },
 
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
@@ -49,11 +50,9 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { label: "Employees",        href: "/people/employees" },
       { label: "Departments",      href: "/people/departments" },
-      { label: "Teams",            href: "/people/teams" },
       { label: "Managers",         href: "/people/managers" },
       { label: "Custom Groups",    href: "/people/custom-groups",   permission: "canViewCustomGroups" },
       { label: "Offers",           href: "/people/offers",          permission: "canViewOffers" },
-      { label: "Exits",            href: "/people/exits",           permission: "canViewExitRequests" },
       { label: "External Admins",  href: "/people/external-admins", permission: "canManageAdmins" },
       { label: "Confirmation",     href: "/people/confirmation" },
       { label: "Org. Chart",       href: "/people/org-chart",       permission: "canViewOrgChart" },
@@ -75,12 +74,8 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Requests", icon: "Receipt", roles: ["ADMIN"],
     children: [
-      { label: "Loans",           href: "/requests/loans",           permission: "canViewLoans" },
-      { label: "Salary Advances", href: "/requests/salary-advances", permission: "canViewSalaryAdvances" },
-      { label: "Leave",           href: "/requests/leave",           permission: "canViewAllLeave" },
-      { label: "Exits",           href: "/requests/exits",           permission: "canViewExitRequests" },
-      { label: "Redeployments",   href: "/requests/redeployments",   permission: "canViewRedeployments" },
-      { label: "Documents",       href: "/requests/documents",       permission: "canViewDocuments" },
+      { label: "Leave",     href: "/requests/leave",     permission: "canViewAllLeave" },
+      { label: "Documents", href: "/requests/documents", permission: "canViewDocuments" },
     ],
   },
   { label: "Requests", href: "/requests", icon: "Receipt", roles: ["STAFF"] },
@@ -91,9 +86,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Contractors", href: "/contractors", icon: "UserCheck",     roles: ["ADMIN"], permission: "canViewContractors" },
 
   // ── COMPENSATION ─────────────────────────────────────────────────────────────
-  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"], section: "COMPENSATION", permission: "canViewBenefits" },
+  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"], permission: "canViewBenefits" },
   { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["STAFF"] },
-  { label: "Payslips", href: "/self-service/payslips", icon: "Receipt", roles: ["STAFF"] },
 
   // ── PRODUCTIVITY ─────────────────────────────────────────────────────────────
   {
@@ -133,7 +127,6 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Settings", icon: "Settings", roles: ["SUPER_ADMIN"], section: "OTHER",
     children: [
       { label: "Admins",              href: "/settings/admins" },
-      { label: "HR & Payroll",        href: "/settings/hr-payroll" },
       { label: "Departments",         href: "/settings/departments" },
       { label: "Leave Types",         href: "/settings/leave-types" },
       { label: "Public Holidays",     href: "/settings/public-holidays" },
@@ -159,8 +152,9 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Groups",   href: "/announcements/groups" },
     ],
   },
-  { label: "Analytics", href: "/analytics", icon: "BarChart3", roles: ["ADMIN"], permission: "canViewAnalytics" },
-  { label: "Trash",     href: "/trash",     icon: "Trash2",    roles: ["ADMIN"], permission: "canViewAuditLog" },
+  { label: "Analytics",     href: "/analytics",     icon: "BarChart3",     roles: ["ADMIN"], permission: "canViewAnalytics" },
+  { label: "Intern Reports", href: "/intern-reports", icon: "ClipboardList", roles: ["ADMIN"], permission: "canViewInternReports" },
+  { label: "Trash",         href: "/trash",         icon: "Trash2",        roles: ["ADMIN"], permission: "canViewAuditLog" },
 
   // ── EXTRAS ───────────────────────────────────────────────────────────────────
   { label: "Preferences", href: "/preferences", icon: "UserCircle", roles: ["SUPER_ADMIN"],           section: "EXTRAS" },
@@ -176,14 +170,13 @@ export const NAV_ITEMS: NavItem[] = [
   // ── PROJECT LEAD items ────────────────────────────────────────────────────────
   { label: "Dashboard",    href: "/dashboard",             icon: "LayoutDashboard", roles: ["PROJECT_LEAD"] },
   { label: "__spacer_pl__", spacer: true, icon: "", roles: ["PROJECT_LEAD"] },
-  { label: "People",       href: "/people",                icon: "UserCheck",       roles: ["PROJECT_LEAD"] },
-  { label: "My Team",      href: "/team",                  icon: "Users",           roles: ["PROJECT_LEAD"] },
-  { label: "Job & Pay",    href: "/job-pay",               icon: "Banknote",        roles: ["PROJECT_LEAD"] },
-  { label: "Requests",     href: "/requests",              icon: "CalendarDays",    roles: ["PROJECT_LEAD"] },
+  { label: "People",         href: "/people",         icon: "UserCheck",     roles: ["PROJECT_LEAD"] },
+  { label: "My Team",       href: "/team",           icon: "Users",         roles: ["PROJECT_LEAD"] },
+  { label: "Intern Reports",href: "/intern-reports", icon: "ClipboardList", roles: ["PROJECT_LEAD"], permission: "canReviewInternReports" },
+  { label: "Requests",      href: "/requests",       icon: "CalendarDays",  roles: ["PROJECT_LEAD"] },
   { label: "Documents",    href: "/documents",             icon: "FolderOpen",      roles: ["PROJECT_LEAD"] },
   { label: "Surveys",      href: "/surveys",               icon: "ClipboardList",   roles: ["PROJECT_LEAD"] },
   { label: "Benefits",     href: "/benefits",              icon: "Gift",            roles: ["PROJECT_LEAD"] },
-  { label: "Payslips",     href: "/self-service/payslips", icon: "Receipt",         roles: ["PROJECT_LEAD"] },
   {
     label: "Performance", icon: "TrendingUp", roles: ["PROJECT_LEAD"],
     children: [
@@ -290,8 +283,12 @@ export function getCapabilities(role: string): RoleCapabilities {
   return ROLE_CAPABILITIES[role as SystemRole] ?? ROLE_CAPABILITIES.STAFF
 }
 
-export function getNavForRole(role: string): NavItem[] {
-  return NAV_ITEMS.filter(item => item.roles.includes(role as NavPanelRole))
+export function getNavForRole(role: string, isIntern?: boolean): NavItem[] {
+  return NAV_ITEMS.filter(item => {
+    if (!item.roles.includes(role as NavPanelRole)) return false
+    if (item.requiresIntern && !isIntern) return false
+    return true
+  })
 }
 
 export function getNavForRoleWithPrefix(role: NavPanelRole): NavItem[] {

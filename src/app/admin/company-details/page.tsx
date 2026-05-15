@@ -44,8 +44,10 @@ export default function CompanyDetailsPage() {
         <div style={{ position: "absolute", top: 10, right: 260, width: 0, height: 0, borderLeft: "55px solid transparent", borderRight: "55px solid transparent", borderBottom: "100px solid rgba(255,255,255,0.05)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", bottom: -20, right: 60, width: 0, height: 0, borderLeft: "70px solid transparent", borderRight: "70px solid transparent", borderTop: "120px solid rgba(255,255,255,0.04)", pointerEvents: "none" }} />
         <div style={{ position: "absolute", top: 20, right: 420, width: 0, height: 0, borderLeft: "40px solid transparent", borderRight: "40px solid transparent", borderBottom: "70px solid rgba(255,255,255,0.05)", pointerEvents: "none" }} />
-        <div style={{ flexShrink: 0, display: "flex", alignItems: "flex-end", height: 200, position: "relative", zIndex: 1 }}>
-          <Image src={details?.logoUrl || "/company.png"} alt="" width={180} height={170} style={{ objectFit: "contain", objectPosition: "bottom" }} />
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", position: "relative", zIndex: 1 }}>
+          <div style={{ width: 72, height: 72, borderRadius: 12, background: "white", display: "flex", alignItems: "center", justifyContent: "center", padding: 8, boxShadow: "0 2px 12px rgba(0,0,0,0.12)" }}>
+            <Image src={details?.logoUrl || "/company.svg"} alt="" width={56} height={56} style={{ objectFit: "contain", width: "100%", height: "100%" }} />
+          </div>
         </div>
         <div style={{ flex: 1, position: "relative", zIndex: 1 }}>
           <h1 style={{ fontSize: 24, fontWeight: 800, color: "white" }}>{details?.companyName || "Data Science Nigeria"}</h1>

@@ -1,5 +1,5 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -7,12 +7,13 @@ import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
 import AuthLeftPanel from "@/components/layout/AuthLeftPanel"
 
 const DEMOS: [string, string, string, string][] = [
-  ["HR", "HR Admin",      "hr@datasciencenigeria.ai", "Admin@DSN2024!"],
-  ["A1", "Admin 1",       "staff1@dsn-hrms.com",      "dsn-demo"],
-  ["L1", "Project Lead 1","lead1@dsn-hrms.com",       "dsn-demo"],
-  ["L2", "Project Lead 2","lead2@dsn-hrms.com",       "dsn-demo"],
-  ["S1", "Staff 1",       "staff3@dsn-hrms.com",      "dsn-demo"],
-  ["S2", "Staff 2",       "staff4@dsn-hrms.com",      "dsn-demo"],
+  ["HR", "HR Admin",      "hr@datasciencenigeria.ai",             "Admin@DSN2024!"],
+  ["A1", "Admin 1",       "staff1@dsn-hrms.com",                  "dsn-demo"],
+  ["L1", "Project Lead 1","lead1@dsn-hrms.com",                   "dsn-demo"],
+  ["L2", "Project Lead 2","lead2@dsn-hrms.com",                   "dsn-demo"],
+  ["S1", "Staff 1",       "staff3@dsn-hrms.com",                  "dsn-demo"],
+  ["S2", "Staff 2",       "staff4@dsn-hrms.com",                  "dsn-demo"],
+  ["IN", "Intern",        "intern@dsn-hrms.com",                   "dsn-demo"],
 ]
 
 
@@ -24,6 +25,12 @@ export default function LoginPage() {
   const [error, setError]       = useState("")
   const [loading, setLoading]   = useState(false)
   const [focusedField, setFocusedField] = useState<string | null>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const e = params.get("email")
+    if (e) setEmail(e)
+  }, [])
 
   const fill = (e: string, p: string) => { setEmail(e); setPassword(p); setError("") }
 

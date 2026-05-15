@@ -8,7 +8,7 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
     email: "", phone: "", jobTitle: "",
     departmentId: "", employmentType: "FULL_TIME",
     hireDate: "", dateOfBirth: "", gender: "",
-    category: "", projectLeadEmail: "", grossSalary: "",
+    projectLeadEmail: "",
     role: "STAFF",
   })
   const [loading, setLoading] = useState(false)
@@ -30,6 +30,8 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
   const inputStyle = { width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)" }
   const labelStyle = { display: "block", fontSize: 12, fontWeight: 600, color: "var(--foreground)", marginBottom: 6 } as const
 
+  const maxDob = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 13); return d.toISOString().split("T")[0] })()
+
   const field = (label: string, key: string, type = "text", required = true) => (
     <div>
       <label style={labelStyle}>{label}{required && <span style={{ color: "var(--accent)" }}> *</span>}</label>
@@ -47,7 +49,10 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
         {field("Phone", "phone", "tel")}
         {field("Job Title", "jobTitle")}
         {field("Hire Date", "hireDate", "date")}
-        {field("Date of Birth", "dateOfBirth", "date", false)}
+        <div>
+          <label style={labelStyle}>Date of Birth</label>
+          <input type="date" value={form.dateOfBirth} onChange={e => set("dateOfBirth", e.target.value)} max={maxDob} style={inputStyle} />
+        </div>
 
         <div>
           <label style={labelStyle}>Gender <span style={{ color: "var(--accent)" }}>*</span></label>
@@ -69,16 +74,6 @@ export default function AddEmployeeForm({ departments, onSuccess, currentUserRol
           </select>
         </div>
 
-        <div>
-          <label style={labelStyle}>Category <span style={{ color: "var(--accent)" }}>*</span></label>
-          <select value={form.category} onChange={e => set("category", e.target.value)} required style={inputStyle}>
-            <option value="">Select...</option>
-            <option value="TECHNICAL">Technical</option>
-            <option value="NON_TECHNICAL">Non-Technical</option>
-          </select>
-        </div>
-
-        {field("Gross Salary (₦)", "grossSalary", "number", false)}
         {field("Project Lead Email", "projectLeadEmail", "email", false)}
 
         <div>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { requireAuth } from "@/lib/api-auth"
 import { format } from "date-fns"
 
@@ -56,6 +57,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       link: `${appBase}/requests/leave`,
     },
   })
+  sendEmail({ eventKey: action === "ACCEPTED" ? "relief_accepted" : "relief_declined", toUserId: applicant.userId, variables: { reliefName: `${req_data.employee.firstName} ${req_data.employee.lastName}`, leaveType: req_data.leaveType.name, startDate: format(req_data.startDate, "MMM d, yyyy"), endDate: format(req_data.endDate, "MMM d, yyyy"), reason: comment ?? "" } }).catch(() => {})
 
   // Check if all relief officers have accepted — if so, move request forward
   const allOfficers = await prisma.leaveReliefOfficer.findMany({ where: { leaveRequestId: id } })
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           link: `${tlBase}/requests/leave`,
         },
       })
+      sendEmail({ eventKey: "relief_all_accepted", toUserId: plApproval.employee.userId, variables: { employeeName: `${applicant.firstName} ${applicant.lastName}`, leaveType: req_data.leaveType.name } }).catch(() => {})
     }
   }
 

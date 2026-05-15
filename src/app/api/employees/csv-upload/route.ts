@@ -3,15 +3,16 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 import bcrypt from "bcryptjs"
 
-// Required CSV columns
-const REQUIRED = ["firstName", "lastName", "email"]
+const REQUIRED_COLS = ["firstName", "lastName", "email"]
+const ALL_COLS = ["firstName", "middleName", "lastName", "email", "phone", "jobTitle", "hireDate", "dateOfBirth", "gender", "employmentType", "departmentName", "projectLeadEmail"]
+const VALID_GENDERS = ["MALE", "FEMALE"]
+const VALID_EMP_TYPES = ["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN", "NYSC"]
 
 function parseCSV(text: string): Record<string, string>[] {
   const lines = text.split(/\r?\n/).filter(l => l.trim())
   if (lines.length < 2) return []
   const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""))
   return lines.slice(1).map(line => {
-    // Simple CSV parse (handles quoted fields)
     const values: string[] = []
     let cur = "", inQuote = false
     for (let i = 0; i < line.length; i++) {
@@ -27,6 +28,12 @@ function parseCSV(text: string): Record<string, string>[] {
   })
 }
 
+function isValidDate(val: string): boolean {
+  if (!val) return true // optional — blank is fine
+  const d = new Date(val)
+  return !isNaN(d.getTime())
+}
+
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -40,12 +47,18 @@ export async function POST(req: NextRequest) {
   const rows = parseCSV(text)
   if (!rows.length) return NextResponse.json({ error: "CSV is empty or has no data rows" }, { status: 400 })
 
-  // Validate required columns
+  // Validate required columns exist
   const headers = Object.keys(rows[0])
-  for (const req2 of REQUIRED) {
-    if (!headers.includes(req2)) {
-      return NextResponse.json({ error: `Missing required column: ${req2}` }, { status: 400 })
+  for (const col of REQUIRED_COLS) {
+    if (!headers.includes(col)) {
+      return NextResponse.json({ error: `Missing required column: "${col}". Required: ${REQUIRED_COLS.join(", ")}` }, { status: 400 })
     }
+  }
+
+  // Reject unknown columns (no extra/misspelled columns allowed)
+  const unknownCols = headers.filter(h => !ALL_COLS.includes(h))
+  if (unknownCols.length) {
+    return NextResponse.json({ error: `Unknown column(s): ${unknownCols.map(c => `"${c}"`).join(", ")}. Allowed: ${ALL_COLS.join(", ")}` }, { status: 400 })
   }
 
   const results: { row: number; status: "created" | "skipped"; email?: string; error?: string }[] = []
@@ -55,69 +68,104 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    const { firstName, middleName, lastName, email, phone, jobTitle, hireDate, dateOfBirth, gender, employmentType, departmentName, projectLeadEmail, grossSalary, category, role: rowRole } = row
+    const rowNum = i + 2
 
-    if (!firstName?.trim() || !lastName?.trim() || !email?.trim()) {
-      results.push({ row: i + 2, status: "skipped", error: "Missing required fields" })
+    const firstName = row.firstName?.trim()
+    const lastName = row.lastName?.trim()
+    const email = row.email?.trim().toLowerCase()
+
+    if (!firstName || !lastName || !email) {
+      results.push({ row: rowNum, status: "skipped", error: "Missing required fields: firstName, lastName, email" })
       continue
     }
 
-    const existing = await prisma.user.findFirst({ where: { email: email.trim().toLowerCase() } })
+    // Email domain validation
+    if (!email.endsWith("@datasciencenigeria.ai")) {
+      results.push({ row: rowNum, status: "skipped", email, error: "Email must be @datasciencenigeria.ai" })
+      continue
+    }
+
+    // Optional field validation
+    const genderRaw = row.gender?.trim().toUpperCase()
+    if (genderRaw && !VALID_GENDERS.includes(genderRaw)) {
+      results.push({ row: rowNum, status: "skipped", email, error: `Invalid gender "${row.gender}". Use: MALE or FEMALE` })
+      continue
+    }
+
+    const empTypeRaw = row.employmentType?.trim().toUpperCase()
+    if (empTypeRaw && !VALID_EMP_TYPES.includes(empTypeRaw)) {
+      results.push({ row: rowNum, status: "skipped", email, error: `Invalid employmentType "${row.employmentType}". Use: ${VALID_EMP_TYPES.join(", ")}` })
+      continue
+    }
+
+    if (!isValidDate(row.hireDate?.trim())) {
+      results.push({ row: rowNum, status: "skipped", email, error: `Invalid hireDate "${row.hireDate}". Use YYYY-MM-DD format` })
+      continue
+    }
+
+    if (!isValidDate(row.dateOfBirth?.trim())) {
+      results.push({ row: rowNum, status: "skipped", email, error: `Invalid dateOfBirth "${row.dateOfBirth}". Use YYYY-MM-DD format` })
+      continue
+    }
+
+    // Duplicate check
+    const existing = await prisma.user.findFirst({ where: { email } })
     if (existing) {
-      results.push({ row: i + 2, status: "skipped", email, error: "Email already exists" })
+      results.push({ row: rowNum, status: "skipped", email, error: "Email already exists" })
       continue
     }
 
     try {
-      // Look up department by name
       let departmentId: string | null = null
-      if (departmentName?.trim()) {
-        const dept = await prisma.department.findFirst({ where: { name: { equals: departmentName.trim(), mode: "insensitive" } } })
-        departmentId = dept?.id ?? null
+      if (row.departmentName?.trim()) {
+        const dept = await prisma.department.findFirst({ where: { name: { equals: row.departmentName.trim(), mode: "insensitive" } } })
+        if (!dept) {
+          results.push({ row: rowNum, status: "skipped", email, error: `Department not found: "${row.departmentName}"` })
+          continue
+        }
+        departmentId = dept.id
       }
 
-      // Look up project lead by email
       let projectLeadId: string | null = null
-      if (projectLeadEmail?.trim()) {
-        const lead = await prisma.employee.findFirst({ where: { user: { email: projectLeadEmail.trim().toLowerCase() } } })
-        projectLeadId = lead?.id ?? null
+      if (row.projectLeadEmail?.trim()) {
+        const lead = await prisma.employee.findFirst({ where: { user: { email: row.projectLeadEmail.trim().toLowerCase() } } })
+        if (!lead) {
+          results.push({ row: rowNum, status: "skipped", email, error: `Project lead not found: "${row.projectLeadEmail}"` })
+          continue
+        }
+        projectLeadId = lead.id
       }
 
-      const mid = middleName?.trim() || null
-      const fullName = `${firstName.trim()}${mid ? " " + mid : ""} ${lastName.trim()}`
+      const middleName = row.middleName?.trim() || null
+      const fullName = `${firstName}${middleName ? " " + middleName : ""} ${lastName}`
       const empId = `DSN${String(nextNum).padStart(4, "0")}`
       nextNum++
 
       const newUser = await prisma.user.create({
-        data: { name: fullName, email: email.trim().toLowerCase(), password: hashedPwd, role: "STAFF" },
+        data: { name: fullName, email, password: hashedPwd, role: "STAFF" },
       })
 
-      const catUpper = category?.trim().toUpperCase()
       await prisma.employee.create({
         data: {
           userId: newUser.id,
           employeeId: empId,
-          firstName: firstName.trim(),
-          middleName: mid,
-          lastName: lastName.trim(),
-          phone: phone?.trim() || null,
-          jobTitle: jobTitle?.trim() || null,
-          hireDate: hireDate?.trim() ? new Date(hireDate.trim()) : null,
-          dateOfBirth: dateOfBirth?.trim() ? new Date(dateOfBirth.trim()) : null,
-          gender: (gender?.trim().toUpperCase() === "MALE" ? "MALE" : gender?.trim().toUpperCase() === "FEMALE" ? "FEMALE" : null) as any,
-          employmentType: (["FULL_TIME","PART_TIME","CONTRACT","STAFF","NYSC"].includes(employmentType?.trim().toUpperCase() ?? "")
-            ? employmentType!.trim().toUpperCase()
-            : "FULL_TIME") as any,
-          category: (catUpper === "TECHNICAL" || catUpper === "NON_TECHNICAL" ? catUpper : "NON_TECHNICAL") as any,
+          firstName,
+          middleName,
+          lastName,
+          phone: row.phone?.trim() || null,
+          jobTitle: row.jobTitle?.trim() || null,
+          hireDate: row.hireDate?.trim() ? new Date(row.hireDate.trim()) : null,
+          dateOfBirth: row.dateOfBirth?.trim() ? new Date(row.dateOfBirth.trim()) : null,
+          gender: (genderRaw || null) as any,
+          employmentType: (empTypeRaw || "FULL_TIME") as any,
           departmentId,
           projectLeadId,
-          grossSalary: grossSalary?.trim() ? parseFloat(grossSalary.trim()) || null : null,
         },
       })
 
-      results.push({ row: i + 2, status: "created", email })
+      results.push({ row: rowNum, status: "created", email })
     } catch (e: any) {
-      results.push({ row: i + 2, status: "skipped", email, error: e.message ?? "Unknown error" })
+      results.push({ row: rowNum, status: "skipped", email, error: e.message ?? "Unknown error" })
     }
   }
 
@@ -128,17 +176,22 @@ export async function POST(req: NextRequest) {
 
 // GET: download CSV template
 export async function GET() {
-  const headers = [
-    "firstName", "middleName", "lastName", "email", "phone", "jobTitle",
-    "hireDate", "dateOfBirth", "gender", "employmentType", "departmentName",
-    "projectLeadEmail", "grossSalary", "category", "role",
-  ]
+  const headers = ["firstName", "middleName", "lastName", "email", "phone", "jobTitle", "hireDate", "dateOfBirth", "gender", "employmentType", "departmentName", "projectLeadEmail"]
   const example = [
-    "John", "", "Doe", "john@datasciencenigeria.ai", "08012345678",
+    "John", "", "Doe", "john.doe@datasciencenigeria.ai", "08012345678",
     "Software Engineer", "2024-01-15", "1995-06-20", "MALE", "FULL_TIME",
-    "Technical Delivery (Service & Consulting)", "lead@datasciencenigeria.ai", "450000", "TECHNICAL", "STAFF",
+    "Technical Delivery (Service & Consulting)", "lead@datasciencenigeria.ai",
   ]
-  const csv = [headers.join(","), example.join(",")].join("\n")
+  const notes = [
+    "# Required: firstName, lastName, email",
+    "# email must end with @datasciencenigeria.ai",
+    "# gender: MALE or FEMALE (or leave blank)",
+    "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN | NYSC (default: FULL_TIME)",
+    "# hireDate / dateOfBirth: YYYY-MM-DD format",
+    "# departmentName: must match exactly (e.g. 'EqualyzAI')",
+    "# projectLeadEmail: must be an existing employee email",
+  ]
+  const csv = [notes.join("\n"), headers.join(","), example.join(",")].join("\n")
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv",
