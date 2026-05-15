@@ -7,10 +7,10 @@ import Link from "next/link"
 import {
   Building2, UserCheck, CalendarDays, Clock, Edit2,
   ChevronRight, Cake, Award, Loader2, AlertCircle,
-  CalendarCheck, Star, Users,
+  Star, Users,
   Search, Briefcase, TrendingUp,
   Gift, Megaphone, ChevronLeft,
-  Target, ClipboardList, Globe, Building,
+  Target, ClipboardList,
   Map, X, ArrowRight, ArrowLeft, Sparkles,
   LayoutDashboard, FolderOpen, Zap, CalendarOff,
 } from "lucide-react"
@@ -18,6 +18,7 @@ import { formatDate } from "@/lib/utils"
 import { roleLabel } from "@/lib/rbac"
 import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
 import CelebrationsCard from "@/components/shared/CelebrationsCard"
+import DeptOrgLeaveCard from "@/components/shared/DeptOrgLeaveCard"
 
 // ─── Keyframes injected once ─────────────────────────────────────────────────
 const GLOBAL_STYLE = `
@@ -493,97 +494,6 @@ function ProfileInfoCard({ profile }: { profile: any }) {
   )
 }
 
-// ─── Department / Organisation Leave Card ────────────────────────────────────
-function DeptOrgLeaveCard({ teamOnLeave }: { teamOnLeave: any[] }) {
-  const [view, setView] = useState<"dept" | "org">("dept")
-  const [orgOnLeave, setOrgOnLeave] = useState<any[]>([])
-  const [orgLoading, setOrgLoading] = useState(false)
-  const orgFetched = useRef(false)
-
-  useEffect(() => {
-    if (view === "org" && !orgFetched.current) {
-      orgFetched.current = true
-      setOrgLoading(true)
-      fetch("/api/employees")
-        .then(r => r.json())
-        .then(d => {
-          const on = (d.employees ?? []).filter((e: any) => e.employeeStatus === "ON_LEAVE")
-          setOrgOnLeave(on)
-          setOrgLoading(false)
-        })
-        .catch(() => setOrgLoading(false))
-    }
-  }, [view])
-
-  const deptList = teamOnLeave ?? []
-  const list = view === "dept" ? deptList : orgOnLeave
-
-  return (
-    <Card style={{ animation:"fadeInUp .4s ease .15s both" }}>
-      <div style={{ padding:"14px 18px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <span style={{ fontSize:13, fontWeight:700 }}>Who's On Leave</span>
-        <span style={{
-          fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:999,
-          background: list.length > 0 ? "#EC489918" : "var(--muted)",
-          color: list.length > 0 ? "#EC4899" : "var(--muted-foreground)",
-        }}>
-          {view === "org" && orgLoading ? "…" : list.length} away
-        </span>
-      </div>
-      {/* Toggle */}
-      <div style={{ display:"flex", borderBottom:"1px solid var(--border)", padding:"0 18px" }}>
-        {([ { key:"dept", label:"Department", icon:Building }, { key:"org", label:"Organisation", icon:Globe } ] as const).map(t => (
-          <button key={t.key} onClick={() => setView(t.key)} style={{
-            display:"flex", alignItems:"center", gap:5,
-            padding:"9px 12px 8px", fontSize:12, fontWeight:700,
-            color: view === t.key ? "var(--primary)" : "var(--muted-foreground)",
-            borderTop:"none", borderLeft:"none", borderRight:"none",
-            borderBottom: view === t.key ? "2px solid var(--primary)" : "2px solid transparent",
-            background:"none", cursor:"pointer", marginBottom:-1, whiteSpace:"nowrap",
-          }}>
-            <t.icon size={12} />
-            {t.label}
-          </button>
-        ))}
-      </div>
-      {/* Content */}
-      {view === "org" && orgLoading ? (
-        <div style={{ padding:24, display:"flex", justifyContent:"center" }}>
-          <Loader2 size={18} style={{ animation:"spin .8s linear infinite", color:"var(--muted-foreground)" }} />
-        </div>
-      ) : !list.length ? (
-        <EmptyState icon={CalendarCheck} message={view === "dept" ? "All department members are present" : "Nobody in the organisation is currently on leave"} />
-      ) : (
-        <div style={{ maxHeight:280, overflowY:"auto" }}>
-          {list.map((m: any, i: number) => (
-            <div key={m.id} style={{
-              display:"flex", alignItems:"center", gap:12, padding:"11px 18px",
-              borderBottom: i < list.length - 1 ? "1px solid var(--border)" : "none",
-            }}>
-              <Avatar name={m.name || `${m.firstName} ${m.lastName}`} photo={m.profilePhoto} size={36} />
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {m.name || `${m.firstName} ${m.lastName}`}
-                </div>
-                <div style={{ fontSize:11, color:"var(--muted-foreground)" }}>{m.jobTitle ?? m.department?.name ?? "—"}</div>
-              </div>
-              {m.currentLeave && (
-                <div style={{ textAlign:"right", flexShrink:0 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:"#0EA5E9", background:"#0EA5E918", borderRadius:5, padding:"2px 8px", display:"inline-block" }}>
-                    {m.currentLeave.leaveType}
-                  </div>
-                  <div style={{ fontSize:10, color:"var(--muted-foreground)", marginTop:2 }}>
-                    Until {formatDate(m.currentLeave.endDate, "MMM d")}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  )
-}
 
 // ─── Upcoming Celebrations Card ───────────────────────────────────────────────
 function CelebrationsTabs({ upcomingEvents }: { upcomingEvents: any[] }) {
@@ -810,7 +720,7 @@ export default function StaffDashboard() {
 
       {/* 4. Dept/Org Leave toggle + Announcements */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap:20 }}>
-        <DeptOrgLeaveCard teamOnLeave={teamOnLeave} />
+        <DeptOrgLeaveCard deptOnLeave={teamOnLeave} />
         <AnnouncementsCard />
       </div>
 

@@ -5,6 +5,7 @@ import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
 import RecentEmployeesPanel from "@/components/shared/RecentEmployeesPanel"
 import PendingLeavePanel from "@/components/shared/PendingLeavePanel"
 import CelebrationsCard from "@/components/shared/CelebrationsCard"
+import DeptOrgLeaveCard from "@/components/shared/DeptOrgLeaveCard"
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
 import Link from "next/link"
@@ -75,7 +76,7 @@ export default async function ProjectLeadDashboard() {
   const [
     leaveTypes,
     teamSize, active, onLeave,
-    pendingLeaveCount, pendingLeaveRequests, teamMembers,
+    pendingLeaveCount, pendingLeaveRequests, teamMembers, deptOnLeaveRaw,
   ] = await Promise.all([
     prisma.leaveType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
     prisma.employee.count({ where: memberFilter }),
@@ -106,7 +107,34 @@ export default async function ProjectLeadDashboard() {
         projectAssignments: { include: { project: { select: { id: true, name: true, status: true } } } },
       },
     }),
+    deptIds.length > 0
+      ? prisma.employee.findMany({
+          where: {
+            departmentId: { in: deptIds },
+            leaveRequests: { some: { status: "APPROVED", endDate: { gte: new Date() } } },
+          },
+          select: {
+            id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true,
+            leaveRequests: {
+              where: { status: "APPROVED", endDate: { gte: new Date() } },
+              include: { leaveType: true },
+              orderBy: { startDate: "asc" },
+              take: 1,
+            },
+          },
+        })
+      : Promise.resolve([]),
   ])
+
+  const deptOnLeave = deptOnLeaveRaw.map((m: any) => ({
+    id: m.id,
+    name: `${m.firstName} ${m.lastName}`,
+    jobTitle: m.jobTitle,
+    profilePhoto: m.profilePhoto,
+    currentLeave: m.leaveRequests[0]
+      ? { leaveType: m.leaveRequests[0].leaveType.name, endDate: m.leaveRequests[0].endDate }
+      : null,
+  }))
 
   // Leave balances
   const leaveBalanceSummary = leaveTypes
@@ -295,6 +323,9 @@ export default async function ProjectLeadDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── Who's On Leave ────────────────────────────────────────────────────── */}
+      <DeptOrgLeaveCard deptOnLeave={deptOnLeave} />
 
       {/* ── Panels ────────────────────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap: 20 }}>
