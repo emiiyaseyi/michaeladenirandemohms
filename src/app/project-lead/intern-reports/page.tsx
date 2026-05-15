@@ -20,7 +20,6 @@ const CATEGORIES = [
 ]
 
 const DAYS_LIST = ["monday","tuesday","wednesday","thursday","friday"] as const
-type DayKey = typeof DAYS_LIST[number]
 
 const RATING_CRITERIA: Record<string, { label: string; criteria: [number, string][] }> = {
   productivityRating: {

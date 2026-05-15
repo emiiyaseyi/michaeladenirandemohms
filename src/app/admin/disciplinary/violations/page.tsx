@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { Search, Plus, MoreHorizontal, Inbox, X, Loader2, Filter } from "lucide-react"
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
-import { formatDate } from "@/lib/utils"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const STATUS_OPTIONS = [

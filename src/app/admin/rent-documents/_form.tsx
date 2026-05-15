@@ -141,7 +141,7 @@ function FileDropZone({ label, name, existing, onChange }: { label: string; name
   )
 }
 
-export default function RentDocumentForm({ mode, initial, onSubmit }: Props) {
+export default function RentDocumentForm({ mode: _mode, initial, onSubmit }: Props) {
   const router = useRouter()
   const [form, setForm] = useState<FormData>({
     employeeId: initial?.employeeId ?? "",

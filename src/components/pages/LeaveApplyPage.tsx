@@ -1,12 +1,12 @@
 "use client"
-import React, { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import Avatar from "@/components/ui/Avatar"
 import Button from "@/components/ui/Button"
 import {
   ArrowLeft, Check, ChevronRight, AlertCircle, Users, Loader2,
-  Info, Plus, X, Search, ShieldCheck, CalendarDays, FileText,
+  Info, Plus, X, ShieldCheck, CalendarDays, FileText,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { addBusinessDays, format, parseISO, isWeekend } from "date-fns"

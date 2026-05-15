@@ -172,7 +172,7 @@ export default function LoginPage() {
 
             {/* Demo credentials */}
             <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 12, border: "1px solid var(--border)" }}>
-              {DEMOS.map(([initial, role, em, pw]) => (
+              {DEMOS.map(([, role, em, pw]) => (
                 <div
                   key={role}
                   style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 4, cursor: "pointer", padding: "7px 8px", borderRadius: 6, transition: "background 0.12s", display: "flex", alignItems: "center", gap: 8 }}

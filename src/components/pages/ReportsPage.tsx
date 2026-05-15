@@ -106,7 +106,7 @@ async function generateExcel(data: ReportData) {
   triggerDownload(new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), data.filename.replace(".csv", ".xlsx"))
 }
 
-async function generatePDF(data: ReportData, dateFrom: string, dateTo: string) {
+async function generatePDF(data: ReportData, _dateFrom: string, _dateTo: string) {
   const { jsPDF } = await import("jspdf")
   const { default: autoTable } = await import("jspdf-autotable")
 

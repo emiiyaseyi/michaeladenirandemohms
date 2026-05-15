@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import Card from "@/components/ui/Card"
 import StatCard from "@/components/ui/StatCard"
-import { BarChart3, Users, CalendarDays, TrendingUp, Briefcase, UserCheck, UserMinus, Target } from "lucide-react"
+import { Users, CalendarDays, Briefcase, UserCheck } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts"
 
 const COLORS = ["#0052A5","#E3192A","#0B8A4A","#7C3AED","#C2410C","#0E7490","#B45309"]

@@ -7,8 +7,8 @@ import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import {
   Building2, Users, Plus, Search, X, Loader2,
-  UserPlus, UserMinus, ChevronRight, Edit2, Trash2,
-  AlertCircle, CheckCircle,
+  UserPlus, UserMinus, Edit2, Trash2,
+  AlertCircle,
 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 

@@ -24,7 +24,6 @@ export default function AdminReviewsPage() {
   useEffect(() => { load() }, [selectedCycleId])
 
   const activeCycle = cycles.find(c => c.isActive)
-  const selectedCycle = cycles.find(c => c.id === selectedCycleId)
 
   // Group KPIs by employee
   const byEmployee = new Map<string, { employee: any; kpis: any[] }>()

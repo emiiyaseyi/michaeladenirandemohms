@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth"
 import { redirect } from "next/navigation"
 import DashboardShell from "@/components/layout/DashboardShell"
-import { getNavForRoleWithPrefix, getRoleHome } from "@/lib/rbac"
+import { getNavForRoleWithPrefix } from "@/lib/rbac"
 import { prisma } from "@/lib/prisma"
 
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {

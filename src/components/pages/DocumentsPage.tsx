@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import ReactDOM from "react-dom"
-import { ChevronDown, ChevronUp, MoreHorizontal, FileText, Plus } from "lucide-react"
+import { ChevronDown, ChevronUp, MoreHorizontal, FileText } from "lucide-react"
 
 function PdfFileIcon() {
   return (

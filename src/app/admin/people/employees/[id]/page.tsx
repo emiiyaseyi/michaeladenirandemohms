@@ -178,7 +178,6 @@ function PLDepartmentsCard({ emp }: { emp: any }) {
 }
 
 function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any) => void }) {
-  const fmt = (n?: number | null) => n != null ? `₦${n.toLocaleString("en-NG", { minimumFractionDigits: 2 })}` : "—"
   const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"
   const isoDate = (d?: string | null) => d ? d.slice(0, 10) : ""
 
@@ -591,7 +590,7 @@ function TabBenefits({ emp }: { emp: any }) {
   )
 }
 
-function TabAssets({ emp }: { emp: any }) {
+function TabAssets({ emp: _emp }: { emp: any }) {
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
       <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -677,7 +676,7 @@ function TabDisciplinary() {
   )
 }
 
-function TabNotes({ emp }: { emp: any }) {
+function TabNotes({ emp: _emp }: { emp: any }) {
   const [note, setNote] = useState("")
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)

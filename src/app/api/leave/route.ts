@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
-import { requireAuth, forbidden, requirePermission } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { eachDayOfInterval, isWeekend, format, parseISO, addHours, addDays } from "date-fns"
 
 async function calcDays(startDate: Date, endDate: Date, leaveTypeId: string) {
@@ -200,8 +200,6 @@ export async function POST(req: NextRequest) {
   const body = await req.json()
   const { leaveTypeId, startDate, endDate, reason, projectLeads = [], documentUrl } = body
   let { employeeId } = body
-
-  const canViewAll = user.role === "SUPER_ADMIN" || !!user.permissions["canViewAllLeave"]
 
   // Submitting for someone else requires canCreateLeave or SUPER_ADMIN
   if (employeeId && employeeId !== user.employeeId) {

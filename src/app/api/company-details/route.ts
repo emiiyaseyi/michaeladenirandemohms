@@ -5,7 +5,7 @@ import { requireAuth } from "@/lib/api-auth"
 const KEY = "company_details"
 
 export async function GET() {
-  const { user, error } = await requireAuth()
+  const { error } = await requireAuth()
   if (error) return error
 
   const setting = await prisma.systemSetting.findUnique({ where: { key: KEY } })

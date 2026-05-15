@@ -1,6 +1,6 @@
 "use client"
-import { useState, useEffect, useRef } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
 import ReactDOM from "react-dom"
 import { X, Search, AlertCircle, MoreHorizontal } from "lucide-react"
 
@@ -178,7 +178,6 @@ interface MenuState { top: number; right: number; employeeId: string; fileUrl: s
 
 export default function ViewDocumentPage() {
   const { id } = useParams<{ id: string }>()
-  const router = useRouter()
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [showRename, setShowRename] = useState(false)

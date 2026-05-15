@@ -7,8 +7,8 @@ import { ChevronDown, ChevronRight, Search, Upload, X, Loader2 } from "lucide-re
 interface Employee { id: string; firstName: string; lastName: string; employeeId: string }
 interface ViolationType { id: string; name: string }
 
-function Dropdown({ label, options, value, onSelect, placeholder }: {
-  label: string; options: { id: string; name: string }[]; value: string | null
+function Dropdown({ options, value, onSelect, placeholder }: {
+  options: { id: string; name: string }[]; value: string | null
   onSelect: (id: string, name: string) => void; placeholder: string
 }) {
   const [open, setOpen] = useState(false)
@@ -148,7 +148,6 @@ export default function RecordViolationPage({ basePath = "/staff" }: { basePath?
             <div>
               <label style={labelStyle}>{requiredDot} Employee</label>
               <Dropdown
-                label="Employee"
                 options={employeeOptions}
                 value={employeeId}
                 onSelect={(id) => setEmployeeId(id)}
@@ -158,7 +157,6 @@ export default function RecordViolationPage({ basePath = "/staff" }: { basePath?
             <div>
               <label style={labelStyle}>{requiredDot} Violation type</label>
               <Dropdown
-                label="Violation type"
                 options={typeOptions}
                 value={violationTypeId}
                 onSelect={(id) => setViolationTypeId(id)}

@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (user.role !== "SUPER_ADMIN") return forbidden()
 
   const body = await req.json()
-  const { type, employeeId, firstName, lastName, email, personalNote, systemRoleIds = [], customRoleIds = [] } = body
+  const { type, employeeId, firstName, lastName, email, systemRoleIds = [], customRoleIds = [] } = body
 
   const allRoleIds: string[] = [...systemRoleIds, ...customRoleIds]
 

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 
 export async function GET() {
-  const { user, error } = await requireAuth()
+  const { error } = await requireAuth()
   if (error) return error
 
   const signatories = await (prisma as any).companySignatory.findMany({

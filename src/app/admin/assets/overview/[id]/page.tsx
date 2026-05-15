@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter, useParams } from "next/navigation"
 import { createPortal } from "react-dom"
-import { ArrowLeft, Search, MoreHorizontal, User } from "lucide-react"
+import { Search, MoreHorizontal, User } from "lucide-react"
 
 function RowMenu({ onRelease, onRemove, status }: { onRelease: () => void; onRemove: () => void; status: string }) {
   const [open, setOpen] = useState(false)

@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   const { id } = await params
@@ -137,7 +137,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ employee })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (user.role !== "SUPER_ADMIN" && !user.permissions["canDeleteEmployee"]) return forbidden()

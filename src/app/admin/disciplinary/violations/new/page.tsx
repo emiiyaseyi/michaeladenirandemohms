@@ -16,12 +16,13 @@ function EmployeeSelect({ value, onChange, error, includeAll }: { value: string;
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch("/api/employees?limit=500")
+    const url = includeAll ? "/api/employees?limit=500" : "/api/employees?limit=500&status=ACTIVE"
+    fetch(url)
       .then(r => r.json())
       .then(d => setEmployees((d.employees ?? []).sort((a: Employee, b: Employee) =>
         `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
       )))
-  }, [])
+  }, [includeAll])
 
   const toggle = () => {
     if (!open && btnRef.current) {

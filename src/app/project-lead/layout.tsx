@@ -10,7 +10,6 @@ export default async function ProjectLeadLayout({ children }: { children: React.
 
   const role = (session.user as any).role ?? "STAFF"
   const userId = (session.user as any).id as string | undefined
-  const isElevated = (session.user as any).isElevated ?? false
 
   // Only PROJECT_LEAD (and elevated PROJECT_LEAD) can access this panel
   // SUPER_ADMIN goes to admin, STAFF goes to staff

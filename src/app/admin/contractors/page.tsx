@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
-import { Building2, Search, ChevronDown, MoreVertical, Inbox, Download } from "lucide-react"
+import { Building2, Search, ChevronDown, MoreVertical, Inbox } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 interface Contractor {

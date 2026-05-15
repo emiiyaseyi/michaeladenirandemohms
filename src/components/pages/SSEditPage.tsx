@@ -5,8 +5,8 @@ import Button from "@/components/ui/Button"
 import Avatar from "@/components/ui/Avatar"
 import { useRouter } from "next/navigation"
 import {
-  User, Phone, Mail, MapPin, Building2, Heart,
-  UserCheck, Save, ArrowLeft, Camera, CheckCircle, AlertCircle, Loader2, Clock,
+  User, Phone, MapPin, Heart,
+  Save, ArrowLeft, Camera, CheckCircle, AlertCircle, Loader2, Clock,
 } from "lucide-react"
 
 const fi = {

@@ -3,11 +3,10 @@ import { useState, useEffect, useRef } from "react"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
-import Avatar from "@/components/ui/Avatar"
 import {
-  Megaphone, Plus, Edit2, Trash2, Eye, Send, Archive,
+  Megaphone, Plus, Edit2, Trash2, Send, Archive,
   X, Loader2, AlertCircle, Check, Image, FileText,
-  Video, Bell, Monitor, Mail, AlignLeft, ChevronDown,
+  Video, Bell, Monitor, Mail, AlignLeft,
   Globe, Users,
 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
@@ -65,7 +64,7 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
   const [error, setError] = useState("")
   const [imgFile, setImgFile] = useState<File | null>(null)
   const [imgPreview, setImgPreview] = useState<string>(ann?.imageUrl ?? "")
-  const [uploading, setUploading] = useState(false)
+  const [, setUploading] = useState(false)
   const imgRef = useRef<HTMLInputElement>(null)
 
   const handleImgFile = (file: File) => {
@@ -296,7 +295,7 @@ export default function AnnouncementsPage() {
   const [filter, setFilter] = useState<"ALL"|"DRAFT"|"PUBLISHED"|"RETIRED">("ALL")
   const [showCreate, setShowCreate] = useState(false)
   const [editAnn, setEditAnn] = useState<any>(null)
-  const [deleting, setDeleting] = useState<string|null>(null)
+  const [, setDeleting] = useState<string|null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<string|null>(null)
 
   const load = async () => {

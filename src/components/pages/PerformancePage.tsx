@@ -14,11 +14,9 @@ export default function PerformancePage() {
   const { user } = useCurrentUser()
   const [kpis, setKpis] = useState<any[]>([])
   const [cycles, setCycles] = useState<any[]>([])
-  const [employees, setEmployees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<"kpis"|"cycles">("kpis")
   const [addOpen, setAddOpen] = useState(false)
-  const [cycleName, setCycleName] = useState("")
 
   const load = async () => {
     setLoading(true)
@@ -26,7 +24,6 @@ export default function PerformancePage() {
     const d = await r.json()
     setKpis(d.kpis ?? [])
     setCycles(d.cycles ?? [])
-    setEmployees(d.employees ?? [])
     setLoading(false)
   }
 

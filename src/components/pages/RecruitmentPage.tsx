@@ -5,7 +5,7 @@ import Badge from "@/components/ui/Badge"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
-import { Briefcase, Plus, Users, Clock, ChevronRight, Mail, Phone, FileText } from "lucide-react"
+import { Briefcase, Plus, Users, Clock } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 

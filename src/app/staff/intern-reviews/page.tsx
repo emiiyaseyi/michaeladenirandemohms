@@ -20,7 +20,6 @@ const CATEGORIES = [
 ]
 
 const DAYS_LIST = ["monday", "tuesday", "wednesday", "thursday", "friday"] as const
-type DayKey = typeof DAYS_LIST[number]
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; color: string }> = {

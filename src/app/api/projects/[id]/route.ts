@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (endDate !== undefined) data.endDate = endDate ? new Date(endDate) : null
   if (leadId !== undefined) data.ownerId = leadId || null
 
-  const project = await prisma.project.update({ where: { id }, data })
+  await prisma.project.update({ where: { id }, data })
 
   // If members provided, replace all assignments
   if (memberIds !== undefined) {
@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ project: updated })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canViewAllEmployees) return forbidden()

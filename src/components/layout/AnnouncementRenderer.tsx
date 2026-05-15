@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { X, Megaphone, ChevronLeft, ChevronRight, Volume2 } from "lucide-react"
 
 interface Announcement {
@@ -216,7 +216,7 @@ export function DashboardScrollTicker({ items }: { items: Announcement[] }) {
 
 // ─── Main renderer ────────────────────────────────────────────────────────────
 
-export default function AnnouncementRenderer({ userRole }: { userRole: string }) {
+export default function AnnouncementRenderer({ userRole: _userRole }: { userRole: string }) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loaded, setLoaded] = useState(false)
 

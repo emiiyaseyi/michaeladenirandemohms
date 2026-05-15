@@ -5,11 +5,10 @@ import Avatar from "@/components/ui/Avatar"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
-import Badge from "@/components/ui/Badge"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import {
   Briefcase, Plus, Search, Users, Calendar, Pencil, Trash2,
-  Archive, CheckCircle, Loader2, AlertCircle, X, ChevronDown, PlayCircle,
+  Archive, CheckCircle, Loader2, AlertCircle, X, PlayCircle,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 

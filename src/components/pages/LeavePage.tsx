@@ -1,5 +1,5 @@
 "use client"
-import React, { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams, useRouter, usePathname } from "next/navigation"
 import Card from "@/components/ui/Card"
 import Badge from "@/components/ui/Badge"
@@ -10,11 +10,11 @@ import EmptyState from "@/components/ui/EmptyState"
 import {
   CalendarDays, Plus, Check, X, Clock, ChevronRight, ChevronLeft,
   AlertCircle, Users, Loader2, Info, Eye, Search, Trash2, Edit3,
-  CalendarCheck, ArrowLeft, ShieldCheck, MessageSquare, Bell,
+  CalendarCheck, ShieldCheck, Bell,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
-import { addBusinessDays, format, parseISO, isWeekend, eachDayOfInterval } from "date-fns"
+import { addBusinessDays, format, parseISO, isWeekend } from "date-fns"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -74,75 +74,6 @@ function StageBar({ approvals }: { approvals: any[] }) {
           </div>
         )
       })}
-    </div>
-  )
-}
-
-// ── Relief officer search ────────────────────────────────────────────────────
-
-function ReliefOfficerSearch({ employees, selected, onChange }: { employees: any[]; selected: string[]; onChange: (ids: string[]) => void }) {
-  const [query, setQuery] = useState("")
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-
-  
-  useEffect(() => {
-    const handler = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
-  }, [])
-
-  const filtered = employees.filter(e =>
-    !selected.includes(e.id) &&
-    `${e.firstName} ${e.lastName}`.toLowerCase().includes(query.toLowerCase())
-  )
-  const selectedEmps = employees.filter(e => selected.includes(e.id))
-
-  const add = (id: string) => { onChange([...selected, id]); setQuery(""); setOpen(false) }
-  const remove = (id: string) => onChange(selected.filter(x => x !== id))
-
-  return (
-    <div>
-      {/* Selected chips */}
-      {selectedEmps.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-          {selectedEmps.map(e => (
-            <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--primary-50)", border: "1px solid var(--primary)", borderRadius: 20, padding: "4px 10px 4px 6px" }}>
-              <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={22} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--primary)" }}>{e.firstName} {e.lastName}</span>
-              <button onClick={() => remove(e.id)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--primary)", display: "flex", padding: 0, lineHeight: 1 }}><X size={12} /></button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Search box */}
-      <div ref={ref} style={{ position: "relative" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid var(--border)", borderRadius: 8, padding: "8px 12px", background: "var(--background)" }}>
-          <Search size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
-          <input value={query} onChange={e => { setQuery(e.target.value); setOpen(true) }} onFocus={() => setOpen(true)}
-            placeholder="Search employees by name…"
-            style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, flex: 1, color: "var(--foreground)" }} />
-        </div>
-        {open && filtered.length > 0 && (
-          <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 220, overflowY: "auto", marginTop: 4 }}>
-            {filtered.slice(0, 8).map(e => (
-              <button key={e.id} onClick={() => add(e.id)}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", transition: "background .1s" }}
-                onMouseEnter={ev => { (ev.currentTarget as HTMLElement).style.background = "var(--muted)" }}
-                onMouseLeave={ev => { (ev.currentTarget as HTMLElement).style.background = "transparent" }}
-              >
-                <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={30} />
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
-                  {e.jobTitle && <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle}</div>}
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   )
 }
@@ -1420,13 +1351,10 @@ export default function LeavePage() {
   const [page, setPage] = useState(1)
   const PAGE_SIZE = 20
 
-  const canApprove = user?.role === "PROJECT_LEAD" || (user?.can("canApproveLeave") ?? false)
   const canSubmit = user?.caps?.canSubmitLeave
   const isInAdminPanel = pathname?.startsWith("/admin") ?? false
   const isAdmin = isInAdminPanel || user?.role === "SUPER_ADMIN" || (user?.can("canViewAllLeave") ?? false)
-  const isSuperAdmin = user?.role === "SUPER_ADMIN"
   const isHRApprover = isAdmin && (user?.can("canApproveLeave") ?? false)
-  const isPLApprover = user?.role === "PROJECT_LEAD" || (canApprove && !isHRApprover)
   const canCreateLeave = user?.can("canCreateLeave") ?? false
   const canEditLeave = user?.can("canEditLeave") ?? false
   const canDeleteLeave = user?.can("canDeleteLeave") ?? false
@@ -1504,11 +1432,6 @@ export default function LeavePage() {
       r.employee?.department?.name?.toLowerCase().includes(q)
     )
   })
-  const pendingCount = requests.filter(r => {
-    if (r.status !== "PENDING") return false
-    if (isHRApprover && r.currentStage === "PENDING_HR_ADMIN") return true
-    return r.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action)
-  }).length
   const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE))
   const pagedRequests = filteredRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 

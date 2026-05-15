@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // DELETE /api/settings/users/[id] — hard delete (only for users with no employee activity)
 // Prefer deactivation via PATCH isActive=false
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!isAdminRole(user.role)) return forbidden("Admins only")

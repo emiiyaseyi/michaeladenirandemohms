@@ -66,8 +66,8 @@ function RoleBadge({ emp, onChanged, isSuperAdmin }: { emp: any; onChanged: () =
   )
 }
 
-function RowMenu({ emp, onView, onReset, onDelete, onChangeRole }: {
-  emp: any; onView: () => void; onReset: () => void;
+function RowMenu({ onView, onReset, onDelete, onChangeRole }: {
+  onView: () => void; onReset: () => void;
   onDelete?: () => void; onChangeRole?: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -447,7 +447,7 @@ export default function EmployeesPage() {
                         <RoleBadge emp={emp} onChanged={load} isSuperAdmin={user?.role === "SUPER_ADMIN"} />
                       </td>
                       <td style={{ ...td, textAlign: "right" }} onClick={e => e.stopPropagation()}>
-                        <RowMenu emp={emp}
+                        <RowMenu
                           onView={() => router.push(`/admin/people/employees/${emp.id}`)}
                           onReset={() => setResetTarget(emp)}
                           onDelete={canDeleteEmployee ? () => setDeleteTarget(emp) : undefined}

@@ -45,8 +45,6 @@ export default function PublicHolidaysSettingsPage() {
     load()
   }
 
-  const year = new Date().getFullYear()
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <div style={{ border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden", background: "var(--card)" }}>

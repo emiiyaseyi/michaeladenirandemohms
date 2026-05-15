@@ -15,7 +15,7 @@ const td: React.CSSProperties = {
 
 const PAGE_SIZES = [15, 20, 50]
 
-function RowMenu({ title, onEdit, onDelete, canManage }: { title: any; onEdit: () => void; onDelete: () => void; canManage: boolean }) {
+function RowMenu({ onEdit, onDelete, canManage }: { onEdit: () => void; onDelete: () => void; canManage: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -190,7 +190,7 @@ export default function JobTitlesPage() {
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
                   <td style={td}><span style={{ fontWeight: 600 }}>{t.name}</span></td>
                   <td style={{ ...td, textAlign: "right" }}>
-                    <RowMenu title={t} canManage={canManage}
+                    <RowMenu canManage={canManage}
                       onEdit={() => { setEditTarget(t); setModalOpen(true) }}
                       onDelete={() => setDelTarget(t)} />
                   </td>

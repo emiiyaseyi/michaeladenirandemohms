@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 

@@ -7,7 +7,7 @@ const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "im
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 
 export async function POST(req: NextRequest) {
-  const { user, error } = await requireAuth()
+  const { error } = await requireAuth()
   if (error) return error
 
   const formData = await req.formData()

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
-import { format, startOfWeek, endOfWeek } from "date-fns"
+import { format } from "date-fns"
 import { sendEmail } from "@/lib/email"
 import { generateInternReportXlsx } from "@/lib/intern-report-xlsx"
 
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
 
   if (weekParam) {
     const d = new Date(weekParam)
-    const { weekStart, weekEnd } = getWeekBounds(d)
+    const { weekStart } = getWeekBounds(d)
     where.weekStart = weekStart
   }
 

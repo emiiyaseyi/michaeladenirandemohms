@@ -3,7 +3,7 @@ import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps } from "@/lib/api-auth"
 
 const VALID_TYPES = ["SSCE", "FIRST_DEGREE", "NYSC", "PROFESSIONAL_CERT", "UTILITY_BILL", "NIN_SLIP", "OTHER"]
 

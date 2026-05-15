@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
 
 // Relief assignments are now info-only — no accept/decline
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!user.employeeId) return NextResponse.json({ error: "No employee profile" }, { status: 403 })

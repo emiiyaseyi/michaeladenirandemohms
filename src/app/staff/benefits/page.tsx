@@ -35,13 +35,11 @@ export default function StaffBenefitsPage() {
     </div>
   )
 
-  const active = enrollments.filter(e => e.benefit.status === "ACTIVE")
-
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>Benefits</h1>
-        <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>Your enrolled payroll deductions and company contributions.</p>
+        <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>Your enrolled benefits and company contributions.</p>
       </div>
 
       {enrollments.length === 0 ? (

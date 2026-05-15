@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { ClipboardList, ChevronLeft, ChevronRight, Download, AlertCircle } from "lucide-react"
+import { ClipboardList, ChevronLeft, ChevronRight, Download } from "lucide-react"
 import { format } from "date-fns"
 
 const ATTENDANCE_CRITERIA: [number, string][] = [
@@ -26,7 +26,6 @@ const CATEGORIES = [
 ]
 
 const DAYS_LIST = ["monday","tuesday","wednesday","thursday","friday"] as const
-type DayKey = typeof DAYS_LIST[number]
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { label: string; bg: string; color: string }> = {
@@ -54,13 +53,6 @@ function RatingSelector({ value, onChange, disabled }: { value: number | null; o
       ))}
     </div>
   )
-}
-
-function getMonday(date: Date): Date {
-  const d = new Date(date); d.setHours(0,0,0,0)
-  const day = d.getDay(); const diff = day === 0 ? -6 : 1 - day
-  d.setDate(d.getDate() + diff)
-  return d
 }
 
 function firstMondayOfMonth(year: number, month: number): Date {
