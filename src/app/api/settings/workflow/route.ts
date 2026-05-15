@@ -28,6 +28,10 @@ const DEFAULT_WORKFLOW = {
 }
 
 export async function GET() {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canManageSettings) return forbidden()
+
   // Try both the new key and old key for backwards compat
   let setting = await prisma.systemSetting.findUnique({ where: { key: KEY } })
   if (!setting) {

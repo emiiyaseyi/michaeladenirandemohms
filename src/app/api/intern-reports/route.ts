@@ -38,8 +38,17 @@ export async function GET(req: NextRequest) {
   let where: any = {}
 
   if (user.role === "STAFF" && !user.permissions?.["canViewInternReports"]) {
-    // Interns (without elevated permission) see only their own reports
-    where = { employeeId: user.employeeId }
+    const asReviewer = url.searchParams.get("asReviewer") === "1"
+    if (asReviewer) {
+      // Return reports this staff member has been assigned to review (not their own)
+      where = {
+        reviewers: { some: { reviewerEmployeeId: user.employeeId } },
+        NOT: { employeeId: user.employeeId },
+      }
+    } else {
+      // Interns (without elevated permission) see only their own reports
+      where = { employeeId: user.employeeId }
+    }
   } else if (user.role === "PROJECT_LEAD" && !user.permissions?.["canViewInternReports"]) {
     // Project leads see reports of interns who report to them
     const team = await prisma.employee.findMany({
@@ -264,7 +273,7 @@ export async function POST(req: NextRequest) {
         title: "Intern Report: Review Requested",
         message: `${internName} has asked you to review their weekly report for ${format(ws, "MMM d")} – ${format(we, "MMM d, yyyy")}.`,
         type: "INFO",
-        link: "/project-lead/intern-reports",
+        link: "/staff/intern-reports",
       },
     }).catch(() => {})
     sendEmail({

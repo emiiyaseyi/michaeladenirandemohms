@@ -42,7 +42,8 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── STAFF items after spacer ─────────────────────────────────────────────────
   { label: "People",        href: "/people",        icon: "Users",         roles: ["STAFF"] },
-  { label: "Weekly Report", href: "/intern-report", icon: "ClipboardList", roles: ["STAFF"], requiresIntern: true },
+  { label: "Weekly Report", href: "/intern-report",  icon: "ClipboardList", roles: ["STAFF"], requiresIntern: true },
+  { label: "Intern Reviews", href: "/intern-reports", icon: "ClipboardCheck", roles: ["STAFF"] },
 
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {

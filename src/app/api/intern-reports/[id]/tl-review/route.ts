@@ -8,8 +8,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const canReview = user.role === "PROJECT_LEAD" || !!user.permissions["canReviewInternReports"]
-  if (!canReview) return forbidden("Only Project Leads can fill feedback on reports")
+  const canReview = user.role === "PROJECT_LEAD" || user.role === "STAFF" || !!user.permissions["canReviewInternReports"]
+  if (!canReview) return forbidden("Only assigned reviewers can fill feedback on reports")
 
   const { id } = await params
   const report = await prisma.internWeeklyReport.findUnique({
