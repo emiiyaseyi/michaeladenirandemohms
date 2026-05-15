@@ -143,6 +143,7 @@ async function main() {
         canViewAssets: true, canCreateAsset: true, canEditAsset: true, canDeleteAsset: true, canManageAssetAssignments: true,
         canViewContractors: true, canManageContractors: true,
         canViewRentDocuments: true, canManageRentDocuments: true,
+        canViewInternReports: true, canReviewInternReports: true, canFillAttendance: true,
         canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
         canViewAuditLog: true,
         canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true, canManageCustomization: true,
@@ -167,6 +168,7 @@ async function main() {
         canViewDisciplinary: true, canManageViolations: true, canManagePolicies: true, canManageViolationTypes: true, canManageTriggers: true, canViewSuspensions: true, canManageSuspensions: true,
         canViewAnnouncements: true, canCreateAnnouncement: true, canEditAnnouncement: true, canDeleteAnnouncement: true, canManageAnnouncementGroups: true,
         canViewContractors: true, canManageContractors: true,
+        canViewInternReports: true, canReviewInternReports: true, canFillAttendance: true,
         canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
         canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true,
       },
@@ -235,7 +237,7 @@ async function main() {
   for (const r of SYSTEM_ROLES) {
     await prisma.adminRole.upsert({
       where:  { slug: r.slug },
-      update: { name: r.name, description: r.description },
+      update: { name: r.name, description: r.description, permissions: r.permissions },
       create: { slug: r.slug, name: r.name, description: r.description, isSystem: true, permissions: r.permissions },
     })
   }

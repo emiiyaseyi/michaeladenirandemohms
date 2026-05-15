@@ -218,6 +218,7 @@ export interface RoleCapabilities {
   canManageSettings: boolean
   canViewAnalytics: boolean
   canViewTeamAnalytics: boolean
+  canReviewInternReports: boolean
   isReadOnly: boolean
 }
 
@@ -234,6 +235,7 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
     canManageOffboarding: true,
     canManageSettings: true,
     canViewAnalytics: true,     canViewTeamAnalytics: true,
+    canReviewInternReports: true,
     isReadOnly: false,
   },
   PROJECT_LEAD: {
@@ -248,6 +250,7 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
     canManageOffboarding: false,
     canManageSettings: false,
     canViewAnalytics: false,    canViewTeamAnalytics: true,
+    canReviewInternReports: true,
     isReadOnly: false,
   },
   STAFF: {
@@ -262,6 +265,7 @@ export const ROLE_CAPABILITIES: Record<SystemRole, RoleCapabilities> = {
     canManageOffboarding: false,
     canManageSettings: false,
     canViewAnalytics: false,    canViewTeamAnalytics: false,
+    canReviewInternReports: false,
     isReadOnly: false,
   },
 }
