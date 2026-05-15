@@ -165,11 +165,9 @@ export default function RecordViolationPage() {
     if (!validate()) return
     setSaving(true); setApiErr("")
 
-    // Use a placeholder recordedById — in a real app this would be the current user's employee ID
-    // Fetching current session employee id
-    const meRes = await fetch("/api/auth/me").catch(() => null)
+    const meRes = await fetch("/api/self-service/profile").catch(() => null)
     const me = meRes?.ok ? await meRes.json() : null
-    const recordedById = me?.employeeId ?? employeeId
+    const recordedById = me?.profile?.id ?? employeeId
 
     const fd = new FormData()
     fd.append("employeeId", employeeId)

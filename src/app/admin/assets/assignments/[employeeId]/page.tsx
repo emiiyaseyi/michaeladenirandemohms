@@ -90,18 +90,6 @@ export default function EmployeeAssetsPage() {
     setSelected(next)
   }
 
-  const doRelease = async (assignmentId: string) => {
-    setConfirming(true)
-    await fetch(`/api/assets/_/assignments/${assignmentId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "release" }),
-    })
-    setConfirming(false)
-    setReleaseTarget(null)
-    load()
-  }
-
   // release single — find asset id from assignment
   const releaseAssignment = async (assignment: any) => {
     setConfirming(true)

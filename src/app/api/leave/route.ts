@@ -80,10 +80,14 @@ export async function GET(req: NextRequest) {
   const canApprove = !!user.permissions["canApproveLeave"]
   const isPL = user.role === "PROJECT_LEAD"
   const status = req.nextUrl.searchParams.get("status") ?? ""
+  const filterEmployeeId = req.nextUrl.searchParams.get("employeeId") ?? ""
 
   let scopeFilter: any = {}
   if (canViewAll) {
-    scopeFilter = status ? { status: status as any } : {}
+    scopeFilter = {
+      ...(status ? { status: status as any } : {}),
+      ...(filterEmployeeId ? { employeeId: filterEmployeeId } : {}),
+    }
   } else if (isPL && user.id) {
     // PROJECT_LEAD sees own requests + requests they are designated to approve
     const myApprovals = await prisma.leaveApproval.findMany({

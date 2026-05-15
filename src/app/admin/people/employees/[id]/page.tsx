@@ -198,13 +198,6 @@ function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any
         <InfoRow label="Title" value={emp.jobTitle} />
       </InfoCard>
 
-      <InfoCard icon={<FileText size={16} color="#d97706" />} iconBg="#FEF3C7" title="Payslips">
-        <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No payslips available</p>
-        <button style={{ marginTop: 4, padding: "6px 14px", background: "var(--primary)", border: "none", borderRadius: 7, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
-          View Payslip
-        </button>
-      </InfoCard>
-
       <InfoCard icon={<User size={16} color="#6b7280" />} iconBg="#F3F4F6" title="Employment Status"
         onEdit={() => openModal("empstatus", { employmentType: emp.employmentType ?? "FULL_TIME", onProbation: emp.onProbation ?? false, probationEndDate: isoDate(emp.probationEndDate) })}>
         <InfoRow label="Status" value={emp.employmentType ? EMP_TYPE_LABEL[emp.employmentType] : null} />
@@ -360,7 +353,6 @@ function TabPersonal({ emp, openModal, onUpload, uploadedDocs }: {
 
 const REQUEST_TYPES = [
   { key: "leave", label: "Leave" },
-  { key: "exits", label: "Exits" },
   { key: "documents", label: "Documents" },
 ]
 
@@ -374,15 +366,11 @@ function TabRequest({ emp }: { emp: any }) {
     if (!emp?.id) return
     setLoading(true); setRows([])
     const urls: Record<string, string> = {
-      leave: `/api/leave/requests?employeeId=${emp.id}&limit=50`,
-      exits: `/api/requests/exits?employeeId=${emp.id}`,
+      leave: `/api/leave?employeeId=${emp.id}`,
       documents: `/api/requests/documents?employeeId=${emp.id}`,
     }
-    const keys: Record<string, string> = {
-      leave: "requests", exits: "requests", documents: "requests",
-    }
     fetch(urls[activeType]).then(r => r.json())
-      .then(d => { setRows(d[keys[activeType]] ?? d.leaveRequests ?? []); setLoading(false) })
+      .then(d => { setRows(d.requests ?? []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [activeType, emp?.id])
 
@@ -401,7 +389,6 @@ function TabRequest({ emp }: { emp: any }) {
 
   const recordRoutes: Record<string, string> = {
     leave: "/admin/requests/leave/record",
-    exits: "/admin/requests/exits/record",
     documents: "/admin/requests/documents",
   }
 
@@ -422,12 +409,6 @@ function TabRequest({ emp }: { emp: any }) {
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span style={{ fontSize: 15, fontWeight: 700 }}>{activeLabel}</span>
           <div style={{ display: "flex", gap: 10 }}>
-            {activeType === "leave" && (
-              <button onClick={() => router.push(`/admin/people/employees/${emp.id}/leave-balances`)}
-                style={{ padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-                Leave Balances
-              </button>
-            )}
             <button onClick={() => router.push(recordRoutes[activeType])}
               style={{ padding: "7px 14px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
               Record Request
@@ -453,7 +434,7 @@ function TabRequest({ emp }: { emp: any }) {
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Days</th>
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Status</th>
                   </>}
-                  {(activeType === "exits" || activeType === "documents") && <>
+                  {activeType === "documents" && <>
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Details</th>
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Date</th>
                     <th style={{ padding: "10px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>Status</th>
@@ -469,10 +450,8 @@ function TabRequest({ emp }: { emp: any }) {
                       <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>{row.days} day(s)</td>
                       <td style={{ padding: "12px 16px" }}>{statusBadge(row.status)}</td>
                     </>}
-                    {(activeType === "exits" || activeType === "documents") && <>
-                      <td style={{ padding: "12px 16px", fontSize: 13 }}>
-                        {activeType === "exits" ? row.exitType : row.documentType}
-                      </td>
+                    {activeType === "documents" && <>
+                      <td style={{ padding: "12px 16px", fontSize: 13 }}>{row.documentType}</td>
                       <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>{fmtDate(row.createdAt)}</td>
                       <td style={{ padding: "12px 16px" }}>{statusBadge(row.status)}</td>
                     </>}

@@ -389,7 +389,7 @@ function AddBenefitDrawer({ onClose, onSaved }: { onClose: () => void; onSaved: 
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                   <span style={{ color: "var(--accent)" }}>*</span> Benefit name
-                  <span title="This name will be shown on the payslip" style={{ color: "var(--muted-foreground)", cursor: "help", display: "flex" }}><Info size={13} /></span>
+                  <span title="Display name for this benefit" style={{ color: "var(--muted-foreground)", cursor: "help", display: "flex" }}><Info size={13} /></span>
                 </label>
                 <input value={name} onChange={e => setName(e.target.value)} style={fi} placeholder="e.g., Health Insurance" />
               </div>
@@ -615,8 +615,8 @@ export default function BenefitsPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800 }}>Payroll Deductions</h1>
-        <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>Manage employee benefits and payroll deductions.</p>
+        <h1 style={{ fontSize: 22, fontWeight: 800 }}>Employee Benefits</h1>
+        <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 4 }}>Manage benefit plans and employee enrolments.</p>
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>

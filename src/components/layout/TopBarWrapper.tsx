@@ -33,8 +33,6 @@ const SECTION_TITLES: Record<string, string> = {
   "self-service":              "Self Service",
   "self-service/profile":      "My Profile",
   "self-service/leave":        "My Leave",
-  "self-service/requisitions": "My Requisitions",
-  "self-service/grievance":    "Grievance",
   "self-service/surveys":      "Surveys",
   "performance/groups":        "Performance Groups",
   "performance/conversations": "Conversations",

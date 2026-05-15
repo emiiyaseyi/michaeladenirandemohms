@@ -11,7 +11,7 @@ const FAQS = [
   { cat: "Profile", q: "How do I update my profile?", a: "Go to Self Service → My Profile or Dashboard → Edit Profile. You can update personal info, contact, address, and next of kin." },
   { cat: "Profile", q: "Why can't I change my name or role?", a: "Name, employee ID, job title, and system role are managed by HR and can only be updated by an Admin or HR Admin." },
   { cat: "Profile", q: "How is profile completeness calculated?", a: "Profile completeness is based on required fields: personal info, contact, address, and next of kin." },
-  { cat: "General", q: "How do I contact HR?", a: "You can raise a Grievance via Self Service → Grievance, or send an email directly to hr@datasciencenigeria.ai." },
+  { cat: "General", q: "How do I contact HR?", a: "Send an email directly to hr@datasciencenigeria.ai." },
   { cat: "General", q: "How do I get my login credentials?", a: "Your login credentials are issued by HR when your account is created. Contact hr@datasciencenigeria.ai if you have not received them or need a reset." },
 ]
 

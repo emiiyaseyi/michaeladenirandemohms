@@ -5,7 +5,6 @@ import { Info, ArrowRight, Loader2, Check, X, ChevronDown } from "lucide-react"
 const AVAILABLE_ROLES = [
   "Project Lead",
   "HR Admin",
-  "Payroll Admin",
   "Primary Admin",
   "Secondary Admin",
 ]
@@ -17,16 +16,6 @@ const DEFAULT_SECTIONS = [
     categories: [
       { id: "people", name: "People", description: "Approval workflow for HR-related employee requests e.g document requests", chain: [] as string[] },
       { id: "time_leave", name: "Time Tracking and Leave", description: "Approval workflow for employee hours and leave requests", chain: ["Project Lead", "HR Admin"] },
-    ],
-  },
-  {
-    id: "payroll",
-    name: "Payroll",
-    categories: [
-      { id: "payrolls_regular", name: "Payrolls and Regular Payment Schedules", description: "Approval workflow for regular and custom payroll", chain: ["Payroll Admin", "Primary Admin", "Secondary Admin"] },
-      { id: "expense_claims", name: "Expense Claims", description: "Approval workflow for employee expense claims", chain: ["Payroll Admin", "Primary Admin", "Secondary Admin"] },
-      { id: "payroll_changes", name: "Payroll Changes", description: "Approval workflow for payroll changes e.g bonuses, deductions and payables", chain: ["Payroll Admin", "Primary Admin", "Secondary Admin"] },
-      { id: "custom_payment", name: "Custom Payment Schedules", description: "Approval workflow for custom payment schedules", chain: [] as string[] },
     ],
   },
 ]
