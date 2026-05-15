@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
+  const perm = requirePermission(user, "canCreateSurvey")
+  if (perm) return perm
 
   const { searchParams } = new URL(req.url)
   const type = searchParams.get("type")

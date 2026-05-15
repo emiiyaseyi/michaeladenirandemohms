@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET() {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canManageConversations")
+  if (perm) return perm
+
   try {
     const setups = await prisma.conversationSetup.findMany({
       include: {
@@ -17,6 +23,11 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+  const { user: u2, error: e2 } = await requireAuth()
+  if (e2) return e2
+  const p2 = requirePermission(u2, "canManageConversations")
+  if (p2) return p2
+
   try {
     const body = await req.json()
     const { employeeId, conversationWith, scheduledDate, startTime, endTime, frequency, conversationType } = body
