@@ -267,7 +267,7 @@ export default function RecordViolationPage() {
               <span style={hint} title="The date the incident occurred">?</span>
             </label>
             <div style={{ position: "relative", maxWidth: 340 }}>
-              <input type="date" value={incidentDate} onChange={e => { setIncidentDate(e.target.value); setErrors(p => ({ ...p, incidentDate: "" })) }}
+              <input type="date" value={incidentDate} max={new Date().toISOString().split("T")[0]} onChange={e => { setIncidentDate(e.target.value); setErrors(p => ({ ...p, incidentDate: "" })) }}
                 style={{ ...inp(errors.incidentDate), paddingRight: 40 }} />
             </div>
             {errors.incidentDate && <div style={errMsg}>{errors.incidentDate}</div>}

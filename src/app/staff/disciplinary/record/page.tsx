@@ -186,6 +186,7 @@ export default function RecordViolationPage({ basePath = "/staff" }: { basePath?
               <input
                 type="date"
                 value={incidentDate}
+                max={new Date().toISOString().split("T")[0]}
                 onChange={e => setIncidentDate(e.target.value)}
                 style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, outline: "none", background: "var(--card)", color: "var(--foreground)", boxSizing: "border-box" }}
               />

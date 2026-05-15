@@ -63,6 +63,15 @@ export async function GET(req: NextRequest) {
     where.weekStart = weekStart
   }
 
+  const fromParam = url.searchParams.get("from")
+  const toParam   = url.searchParams.get("to")
+  if (!weekParam && fromParam) {
+    where.weekStart = {
+      gte: new Date(fromParam),
+      ...(toParam ? { lte: new Date(toParam) } : {}),
+    }
+  }
+
   const reports = await prisma.internWeeklyReport.findMany({
     where,
     include: {
@@ -99,20 +108,29 @@ export async function POST(req: NextRequest) {
   const isIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern")
   if (!isIntern) return forbidden("Only interns can submit weekly reports")
 
-  // Check it's Friday in WAT
+  // Load configurable submission window
+  const cfg = await prisma.internReportSettings.findUnique({ where: { id: "singleton" } })
+  const submissionDay = cfg?.submissionDay ?? 5
+  const openHour     = cfg?.openHour     ?? 16
+  const lateHour     = cfg?.lateHour     ?? 20
+  const closeHour    = cfg?.closeHour    ?? 24
+  const lateDeduction = cfg?.lateDeduction ?? 2
+
   const nowWAT = toWAT(new Date())
-  const dayWAT = nowWAT.getDay() // 5 = Friday
-  if (dayWAT !== 5) {
-    return NextResponse.json({ error: "Reports can only be submitted on Fridays." }, { status: 400 })
+  const dayWAT = nowWAT.getDay()
+  if (dayWAT !== submissionDay) {
+    return NextResponse.json({ error: `Reports can only be submitted on ${["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][submissionDay]}s.` }, { status: 400 })
   }
 
-  // Check submission time window (4pm–midnight WAT)
   const hoursWAT = nowWAT.getHours()
-  if (hoursWAT < 16) {
-    return NextResponse.json({ error: "Submission opens at 4:00 PM WAT every Friday." }, { status: 400 })
+  if (hoursWAT < openHour) {
+    return NextResponse.json({ error: `Submission opens at ${openHour}:00 WAT.` }, { status: 400 })
+  }
+  if (closeHour < 24 && hoursWAT >= closeHour) {
+    return NextResponse.json({ error: `Submission window has closed.` }, { status: 400 })
   }
 
-  const lateFlag = hoursWAT >= 20 // after 8pm WAT
+  const lateFlag = hoursWAT >= lateHour
 
   const { weekStart: ws, weekEnd: we } = getWeekBounds(new Date())
 
@@ -131,6 +149,7 @@ export async function POST(req: NextRequest) {
     operationalHours = 0, researchHours = 0, meetingsHours = 0,
     communityHours = 0, representationHours = 0, selfDevHours = 0,
     personalReflection = "",
+    taskDescriptions = {},
     extraReviewerIds = [] as string[],
   } = body
 
@@ -147,16 +166,18 @@ export async function POST(req: NextRequest) {
       mainProjectHours, consultingHours, specialProjectHours, trainingHours,
       newBusinessHours, reportingDocHours, operationalHours, researchHours,
       meetingsHours, communityHours, representationHours, selfDevHours,
-      totalHours, personalReflection,
+      totalHours, personalReflection, taskDescriptions,
       submittedAt: new Date(), lateFlag,
+      pointDeduction: lateFlag ? lateDeduction : 0,
       status: lateFlag ? "LATE" : "SUBMITTED",
     },
     update: {
       mainProjectHours, consultingHours, specialProjectHours, trainingHours,
       newBusinessHours, reportingDocHours, operationalHours, researchHours,
       meetingsHours, communityHours, representationHours, selfDevHours,
-      totalHours, personalReflection,
+      totalHours, personalReflection, taskDescriptions,
       submittedAt: new Date(), lateFlag,
+      pointDeduction: lateFlag ? lateDeduction : 0,
       status: lateFlag ? "LATE" : "SUBMITTED",
     },
   })

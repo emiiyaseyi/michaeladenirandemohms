@@ -179,6 +179,38 @@ export async function POST(req: NextRequest) {
       headers = ["Employee ID", "Employee Name", "Department", "Leave Type", "From", "To", "Days Absent"]
       rows = leaves.map(r => [(r.employee as any)?.employeeId ?? "", `${(r.employee as any)?.firstName ?? ""} ${(r.employee as any)?.lastName ?? ""}`.trim(), (r.employee as any)?.department?.name ?? "", (r.leaveType as any)?.name ?? "", format(r.startDate, "yyyy-MM-dd"), format(r.endDate, "yyyy-MM-dd"), r.days])
 
+    } else if (category === "intern") {
+      const reports = await prisma.internWeeklyReport.findMany({
+        where: {
+          ...(dateFilter.gte || dateFilter.lte ? { weekStart: dateFilter } : {}),
+        },
+        include: {
+          employee: { select: { firstName: true, lastName: true, jobTitle: true, department: { select: { name: true } } } },
+        },
+        orderBy: { weekStart: "desc" },
+      })
+
+      title = reportType === "Monthly Summary" ? "Intern Monthly Report"
+            : reportType === "Yearly Summary" ? "Intern Yearly Report"
+            : "Intern Weekly Report"
+      filename = title.toLowerCase().replace(/ /g, "_")
+      headers = ["Intern", "Department", "Week", "Total Hours", "Status", "Late", "TL Score", "Attendance", "Deduction", "Total Score"]
+      rows = reports.map(r => {
+        const tlScore = (r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)
+        const totalScore = Math.max(0, tlScore + (r.attendanceRating ?? 0) - (r.pointDeduction ?? 0))
+        return [
+          `${(r.employee as any).firstName} ${(r.employee as any).lastName}`,
+          (r.employee as any).department?.name ?? "",
+          `${format(new Date(r.weekStart), "MMM d")} – ${format(new Date(r.weekEnd), "MMM d, yyyy")}`,
+          (r.totalHours ?? 0).toFixed(1),
+          r.status,
+          r.lateFlag ? "Yes" : "No",
+          r.productivityRating !== null ? String(tlScore) : "",
+          r.attendanceRating !== null ? String(r.attendanceRating) : "",
+          String(r.pointDeduction ?? 0),
+          r.productivityRating !== null && r.attendanceRating !== null ? String(totalScore) : "",
+        ]
+      })
     } else {
       title = "Custom Report"; filename = "custom_report"
       const where: any = {}

@@ -8,6 +8,7 @@ const TABS = [
   { label: "Public Holidays",    href: "/admin/settings/public-holidays" },
   { label: "Approval Workflows", href: "/admin/settings/approval-workflows" },
   { label: "Customization",      href: "/admin/settings/customization" },
+  { label: "Intern Reports",     href: "/admin/settings/intern-reports" },
 ]
 
 export default function SettingsNav() {

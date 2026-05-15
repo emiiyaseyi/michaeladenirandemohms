@@ -1,37 +1,39 @@
 import * as XLSX from "xlsx"
 import { format } from "date-fns"
 
-const HOUR_ROWS = [
-  { key: "mainProjectHours",    label: "Main Project" },
-  { key: "consultingHours",     label: "Consulting" },
-  { key: "specialProjectHours", label: "Special Project" },
-  { key: "trainingHours",       label: "Training" },
-  { key: "newBusinessHours",    label: "New Business" },
-  { key: "reportingDocHours",   label: "Reporting / Documentation" },
-  { key: "operationalHours",    label: "Operational Support" },
-  { key: "researchHours",       label: "Research" },
-  { key: "meetingsHours",       label: "Meetings" },
-  { key: "communityHours",      label: "Community" },
-  { key: "representationHours", label: "Representation" },
-  { key: "selfDevHours",        label: "Self Development" },
+const CATEGORIES = [
+  { key: "mainProject",    hoursKey: "mainProjectHours",    label: "Main Project" },
+  { key: "consulting",     hoursKey: "consultingHours",     label: "Consulting" },
+  { key: "specialProject", hoursKey: "specialProjectHours", label: "Special Project" },
+  { key: "training",       hoursKey: "trainingHours",       label: "Training" },
+  { key: "newBusiness",    hoursKey: "newBusinessHours",    label: "New Business" },
+  { key: "reportingDoc",   hoursKey: "reportingDocHours",   label: "Reporting / Documentation" },
+  { key: "operational",    hoursKey: "operationalHours",    label: "Operational Support" },
+  { key: "research",       hoursKey: "researchHours",       label: "Research" },
+  { key: "meetings",       hoursKey: "meetingsHours",       label: "Meetings" },
+  { key: "community",      hoursKey: "communityHours",      label: "Community" },
+  { key: "representation", hoursKey: "representationHours", label: "Representation" },
+  { key: "selfDev",        hoursKey: "selfDevHours",        label: "Self Development" },
 ]
 
 export function generateInternReportXlsx(report: {
   weekStart: Date; weekEnd: Date;
   employee: { firstName: string; lastName: string; jobTitle?: string | null; department?: { name: string } | null };
   totalHours: number; lateFlag: boolean; status: string; personalReflection?: string | null;
+  taskDescriptions?: Record<string, string> | null;
   [key: string]: any
 }): Buffer {
   const wb = XLSX.utils.book_new()
+  const descs: Record<string, string> = (report.taskDescriptions as any) ?? {}
 
   // Sheet 1: Hours Breakdown
   const hoursData = [
-    ["Category", "Hours"],
-    ...HOUR_ROWS.map(r => [r.label, +(report[r.key] ?? 0)]),
-    ["TOTAL", report.totalHours ?? 0],
+    ["Category", "Tasks Done This Week", "Hours"],
+    ...CATEGORIES.map(r => [r.label, descs[r.key] || "", +(report[r.hoursKey] ?? 0)]),
+    ["TOTAL", "", report.totalHours ?? 0],
   ]
   const ws1 = XLSX.utils.aoa_to_sheet(hoursData)
-  ws1["!cols"] = [{ wch: 30 }, { wch: 10 }]
+  ws1["!cols"] = [{ wch: 30 }, { wch: 50 }, { wch: 10 }]
   XLSX.utils.book_append_sheet(wb, ws1, "Hours Breakdown")
 
   // Sheet 2: Details

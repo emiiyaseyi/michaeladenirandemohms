@@ -5,6 +5,7 @@ import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
 import RecentEmployeesPanel from "@/components/shared/RecentEmployeesPanel"
 import PendingLeavePanel from "@/components/shared/PendingLeavePanel"
 import CelebrationsCard from "@/components/shared/CelebrationsCard"
+import AnnouncementsCard from "@/components/shared/AnnouncementsCard"
 import DeptOrgLeaveCard from "@/components/shared/DeptOrgLeaveCard"
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
@@ -332,6 +333,7 @@ export default async function ProjectLeadDashboard() {
         <RecentEmployeesPanel employees={teamMembers} viewAllHref="/project-lead/people" />
         <PendingLeavePanel leaveRequests={pendingLeaveRequests} viewAllHref="/project-lead/requests/leave" />
         <CelebrationsCard />
+        <AnnouncementsCard />
       </div>
     </div>
   )

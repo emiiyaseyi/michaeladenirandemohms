@@ -1,22 +1,22 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useSession } from "next-auth/react"
-import { ClipboardList, ChevronLeft, ChevronRight, Star, Send } from "lucide-react"
-import { format, startOfWeek, addDays, subDays } from "date-fns"
+import { ClipboardList, ChevronLeft, ChevronRight, Send } from "lucide-react"
+import { format } from "date-fns"
 
-const HOUR_ROWS = [
-  { key: "mainProjectHours", label: "Main Project" },
-  { key: "consultingHours", label: "Consulting" },
-  { key: "specialProjectHours", label: "Special Project" },
-  { key: "trainingHours", label: "Training" },
-  { key: "newBusinessHours", label: "New Business" },
-  { key: "reportingDocHours", label: "Reporting / Documentation" },
-  { key: "operationalHours", label: "Operational Support" },
-  { key: "researchHours", label: "Research" },
-  { key: "meetingsHours", label: "Meetings" },
-  { key: "communityHours", label: "Community" },
-  { key: "representationHours", label: "Representation" },
-  { key: "selfDevHours", label: "Self Development" },
+const CATEGORIES = [
+  { key: "mainProject",    hoursKey: "mainProjectHours",    label: "Main Project" },
+  { key: "consulting",     hoursKey: "consultingHours",     label: "Consulting" },
+  { key: "specialProject", hoursKey: "specialProjectHours", label: "Special Project" },
+  { key: "training",       hoursKey: "trainingHours",       label: "Training" },
+  { key: "newBusiness",    hoursKey: "newBusinessHours",    label: "New Business" },
+  { key: "reportingDoc",   hoursKey: "reportingDocHours",   label: "Reporting / Documentation" },
+  { key: "operational",    hoursKey: "operationalHours",    label: "Operational Support" },
+  { key: "research",       hoursKey: "researchHours",       label: "Research" },
+  { key: "meetings",       hoursKey: "meetingsHours",       label: "Meetings" },
+  { key: "community",      hoursKey: "communityHours",      label: "Community" },
+  { key: "representation", hoursKey: "representationHours", label: "Representation" },
+  { key: "selfDev",        hoursKey: "selfDevHours",        label: "Self Development" },
 ]
 
 const RATING_CRITERIA: Record<string, { label: string; criteria: [number, string][] }> = {
@@ -77,13 +77,28 @@ function RatingSelector({ value, onChange, disabled }: { value: number | null; o
   )
 }
 
+function firstMondayOfMonth(year: number, month: number): Date {
+  const d = new Date(year, month, 1)
+  const day = d.getDay()
+  const diff = day === 0 ? 1 : day === 1 ? 0 : 8 - day
+  d.setDate(d.getDate() + diff)
+  return d
+}
+
+function lastDayOfMonth(year: number, month: number): Date {
+  return new Date(year, month + 1, 0)
+}
+
 export default function PLInternReportsPage() {
   const { data: session } = useSession()
   const currentEmployeeId = (session?.user as any)?.employeeId ?? ""
 
   const [reports, setReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [mode, setMode] = useState<"week" | "month" | "year">("week")
   const [weekOffset, setWeekOffset] = useState(0)
+  const [monthOffset, setMonthOffset] = useState(0)
+  const [yearOffset, setYearOffset] = useState(0)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [viewingId, setViewingId] = useState<string | null>(null)
   const [feedback, setFeedback] = useState({ productivityRating: null as number | null, ldRating: null as number | null, reflectionsRating: null as number | null, tlComment: "" })
@@ -91,6 +106,8 @@ export default function PLInternReportsPage() {
   const [saveErr, setSaveErr] = useState("")
 
   const now = new Date()
+
+  // Week mode
   const currentMonday = (() => {
     const d = new Date(now); d.setHours(0,0,0,0)
     const day = d.getDay(); const diff = day === 0 ? -6 : 1 - day
@@ -100,15 +117,46 @@ export default function PLInternReportsPage() {
   const currentFriday = new Date(currentMonday); currentFriday.setDate(currentMonday.getDate() + 4)
   const weekLabel = `${format(currentMonday, "MMM d")} – ${format(currentFriday, "MMM d, yyyy")}`
 
+  // Month mode
+  const targetMonthDate = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1)
+  const targetYear = targetMonthDate.getFullYear()
+  const targetMonth = targetMonthDate.getMonth()
+  const monthLabel = format(targetMonthDate, "MMMM yyyy")
+
+  // Year mode
+  const targetYearNum = now.getFullYear() - yearOffset
+  const yearLabel = String(targetYearNum)
+
+  const getPeriodLabel = () => {
+    if (mode === "week") return weekLabel
+    if (mode === "month") return monthLabel
+    return yearLabel
+  }
+
+  const buildFetchParams = (): URLSearchParams => {
+    if (mode === "week") {
+      return new URLSearchParams({ week: currentMonday.toISOString() })
+    }
+    if (mode === "month") {
+      const from = firstMondayOfMonth(targetYear, targetMonth)
+      const to = lastDayOfMonth(targetYear, targetMonth)
+      return new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
+    }
+    // year
+    const from = new Date(targetYearNum, 0, 1)
+    const to = new Date(targetYearNum, 11, 31)
+    return new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
+  }
+
   const loadReports = async () => {
     setLoading(true)
-    const params = new URLSearchParams({ week: currentMonday.toISOString() })
+    const params = buildFetchParams()
     const d = await fetch(`/api/intern-reports?${params}`).then(r => r.json())
     setReports(d.reports ?? [])
     setLoading(false)
   }
 
-  useEffect(() => { loadReports() }, [weekOffset])
+  useEffect(() => { loadReports() }, [mode, weekOffset, monthOffset, yearOffset])
 
   const openReview = (id: string) => {
     const r = reports.find(r => r.id === id)
@@ -149,15 +197,39 @@ export default function PLInternReportsPage() {
         <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Review and provide feedback on your interns' weekly reports.</p>
       </div>
 
-      {/* Week selector */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 20px", width: "fit-content" }}>
-        <button onClick={() => setWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
-          <ChevronLeft size={18} />
-        </button>
-        <span style={{ fontSize: 14, fontWeight: 700, minWidth: 200, textAlign: "center" }}>{weekLabel}</span>
-        <button onClick={() => setWeekOffset(o => Math.min(o + 1, 0))} disabled={weekOffset === 0} style={{ background: "none", border: "none", cursor: weekOffset === 0 ? "not-allowed" : "pointer", color: weekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}>
-          <ChevronRight size={18} />
-        </button>
+      {/* Mode selector + navigator */}
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+        {/* Mode buttons */}
+        <div style={{ display: "flex", background: "var(--muted)", borderRadius: 10, padding: 3, gap: 2 }}>
+          {(["week", "month", "year"] as const).map(m => (
+            <button key={m} onClick={() => setMode(m)}
+              style={{ padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: mode === m ? "var(--card)" : "transparent", color: mode === m ? "var(--foreground)" : "var(--muted-foreground)", boxShadow: mode === m ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+              {m.charAt(0).toUpperCase() + m.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        {/* Navigator */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 20px" }}>
+          <button onClick={() => {
+            if (mode === "week") setWeekOffset(o => o - 1)
+            else if (mode === "month") setMonthOffset(o => o + 1)
+            else setYearOffset(o => o + 1)
+          }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
+            <ChevronLeft size={18} />
+          </button>
+          <span style={{ fontSize: 14, fontWeight: 700, minWidth: 200, textAlign: "center" }}>{getPeriodLabel()}</span>
+          <button
+            onClick={() => {
+              if (mode === "week") setWeekOffset(o => Math.min(o + 1, 0))
+              else if (mode === "month") setMonthOffset(o => Math.max(o - 1, 0))
+              else setYearOffset(o => Math.max(o - 1, 0))
+            }}
+            disabled={(mode === "week" && weekOffset === 0) || (mode === "month" && monthOffset === 0) || (mode === "year" && yearOffset === 0)}
+            style={{ background: "none", border: "none", cursor: ((mode === "week" && weekOffset === 0) || (mode === "month" && monthOffset === 0) || (mode === "year" && yearOffset === 0)) ? "not-allowed" : "pointer", color: ((mode === "week" && weekOffset === 0) || (mode === "month" && monthOffset === 0) || (mode === "year" && yearOffset === 0)) ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}>
+            <ChevronRight size={18} />
+          </button>
+        </div>
       </div>
 
       {/* Reports Table */}
@@ -175,7 +247,7 @@ export default function PLInternReportsPage() {
               {loading ? (
                 <tr><td colSpan={9} style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)" }}>Loading…</td></tr>
               ) : reports.length === 0 ? (
-                <tr><td colSpan={9} style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)" }}>No reports for this week.</td></tr>
+                <tr><td colSpan={9} style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)" }}>No reports for this period.</td></tr>
               ) : reports.map(r => {
                 const tlScore = (r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)
                 const reviewers: any[] = r.reviewers ?? []
@@ -288,7 +360,7 @@ export default function PLInternReportsPage() {
       {/* View Report Modal */}
       {viewingReport && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setViewingId(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 540, width: "100%", maxHeight: "85vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 600, width: "100%", maxHeight: "85vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800 }}>{viewingReport.employee?.firstName} {viewingReport.employee?.lastName}</h3>
@@ -297,15 +369,27 @@ export default function PLInternReportsPage() {
               <button onClick={() => setViewingId(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted-foreground)" }}>×</button>
             </div>
             <div style={{ padding: "20px 24px" }}>
-              {HOUR_ROWS.map(row => (
-                <div key={row.key} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
-                  <span>{row.label}</span>
-                  <strong>{(viewingReport[row.key] ?? 0).toFixed(1)}h</strong>
+              {/* Header row */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: "0 16px", padding: "6px 0", borderBottom: "2px solid var(--border)", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <span>Category</span>
+                <span>Tasks Done This Week</span>
+                <span style={{ textAlign: "right" }}>Hours</span>
+              </div>
+              {CATEGORIES.filter(cat => {
+                const hours = viewingReport[cat.hoursKey] ?? 0
+                const desc = viewingReport.taskDescriptions?.[cat.key] || ""
+                return hours > 0 || desc
+              }).map(cat => (
+                <div key={cat.key} style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: "0 16px", padding: "8px 0", borderBottom: "1px solid var(--border)", fontSize: 13 }}>
+                  <span style={{ fontWeight: 500 }}>{cat.label}</span>
+                  <span style={{ color: "var(--muted-foreground)" }}>{viewingReport.taskDescriptions?.[cat.key] || "—"}</span>
+                  <strong style={{ textAlign: "right" }}>{(viewingReport[cat.hoursKey] ?? 0).toFixed(1)}h</strong>
                 </div>
               ))}
-              <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", fontWeight: 700, fontSize: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr auto", gap: "0 16px", padding: "10px 0", fontWeight: 700, fontSize: 14 }}>
                 <span>Total Hours</span>
-                <span style={{ color: "var(--primary)" }}>{(viewingReport.totalHours ?? 0).toFixed(1)}h</span>
+                <span></span>
+                <span style={{ color: "var(--primary)", textAlign: "right" }}>{(viewingReport.totalHours ?? 0).toFixed(1)}h</span>
               </div>
               {viewingReport.personalReflection && (
                 <div style={{ marginTop: 16 }}>

@@ -5,7 +5,7 @@ import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import {
   BarChart2, Users, CalendarDays, TrendingUp, DollarSign, Clock,
-  FileText, Download, Calendar, X, Loader2,
+  FileText, Download, Calendar, X, Loader2, ClipboardList,
 } from "lucide-react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -47,6 +47,7 @@ const CATEGORIES: ReportCategory[] = [
   { id: "performance", label: "Performance Reports", icon: TrendingUp, reports: ["KPI Summary", "Appraisals Report"] },
   { id: "payroll", label: "Payroll Reports", icon: DollarSign, reports: ["Payslips Summary", "Salary Analysis"] },
   { id: "attendance", label: "Attendance Reports", icon: Clock, reports: ["Daily Attendance", "Monthly Attendance", "Late Arrivals"] },
+  { id: "intern", label: "Intern Reports", icon: ClipboardList, reports: ["Weekly Summary", "Monthly Summary", "Yearly Summary"] },
   { id: "custom", label: "Custom Report", icon: FileText, reports: ["Build Your Own"] },
 ]
 
@@ -242,6 +243,9 @@ export default function ReportsPage() {
   const [schedTime, setSchedTime] = useState("08:00")
   const [schedRecipients, setSchedRecipients] = useState("")
 
+  const [internPeriod, setInternPeriod] = useState<"weekly" | "monthly" | "yearly">("weekly")
+  const [internDate, setInternDate] = useState("")
+
   useEffect(() => {
     fetch("/api/settings/departments").then(r => r.json()).then(d => setDepartments(d.departments ?? [])).catch(() => {})
     fetch("/api/employees?status=ALL&limit=500").then(r => r.json()).then(d => setEmployees(d.employees ?? [])).catch(() => {})
@@ -327,6 +331,65 @@ export default function ReportsPage() {
     }
   }
 
+  const handleInternGenerate = async () => {
+    if (!internDate) { showToast("Please select a date/period first", false); return }
+    let dateFrom = ""
+    let dateTo = ""
+    if (internPeriod === "weekly") {
+      // internDate format: "YYYY-Www"
+      const [yearStr, weekStr] = internDate.split("-W")
+      const year = parseInt(yearStr, 10)
+      const week = parseInt(weekStr, 10)
+      // Get Monday of that ISO week
+      const jan4 = new Date(year, 0, 4) // Jan 4 is always in week 1
+      const startOfWeek1 = new Date(jan4)
+      startOfWeek1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7))
+      const monday = new Date(startOfWeek1)
+      monday.setDate(startOfWeek1.getDate() + (week - 1) * 7)
+      const friday = new Date(monday)
+      friday.setDate(monday.getDate() + 4)
+      dateFrom = monday.toISOString().split("T")[0]
+      dateTo = friday.toISOString().split("T")[0]
+    } else if (internPeriod === "monthly") {
+      // internDate format: "YYYY-MM"
+      const [yearStr, monthStr] = internDate.split("-")
+      const year = parseInt(yearStr, 10)
+      const month = parseInt(monthStr, 10) - 1
+      const first = new Date(year, month, 1)
+      const last = new Date(year, month + 1, 0)
+      dateFrom = first.toISOString().split("T")[0]
+      dateTo = last.toISOString().split("T")[0]
+    } else {
+      // internDate is a year number string
+      const year = parseInt(internDate, 10)
+      dateFrom = `${year}-01-01`
+      dateTo = `${year}-12-31`
+    }
+    const reportType = internPeriod === "weekly" ? "Weekly Summary" : internPeriod === "monthly" ? "Monthly Summary" : "Yearly Summary"
+    const params = { category: "intern", reportType, dateFrom, dateTo, departmentId: "all", empType: "all", status: "all", employeeId: "all" }
+    setGenerating(true)
+    try {
+      const data = await fetchAndDownload(params, selectedFormat)
+      if (!data) return
+      const entry: HistoryEntry = {
+        id: crypto.randomUUID(),
+        name: `${data.title} — ${internDate}`,
+        date: new Date().toISOString().split("T")[0],
+        format: selectedFormat,
+        rowCount: data.rowCount,
+        params,
+      }
+      const newHistory = [entry, ...history]
+      setHistory(newHistory)
+      saveHistory(newHistory)
+      showToast(`${data.title} downloaded (${data.rowCount} rows)`, true)
+    } catch {
+      showToast("Failed to generate report. Please try again.", false)
+    } finally {
+      setGenerating(false)
+    }
+  }
+
   const handleScheduleSave = () => {
     if (!schedRecipients.trim()) { showToast("Please enter at least one recipient email", false); return }
     showToast(`Report scheduled — ${schedFreq} at ${schedTime} → ${schedRecipients.split(",")[0].trim()}${schedRecipients.includes(",") ? " +" + (schedRecipients.split(",").length - 1) + " more" : ""}`, true)
@@ -383,91 +446,164 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Filters */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 20 }}>
+            {selectedCategory.id === "intern" ? (
+              /* Intern-specific config panel */
               <div>
-                <label style={labelStyle}>Date From</label>
-                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inp} />
-              </div>
-              <div>
-                <label style={labelStyle}>Date To</label>
-                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inp} />
-              </div>
-              <div>
-                <label style={labelStyle}>Department</label>
-                <select value={department} onChange={e => setDepartment(e.target.value)} style={inp}>
-                  <option value="all">All Departments</option>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Employee Type</label>
-                <select value={empType} onChange={e => setEmpType(e.target.value)} style={inp}>
-                  <option value="all">All</option>
-                  <option value="FULL_TIME">Full-time</option>
-                  <option value="PART_TIME">Part-time</option>
-                  <option value="CONTRACT">Contract</option>
-                  <option value="INTERN">Intern</option>
-                  <option value="NYSC">NYSC</option>
-                </select>
-              </div>
-              <div>
-                <label style={labelStyle}>Status</label>
-                <select value={status} onChange={e => setStatus(e.target.value)} style={inp}>
-                  <option value="all">All</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="ON_LEAVE">On Leave</option>
-                  <option value="SUSPENDED">Suspended</option>
-                  <option value="TERMINATED">Terminated</option>
-                  <option value="RESIGNED">Resigned</option>
-                </select>
-              </div>
-              <div ref={empRef} style={{ position: "relative" }}>
-                <label style={labelStyle}>Single Employee</label>
-                {selectedEmp ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--background)", fontSize: 13 }}>
-                    <span style={{ flex: 1, fontWeight: 600 }}>{selectedEmp.firstName} {selectedEmp.lastName} <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>· {selectedEmp.employeeId}</span></span>
-                    <button onClick={() => { setEmployeeId("all"); setEmpSearch("") }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--muted-foreground)" }}><X size={13} /></button>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 20 }}>
+                  <div>
+                    <label style={labelStyle}>Period Type</label>
+                    <select value={internPeriod} onChange={e => { setInternPeriod(e.target.value as any); setInternDate("") }} style={inp}>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
                   </div>
-                ) : (
-                  <input value={empSearch} onChange={e => { setEmpSearch(e.target.value); setEmpDropOpen(true) }} onFocus={() => setEmpDropOpen(true)} placeholder="All employees" style={inp} />
-                )}
-                {empDropOpen && !selectedEmp && filteredEmps.length > 0 && (
-                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
-                    {filteredEmps.slice(0, 30).map(e => (
-                      <div key={e.id} onClick={() => { setEmployeeId(e.id); setEmpDropOpen(false); setEmpSearch("") }}
-                        style={{ padding: "9px 12px", cursor: "pointer", fontSize: 13 }}
-                        onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
-                        onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = ""}>
-                        <span style={{ fontWeight: 600 }}>{e.firstName} {e.lastName}</span>
-                        <span style={{ color: "var(--muted-foreground)", marginLeft: 8, fontSize: 11 }}>{e.employeeId}</span>
-                      </div>
+                  <div>
+                    <label style={labelStyle}>
+                      {internPeriod === "weekly" ? "Select Week" : internPeriod === "monthly" ? "Select Month" : "Select Year"}
+                    </label>
+                    {internPeriod === "weekly" && (
+                      <input
+                        type="week"
+                        value={internDate}
+                        onChange={e => setInternDate(e.target.value)}
+                        max={(() => {
+                          const now = new Date()
+                          const year = now.getFullYear()
+                          const start = new Date(year, 0, 1)
+                          const days = Math.floor((now.getTime() - start.getTime()) / 86400000)
+                          const week = Math.ceil((days + start.getDay() + 1) / 7)
+                          return `${year}-W${String(week).padStart(2, "0")}`
+                        })()}
+                        style={inp}
+                      />
+                    )}
+                    {internPeriod === "monthly" && (
+                      <input
+                        type="month"
+                        value={internDate}
+                        onChange={e => setInternDate(e.target.value)}
+                        max={new Date().toISOString().slice(0, 7)}
+                        style={inp}
+                      />
+                    )}
+                    {internPeriod === "yearly" && (
+                      <input
+                        type="number"
+                        value={internDate}
+                        onChange={e => setInternDate(e.target.value)}
+                        min={2020}
+                        max={new Date().getFullYear()}
+                        placeholder={String(new Date().getFullYear())}
+                        style={inp}
+                      />
+                    )}
+                  </div>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>Format:</span>
+                    {(["CSV", "Excel", "PDF"] as const).map(fmt => (
+                      <button key={fmt} onClick={() => setSelectedFormat(fmt)}
+                        style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid", fontSize: 12, fontWeight: 700, cursor: "pointer", background: selectedFormat === fmt ? fmtColor[fmt].bg : "transparent", color: selectedFormat === fmt ? fmtColor[fmt].color : "var(--muted-foreground)", borderColor: selectedFormat === fmt ? fmtColor[fmt].color : "var(--border)" }}>
+                        {fmt}
+                      </button>
                     ))}
                   </div>
-                )}
+                  <Button loading={generating} onClick={handleInternGenerate}>
+                    <Download size={14} /> Generate & Download
+                  </Button>
+                </div>
               </div>
-            </div>
+            ) : (
+              <>
+                {/* Filters */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 20 }}>
+                  <div>
+                    <label style={labelStyle}>Date From</label>
+                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inp} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Date To</label>
+                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inp} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Department</label>
+                    <select value={department} onChange={e => setDepartment(e.target.value)} style={inp}>
+                      <option value="all">All Departments</option>
+                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Employee Type</label>
+                    <select value={empType} onChange={e => setEmpType(e.target.value)} style={inp}>
+                      <option value="all">All</option>
+                      <option value="FULL_TIME">Full-time</option>
+                      <option value="PART_TIME">Part-time</option>
+                      <option value="CONTRACT">Contract</option>
+                      <option value="INTERN">Intern</option>
+                      <option value="NYSC">NYSC</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Status</label>
+                    <select value={status} onChange={e => setStatus(e.target.value)} style={inp}>
+                      <option value="all">All</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="ON_LEAVE">On Leave</option>
+                      <option value="SUSPENDED">Suspended</option>
+                      <option value="TERMINATED">Terminated</option>
+                      <option value="RESIGNED">Resigned</option>
+                    </select>
+                  </div>
+                  <div ref={empRef} style={{ position: "relative" }}>
+                    <label style={labelStyle}>Single Employee</label>
+                    {selectedEmp ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--background)", fontSize: 13 }}>
+                        <span style={{ flex: 1, fontWeight: 600 }}>{selectedEmp.firstName} {selectedEmp.lastName} <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>· {selectedEmp.employeeId}</span></span>
+                        <button onClick={() => { setEmployeeId("all"); setEmpSearch("") }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--muted-foreground)" }}><X size={13} /></button>
+                      </div>
+                    ) : (
+                      <input value={empSearch} onChange={e => { setEmpSearch(e.target.value); setEmpDropOpen(true) }} onFocus={() => setEmpDropOpen(true)} placeholder="All employees" style={inp} />
+                    )}
+                    {empDropOpen && !selectedEmp && filteredEmps.length > 0 && (
+                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+                        {filteredEmps.slice(0, 30).map(e => (
+                          <div key={e.id} onClick={() => { setEmployeeId(e.id); setEmpDropOpen(false); setEmpSearch("") }}
+                            style={{ padding: "9px 12px", cursor: "pointer", fontSize: 13 }}
+                            onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                            onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = ""}>
+                            <span style={{ fontWeight: 600 }}>{e.firstName} {e.lastName}</span>
+                            <span style={{ color: "var(--muted-foreground)", marginLeft: 8, fontSize: 11 }}>{e.employeeId}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-            {/* Format + actions */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>Format:</span>
-                {(["CSV", "Excel", "PDF"] as const).map(fmt => (
-                  <button key={fmt} onClick={() => setSelectedFormat(fmt)}
-                    style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid", fontSize: 12, fontWeight: 700, cursor: "pointer", background: selectedFormat === fmt ? fmtColor[fmt].bg : "transparent", color: selectedFormat === fmt ? fmtColor[fmt].color : "var(--muted-foreground)", borderColor: selectedFormat === fmt ? fmtColor[fmt].color : "var(--border)" }}>
-                    {fmt}
-                  </button>
-                ))}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <Button variant="secondary" onClick={() => setScheduleOpen(true)}>
-                  <Calendar size={14} /> Schedule Report
-                </Button>
-                <Button loading={generating} onClick={handleGenerate}>
-                  <Download size={14} /> Generate & Download
-                </Button>
-              </div>
-            </div>
+                {/* Format + actions */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>Format:</span>
+                    {(["CSV", "Excel", "PDF"] as const).map(fmt => (
+                      <button key={fmt} onClick={() => setSelectedFormat(fmt)}
+                        style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid", fontSize: 12, fontWeight: 700, cursor: "pointer", background: selectedFormat === fmt ? fmtColor[fmt].bg : "transparent", color: selectedFormat === fmt ? fmtColor[fmt].color : "var(--muted-foreground)", borderColor: selectedFormat === fmt ? fmtColor[fmt].color : "var(--border)" }}>
+                        {fmt}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Button variant="secondary" onClick={() => setScheduleOpen(true)}>
+                      <Calendar size={14} /> Schedule Report
+                    </Button>
+                    <Button loading={generating} onClick={handleGenerate}>
+                      <Download size={14} /> Generate & Download
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
           </Card>
 
           {/* ── Report History ── */}
