@@ -21,6 +21,14 @@ const CATEGORIES = [
 const DAYS_LIST = ["monday","tuesday","wednesday","thursday","friday"] as const
 type DayKey = typeof DAYS_LIST[number]
 
+const REFLECTION_DAYS = [
+  { key: "Mon", label: "Monday" },
+  { key: "Tue", label: "Tuesday" },
+  { key: "Wed", label: "Wednesday" },
+  { key: "Thu", label: "Thursday" },
+  { key: "Fri", label: "Friday" },
+]
+
 const initEntries = (): Record<string, Record<DayKey, {tasks: string, hours: string}>> =>
   Object.fromEntries(CATEGORIES.map(c => [
     c.key,
@@ -78,7 +86,7 @@ function StatusBadge({ status }: { status: string }) {
 export default function InternReportPage() {
   const [cfg, setCfg] = useState<Settings>(DEFAULTS)
   const [entries, setEntries] = useState<Record<string, Record<DayKey, {tasks: string, hours: string}>>>(initEntries())
-  const [reflection, setReflection] = useState("")
+  const [dailyReflections, setDailyReflections] = useState<Record<string, string>>({ Mon: "", Tue: "", Wed: "", Thu: "", Fri: "" })
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr] = useState("")
   const [submitOk, setSubmitOk] = useState(false)
@@ -163,7 +171,7 @@ export default function InternReportPage() {
     const res = await fetch("/api/intern-reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...hoursPayload, taskDescriptions, personalReflection: reflection, extraReviewerIds }),
+      body: JSON.stringify({ ...hoursPayload, taskDescriptions, dailyReflections, extraReviewerIds }),
     })
     const d = await res.json()
     setSubmitting(false)
@@ -188,236 +196,240 @@ export default function InternReportPage() {
         </p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: 24, alignItems: "start" }}>
-        {/* Left: Submission Form */}
-        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-          {/* Card header */}
-          <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <div>
-              <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>This Week's Report</h2>
-              <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{weekLabel}</span>
-            </div>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8,
-              background: window.late ? "#FEF3C7" : window.open ? "#DCFCE7" : "#F3F4F6",
-              color: window.late ? "#D97706" : window.open ? "#15803D" : "#6B7280",
-              fontSize: 11, fontWeight: 700,
-            }}>
-              <Clock size={12} />
-              {window.open ? (window.late ? "LATE" : "OPEN") : "CLOSED"}
-            </div>
+      {/* Submission Form — full width */}
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginBottom: 24 }}>
+        {/* Card header */}
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>This Week's Report</h2>
+            <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{weekLabel}</span>
           </div>
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8,
+            background: window.late ? "#FEF3C7" : window.open ? "#DCFCE7" : "#F3F4F6",
+            color: window.late ? "#D97706" : window.open ? "#15803D" : "#6B7280",
+            fontSize: 11, fontWeight: 700,
+          }}>
+            <Clock size={12} />
+            {window.open ? (window.late ? "LATE" : "OPEN") : "CLOSED"}
+          </div>
+        </div>
 
-          {alreadySubmitted ? (
-            <div style={{ padding: "40px 24px", textAlign: "center" }}>
-              <CheckCircle2 size={44} style={{ color: "#16a34a", margin: "0 auto 14px" }} />
-              <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Report Submitted!</p>
-              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Your report for this week has been submitted. Check Past Reports for status.</p>
-            </div>
-          ) : (
-            <>
-              <div style={{ padding: "16px 24px 0" }}>
-                <div style={{
-                  fontSize: 12, color: window.late ? "#92400E" : window.open ? "#166534" : "#4B5563",
-                  padding: "8px 12px", background: window.late ? "#FEF3C7" : window.open ? "#F0FDF4" : "#F3F4F6",
-                  borderRadius: 8, marginBottom: 20,
-                }}>
-                  {window.text}
-                </div>
+        {alreadySubmitted ? (
+          <div style={{ padding: "40px 24px", textAlign: "center" }}>
+            <CheckCircle2 size={44} style={{ color: "#16a34a", margin: "0 auto 14px" }} />
+            <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Report Submitted!</p>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Your report for this week has been submitted. Check Past Reports below for status.</p>
+          </div>
+        ) : (
+          <>
+            <div style={{ padding: "16px 24px 0" }}>
+              <div style={{
+                fontSize: 12, color: window.late ? "#92400E" : window.open ? "#166534" : "#4B5563",
+                padding: "8px 12px", background: window.late ? "#FEF3C7" : window.open ? "#F0FDF4" : "#F3F4F6",
+                borderRadius: 8, marginBottom: 20,
+              }}>
+                {window.text}
+              </div>
 
-                {/* Task table */}
-                <div style={{ overflowX: "auto", marginBottom: 20 }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900, fontSize: 12 }}>
-                    <thead>
-                      <tr style={{ background: "var(--muted)" }}>
-                        <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 150, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Category</th>
-                        {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(d => (
-                          <th key={d} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 160 }}>{d}</th>
-                        ))}
-                        <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {CATEGORIES.map((cat, i) => (
-                        <tr key={cat.key} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
-                          <td style={{ padding: "10px 12px", fontWeight: 600, fontSize: 12, color: "var(--foreground)", verticalAlign: "middle", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{cat.label}</td>
-                          {DAYS_LIST.map(day => (
-                            <td key={day} style={{ padding: "6px 8px", verticalAlign: "top" }}>
-                              <textarea
-                                value={entries[cat.key][day].tasks}
-                                onChange={e => setEntry(cat.key, day, "tasks", e.target.value)}
-                                disabled={!window.open}
-                                placeholder="Tasks…"
-                                rows={2}
-                                style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, marginBottom: 4 }}
-                              />
-                              <input
-                                type="number" min={0} max={24} step={0.25}
-                                value={entries[cat.key][day].hours}
-                                onChange={e => setEntry(cat.key, day, "hours", e.target.value)}
-                                disabled={!window.open}
-                                placeholder="Hrs"
-                                style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, textAlign: "center" }}
-                              />
-                            </td>
-                          ))}
-                          <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--primary)", verticalAlign: "middle" }}>
-                            {catTotal(cat.key).toFixed(1)}
-                          </td>
-                        </tr>
+              {/* Task table */}
+              <div style={{ overflowX: "auto", marginBottom: 20 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900, fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "var(--muted)" }}>
+                      <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 150, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Category</th>
+                      {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(d => (
+                        <th key={d} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 160 }}>{d}</th>
                       ))}
-                      <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
-                        <td style={{ padding: "12px", fontWeight: 800, fontSize: 13, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total Hours</td>
-                        {DAYS_LIST.map(day => {
-                          const dayTotal = CATEGORIES.reduce((s, c) => s + (parseFloat(entries[c.key][day].hours || "0") || 0), 0)
-                          return <td key={day} style={{ padding: "12px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--muted-foreground)" }}>{dayTotal > 0 ? dayTotal.toFixed(1) : "—"}</td>
-                        })}
-                        <td style={{ padding: "12px 8px", textAlign: "center", fontWeight: 900, fontSize: 16, color: "var(--primary)" }}>{totalHours.toFixed(1)}</td>
+                      <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {CATEGORIES.map((cat, i) => (
+                      <tr key={cat.key} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
+                        <td style={{ padding: "10px 12px", fontWeight: 600, fontSize: 12, color: "var(--foreground)", verticalAlign: "middle", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{cat.label}</td>
+                        {DAYS_LIST.map(day => (
+                          <td key={day} style={{ padding: "6px 8px", verticalAlign: "top" }}>
+                            <textarea
+                              value={entries[cat.key][day].tasks}
+                              onChange={e => setEntry(cat.key, day, "tasks", e.target.value)}
+                              disabled={!window.open}
+                              placeholder="Tasks…"
+                              rows={2}
+                              style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, marginBottom: 4 }}
+                            />
+                            <input
+                              type="number" min={0} max={24} step={0.25}
+                              value={entries[cat.key][day].hours}
+                              onChange={e => setEntry(cat.key, day, "hours", e.target.value)}
+                              disabled={!window.open}
+                              placeholder="Hrs"
+                              style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, textAlign: "center" }}
+                            />
+                          </td>
+                        ))}
+                        <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--primary)", verticalAlign: "middle" }}>
+                          {catTotal(cat.key).toFixed(1)}
+                        </td>
                       </tr>
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
+                      <td style={{ padding: "12px", fontWeight: 800, fontSize: 13, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total Hours</td>
+                      {DAYS_LIST.map(day => {
+                        const dayTotal = CATEGORIES.reduce((s, c) => s + (parseFloat(entries[c.key][day].hours || "0") || 0), 0)
+                        return <td key={day} style={{ padding: "12px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--muted-foreground)" }}>{dayTotal > 0 ? dayTotal.toFixed(1) : "—"}</td>
+                      })}
+                      <td style={{ padding: "12px 8px", textAlign: "center", fontWeight: 900, fontSize: 16, color: "var(--primary)" }}>{totalHours.toFixed(1)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
-                {/* Reflection */}
-                <div style={{ marginBottom: 20 }}>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--foreground)" }}>
-                    Personal Reflections for the Week
-                  </label>
-                  <textarea
-                    value={reflection}
-                    onChange={e => setReflection(e.target.value)}
-                    rows={4}
-                    disabled={!window.open}
-                    placeholder="What went well? What challenges did you face? What did you learn this week?"
-                    style={{
-                      width: "100%", padding: "10px 12px", border: "1.5px solid var(--border)",
-                      borderRadius: 8, fontSize: 13, background: "var(--background)",
-                      color: "var(--foreground)", outline: "none", resize: "vertical", boxSizing: "border-box",
-                      opacity: !window.open ? 0.6 : 1,
-                    }}
-                  />
+              {/* Daily Reflections */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "var(--foreground)" }}>
+                  Daily Reflections
                 </div>
-
-                {/* Reviewers */}
-                <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                    <Users size={14} style={{ color: "var(--primary)" }} />
-                    <span style={{ fontSize: 13, fontWeight: 700 }}>Who will review this report</span>
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: "#EEF2FF", fontSize: 12, fontWeight: 600, color: "#4338ca" }}>
-                      {projectLead?.name ?? "Your Project Lead"}
-                      <span style={{ fontSize: 10, fontWeight: 400, color: "#6366f1" }}>— required</span>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+                  {REFLECTION_DAYS.map(({ key, label }) => (
+                    <div key={key}>
+                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>
+                        {label}
+                      </label>
+                      <textarea
+                        value={dailyReflections[key]}
+                        onChange={e => setDailyReflections(r => ({ ...r, [key]: e.target.value }))}
+                        rows={4}
+                        disabled={!window.open}
+                        placeholder="What did you work on, learn, or reflect on today?"
+                        style={{
+                          width: "100%", padding: "8px 10px", border: "1.5px solid var(--border)",
+                          borderRadius: 8, fontSize: 12, background: "var(--background)",
+                          color: "var(--foreground)", outline: "none", resize: "vertical",
+                          boxSizing: "border-box", opacity: !window.open ? 0.6 : 1,
+                        }}
+                      />
                     </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reviewers */}
+              <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                  <Users size={14} style={{ color: "var(--primary)" }} />
+                  <span style={{ fontSize: 13, fontWeight: 700 }}>Who will review this report</span>
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: "#EEF2FF", fontSize: 12, fontWeight: 600, color: "#4338ca" }}>
+                    {projectLead?.name ?? "Your Project Lead"}
+                    <span style={{ fontSize: 10, fontWeight: 400, color: "#6366f1" }}>— required</span>
                   </div>
                   {extraReviewerIds.map(revId => {
                     const emp = allEmployees.find(e => e.id === revId)
                     if (!emp) return null
                     return (
-                      <div key={revId} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: "var(--muted)", fontSize: 12, fontWeight: 600, marginRight: 6, marginBottom: 6 }}>
+                      <div key={revId} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: "var(--muted)", fontSize: 12, fontWeight: 600 }}>
                         {emp.firstName} {emp.lastName}
                         <button onClick={() => removeReviewer(revId)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--muted-foreground)", display: "flex" }}><X size={12} /></button>
                       </div>
                     )
                   })}
-                  <div ref={reviewerRef} style={{ position: "relative", marginTop: 8 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--background)" }}>
-                      <Search size={12} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
-                      <input
-                        value={reviewerSearch}
-                        onChange={e => { setReviewerSearch(e.target.value); setReviewerDropOpen(true) }}
-                        onFocus={() => setReviewerDropOpen(true)}
-                        placeholder="Add another reviewer…"
-                        style={{ border: "none", background: "transparent", fontSize: 12, outline: "none", flex: 1, color: "var(--foreground)" }}
-                        disabled={!window.open}
-                      />
-                    </div>
-                    {reviewerDropOpen && filteredReviewers.length > 0 && (
-                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: 180, overflowY: "auto", marginTop: 4 }}>
-                        {filteredReviewers.slice(0, 20).map(emp => (
-                          <div key={emp.id} onClick={() => addReviewer(emp)}
-                            style={{ padding: "8px 12px", cursor: "pointer", fontSize: 12 }}
-                            onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
-                            onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = ""}>
-                            <span style={{ fontWeight: 600 }}>{emp.firstName} {emp.lastName}</span>
-                            {emp.jobTitle && <span style={{ color: "var(--muted-foreground)", marginLeft: 6 }}>{emp.jobTitle}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </div>
-
-                {window.late && (
-                  <div style={{ padding: "8px 12px", background: "#FEF3C7", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 12 }}>
-                    Late submission — {cfg.lateDeduction} point{cfg.lateDeduction !== 1 ? "s" : ""} will be automatically deducted from your score.
+                <div ref={reviewerRef} style={{ position: "relative" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--background)" }}>
+                    <Search size={12} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+                    <input
+                      value={reviewerSearch}
+                      onChange={e => { setReviewerSearch(e.target.value); setReviewerDropOpen(true) }}
+                      onFocus={() => setReviewerDropOpen(true)}
+                      placeholder="Add another reviewer…"
+                      style={{ border: "none", background: "transparent", fontSize: 12, outline: "none", flex: 1, color: "var(--foreground)" }}
+                      disabled={!window.open}
+                    />
                   </div>
-                )}
-
-                {submitErr && (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626", marginBottom: 12 }}>
-                    <AlertCircle size={14} />{submitErr}
-                  </div>
-                )}
+                  {reviewerDropOpen && filteredReviewers.length > 0 && (
+                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: 180, overflowY: "auto", marginTop: 4 }}>
+                      {filteredReviewers.slice(0, 20).map(emp => (
+                        <div key={emp.id} onClick={() => addReviewer(emp)}
+                          style={{ padding: "8px 12px", cursor: "pointer", fontSize: 12 }}
+                          onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                          onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = ""}>
+                          <span style={{ fontWeight: 600 }}>{emp.firstName} {emp.lastName}</span>
+                          {emp.jobTitle && <span style={{ color: "var(--muted-foreground)", marginLeft: 6 }}>{emp.jobTitle}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
-                <button
-                  onClick={handleSubmit}
-                  disabled={!window.open || submitting}
-                  style={{
-                    padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8,
-                    cursor: window.open && !submitting ? "pointer" : "not-allowed",
-                    fontSize: 14, fontWeight: 700, color: "white",
-                    opacity: !window.open || submitting ? 0.5 : 1,
-                  }}
-                >
-                  {submitting ? "Submitting…" : "Submit Report"}
+              {window.late && (
+                <div style={{ padding: "8px 12px", background: "#FEF3C7", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 12 }}>
+                  Late submission — {cfg.lateDeduction} point{cfg.lateDeduction !== 1 ? "s" : ""} will be automatically deducted from your score.
+                </div>
+              )}
+
+              {submitErr && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626", marginBottom: 12 }}>
+                  <AlertCircle size={14} />{submitErr}
+                </div>
+              )}
+            </div>
+
+            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={handleSubmit}
+                disabled={!window.open || submitting}
+                style={{
+                  padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8,
+                  cursor: window.open && !submitting ? "pointer" : "not-allowed",
+                  fontSize: 14, fontWeight: 700, color: "white",
+                  opacity: !window.open || submitting ? 0.5 : 1,
+                }}
+              >
+                {submitting ? "Submitting…" : "Submit Report"}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Past Reports — below the form */}
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)" }}>
+          <h2 style={{ fontSize: 15, fontWeight: 800 }}>Past Reports</h2>
+        </div>
+        {loading ? (
+          <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
+        ) : reports.length === 0 ? (
+          <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No reports submitted yet.</div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 0 }}>
+            {reports.map(r => (
+              <div key={r.id} style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", borderRight: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>
+                    {format(new Date(r.weekStart), "MMM d")} – {format(new Date(r.weekEnd), "MMM d")}
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                    <StatusBadge status={r.status} />
+                    <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{(r.totalHours ?? 0).toFixed(1)}h</span>
+                  </div>
+                </div>
+                <button onClick={() => setViewReport(r)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", color: "var(--primary)", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px", flexShrink: 0 }}>
+                  <Eye size={12} /> View
                 </button>
               </div>
-            </>
-          )}
-        </div>
-
-        {/* Right: Past Reports */}
-        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-          <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)" }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800 }}>Past Reports</h2>
+            ))}
           </div>
-          {loading ? (
-            <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
-          ) : reports.length === 0 ? (
-            <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No reports submitted yet.</div>
-          ) : (
-            <div>
-              {reports.map(r => (
-                <div key={r.id} style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>
-                      {format(new Date(r.weekStart), "MMM d")} – {format(new Date(r.weekEnd), "MMM d")}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                      <StatusBadge status={r.status} />
-                      <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{(r.totalHours ?? 0).toFixed(1)}h</span>
-                      {r.status === "REVIEWED" && (
-                        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)" }}>{r.totalScore}/12</span>
-                      )}
-                    </div>
-                  </div>
-                  <button onClick={() => setViewReport(r)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", color: "var(--primary)", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px" }}>
-                    <Eye size={12} /> View
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* View Report Modal */}
       {viewReport && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setViewReport(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 680, width: "100%", maxHeight: "88vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 720, width: "100%", maxHeight: "88vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--card)", zIndex: 1 }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>
@@ -456,9 +468,7 @@ export default function InternReportPage() {
                         <tr key={cat.key} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
                           <td style={{ padding: "8px 12px", fontWeight: 600, fontSize: 12, verticalAlign: "top", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{cat.label}</td>
                           {isLegacy ? (
-                            <>
-                              <td style={{ padding: "8px 12px", fontSize: 11, color: "var(--foreground)" }} colSpan={5}>{dayData}</td>
-                            </>
+                            <td style={{ padding: "8px 12px", fontSize: 11, color: "var(--foreground)" }} colSpan={5}>{dayData}</td>
                           ) : (
                             DAYS_LIST.map(day => {
                               const cell = dayData?.[day]
@@ -481,43 +491,29 @@ export default function InternReportPage() {
                 </table>
               </div>
 
-              {viewReport.personalReflection && (
+              {/* Daily Reflections (from new field) */}
+              {viewReport.dailyReflections && Object.values(viewReport.dailyReflections as Record<string, string>).some(v => v) && (
                 <div style={{ marginBottom: 20 }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Personal Reflections</p>
-                  <p style={{ fontSize: 13, lineHeight: 1.7, background: "var(--muted)", borderRadius: 8, padding: "12px 14px" }}>{viewReport.personalReflection}</p>
+                  <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Daily Reflections</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                    {REFLECTION_DAYS.map(({ key, label }) => {
+                      const text = (viewReport.dailyReflections as Record<string, string>)[key]
+                      return (
+                        <div key={key} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 12px" }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>{label}</div>
+                          <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0 }}>{text || <span style={{ color: "var(--border)", fontStyle: "italic" }}>—</span>}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
 
-              {viewReport.status === "REVIEWED" && (
-                <div style={{ background: "var(--muted)", borderRadius: 10, padding: "14px 16px" }}>
-                  <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Team Lead Feedback</p>
-                  {[
-                    ["Productivity & Time Utilization", viewReport.productivityRating],
-                    ["Learning & Development", viewReport.ldRating],
-                    ["Reflections & Problem Solving", viewReport.reflectionsRating],
-                    ["Attendance & Punctuality", viewReport.attendanceRating],
-                  ].map(([label, val]) => (
-                    <div key={label as string} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", borderBottom: "1px solid var(--border)" }}>
-                      <span>{label}</span>
-                      <strong>{val !== null && val !== undefined ? `${val} / 3` : "–"}</strong>
-                    </div>
-                  ))}
-                  {(viewReport.pointDeduction ?? 0) > 0 && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "5px 0", color: "#DC2626" }}>
-                      <span>Late Deduction</span>
-                      <strong>-{viewReport.pointDeduction}</strong>
-                    </div>
-                  )}
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, fontWeight: 800, padding: "10px 0 0", marginTop: 4 }}>
-                    <span>Total Score</span>
-                    <span style={{ color: "var(--primary)" }}>{viewReport.totalScore} / 12</span>
-                  </div>
-                  {viewReport.tlComment && (
-                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 4, textTransform: "uppercase" }}>Comments</p>
-                      <p style={{ fontSize: 13, lineHeight: 1.6 }}>{viewReport.tlComment}</p>
-                    </div>
-                  )}
+              {/* Legacy personal reflection */}
+              {!viewReport.dailyReflections && viewReport.personalReflection && (
+                <div style={{ marginBottom: 20 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Personal Reflections</p>
+                  <p style={{ fontSize: 13, lineHeight: 1.7, background: "var(--muted)", borderRadius: 8, padding: "12px 14px" }}>{viewReport.personalReflection}</p>
                 </div>
               )}
             </div>

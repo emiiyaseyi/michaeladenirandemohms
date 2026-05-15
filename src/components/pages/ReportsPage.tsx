@@ -2,10 +2,8 @@
 import { useState, useEffect, useRef } from "react"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
-import Modal from "@/components/ui/Modal"
 import {
-  BarChart2, Users, CalendarDays, TrendingUp, DollarSign, Clock,
-  FileText, Download, Calendar, X, Loader2, ClipboardList,
+  Users, CalendarDays, TrendingUp, FileText, Download, X, Loader2,
 } from "lucide-react"
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -36,19 +34,32 @@ interface HistoryEntry {
   params: {
     category: string; reportType: string; dateFrom: string; dateTo: string
     departmentId: string; empType: string; status: string; employeeId: string
+    selectedFields?: string[]
   }
 }
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const CATEGORIES: ReportCategory[] = [
-  { id: "employee", label: "Employee Reports", icon: Users, reports: ["Headcount Report", "Employee Roster", "New Hires Report", "Turnover Report"] },
-  { id: "leave", label: "Leave Reports", icon: CalendarDays, reports: ["Leave Requests", "Leave Balances", "Leave Utilization"] },
-  { id: "performance", label: "Performance Reports", icon: TrendingUp, reports: ["KPI Summary", "Appraisals Report"] },
-  { id: "payroll", label: "Payroll Reports", icon: DollarSign, reports: ["Payslips Summary", "Salary Analysis"] },
-  { id: "attendance", label: "Attendance Reports", icon: Clock, reports: ["Daily Attendance", "Monthly Attendance", "Late Arrivals"] },
-  { id: "intern", label: "Intern Reports", icon: ClipboardList, reports: ["Weekly Summary", "Monthly Summary", "Yearly Summary"] },
-  { id: "custom", label: "Custom Report", icon: FileText, reports: ["Build Your Own"] },
+  { id: "employee",    label: "Employee Reports",    icon: Users,         reports: ["Headcount Report", "Employee Roster", "New Hires Report", "Turnover Report"] },
+  { id: "leave",       label: "Leave Reports",       icon: CalendarDays,  reports: ["Leave Requests", "Leave Balances", "Leave Utilization"] },
+  { id: "performance", label: "Performance Reports", icon: TrendingUp,    reports: ["KPI Summary", "Appraisals Report"] },
+  { id: "custom",      label: "Custom Report",       icon: FileText,      reports: ["Build Your Own"] },
+]
+
+const CUSTOM_FIELDS = [
+  { key: "employeeId",     label: "Employee ID" },
+  { key: "firstName",      label: "First Name" },
+  { key: "lastName",       label: "Last Name" },
+  { key: "email",          label: "Email" },
+  { key: "phone",          label: "Phone" },
+  { key: "department",     label: "Department" },
+  { key: "jobTitle",       label: "Job Title" },
+  { key: "employmentType", label: "Employment Type" },
+  { key: "status",         label: "Status" },
+  { key: "hireDate",       label: "Hire Date" },
+  { key: "dob",            label: "Date of Birth" },
+  { key: "gender",         label: "Gender" },
 ]
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -56,9 +67,9 @@ const CATEGORIES: ReportCategory[] = [
 const inp: React.CSSProperties = { width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", boxSizing: "border-box" }
 const labelStyle: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }
 const fmtColor: Record<string, { bg: string; color: string }> = {
-  CSV: { bg: "#E6F4EA", color: "#1A7336" },
+  CSV:   { bg: "#E6F4EA", color: "#1A7336" },
   Excel: { bg: "#E8F5E9", color: "#2E7D32" },
-  PDF: { bg: "#FDECEA", color: "#C0392B" },
+  PDF:   { bg: "#FDECEA", color: "#C0392B" },
 }
 
 const HIST_KEY = "dsn_report_history"
@@ -85,13 +96,10 @@ async function generateExcel(data: ReportData) {
   const { utils, write } = await import("xlsx")
   const wsData = [data.headers, ...data.rows.map(r => r.map(v => v ?? ""))]
   const ws = utils.aoa_to_sheet(wsData)
-
-  // Column widths
   ws["!cols"] = data.headers.map((h, i) => {
     const maxLen = Math.max(h.length, ...data.rows.map(r => String(r[i] ?? "").length))
     return { wch: Math.min(Math.max(maxLen + 2, 10), 40) }
   })
-
   const wb = utils.book_new()
   utils.book_append_sheet(wb, ws, data.title.slice(0, 31))
   const buf = write(wb, { bookType: "xlsx", type: "array" })
@@ -112,57 +120,33 @@ async function generatePDF(data: ReportData, dateFrom: string, dateTo: string) {
   const lightGreen: [number, number, number] = [240, 253, 244]
   const HEADER_H = 42
 
-  // ── Page 1 header banner ──
   doc.setFillColor(...green)
   doc.rect(0, 0, W, HEADER_H, "F")
-  // Subtle diagonal stripe decoration
   doc.setFillColor(...darkGreen)
   doc.triangle(W - 60, 0, W, 0, W, HEADER_H, "F")
-
-  // Company name
   doc.setTextColor(...white)
   doc.setFontSize(9)
   doc.setFont("helvetica", "normal")
   doc.text("DATA SCIENCE NIGERIA — HRMS", 14, 12)
-
-  // Report title
   doc.setFontSize(20)
   doc.setFont("helvetica", "bold")
   doc.text(data.title, 14, 27)
-
-  // Right-side metadata
   doc.setFontSize(8)
   doc.setFont("helvetica", "normal")
   if (data.subtitle) doc.text(data.subtitle, W - 16, 16, { align: "right" })
   doc.text(`Generated: ${new Date(data.generatedAt).toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}`, W - 16, 23, { align: "right" })
   doc.text(`${data.rowCount} record${data.rowCount !== 1 ? "s" : ""}`, W - 16, 30, { align: "right" })
-
-  // Thin white divider
   doc.setDrawColor(...white)
   doc.setLineWidth(0.2)
   doc.line(14, HEADER_H - 3, W - 14, HEADER_H - 3)
 
-  // ── Table ──
   autoTable(doc, {
     head: [data.headers],
     body: data.rows.map(r => r.map(v => (v == null ? "" : String(v)))),
     startY: HEADER_H + 6,
     theme: "grid",
-    styles: {
-      fontSize: 8,
-      cellPadding: { top: 3, right: 4, bottom: 3, left: 4 },
-      overflow: "linebreak",
-      valign: "middle",
-      lineColor: [220, 220, 220],
-      lineWidth: 0.1,
-    },
-    headStyles: {
-      fillColor: green,
-      textColor: white,
-      fontStyle: "bold",
-      fontSize: 8.5,
-      cellPadding: { top: 4, right: 4, bottom: 4, left: 4 },
-    },
+    styles: { fontSize: 8, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 }, overflow: "linebreak", valign: "middle", lineColor: [220, 220, 220], lineWidth: 0.1 },
+    headStyles: { fillColor: green, textColor: white, fontStyle: "bold", fontSize: 8.5, cellPadding: { top: 4, right: 4, bottom: 4, left: 4 } },
     alternateRowStyles: { fillColor: lightGreen },
     columnStyles: data.headers.reduce((acc: Record<number, any>, h, i) => {
       if (h.toLowerCase().includes("id")) acc[i] = { cellWidth: 22 }
@@ -172,7 +156,6 @@ async function generatePDF(data: ReportData, dateFrom: string, dateTo: string) {
     }, {}),
     margin: { top: HEADER_H + 6, right: 12, bottom: 18, left: 12 },
     didDrawPage: () => {
-      // mini header on page 2+
       const pageNum = (doc as any).internal.getCurrentPageInfo().pageNumber
       if (pageNum > 1) {
         doc.setFillColor(...green)
@@ -187,17 +170,14 @@ async function generatePDF(data: ReportData, dateFrom: string, dateTo: string) {
     },
   })
 
-  // ── Footer on every page ──
   const totalPages = (doc as any).internal.getNumberOfPages()
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i)
-    // Footer bar
     doc.setFillColor(248, 250, 248)
     doc.rect(0, H - 14, W, 14, "F")
     doc.setDrawColor(...green)
     doc.setLineWidth(0.4)
     doc.line(0, H - 14, W, H - 14)
-
     doc.setFontSize(7)
     doc.setTextColor(80, 80, 80)
     doc.setFont("helvetica", "normal")
@@ -232,19 +212,12 @@ export default function ReportsPage() {
   const [departments, setDepartments] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
   const [selectedFormat, setSelectedFormat] = useState<"CSV" | "Excel" | "PDF">("PDF")
-  const [scheduleOpen, setScheduleOpen] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(null)
+  const [selectedFields, setSelectedFields] = useState<string[]>(CUSTOM_FIELDS.map(f => f.key))
   const empRef = useRef<HTMLDivElement>(null)
-
-  const [schedFreq, setSchedFreq] = useState("monthly")
-  const [schedTime, setSchedTime] = useState("08:00")
-  const [schedRecipients, setSchedRecipients] = useState("")
-
-  const [internPeriod, setInternPeriod] = useState<"weekly" | "monthly" | "yearly">("weekly")
-  const [internDate, setInternDate] = useState("")
 
   useEffect(() => {
     fetch("/api/settings/departments").then(r => r.json()).then(d => setDepartments(d.departments ?? [])).catch(() => {})
@@ -274,6 +247,7 @@ export default function ReportsPage() {
     dateFrom, dateTo,
     departmentId: department,
     empType, status, employeeId,
+    ...(selectedCategory.id === "custom" ? { selectedFields } : {}),
   })
 
   const fetchAndDownload = async (params: ReturnType<typeof buildParams>, fmt: "CSV" | "Excel" | "PDF"): Promise<ReportData | null> => {
@@ -295,12 +269,15 @@ export default function ReportsPage() {
   }
 
   const handleGenerate = async () => {
+    if (selectedCategory.id === "custom" && selectedFields.length === 0) {
+      showToast("Please select at least one column", false)
+      return
+    }
     setGenerating(true)
     try {
       const params = buildParams()
       const data = await fetchAndDownload(params, selectedFormat)
       if (!data) return
-
       const entry: HistoryEntry = {
         id: crypto.randomUUID(),
         name: `${data.title}${dateFrom ? ` — ${new Date(dateFrom).toLocaleDateString("en-NG", { month: "short", year: "numeric" })}` : ""}`,
@@ -313,7 +290,7 @@ export default function ReportsPage() {
       setHistory(newHistory)
       saveHistory(newHistory)
       showToast(`${data.title} downloaded (${data.rowCount} rows)`, true)
-    } catch (e: any) {
+    } catch {
       showToast("Failed to generate report. Please try again.", false)
     } finally {
       setGenerating(false)
@@ -331,76 +308,11 @@ export default function ReportsPage() {
     }
   }
 
-  const handleInternGenerate = async () => {
-    if (!internDate) { showToast("Please select a date/period first", false); return }
-    let dateFrom = ""
-    let dateTo = ""
-    if (internPeriod === "weekly") {
-      // internDate format: "YYYY-Www"
-      const [yearStr, weekStr] = internDate.split("-W")
-      const year = parseInt(yearStr, 10)
-      const week = parseInt(weekStr, 10)
-      // Get Monday of that ISO week
-      const jan4 = new Date(year, 0, 4) // Jan 4 is always in week 1
-      const startOfWeek1 = new Date(jan4)
-      startOfWeek1.setDate(jan4.getDate() - ((jan4.getDay() + 6) % 7))
-      const monday = new Date(startOfWeek1)
-      monday.setDate(startOfWeek1.getDate() + (week - 1) * 7)
-      const friday = new Date(monday)
-      friday.setDate(monday.getDate() + 4)
-      dateFrom = monday.toISOString().split("T")[0]
-      dateTo = friday.toISOString().split("T")[0]
-    } else if (internPeriod === "monthly") {
-      // internDate format: "YYYY-MM"
-      const [yearStr, monthStr] = internDate.split("-")
-      const year = parseInt(yearStr, 10)
-      const month = parseInt(monthStr, 10) - 1
-      const first = new Date(year, month, 1)
-      const last = new Date(year, month + 1, 0)
-      dateFrom = first.toISOString().split("T")[0]
-      dateTo = last.toISOString().split("T")[0]
-    } else {
-      // internDate is a year number string
-      const year = parseInt(internDate, 10)
-      dateFrom = `${year}-01-01`
-      dateTo = `${year}-12-31`
-    }
-    const reportType = internPeriod === "weekly" ? "Weekly Summary" : internPeriod === "monthly" ? "Monthly Summary" : "Yearly Summary"
-    const params = { category: "intern", reportType, dateFrom, dateTo, departmentId: "all", empType: "all", status: "all", employeeId: "all" }
-    setGenerating(true)
-    try {
-      const data = await fetchAndDownload(params, selectedFormat)
-      if (!data) return
-      const entry: HistoryEntry = {
-        id: crypto.randomUUID(),
-        name: `${data.title} — ${internDate}`,
-        date: new Date().toISOString().split("T")[0],
-        format: selectedFormat,
-        rowCount: data.rowCount,
-        params,
-      }
-      const newHistory = [entry, ...history]
-      setHistory(newHistory)
-      saveHistory(newHistory)
-      showToast(`${data.title} downloaded (${data.rowCount} rows)`, true)
-    } catch {
-      showToast("Failed to generate report. Please try again.", false)
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  const handleScheduleSave = () => {
-    if (!schedRecipients.trim()) { showToast("Please enter at least one recipient email", false); return }
-    showToast(`Report scheduled — ${schedFreq} at ${schedTime} → ${schedRecipients.split(",")[0].trim()}${schedRecipients.includes(",") ? " +" + (schedRecipients.split(",").length - 1) + " more" : ""}`, true)
-    setScheduleOpen(false)
-  }
-
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 20, fontWeight: 800 }}>Reports</h1>
-        <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Generate, schedule and export reports</p>
+        <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Generate and export reports</p>
       </div>
 
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
@@ -446,164 +358,114 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {selectedCategory.id === "intern" ? (
-              /* Intern-specific config panel */
-              <div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 20 }}>
-                  <div>
-                    <label style={labelStyle}>Period Type</label>
-                    <select value={internPeriod} onChange={e => { setInternPeriod(e.target.value as any); setInternDate("") }} style={inp}>
-                      <option value="weekly">Weekly</option>
-                      <option value="monthly">Monthly</option>
-                      <option value="yearly">Yearly</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>
-                      {internPeriod === "weekly" ? "Select Week" : internPeriod === "monthly" ? "Select Month" : "Select Year"}
-                    </label>
-                    {internPeriod === "weekly" && (
-                      <input
-                        type="week"
-                        value={internDate}
-                        onChange={e => setInternDate(e.target.value)}
-                        max={(() => {
-                          const now = new Date()
-                          const year = now.getFullYear()
-                          const start = new Date(year, 0, 1)
-                          const days = Math.floor((now.getTime() - start.getTime()) / 86400000)
-                          const week = Math.ceil((days + start.getDay() + 1) / 7)
-                          return `${year}-W${String(week).padStart(2, "0")}`
-                        })()}
-                        style={inp}
-                      />
-                    )}
-                    {internPeriod === "monthly" && (
-                      <input
-                        type="month"
-                        value={internDate}
-                        onChange={e => setInternDate(e.target.value)}
-                        max={new Date().toISOString().slice(0, 7)}
-                        style={inp}
-                      />
-                    )}
-                    {internPeriod === "yearly" && (
-                      <input
-                        type="number"
-                        value={internDate}
-                        onChange={e => setInternDate(e.target.value)}
-                        min={2020}
-                        max={new Date().getFullYear()}
-                        placeholder={String(new Date().getFullYear())}
-                        style={inp}
-                      />
-                    )}
-                  </div>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>Format:</span>
-                    {(["CSV", "Excel", "PDF"] as const).map(fmt => (
-                      <button key={fmt} onClick={() => setSelectedFormat(fmt)}
-                        style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid", fontSize: 12, fontWeight: 700, cursor: "pointer", background: selectedFormat === fmt ? fmtColor[fmt].bg : "transparent", color: selectedFormat === fmt ? fmtColor[fmt].color : "var(--muted-foreground)", borderColor: selectedFormat === fmt ? fmtColor[fmt].color : "var(--border)" }}>
-                        {fmt}
-                      </button>
-                    ))}
-                  </div>
-                  <Button loading={generating} onClick={handleInternGenerate}>
-                    <Download size={14} /> Generate & Download
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Filters */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 20 }}>
-                  <div>
-                    <label style={labelStyle}>Date From</label>
-                    <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inp} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Date To</label>
-                    <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inp} />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Department</label>
-                    <select value={department} onChange={e => setDepartment(e.target.value)} style={inp}>
-                      <option value="all">All Departments</option>
-                      {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Employee Type</label>
-                    <select value={empType} onChange={e => setEmpType(e.target.value)} style={inp}>
-                      <option value="all">All</option>
-                      <option value="FULL_TIME">Full-time</option>
-                      <option value="PART_TIME">Part-time</option>
-                      <option value="CONTRACT">Contract</option>
-                      <option value="INTERN">Intern</option>
-                      <option value="NYSC">NYSC</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={labelStyle}>Status</label>
-                    <select value={status} onChange={e => setStatus(e.target.value)} style={inp}>
-                      <option value="all">All</option>
-                      <option value="ACTIVE">Active</option>
-                      <option value="ON_LEAVE">On Leave</option>
-                      <option value="SUSPENDED">Suspended</option>
-                      <option value="TERMINATED">Terminated</option>
-                      <option value="RESIGNED">Resigned</option>
-                    </select>
-                  </div>
-                  <div ref={empRef} style={{ position: "relative" }}>
-                    <label style={labelStyle}>Single Employee</label>
-                    {selectedEmp ? (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--background)", fontSize: 13 }}>
-                        <span style={{ flex: 1, fontWeight: 600 }}>{selectedEmp.firstName} {selectedEmp.lastName} <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>· {selectedEmp.employeeId}</span></span>
-                        <button onClick={() => { setEmployeeId("all"); setEmpSearch("") }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--muted-foreground)" }}><X size={13} /></button>
-                      </div>
-                    ) : (
-                      <input value={empSearch} onChange={e => { setEmpSearch(e.target.value); setEmpDropOpen(true) }} onFocus={() => setEmpDropOpen(true)} placeholder="All employees" style={inp} />
-                    )}
-                    {empDropOpen && !selectedEmp && filteredEmps.length > 0 && (
-                      <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
-                        {filteredEmps.slice(0, 30).map(e => (
-                          <div key={e.id} onClick={() => { setEmployeeId(e.id); setEmpDropOpen(false); setEmpSearch("") }}
-                            style={{ padding: "9px 12px", cursor: "pointer", fontSize: 13 }}
-                            onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
-                            onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = ""}>
-                            <span style={{ fontWeight: 600 }}>{e.firstName} {e.lastName}</span>
-                            <span style={{ color: "var(--muted-foreground)", marginLeft: 8, fontSize: 11 }}>{e.employeeId}</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Format + actions */}
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>Format:</span>
-                    {(["CSV", "Excel", "PDF"] as const).map(fmt => (
-                      <button key={fmt} onClick={() => setSelectedFormat(fmt)}
-                        style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid", fontSize: 12, fontWeight: 700, cursor: "pointer", background: selectedFormat === fmt ? fmtColor[fmt].bg : "transparent", color: selectedFormat === fmt ? fmtColor[fmt].color : "var(--muted-foreground)", borderColor: selectedFormat === fmt ? fmtColor[fmt].color : "var(--border)" }}>
-                        {fmt}
-                      </button>
-                    ))}
-                  </div>
+            {/* Column picker — custom report only */}
+            {selectedCategory.id === "custom" && (
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>Select Columns</label>
                   <div style={{ display: "flex", gap: 8 }}>
-                    <Button variant="secondary" onClick={() => setScheduleOpen(true)}>
-                      <Calendar size={14} /> Schedule Report
-                    </Button>
-                    <Button loading={generating} onClick={handleGenerate}>
-                      <Download size={14} /> Generate & Download
-                    </Button>
+                    <button onClick={() => setSelectedFields(CUSTOM_FIELDS.map(f => f.key))} style={{ fontSize: 11, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Select all</button>
+                    <span style={{ color: "var(--border)" }}>·</span>
+                    <button onClick={() => setSelectedFields([])} style={{ fontSize: 11, color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Clear</button>
                   </div>
                 </div>
-              </>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {CUSTOM_FIELDS.map(f => {
+                    const checked = selectedFields.includes(f.key)
+                    return (
+                      <label key={f.key} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, cursor: "pointer", padding: "5px 12px", borderRadius: 8, border: "1px solid", borderColor: checked ? "var(--primary)" : "var(--border)", background: checked ? "var(--primary-50, #EBF3FF)" : "transparent", color: checked ? "var(--primary)" : "var(--foreground)", fontWeight: checked ? 600 : 400, userSelect: "none" }}>
+                        <input type="checkbox" checked={checked} onChange={() => setSelectedFields(prev => checked ? prev.filter(k => k !== f.key) : [...prev, f.key])} style={{ margin: 0, accentColor: "var(--primary)" }} />
+                        {f.label}
+                      </label>
+                    )
+                  })}
+                </div>
+                {selectedFields.length === 0 && (
+                  <p style={{ fontSize: 12, color: "#DC2626", marginTop: 6 }}>Select at least one column to generate a report.</p>
+                )}
+              </div>
             )}
+
+            {/* Filters */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 20 }}>
+              <div>
+                <label style={labelStyle}>Date From</label>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} style={inp} />
+              </div>
+              <div>
+                <label style={labelStyle}>Date To</label>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} style={inp} />
+              </div>
+              <div>
+                <label style={labelStyle}>Department</label>
+                <select value={department} onChange={e => setDepartment(e.target.value)} style={inp}>
+                  <option value="all">All Departments</option>
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Employee Type</label>
+                <select value={empType} onChange={e => setEmpType(e.target.value)} style={inp}>
+                  <option value="all">All</option>
+                  <option value="FULL_TIME">Full-time</option>
+                  <option value="PART_TIME">Part-time</option>
+                  <option value="CONTRACT">Contract</option>
+                  <option value="INTERN">Intern</option>
+                  <option value="NYSC">NYSC</option>
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Status</label>
+                <select value={status} onChange={e => setStatus(e.target.value)} style={inp}>
+                  <option value="all">All</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="ON_LEAVE">On Leave</option>
+                  <option value="SUSPENDED">Suspended</option>
+                  <option value="TERMINATED">Terminated</option>
+                  <option value="RESIGNED">Resigned</option>
+                </select>
+              </div>
+              <div ref={empRef} style={{ position: "relative" }}>
+                <label style={labelStyle}>Single Employee</label>
+                {selectedEmp ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--background)", fontSize: 13 }}>
+                    <span style={{ flex: 1, fontWeight: 600 }}>{selectedEmp.firstName} {selectedEmp.lastName} <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>· {selectedEmp.employeeId}</span></span>
+                    <button onClick={() => { setEmployeeId("all"); setEmpSearch("") }} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, color: "var(--muted-foreground)" }}><X size={13} /></button>
+                  </div>
+                ) : (
+                  <input value={empSearch} onChange={e => { setEmpSearch(e.target.value); setEmpDropOpen(true) }} onFocus={() => setEmpDropOpen(true)} placeholder="All employees" style={inp} />
+                )}
+                {empDropOpen && !selectedEmp && filteredEmps.length > 0 && (
+                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+                    {filteredEmps.slice(0, 30).map(e => (
+                      <div key={e.id} onClick={() => { setEmployeeId(e.id); setEmpDropOpen(false); setEmpSearch("") }}
+                        style={{ padding: "9px 12px", cursor: "pointer", fontSize: 13 }}
+                        onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                        onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = ""}>
+                        <span style={{ fontWeight: 600 }}>{e.firstName} {e.lastName}</span>
+                        <span style={{ color: "var(--muted-foreground)", marginLeft: 8, fontSize: 11 }}>{e.employeeId}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Format + generate */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)" }}>Format:</span>
+                {(["CSV", "Excel", "PDF"] as const).map(fmt => (
+                  <button key={fmt} onClick={() => setSelectedFormat(fmt)}
+                    style={{ padding: "6px 16px", borderRadius: 8, border: "1px solid", fontSize: 12, fontWeight: 700, cursor: "pointer", background: selectedFormat === fmt ? fmtColor[fmt].bg : "transparent", color: selectedFormat === fmt ? fmtColor[fmt].color : "var(--muted-foreground)", borderColor: selectedFormat === fmt ? fmtColor[fmt].color : "var(--border)" }}>
+                    {fmt}
+                  </button>
+                ))}
+              </div>
+              <Button loading={generating} onClick={handleGenerate}>
+                <Download size={14} /> Generate & Download
+              </Button>
+            </div>
           </Card>
 
           {/* ── Report History ── */}
@@ -673,43 +535,6 @@ export default function ReportsPage() {
           <button onClick={() => setToast(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, opacity: 0.6 }}><X size={14} /></button>
         </div>
       )}
-
-      {/* ── Schedule Modal ── */}
-      <Modal open={scheduleOpen} onClose={() => setScheduleOpen(false)} title="Schedule Report" width={480}>
-        <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ background: "var(--primary-50, #EBF3FF)", borderRadius: 10, padding: "12px 16px", fontSize: 13, color: "var(--primary)" }}>
-            Scheduling: <strong>{selectedReport}</strong> ({selectedCategory.label})
-          </div>
-          <div>
-            <label style={labelStyle}>Frequency</label>
-            <select value={schedFreq} onChange={e => setSchedFreq(e.target.value)} style={inp}>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </div>
-          <div>
-            <label style={labelStyle}>Time</label>
-            <input type="time" value={schedTime} onChange={e => setSchedTime(e.target.value)} style={inp} />
-          </div>
-          <div>
-            <label style={labelStyle}>Recipients (comma-separated emails)</label>
-            <input type="text" placeholder="e.g. hr@datasciencenigeria.ai, ceo@datasciencenigeria.ai" value={schedRecipients} onChange={e => setSchedRecipients(e.target.value)} style={inp} />
-          </div>
-          <div>
-            <label style={labelStyle}>Format</label>
-            <select value={selectedFormat} onChange={e => setSelectedFormat(e.target.value as any)} style={inp}>
-              <option value="PDF">PDF</option>
-              <option value="Excel">Excel</option>
-              <option value="CSV">CSV</option>
-            </select>
-          </div>
-        </div>
-        <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <Button variant="secondary" onClick={() => setScheduleOpen(false)}>Cancel</Button>
-          <Button onClick={handleScheduleSave}><Calendar size={14} /> Save Schedule</Button>
-        </div>
-      </Modal>
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>

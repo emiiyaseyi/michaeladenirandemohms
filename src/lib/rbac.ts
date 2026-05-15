@@ -26,6 +26,7 @@ export interface NavItem {
   spacer?: boolean
   permission?: string
   requiresIntern?: true
+  hideForIntern?: true
 }
 
 export const ALL_ROLES: NavPanelRole[] = ["SUPER_ADMIN", "ADMIN", "STAFF"]
@@ -42,8 +43,8 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── STAFF items after spacer ─────────────────────────────────────────────────
   { label: "People",        href: "/people",        icon: "Users",         roles: ["STAFF"] },
-  { label: "Weekly Report", href: "/intern-report",  icon: "ClipboardList", roles: ["STAFF"], requiresIntern: true },
-  { label: "Intern Reviews", href: "/intern-reports", icon: "ClipboardCheck", roles: ["STAFF"] },
+  { label: "Weekly Report",   href: "/intern-report",  icon: "ClipboardList",  roles: ["STAFF"], requiresIntern: true },
+  { label: "Intern Reviews", href: "/intern-reviews", icon: "ClipboardCheck", roles: ["STAFF"], hideForIntern: true },
 
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
@@ -285,6 +286,7 @@ export function getNavForRole(role: string, isIntern?: boolean): NavItem[] {
   return NAV_ITEMS.filter(item => {
     if (!item.roles.includes(role as NavPanelRole)) return false
     if (item.requiresIntern && !isIntern) return false
+    if (item.hideForIntern && isIntern) return false
     return true
   })
 }

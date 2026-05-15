@@ -45,7 +45,6 @@ export default function EmployeePreviewModal({ employee }: { employee: any }) {
           {tile("Phone",           employee.phone ?? "—")}
           {tile("Employment Type", employee.employmentType?.replace(/_/g, " ") ?? "—")}
           {tile("Hire Date",       formatDate(employee.hireDate))}
-          {tile("Category",        employee.category === "TECHNICAL" ? "Technical" : "Non-Technical")}
           {tile("Manager",         employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}` : "—")}
         </div>
 

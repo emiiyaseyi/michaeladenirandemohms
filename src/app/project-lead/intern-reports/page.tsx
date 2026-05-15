@@ -420,7 +420,23 @@ export default function PLInternReportsPage() {
                   </tbody>
                 </table>
               </div>
-              {viewingReport.personalReflection && (
+              {viewingReport.dailyReflections && Object.values(viewingReport.dailyReflections as Record<string, string>).some(v => v) && (
+                <div style={{ marginTop: 16 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Daily Reflections</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                    {[{ key: "Mon", label: "Monday" }, { key: "Tue", label: "Tuesday" }, { key: "Wed", label: "Wednesday" }, { key: "Thu", label: "Thursday" }, { key: "Fri", label: "Friday" }].map(({ key, label }) => {
+                      const text = (viewingReport.dailyReflections as Record<string, string>)[key]
+                      return (
+                        <div key={key} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 12px" }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>{label}</div>
+                          <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0 }}>{text || <span style={{ color: "var(--border)", fontStyle: "italic" }}>—</span>}</p>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              {!viewingReport.dailyReflections && viewingReport.personalReflection && (
                 <div style={{ marginTop: 16 }}>
                   <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "var(--muted-foreground)" }}>PERSONAL REFLECTIONS</p>
                   <p style={{ fontSize: 13, lineHeight: 1.7 }}>{viewingReport.personalReflection}</p>

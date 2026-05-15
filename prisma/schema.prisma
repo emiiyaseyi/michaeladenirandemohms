@@ -1494,6 +1494,7 @@ model InternWeeklyReport {
   totalHours           Float              @default(0)
   taskDescriptions     Json?
   personalReflection   String?
+  dailyReflections     Json?
   submittedAt          DateTime?
   lateFlag             Boolean            @default(false)
   status               InternReportStatus @default(DRAFT)

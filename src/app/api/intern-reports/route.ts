@@ -159,6 +159,7 @@ export async function POST(req: NextRequest) {
     communityHours = 0, representationHours = 0, selfDevHours = 0,
     personalReflection = "",
     taskDescriptions = {},
+    dailyReflections = {} as Record<string, string>,
     extraReviewerIds = [] as string[],
   } = body
 
@@ -175,7 +176,7 @@ export async function POST(req: NextRequest) {
       mainProjectHours, consultingHours, specialProjectHours, trainingHours,
       newBusinessHours, reportingDocHours, operationalHours, researchHours,
       meetingsHours, communityHours, representationHours, selfDevHours,
-      totalHours, personalReflection, taskDescriptions,
+      totalHours, personalReflection, taskDescriptions, dailyReflections,
       submittedAt: new Date(), lateFlag,
       pointDeduction: lateFlag ? lateDeduction : 0,
       status: lateFlag ? "LATE" : "SUBMITTED",
@@ -184,7 +185,7 @@ export async function POST(req: NextRequest) {
       mainProjectHours, consultingHours, specialProjectHours, trainingHours,
       newBusinessHours, reportingDocHours, operationalHours, researchHours,
       meetingsHours, communityHours, representationHours, selfDevHours,
-      totalHours, personalReflection, taskDescriptions,
+      totalHours, personalReflection, taskDescriptions, dailyReflections,
       submittedAt: new Date(), lateFlag,
       pointDeduction: lateFlag ? lateDeduction : 0,
       status: lateFlag ? "LATE" : "SUBMITTED",
@@ -273,7 +274,7 @@ export async function POST(req: NextRequest) {
         title: "Intern Report: Review Requested",
         message: `${internName} has asked you to review their weekly report for ${format(ws, "MMM d")} – ${format(we, "MMM d, yyyy")}.`,
         type: "INFO",
-        link: "/staff/intern-reports",
+        link: "/staff/intern-reviews",
       },
     }).catch(() => {})
     sendEmail({

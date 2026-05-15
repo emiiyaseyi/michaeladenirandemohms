@@ -87,6 +87,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
   for (const item of nav) {
     if (item.spacer) { filteredNav.push(item); continue }
     if (item.requiresIntern && !user?.isIntern) continue
+    if (item.hideForIntern && user?.isIntern) continue
     if (item.children) {
       if (!hasPermission(item.permission)) continue
       const visibleChildren = item.children.filter(c =>
