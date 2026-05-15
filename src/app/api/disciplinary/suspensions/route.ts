@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
@@ -19,6 +20,11 @@ async function saveFile(file: File, folder: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canViewDisciplinary")
+  if (perm) return perm
+
   const { searchParams } = new URL(req.url)
   const tab    = searchParams.get("tab") ?? "suspensions"   // "suspensions" | "schedules"
   const status = searchParams.get("status") ?? ""
@@ -48,6 +54,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canViewDisciplinary")
+  if (perm) return perm
+
   const form = await req.formData()
   const employeeId      = form.get("employeeId") as string
   const startDate       = form.get("startDate") as string

@@ -18,6 +18,8 @@ const DEFAULT_CRITERIA = [
 ]
 
 export async function GET() {
+  const { error } = await requireAuth()
+  if (error) return error
   const cfg = await prisma.internReportSettings.findUnique({ where: { id: "singleton" } })
   return NextResponse.json({
     ...(cfg ?? DEFAULTS),
