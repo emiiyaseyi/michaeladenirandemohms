@@ -52,29 +52,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const requesterName = `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName}`
   const leaveName = leaveRequest.leaveType.name
 
-  // Nudge pending relief officers
-  if (stage === "RELIEF") {
-    const relief = await prisma.leaveReliefOfficer.findMany({
-      where: { leaveRequestId: id, status: "PENDING" },
-      include: { employee: { select: { id: true, userId: true, user: { select: { role: true } } } } },
-    })
-    if (relief.length === 0) return NextResponse.json({ error: "No pending relief officers" }, { status: 400 })
-    await prisma.notification.createMany({
-      data: relief.map(r => ({
-        userId: r.employee.userId,
-        employeeId: r.employee.id,
-        title: "Relief Request Reminder",
-        message: `${requesterName} is waiting for your response on their ${leaveName} leave request.`,
-        type: "WARNING" as const,
-        link: `${roleBasePath((r.employee as any).user?.role ?? "STAFF")}/requests/leave?tab=relief`,
-      })),
-    })
-    for (const r of relief) {
-      sendEmail({ eventKey: "leave_nudge_pl", toUserId: r.employee.userId, variables: { requesterName, leaveType: leaveName } }).catch(() => {})
-    }
-    return NextResponse.json({ ok: true, nudged: relief.length })
-  }
-
   // Nudge HR Admin — use proper recipient lookup (not employee record)
   if (stage === "HR_ADMIN") {
     const hrRecipients = await getHRAdminRecipients()

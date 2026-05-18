@@ -45,9 +45,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const existing = await (prisma as any).workplace.findUnique({ where: { id } })
   if (!existing) return NextResponse.json({ error: "Not found" }, { status: 404 })
-  if (existing.isFiling || existing.isMailing) {
-    return NextResponse.json({ error: "Cannot delete a workplace that is the filing or mailing address. Switch to another first." }, { status: 400 })
-  }
 
   await (prisma as any).workplace.delete({ where: { id } })
   return NextResponse.json({ ok: true })

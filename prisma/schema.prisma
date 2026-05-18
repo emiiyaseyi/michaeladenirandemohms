@@ -751,9 +751,6 @@ model LeaveReliefOfficer {
   id             String       @id @default(cuid())
   leaveRequestId String
   employeeId     String
-  status         ReliefStatus @default(PENDING)
-  acceptedAt     DateTime?
-  declinedAt     DateTime?
   comment        String?
   rating         Int?
   ratingComment  String?
@@ -896,12 +893,6 @@ enum OfferStatus {
   ACCEPTED
   DECLINED
   EXPIRED
-}
-
-enum ReliefStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
 }
 
 enum LeaveStatus {
@@ -1121,11 +1112,6 @@ model Workplace {
   zipCode      String?
   phone        String
   email        String?
-  taxOffice    String?
-  taxId        String?
-  nhfLocation  String?
-  isFiling     Boolean  @default(false)
-  isMailing    Boolean  @default(false)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

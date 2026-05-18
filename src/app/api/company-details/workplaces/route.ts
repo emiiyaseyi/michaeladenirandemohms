@@ -24,9 +24,6 @@ export async function POST(req: NextRequest) {
   if (!country?.trim()) return NextResponse.json({ error: "Country is required" }, { status: 400 })
   if (!state?.trim()) return NextResponse.json({ error: "State is required" }, { status: 400 })
 
-  const existing = await (prisma as any).workplace.count()
-  const isFirst = existing === 0
-
   const workplace = await (prisma as any).workplace.create({
     data: {
       displayName: displayName.trim(),
@@ -38,8 +35,6 @@ export async function POST(req: NextRequest) {
       zipCode: zipCode?.trim() || null,
       phone: phone.trim(),
       email: email?.trim() || null,
-      isFiling: isFirst,
-      isMailing: isFirst,
       isActive: true,
     },
   })

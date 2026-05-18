@@ -595,8 +595,6 @@ async function main() {
         zipCode:      "11011",
         phone:        "08140000853",
         email:        "info@datasciencenigeria.ai",
-        isFiling:     true,
-        isMailing:    true,
         isActive:     true,
       },
     })

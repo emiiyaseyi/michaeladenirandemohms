@@ -7,8 +7,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (error) return error
   const { id } = await params
 
-  // Admin OR the employee themselves can see their disciplinary records
-  const isAdmin = caps(user.role).canViewAllEmployees
+  // Admin (canViewAllEmployees) OR an admin with canViewDisciplinary (hr-admin) OR the employee themselves
+  const perms = (user as any).permissions ?? {}
+  const isAdmin = caps(user.role).canViewAllEmployees || !!perms.canViewDisciplinary
   if (!isAdmin && user.employeeId !== id) return forbidden()
 
   const violations = await prisma.violation.findMany({

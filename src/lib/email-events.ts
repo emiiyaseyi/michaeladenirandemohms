@@ -173,32 +173,6 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       NOTE("Log in to your HRMS portal to view your handover notes."),
   },
 
-  relief_accepted: {
-    name: "Relief Officer Accepted",
-    category: "Leave",
-    description: "Sent to the leave requester when their relief officer accepts.",
-    variables: ["reliefName", "leaveType", "startDate", "endDate"],
-    defaultSubject: "Your relief officer accepted for {{leaveType}}",
-    defaultBody:
-      LOGO +
-      H("Relief Officer Accepted") +
-      P("<strong>{{reliefName}}</strong> has accepted the relief officer role for your <strong>{{leaveType}}</strong> leave ({{startDate}} – {{endDate}}).") +
-      NOTE(),
-  },
-
-  relief_all_accepted: {
-    name: "All Relief Officers Accepted",
-    category: "Leave",
-    description: "Sent to the approver (PL/HR) when all relief officers have accepted — request is ready to review.",
-    variables: ["employeeName", "leaveType"],
-    defaultSubject: "Ready for review: {{employeeName}}'s {{leaveType}} leave",
-    defaultBody:
-      LOGO +
-      H("Leave Request Ready for Your Review") +
-      P("All relief officers for <strong>{{employeeName}}</strong>'s <strong>{{leaveType}}</strong> leave request have accepted. The request is now ready for your approval.") +
-      NOTE("Log in to the HRMS portal to take action."),
-  },
-
   welcome_back: {
     name: "Welcome Back from Leave",
     category: "Leave",

@@ -148,7 +148,7 @@ export default function ContractorsPage() {
           />
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, rowGap: 16, alignItems: "center", flexWrap: "wrap" }}>
           {/* Status filter */}
           <div ref={statusRef} style={{ position: "relative" }}>
             <button onClick={() => setShowStatusDrop(v => !v)} style={{ padding: "8px 14px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)" }}>

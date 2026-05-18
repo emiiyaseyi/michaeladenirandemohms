@@ -884,8 +884,7 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, emplo
       .catch(() => {})
   }, [form.startDate, form.endDate, req.leaveTypeId])
 
-  const anyReliefActed = (req.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING")
-  const locked = anyReliefActed && !isAdmin && !isPLEdit
+  const locked = false  // Relief officers don't accept/decline — form is never locked by that
 
   // PL's own handover entry
   const myEntryIdx = isPLEdit ? handover.findIndex((e: any) => e.projectLeadId === currentUserEmployeeId) : -1
@@ -950,19 +949,6 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, emplo
             Review the leave dates and confirm or change who will cover your tasks. Relief officers are only notified after you approve.
           </div>
         )}
-        {!isPLEdit && locked && (
-          <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8 }}>
-            <AlertCircle size={14} style={{ flexShrink: 0 }} />
-            A relief officer has already responded. This request is locked for editing. Contact HR/Admin for changes.
-          </div>
-        )}
-        {!isPLEdit && isAdmin && anyReliefActed && (
-          <div style={{ background: "var(--info-bg)", border: "1px solid var(--info)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--info)", display: "flex", gap: 8 }}>
-            <Info size={14} style={{ flexShrink: 0 }} />
-            Admin override — relief officer has already responded but you can still make changes.
-          </div>
-        )}
-
         {/* Dates */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
           <div>
@@ -1105,10 +1091,6 @@ function RejectModal({ id, onClose, onDone }: { id: string; onClose: () => void;
 function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: string }) {
   const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [respondingId, setRespondingId] = useState<string | null>(null)
-  const [declineModal, setDeclineModal] = useState<{ id: string } | null>(null)
-  const [declineComment, setDeclineComment] = useState("")
-  const [declineLoading, setDeclineLoading] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -1120,23 +1102,6 @@ function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: 
 
   useEffect(() => { load() }, [load])
 
-  const respond = async (id: string, action: "ACCEPTED" | "DECLINED", comment?: string) => {
-    setRespondingId(id)
-    await fetch(`/api/leave/relief/${id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, comment }),
-    })
-    setRespondingId(null)
-    load()
-  }
-
-  const statusColor: Record<string, string> = {
-    PENDING: "var(--warning)",
-    ACCEPTED: "var(--success)",
-    DECLINED: "var(--accent)",
-  }
-
   if (loading) {
     return <div style={{ padding: 60, textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, color: "var(--muted-foreground)" }}><Loader2 size={16} style={{ animation: "spin .8s linear infinite" }} /> Loading…</div>
   }
@@ -1145,184 +1110,69 @@ function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: 
     return <EmptyState icon={ShieldCheck} title="No relief assignments" description="When someone adds you as a relief officer for their leave, it will appear here." />
   }
 
-  const pending = assignments.filter(a => a.status === "PENDING")
-  const past = assignments.filter(a => a.status !== "PENDING")
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {pending.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 12 }}>
-            Awaiting Your Response ({pending.length})
-          </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {pending.map((a: any) => {
+      <Card style={{ padding: 0 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ borderBottom: "1px solid var(--border)" }}>
+              {["Employee", "Leave Type", "Task", "Period", "Days", "Leave Status"].map(h => (
+                <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {assignments.map((a: any) => {
               const req = a.leaveRequest
               const emp = req.employee
-              const isResponding = respondingId === a.id
               return (
-                <Card key={a.id} style={{ padding: 0, border: "2px solid var(--warning)", overflow: "hidden" }}>
-                  <div style={{ padding: "14px 20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                      <Avatar name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} size={42} />
+                <tr key={a.id} style={{ borderBottom: "1px solid var(--border)" }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
+                  <td style={{ padding: "11px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Avatar name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} size={28} />
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 14 }}>{emp.firstName} {emp.lastName}</div>
-                        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{emp.jobTitle} · {emp.department?.name}</div>
-                        <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                          <span style={{ fontSize: 12, background: "var(--muted)", borderRadius: 6, padding: "3px 8px", fontWeight: 600 }}>{req.leaveType?.name}</span>
-                          <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
-                            {formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")} · <strong>{req.days}</strong> days
-                          </span>
-                        </div>
-                        {(() => {
-                          if (!req.handoverNotes) return null
-                          let entries: any[] = []
-                          try { entries = JSON.parse(req.handoverNotes) } catch { return null }
-                          const myEntries = entries.filter((e: any) => e.relieverId === currentUserEmployeeId)
-                          if (myEntries.length === 0) return null
-                          return (
-                            <div style={{ marginTop: 8, background: "var(--muted)", borderRadius: 8, padding: "8px 12px", fontSize: 12, maxWidth: 420 }}>
-                              <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>Your Task{myEntries.length > 1 ? "s" : ""}</div>
-                              {myEntries.map((e: any, idx: number) => (
-                                <div key={idx} style={idx > 0 ? { marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--border)" } : {}}>
-                                  <div style={{ fontWeight: 700 }}>{e.taskName}</div>
-                                  {e.taskDescription && <div style={{ color: "var(--muted-foreground)", marginTop: 2 }}>{e.taskDescription}</div>}
-                                </div>
-                              ))}
-                            </div>
-                          )
-                        })()}
-                        {req.documentUrl && (
-                          <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
-                            style={{ display: "inline-flex", alignItems: "center", gap: 5, marginTop: 6, fontSize: 12, fontWeight: 600, color: "var(--primary)", textDecoration: "none" }}>
-                            <CalendarCheck size={12} /> View Leave Document
-                          </a>
-                        )}
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{emp.firstName} {emp.lastName}</div>
+                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{emp.department?.name}</div>
                       </div>
                     </div>
-                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                      <button
-                        disabled={isResponding}
-                        onClick={() => respond(a.id, "ACCEPTED")}
-                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: "var(--success-bg)", color: "var(--success)", opacity: isResponding ? 0.6 : 1 }}
-                      >
-                        {isResponding ? <Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} /> : <Check size={13} />} Accept
-                      </button>
-                      <button
-                        disabled={isResponding}
-                        onClick={() => { setDeclineModal({ id: a.id }); setDeclineComment("") }}
-                        style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: "var(--danger-bg)", color: "var(--accent)", opacity: isResponding ? 0.6 : 1 }}
-                      >
-                        <X size={13} /> Decline
-                      </button>
+                  </td>
+                  <td style={{ padding: "11px 16px", fontSize: 13 }}>{req.leaveType?.name}</td>
+                  <td style={{ padding: "11px 16px", fontSize: 12 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                      {(() => {
+                        if (!req.handoverNotes) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
+                        let entries: any[] = []
+                        try { entries = JSON.parse(req.handoverNotes) } catch { return <span style={{ color: "var(--muted-foreground)" }}>—</span> }
+                        const myEntries = entries.filter((e: any) => e.relieverId === currentUserEmployeeId)
+                        if (myEntries.length === 0) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
+                        return myEntries.map((e: any, idx: number) => (
+                          <div key={idx}>
+                            <div style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
+                            {e.taskDescription && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{e.taskDescription}</div>}
+                          </div>
+                        ))
+                      })()}
+                      {req.documentUrl && (
+                        <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
+                          style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--primary)", textDecoration: "none", marginTop: 2 }}>
+                          <CalendarCheck size={10} /> View Document
+                        </a>
+                      )}
                     </div>
-                  </div>
-                  <div style={{ padding: "8px 20px", background: "rgba(234,179,8,0.06)", borderTop: "1px solid var(--warning)", display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--warning)", fontWeight: 600 }}>
-                    <Clock size={11} /> Respond within 12 hours of receiving this request
-                  </div>
-                </Card>
+                  </td>
+                  <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
+                  <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
+                  <td style={{ padding: "11px 16px" }}>
+                    <Badge status={req.status} />
+                  </td>
+                </tr>
               )
             })}
-          </div>
-        </div>
-      )}
-
-      {past.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 12 }}>
-            Past Relief Duties ({past.length})
-          </div>
-          <Card style={{ padding: 0 }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Employee", "Leave Type", "Task", "Period", "Days", "Status", "Comment"].map(h => (
-                    <th key={h} style={{ padding: "10px 16px", textAlign: "left", fontSize: 10, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {past.map((a: any) => {
-                  const req = a.leaveRequest
-                  const emp = req.employee
-                  return (
-                    <tr key={a.id} style={{ borderBottom: "1px solid var(--border)" }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
-                      <td style={{ padding: "11px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <Avatar name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} size={28} />
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: 13 }}>{emp.firstName} {emp.lastName}</div>
-                            <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{emp.department?.name}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: "11px 16px", fontSize: 13 }}>{req.leaveType?.name}</td>
-                      <td style={{ padding: "11px 16px", fontSize: 12 }}>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                          {(() => {
-                            if (!req.handoverNotes) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
-                            let entries: any[] = []
-                            try { entries = JSON.parse(req.handoverNotes) } catch { return <span style={{ color: "var(--muted-foreground)" }}>—</span> }
-                            const myEntries = entries.filter((e: any) => e.relieverId === currentUserEmployeeId)
-                            if (myEntries.length === 0) return <span style={{ color: "var(--muted-foreground)" }}>—</span>
-                            return myEntries.map((e: any, idx: number) => (
-                              <div key={idx}>
-                                <div style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
-                                {e.taskDescription && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{e.taskDescription}</div>}
-                              </div>
-                            ))
-                          })()}
-                          {req.documentUrl && (
-                            <a href={req.documentUrl} target="_blank" rel="noopener noreferrer"
-                              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--primary)", textDecoration: "none", marginTop: 2 }}>
-                              <CalendarCheck size={10} /> View Document
-                            </a>
-                          )}
-                        </div>
-                      </td>
-                      <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{formatDate(req.startDate, "MMM d")} → {formatDate(req.endDate, "MMM d")}</td>
-                      <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
-                      <td style={{ padding: "11px 16px" }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, background: a.status === "ACCEPTED" ? "var(--success-bg)" : "var(--danger-bg)", color: statusColor[a.status] }}>
-                          {a.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--muted-foreground)", maxWidth: 200 }}>{a.comment || "—"}</td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </Card>
-        </div>
-      )}
-
-      {/* Decline Modal */}
-      <Modal open={!!declineModal} onClose={() => setDeclineModal(null)} title="Decline Relief Request" width={420}>
-        <div style={{ padding: 24 }}>
-          <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 12 }}>
-            Please provide a reason for declining. This will be visible to the leave applicant.
-          </div>
-          <label style={{ fontSize: 12, fontWeight: 600, display: "block", marginBottom: 6 }}>Reason <span style={{ color: "var(--accent)" }}>*</span></label>
-          <textarea value={declineComment} onChange={e => setDeclineComment(e.target.value)} rows={3}
-            placeholder="e.g. I'm unavailable during this period…"
-            style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
-        </div>
-        <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <Button variant="secondary" onClick={() => setDeclineModal(null)}>Cancel</Button>
-          <Button variant="danger" disabled={!declineComment.trim() || declineLoading} onClick={async () => {
-            if (!declineModal) return
-            setDeclineLoading(true)
-            await respond(declineModal.id, "DECLINED", declineComment)
-            setDeclineLoading(false)
-            setDeclineModal(null)
-          }}>
-            {declineLoading ? <><Loader2 size={12} style={{ animation: "spin .8s linear infinite" }} /> Declining…</> : "Confirm Decline"}
-          </Button>
-        </div>
-      </Modal>
+          </tbody>
+        </table>
+      </Card>
     </div>
   )
 }
@@ -1586,12 +1436,7 @@ export default function LeavePage() {
                       <td style={{ padding: "12px 14px", fontSize: 13, fontWeight: 700 }}>{req.days}d</td>
                       <td style={{ padding: "12px 14px" }}><Badge status={req.currentStage ?? req.status} /></td>
                       <td style={{ padding: "12px 14px" }}>
-                        {req.currentStage === "AWAITING_RELIEF" ? (
-                          <div style={{ fontSize: 11, color: "var(--warning)", display: "flex", alignItems: "center", gap: 4, fontWeight: 600 }}>
-                            <Clock size={11} />
-                            {(req.reliefOfficersList ?? []).filter((r: any) => r.status === "PENDING").length} pending
-                          </div>
-                        ) : req.approvals?.length > 0 ? (
+                        {req.approvals?.length > 0 ? (
                           <div>
                             <StageBar approvals={req.approvals} />
                             {req.status === "PENDING" && req.approvals?.find((a: any) => !a.action) && (
@@ -1690,9 +1535,8 @@ export default function LeavePage() {
               <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Relief Officers</div>
                 {(reviewReq.reliefOfficersList ?? []).map((r: any, i: number) => (
-                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: i > 0 ? 8 : 0, paddingBottom: 8, borderBottom: i < reviewReq.reliefOfficersList.length - 1 ? "1px solid var(--border)" : "none" }}>
+                  <div key={i} style={{ display: "flex", alignItems: "center", paddingTop: i > 0 ? 8 : 0, paddingBottom: 8, borderBottom: i < reviewReq.reliefOfficersList.length - 1 ? "1px solid var(--border)" : "none" }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>{r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : (r.name ?? r.relieverId)}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 6, background: r.status === "ACCEPTED" ? "var(--success-bg)" : r.status === "DECLINED" ? "var(--danger-bg)" : "var(--warning-bg)", color: r.status === "ACCEPTED" ? "var(--success)" : r.status === "DECLINED" ? "var(--accent)" : "var(--warning)" }}>{r.status}</span>
                   </div>
                 ))}
               </div>
@@ -1744,7 +1588,7 @@ export default function LeavePage() {
                 </button>
               )}
               {canEditLeave && reviewReq.status === "PENDING" && (
-                (reviewReq.employeeId === user?.employeeId && (isAdmin || !(reviewReq.reliefOfficersList ?? []).some((r: any) => r.status !== "PENDING"))) || isAdmin
+                reviewReq.employeeId === user?.employeeId || isAdmin
               ) && (
                 <button onClick={() => { setEditLeave(reviewReq); setReviewReq(null) }}
                   style={{ width: "100%", padding: "10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>

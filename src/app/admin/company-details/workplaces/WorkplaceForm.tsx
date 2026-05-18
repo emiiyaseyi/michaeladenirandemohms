@@ -31,12 +31,11 @@ interface Props {
   error: string
   onCancel: () => void
   onSave: () => void
-  isFilingOrMailing?: boolean
   isActive?: boolean
   onToggleActive?: () => void
 }
 
-export function WorkplaceFormBody({ form, setForm, saving, error, onCancel, onSave, isFilingOrMailing, isActive, onToggleActive }: Props) {
+export function WorkplaceFormBody({ form, setForm, saving, error, onCancel, onSave, isActive, onToggleActive }: Props) {
   const set = (k: keyof WpForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm({ ...form, [k]: e.target.value })
 
@@ -92,7 +91,7 @@ export function WorkplaceFormBody({ form, setForm, saving, error, onCancel, onSa
 
       <div style={{ marginTop: 24, paddingTop: 20, borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div>
-          {onToggleActive && !isFilingOrMailing && (
+          {onToggleActive && (
             <button onClick={onToggleActive} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: isActive ? "#ef4444" : "#22c55e", padding: 0 }}>
               {isActive ? "Deactivate" : "Activate"}
             </button>

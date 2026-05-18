@@ -54,9 +54,6 @@ export default function ManageWorkplacesPage() {
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <span style={{ fontSize: 13, fontWeight: 700 }}>{wp.displayName}</span>
-                    {wp.isFiling && (
-                      <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: "var(--primary-50, rgba(59,130,246,0.1))", color: "var(--primary)", border: "1px solid var(--primary-20, rgba(59,130,246,0.2))" }}>Primary</span>
-                    )}
                     {!wp.isActive && (
                       <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: "var(--danger-bg)", color: "var(--accent)" }}>Inactive</span>
                     )}

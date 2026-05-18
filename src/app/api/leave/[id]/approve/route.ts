@@ -187,7 +187,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const existing = await prisma.leaveReliefOfficer.findFirst({ where: { leaveRequestId: id, employeeId: h.relieverId } })
       if (!existing) {
         await prisma.leaveReliefOfficer.create({
-          data: { leaveRequestId: id, employeeId: h.relieverId, status: "ACCEPTED" },
+          data: { leaveRequestId: id, employeeId: h.relieverId },
         })
       }
     }
