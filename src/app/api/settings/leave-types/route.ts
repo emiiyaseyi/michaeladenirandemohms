@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
   const { name, description, defaultDays, minNoticeDays, genderSpecific, requiresDoc, minDocDays, internOnly, deductFromAnnual } = await req.json()
   if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 })
   const lt = await prisma.leaveType.create({
@@ -27,7 +28,8 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
   const { id, name, description, defaultDays, minNoticeDays, genderSpecific, requiresDoc, minDocDays, internOnly, deductFromAnnual, isActive } = await req.json()
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 })
   const lt = await prisma.leaveType.update({
@@ -51,7 +53,8 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 })

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission, forbidden } from "@/lib/api-auth"
 
 export async function GET(_req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings && !caps(user.role).canViewAllEmployees) return forbidden()
+  if (user.role !== "SUPER_ADMIN" && !user.permissions["canManageSettings"] && !user.permissions["canViewAllEmployees"]) return forbidden()
 
   const departments = await prisma.department.findMany({
     orderBy: { name: "asc" },
@@ -23,7 +23,8 @@ export async function GET(_req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
   const { name, description, divisionId, leadEmployeeId } = await req.json()
   if (!name) return NextResponse.json({ error: "Name is required" }, { status: 400 })
   if (!leadEmployeeId) return NextResponse.json({ error: "Department lead is required" }, { status: 400 })
@@ -57,7 +58,8 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
   const { id, name, description, divisionId, leadEmployeeId } = await req.json()
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 })
   if (leadEmployeeId !== undefined && !leadEmployeeId) {
@@ -100,7 +102,8 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 })

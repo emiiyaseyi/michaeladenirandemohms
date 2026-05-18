@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission, forbidden } from "@/lib/api-auth"
 
 // GET /api/settings/departments/members?deptId=xxx — list employees in a department
 // Includes both primary (Employee.departmentId) and additional (EmployeeDepartment junction)
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings && !caps(user.role).canViewAllEmployees) return forbidden()
+  if (user.role !== "SUPER_ADMIN" && !user.permissions["canManageSettings"] && !user.permissions["canViewAllEmployees"]) return forbidden()
 
   const deptId = req.nextUrl.searchParams.get("deptId")
   if (!deptId) return NextResponse.json({ error: "deptId required" }, { status: 400 })
@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
 
   const body = await req.json()
   const { deptId } = body
@@ -73,7 +74,8 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
 
   const deptId = req.nextUrl.searchParams.get("deptId")
   const employeeId = req.nextUrl.searchParams.get("employeeId")
