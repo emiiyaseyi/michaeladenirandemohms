@@ -84,7 +84,7 @@ npm run dev
 | Database   | PostgreSQL                     |
 | ORM        | Prisma v6                      |
 | Auth       | NextAuth.js                    |
-| Styling    | Inline styles (no Tailwind)    |
+| Styling    | Inline styles                  |
 
 ## Project structure
 
