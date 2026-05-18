@@ -139,11 +139,12 @@ export default function ExternalAdminsPage() {
     setAddForm({ firstName: "", lastName: "", email: "", phone: "" })
   }
 
+  const [deleteErr, setDeleteErr] = useState("")
   const doDelete = async () => {
-    setDeleting(true)
+    setDeleting(true); setDeleteErr("")
     const r = await fetch(`/api/people/external-admins/${deleteTarget.id}`, { method: "DELETE" })
     setDeleting(false)
-    if (!r.ok) { const d = await r.json(); alert(d.error ?? "Failed"); return }
+    if (!r.ok) { const d = await r.json(); setDeleteErr(d.error ?? "Failed"); return }
     setAdmins(prev => prev.filter(a => a.id !== deleteTarget.id))
     setDeleteTarget(null)
   }
@@ -322,9 +323,14 @@ export default function ExternalAdminsPage() {
               <h2 style={{ fontSize: 17, fontWeight: 800 }}>Delete External Admin</h2>
               <button onClick={() => setDeleteTarget(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--muted-foreground)", lineHeight: 1 }}>×</button>
             </div>
-            <p style={{ fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.6, marginBottom: 28 }}>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.6, marginBottom: 16 }}>
               Deleting an external admin can't be undone and we won't keep this admin information once it has been deleted. Click Confirm to continue.
             </p>
+            {deleteErr && (
+              <div style={{ marginBottom: 16, padding: "10px 12px", background: "rgba(239,68,68,0.08)", color: "#EF4444", borderRadius: 8, fontSize: 12 }}>
+                {deleteErr}
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button onClick={() => setDeleteTarget(null)} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
               <button onClick={doDelete} disabled={deleting}

@@ -54,12 +54,24 @@ export async function GET(req: NextRequest) {
     scopeFilter = { managerId: user.employeeId }
   }
 
+  // Hide seeded accounts (SUPER_ADMIN + seeded managers) from the admin employees list.
+  // Manually-elevated staff/PLs (e.g. holding secondary-admin via UI grant) still appear.
+  const hideSeededFilter = {
+    NOT: {
+      OR: [
+        { user: { role: "SUPER_ADMIN" as any } },
+        { managerEntry: { isSystem: true } },
+      ],
+    },
+  }
+
   try {
     const [employees, departments] = await Promise.all([
       prisma.employee.findMany({
         where: {
           AND: [
             scopeFilter,
+            hideSeededFilter,
             search ? { OR: [
               { firstName: { contains: search, mode: "insensitive" } },
               { lastName: { contains: search, mode: "insensitive" } },

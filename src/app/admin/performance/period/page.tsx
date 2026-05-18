@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { TrendingUp, Plus, Pencil, Trash2, CheckCircle, XCircle, Calendar } from "lucide-react"
 import { format } from "date-fns"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 
 function StatusBadge({ cycle }: { cycle: any }) {
   if (cycle.isActive) return <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#DCFCE7", color: "#15803D" }}>Active</span>
@@ -50,12 +51,18 @@ export default function PerformancePeriodPage() {
     load()
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this cycle? This cannot be undone.")) return
-    const r = await fetch(`/api/performance/cycles/${id}`, { method: "DELETE" })
+  const [delTarget, setDelTarget] = useState<string | null>(null)
+  const [delErr, setDelErr] = useState("")
+  const [deleting, setDeleting] = useState(false)
+  const handleDelete = (id: string) => { setDelErr(""); setDelTarget(id) }
+  const doDelete = async () => {
+    if (!delTarget) return
+    setDeleting(true); setDelErr("")
+    const r = await fetch(`/api/performance/cycles/${delTarget}`, { method: "DELETE" })
     const d = await r.json()
-    if (!r.ok) { alert(d.error); return }
-    load()
+    setDeleting(false)
+    if (!r.ok) { setDelErr(d.error ?? "Failed"); return }
+    setDelTarget(null); load()
   }
 
   return (
@@ -160,6 +167,16 @@ export default function PerformancePeriodPage() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!delTarget}
+        onClose={() => { setDelTarget(null); setDelErr("") }}
+        onConfirm={doDelete}
+        title="Delete cycle?"
+        body={<div>Delete this performance cycle? This cannot be undone.{delErr && <div style={{ marginTop: 10, padding: 8, background: "rgba(239,68,68,0.08)", color: "#EF4444", borderRadius: 6, fontSize: 12 }}>{delErr}</div>}</div>}
+        confirmText="Delete"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   )
 }

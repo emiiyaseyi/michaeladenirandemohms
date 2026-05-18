@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { Search, Plus, MoreHorizontal, ChevronDown, ChevronUp, X, Loader2, Info } from "lucide-react"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 
 // ─── Category Select ─────────────────────────────────────────────────────────
 function CategorySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -604,11 +605,13 @@ export default function BenefitsPage() {
     return () => clearTimeout(t)
   }, [search])
 
-  const deleteBenefit = async (id: string) => {
-    if (!confirm("Delete this benefit? This will remove all enrollments.")) return
-    setDeleting(id)
-    await fetch(`/api/benefits/${id}`, { method: "DELETE" })
-    setDeleting(null)
+  const [delTarget, setDelTarget] = useState<string | null>(null)
+  const deleteBenefit = (id: string) => setDelTarget(id)
+  const doDelete = async () => {
+    if (!delTarget) return
+    setDeleting(delTarget)
+    await fetch(`/api/benefits/${delTarget}`, { method: "DELETE" })
+    setDeleting(null); setDelTarget(null)
     load()
   }
 
@@ -672,6 +675,16 @@ export default function BenefitsPage() {
       </div>
 
       {showAdd && <AddBenefitDrawer onClose={() => setShowAdd(false)} onSaved={() => { setShowAdd(false); load() }} />}
+      <ConfirmDialog
+        open={!!delTarget}
+        onClose={() => setDelTarget(null)}
+        onConfirm={doDelete}
+        title="Delete benefit?"
+        body="Delete this benefit? This will remove all employee enrollments associated with it. Cannot be undone."
+        confirmText="Delete"
+        variant="danger"
+        loading={!!deleting}
+      />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )

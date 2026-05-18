@@ -123,7 +123,7 @@ export default function AddNewMemberPage() {
     firstName: "", middleName: "", lastName: "",
     workplaceId: "", email: "", departmentId: "",
     hireDate: "", managerId: "", phone: "", employeeNumber: "",
-    jobTitle: "", employmentStatus: "Full-time",
+    jobTitle: "", employmentStatus: "Full-time", role: "STAFF",
   })
 
   // Step 1: Personal Details
@@ -141,7 +141,7 @@ export default function AddNewMemberPage() {
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
 
   // Invite mode state
-  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "" })
+  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF" })
   const [inviteSuccess, setInviteSuccess] = useState(false)
   const [inviteSaving, setInviteSaving] = useState(false)
   const [inviteErr, setInviteErr] = useState("")
@@ -357,6 +357,12 @@ export default function AddNewMemberPage() {
               <Field label="Date of Birth" required>
                 <input type="date" value={inviteForm.dateOfBirth} onChange={setIF("dateOfBirth")} max={maxDob} style={fi} />
               </Field>
+              <Field label="Role" required>
+                <select value={inviteForm.role} onChange={setIF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                  <option value="STAFF">Staff</option>
+                  <option value="PROJECT_LEAD">Project Lead</option>
+                </select>
+              </Field>
             </div>
             {inviteErr && <div style={{ margin: "0 32px 16px", padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{inviteErr}</div>}
             <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 12 }}>
@@ -385,7 +391,7 @@ export default function AddNewMemberPage() {
             An invitation email has been sent to <strong>{inviteForm.email}</strong>. They&apos;ll receive a link to complete their profile.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <button onClick={() => { setInviteForm({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "" }); setInviteSuccess(false) }}
+            <button onClick={() => { setInviteForm({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF" }); setInviteSuccess(false) }}
               style={{ padding: "10px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
               Invite Another
             </button>
@@ -472,6 +478,12 @@ export default function AddNewMemberPage() {
                 <Field label="Status" required>
                   <select value={form.employmentStatus} onChange={setF("employmentStatus")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
                     {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </Field>
+                <Field label="Role" required>
+                  <select value={form.role} onChange={setF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                    <option value="STAFF">Staff</option>
+                    <option value="PROJECT_LEAD">Project Lead</option>
                   </select>
                 </Field>
               </div>

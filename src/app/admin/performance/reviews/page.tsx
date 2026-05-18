@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { BarChart2, XCircle, ChevronDown, ChevronUp } from "lucide-react"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 
 export default function AdminReviewsPage() {
   const [cycles, setCycles] = useState<any[]>([])
@@ -44,14 +45,15 @@ export default function AdminReviewsPage() {
   const pending = totalKPIs - scored
   const avgFinal = avg(kpis.map(k => k.finalScore))
 
-  const handleClose = async () => {
+  const [closeOpen, setCloseOpen] = useState(false)
+  const handleClose = () => { if (activeCycle) setCloseOpen(true) }
+  const doClose = async () => {
     if (!activeCycle) return
-    if (!confirm(`Close cycle "${activeCycle.name}"? This will deactivate it.`)) return
     setClosing(true)
     await fetch(`/api/performance/cycles/${activeCycle.id}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "close" }),
     })
-    setClosing(false); load()
+    setClosing(false); setCloseOpen(false); load()
   }
 
   return (
@@ -150,6 +152,16 @@ export default function AdminReviewsPage() {
           </table>
         </div>
       </div>
+      <ConfirmDialog
+        open={closeOpen}
+        onClose={() => setCloseOpen(false)}
+        onConfirm={doClose}
+        title="Close cycle?"
+        body={<span>Close cycle <strong style={{ color: "var(--foreground)" }}>{activeCycle?.name}</strong>? This will deactivate it.</span>}
+        confirmText="Close Cycle"
+        variant="danger"
+        loading={closing}
+      />
     </div>
   )
 }

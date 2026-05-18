@@ -80,21 +80,45 @@ model Division {
 }
 
 model Department {
-  id            String         @id @default(cuid())
-  name          String         @unique
-  description   String?
-  divisionId    String?
-  parentId      String?
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  division      Division?      @relation(fields: [divisionId], references: [id])
-  parent        Department?    @relation("DeptHierarchy", fields: [parentId], references: [id])
-  children      Department[]   @relation("DeptHierarchy")
+  id              String         @id @default(cuid())
+  name            String         @unique
+  description     String?
+  divisionId      String?
+  parentId        String?
+  leadEmployeeId  String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  division        Division?      @relation(fields: [divisionId], references: [id])
+  parent          Department?    @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children        Department[]   @relation("DeptHierarchy")
+  lead            Employee?      @relation("DepartmentLead", fields: [leadEmployeeId], references: [id])
   employees              Employee[]
   jobPostings            JobPosting[]
   leaveRequests          LeaveRequest[]
   offerLetters           OfferLetter[]
   projectLeads           ProjectLeadDepartment[]
+  memberships            EmployeeDepartment[]
+}
+
+model Manager {
+  id          String   @id @default(cuid())
+  employeeId  String   @unique
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model EmployeeDepartment {
+  id           String     @id @default(cuid())
+  employeeId   String
+  departmentId String
+  isPrimary    Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  employee     Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, departmentId])
+  @@index([departmentId])
 }
 
 model Employee {
@@ -181,6 +205,9 @@ model Employee {
   benefitEnrollments          BenefitEnrollment[]
   invite             EmployeeInvite?
   internReports       InternWeeklyReport[] @relation("InternReports")
+  managerEntry           Manager?
+  departmentMemberships  EmployeeDepartment[]
+  departmentsLed         Department[]              @relation("DepartmentLead")
   tlReviews           InternWeeklyReport[] @relation("TLReviews")
   attendanceFills     InternWeeklyReport[] @relation("AttendanceFills")
   internReportReviews InternReportReviewer[] @relation("InternReportReviews")

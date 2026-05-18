@@ -73,9 +73,24 @@ export async function POST(req: NextRequest) {
     const firstName = row.firstName?.trim()
     const lastName = row.lastName?.trim()
     const email = row.email?.trim().toLowerCase()
+    const jobTitle = row.jobTitle?.trim()
+    const hireDateRaw = row.hireDate?.trim()
+    const dobRaw = row.dateOfBirth?.trim()
+    const departmentName = row.departmentName?.trim()
+    const genderRaw = row.gender?.trim().toUpperCase()
 
-    if (!firstName || !lastName || !email) {
-      results.push({ row: rowNum, status: "skipped", error: "Missing required fields: firstName, lastName, email" })
+    // Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, departmentName
+    const missing: string[] = []
+    if (!firstName) missing.push("firstName")
+    if (!lastName) missing.push("lastName")
+    if (!email) missing.push("email")
+    if (!jobTitle) missing.push("jobTitle")
+    if (!hireDateRaw) missing.push("hireDate")
+    if (!dobRaw) missing.push("dateOfBirth")
+    if (!genderRaw) missing.push("gender")
+    if (!departmentName) missing.push("departmentName")
+    if (missing.length > 0) {
+      results.push({ row: rowNum, status: "skipped", email, error: `Missing required fields: ${missing.join(", ")}` })
       continue
     }
 
@@ -85,9 +100,7 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    // Optional field validation
-    const genderRaw = row.gender?.trim().toUpperCase()
-    if (genderRaw && !VALID_GENDERS.includes(genderRaw)) {
+    if (!VALID_GENDERS.includes(genderRaw)) {
       results.push({ row: rowNum, status: "skipped", email, error: `Invalid gender "${row.gender}". Use: MALE or FEMALE` })
       continue
     }
@@ -98,12 +111,12 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    if (!isValidDate(row.hireDate?.trim())) {
+    if (!isValidDate(hireDateRaw)) {
       results.push({ row: rowNum, status: "skipped", email, error: `Invalid hireDate "${row.hireDate}". Use YYYY-MM-DD format` })
       continue
     }
 
-    if (!isValidDate(row.dateOfBirth?.trim())) {
+    if (!isValidDate(dobRaw)) {
       results.push({ row: rowNum, status: "skipped", email, error: `Invalid dateOfBirth "${row.dateOfBirth}". Use YYYY-MM-DD format` })
       continue
     }
@@ -116,15 +129,12 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      let departmentId: string | null = null
-      if (row.departmentName?.trim()) {
-        const dept = await prisma.department.findFirst({ where: { name: { equals: row.departmentName.trim(), mode: "insensitive" } } })
-        if (!dept) {
-          results.push({ row: rowNum, status: "skipped", email, error: `Department not found: "${row.departmentName}"` })
-          continue
-        }
-        departmentId = dept.id
+      const dept = await prisma.department.findFirst({ where: { name: { equals: departmentName, mode: "insensitive" } } })
+      if (!dept) {
+        results.push({ row: rowNum, status: "skipped", email, error: `Department not found: "${row.departmentName}"` })
+        continue
       }
+      const departmentId: string = dept.id
 
       let projectLeadId: string | null = null
       if (row.projectLeadEmail?.trim()) {
@@ -183,12 +193,13 @@ export async function GET() {
     "Technical Delivery (Service & Consulting)", "lead@datasciencenigeria.ai",
   ]
   const notes = [
-    "# Required: firstName, lastName, email",
+    "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, departmentName",
+    "# Optional: middleName, phone, employmentType, projectLeadEmail",
     "# email must end with @datasciencenigeria.ai",
-    "# gender: MALE or FEMALE (or leave blank)",
+    "# gender: MALE or FEMALE",
     "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN | NYSC (default: FULL_TIME)",
     "# hireDate / dateOfBirth: YYYY-MM-DD format",
-    "# departmentName: must match exactly (e.g. 'EqualyzAI')",
+    "# departmentName: must match an existing department exactly (case-insensitive)",
     "# projectLeadEmail: must be an existing employee email",
   ]
   const csv = [notes.join("\n"), headers.join(","), example.join(",")].join("\n")

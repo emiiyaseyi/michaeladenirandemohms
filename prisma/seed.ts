@@ -501,6 +501,30 @@ async function main() {
     prisma.employee.update({ where: { id: empRecords["grace.okeke@datasciencenigeria.ai"]?.id },    data: { managerId: blessing?.id } }),
   ])
 
+  // Backfill EmployeeDepartment junction rows for everyone with a primary departmentId
+  const allEmployeesWithDept = await prisma.employee.findMany({
+    where: { departmentId: { not: null } },
+    select: { id: true, departmentId: true },
+  })
+  for (const e of allEmployeesWithDept) {
+    if (!e.departmentId) continue
+    await prisma.employeeDepartment.upsert({
+      where: { employeeId_departmentId: { employeeId: e.id, departmentId: e.departmentId } },
+      update: { isPrimary: true },
+      create: { employeeId: e.id, departmentId: e.departmentId, isPrimary: true },
+    })
+  }
+  console.log(`  ✓ EmployeeDepartment backfill (${allEmployeesWithDept.length} rows)`)
+
+  // Department leads — point each demo dept at the right PL
+  const lead1Emp = demoPLEmpIds["lead1@dsn-hrms.com"]
+  const lead2Emp = demoPLEmpIds["lead2@dsn-hrms.com"]
+  if (equalyzai && lead1Emp)        await prisma.department.update({ where: { id: equalyzai.id },        data: { leadEmployeeId: lead1Emp } })
+  if (techDelivery && lead1Emp)     await prisma.department.update({ where: { id: techDelivery.id },     data: { leadEmployeeId: lead1Emp } })
+  if (adminFacility && lead2Emp)    await prisma.department.update({ where: { id: adminFacility.id },    data: { leadEmployeeId: lead2Emp } })
+  if (finance && lead2Emp)          await prisma.department.update({ where: { id: finance.id },          data: { leadEmployeeId: lead2Emp } })
+  console.log("  ✓ Department leads assigned")
+
   // Projects
   const projectDefs = [
     { id: "proj-001", name: "AI Talent Analytics Platform", status: "ACTIVE",  members: ["emeka.okonkwo@datasciencenigeria.ai", "fatima.musa@datasciencenigeria.ai", "aisha.garba@datasciencenigeria.ai"] },

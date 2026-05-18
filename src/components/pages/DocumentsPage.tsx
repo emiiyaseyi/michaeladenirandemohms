@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import ReactDOM from "react-dom"
 import { ChevronDown, ChevronUp, MoreHorizontal, FileText } from "lucide-react"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 
 function PdfFileIcon() {
   return (
@@ -86,25 +87,35 @@ export default function DocumentsPage() {
   }
 
   const finishTemplate = (id: string) => router.push(`${base}/documents/offer-template/${id}/edit`)
-  const deleteTemplate = async (id: string) => {
-    if (!confirm("Delete this offer template?")) return
-    await fetch(`/api/offer-templates/${id}`, { method: "DELETE" })
-    setTemplates(ts => ts.filter(t => t.id !== id))
-    setMenu(null)
-  }
+
+  const [confirmAction, setConfirmAction] = useState<
+    | null
+    | { kind: "template"; id: string }
+    | { kind: "softDoc"; id: string }
+    | { kind: "permDoc"; id: string }
+  >(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
+
+  const deleteTemplate = (id: string) => { setConfirmAction({ kind: "template", id }); setMenu(null) }
+  const softDeleteDoc = (id: string) => { setConfirmAction({ kind: "softDoc", id }); setMenu(null) }
+  const removeDocPermanent = (id: string) => { setConfirmAction({ kind: "permDoc", id }); setMenu(null) }
 
   const viewDoc = (id: string) => router.push(`${base}/documents/${id}`)
-  const softDeleteDoc = async (id: string) => {
-    if (!confirm("Delete this document? It will be hidden but can be restored later.")) return
-    await fetch(`/api/documents/${id}`, { method: "DELETE" })
-    setEmpDocs(docs => docs.map(d => d.id === id ? { ...d, isActive: false } : d))
-    setMenu(null)
-  }
-  const removeDocPermanent = async (id: string) => {
-    if (!confirm("Permanently remove this document? This cannot be undone.")) return
-    await fetch(`/api/documents/${id}?permanent=true`, { method: "DELETE" })
-    setEmpDocs(docs => docs.filter(d => d.id !== id))
-    setMenu(null)
+
+  const doConfirm = async () => {
+    if (!confirmAction) return
+    setConfirmBusy(true)
+    if (confirmAction.kind === "template") {
+      await fetch(`/api/offer-templates/${confirmAction.id}`, { method: "DELETE" })
+      setTemplates(ts => ts.filter(t => t.id !== confirmAction.id))
+    } else if (confirmAction.kind === "softDoc") {
+      await fetch(`/api/documents/${confirmAction.id}`, { method: "DELETE" })
+      setEmpDocs(docs => docs.map(d => d.id === confirmAction.id ? { ...d, isActive: false } : d))
+    } else if (confirmAction.kind === "permDoc") {
+      await fetch(`/api/documents/${confirmAction.id}?permanent=true`, { method: "DELETE" })
+      setEmpDocs(docs => docs.filter(d => d.id !== confirmAction.id))
+    }
+    setConfirmBusy(false); setConfirmAction(null)
   }
   const restoreDoc = async (id: string) => {
     await fetch(`/api/documents/${id}/restore`, { method: "POST" })
@@ -269,6 +280,24 @@ export default function DocumentsPage() {
         </div>,
         document.body
       )}
+      <ConfirmDialog
+        open={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={doConfirm}
+        title={
+          confirmAction?.kind === "template" ? "Delete template?" :
+          confirmAction?.kind === "softDoc" ? "Send to Trash?" :
+          confirmAction?.kind === "permDoc" ? "Delete permanently?" : ""
+        }
+        body={
+          confirmAction?.kind === "template" ? "Delete this offer template? This cannot be undone." :
+          confirmAction?.kind === "softDoc" ? "Hide this document? It can be restored later from Trash." :
+          confirmAction?.kind === "permDoc" ? "Permanently remove this document? This cannot be undone." : ""
+        }
+        confirmText={confirmAction?.kind === "softDoc" ? "Send to Trash" : "Delete"}
+        variant="danger"
+        loading={confirmBusy}
+      />
     </div>
   )
 }

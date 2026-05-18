@@ -3,7 +3,7 @@
  * Requires seed.ts to have been run first (departments, leave types, etc. must exist).
  *
  * Demo login accounts:
- *   hr@datasciencenigeria.ai     /  dsn-staff   (SUPER_ADMIN)
+ *   hr@datasciencenigeria.ai     /  Admin@DSN2024!   (SUPER_ADMIN — set by seed.ts)
  *   staff1@dsn-hrms.com          /  dsn-demo    (STAFF)
  *   staff2@dsn-hrms.com          /  dsn-demo    (STAFF)
  *   staff3@dsn-hrms.com          /  dsn-demo    (STAFF)
@@ -284,7 +284,7 @@ async function main() {
 
   console.log("\n✅ Test seed complete!")
   console.log("\n🔑 Demo login accounts:")
-  console.log("   HR Admin:  hr@datasciencenigeria.ai  /  dsn-staff   (SUPER_ADMIN)")
+  console.log("   HR Admin:  hr@datasciencenigeria.ai  /  Admin@DSN2024!   (SUPER_ADMIN)")
   console.log("   Staff 1:   staff1@dsn-hrms.com       /  dsn-demo    (STAFF)")
   console.log("   Staff 2:   staff2@dsn-hrms.com       /  dsn-demo    (STAFF)")
   console.log("   Staff 3:   staff3@dsn-hrms.com       /  dsn-demo    (STAFF)")

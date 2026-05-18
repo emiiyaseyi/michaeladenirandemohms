@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Building2, Inbox } from "lucide-react"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 
 function formatDate(s: string | null | undefined) {
   if (!s) return "—"
@@ -58,9 +59,13 @@ export default function ViewContractorPage() {
     })
   }, [id])
 
-  const remove = async () => {
-    if (!confirm("Delete this contractor? This cannot be undone.")) return
+  const [removeOpen, setRemoveOpen] = useState(false)
+  const [removing, setRemoving] = useState(false)
+  const remove = () => setRemoveOpen(true)
+  const doRemove = async () => {
+    setRemoving(true)
     await fetch(`/api/contractors/${id}`, { method: "DELETE" })
+    setRemoving(false)
     router.push("/admin/contractors")
   }
 
@@ -172,6 +177,16 @@ export default function ViewContractorPage() {
           </div>
         )}
       </div>
+      <ConfirmDialog
+        open={removeOpen}
+        onClose={() => setRemoveOpen(false)}
+        onConfirm={doRemove}
+        title="Delete contractor?"
+        body={<span>Delete <strong style={{ color: "var(--foreground)" }}>{contractor?.name}</strong>? This cannot be undone.</span>}
+        confirmText="Delete"
+        variant="danger"
+        loading={removing}
+      />
     </div>
   )
 }

@@ -821,10 +821,12 @@ export default function EmployeeProfilePage() {
           setEmp((prev: any) => ({ ...prev, profilePhoto: d.photoUrl }))
         } else {
           const d = await r.json()
-          alert(d.error ?? "Photo upload failed")
+          setResetMsg({ ok: false, text: d.error ?? "Photo upload failed" })
+          setTimeout(() => setResetMsg(null), 5000)
         }
       } catch {
-        alert("Photo upload failed — network error")
+        setResetMsg({ ok: false, text: "Photo upload failed — network error" })
+        setTimeout(() => setResetMsg(null), 5000)
       }
       setUploadingKey(null)
       return
@@ -839,10 +841,12 @@ export default function EmployeeProfilePage() {
         setUploadedDocs(d => ({ ...d, [key]: file.name }))
       } else {
         const d = await r.json()
-        alert(d.error ?? "Upload failed")
+        setResetMsg({ ok: false, text: d.error ?? "Upload failed" })
+        setTimeout(() => setResetMsg(null), 5000)
       }
     } catch {
-      alert("Upload failed — network error")
+      setResetMsg({ ok: false, text: "Upload failed — network error" })
+      setTimeout(() => setResetMsg(null), 5000)
     }
     setUploadingKey(null)
   }

@@ -162,17 +162,20 @@ export async function GET(req: NextRequest) {
     if (perms["canApproveLeave"]) canApproveUsers.add(uid)
   }
 
-  // PROJECT_LEAD role + secondary admins with canApproveLeave but NOT canViewAllLeave
-  // (canViewAllLeave means HR-level final approver — excluded from PL picker)
+  // Eligible PL approvers:
+  //   - any PROJECT_LEAD
+  //   - any admin-elevated user with `canApproveLeave` (incl. secondary-admin / hr-admin / etc.)
+  //   - excludes SUPER_ADMIN, the applicant themselves, and people without canApproveLeave
   const projectLeadEmployees = employees.filter(e => {
     if (user.employeeId && e.id === user.employeeId) return false
     if (user.id && e.userId === user.id) return false
     const u = e.user as any
     if (!u) return false
+    if (u.role === "SUPER_ADMIN") return false
     if (u.role === "PROJECT_LEAD") return true
     if (!e.userId) return false
     const perms = permsMap.get(e.userId)
-    return !!(perms?.["canApproveLeave"] && !perms?.["canViewAllLeave"])
+    return !!perms?.["canApproveLeave"]
   })
 
   // Batch-fetch leave balances for all request employee+leaveType pairs
