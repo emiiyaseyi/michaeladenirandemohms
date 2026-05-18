@@ -3,11 +3,11 @@ import { useState, useEffect, useRef } from "react"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
-import Avatar from "@/components/ui/Avatar"
+import PageHeader from "@/components/ui/PageHeader"
 import {
-  Megaphone, Plus, Edit2, Trash2, Eye, Send, Archive,
+  Megaphone, Plus, Edit2, Trash2, Send, Archive,
   X, Loader2, AlertCircle, Check, Image, FileText,
-  Video, Bell, Monitor, Mail, AlignLeft, ChevronDown,
+  Video, Bell, Monitor, Mail, AlignLeft,
   Globe, Users,
 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
@@ -37,11 +37,11 @@ const STATUS_STYLE: Record<string, { bg: string; color: string }> = {
   RETIRED: { bg: "rgba(156,163,175,0.2)", color: "#6B7280" },
 }
 
-const ALL_ROLES = ["SUPER_ADMIN", "STAFF"]
+const ALL_ROLES = ["SUPER_ADMIN", "PROJECT_LEAD", "STAFF"]
 const ROLE_LABELS: Record<string, string> = {
-  SUPER_ADMIN:"Super Admin", ADMIN:"Admin", HR_ADMIN:"HR Admin", MANAGER:"Manager",
-  DEPARTMENT_LEAD:"Dept Lead", PROJECT_MANAGER:"Project Manager", STAFF:"Staff",
-  INTERN:"Intern", TA_OFFICER:"TA Officer", PERFORMANCE_OFFICER:"Performance Officer", AUDIT:"Audit",
+  SUPER_ADMIN: "Super Admin",
+  PROJECT_LEAD: "Project Lead",
+  STAFF: "Staff",
 }
 
 function formatDate(iso: string) {
@@ -65,7 +65,7 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
   const [error, setError] = useState("")
   const [imgFile, setImgFile] = useState<File | null>(null)
   const [imgPreview, setImgPreview] = useState<string>(ann?.imageUrl ?? "")
-  const [uploading, setUploading] = useState(false)
+  const [, setUploading] = useState(false)
   const imgRef = useRef<HTMLInputElement>(null)
 
   const handleImgFile = (file: File) => {
@@ -296,7 +296,8 @@ export default function AnnouncementsPage() {
   const [filter, setFilter] = useState<"ALL"|"DRAFT"|"PUBLISHED"|"RETIRED">("ALL")
   const [showCreate, setShowCreate] = useState(false)
   const [editAnn, setEditAnn] = useState<any>(null)
-  const [deleting, setDeleting] = useState<string|null>(null)
+  const [, setDeleting] = useState<string|null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<string|null>(null)
 
   const load = async () => {
     setLoading(true)
@@ -313,7 +314,6 @@ export default function AnnouncementsPage() {
   }
 
   const deleteAnn = async (id: string) => {
-    if (!confirm("Delete this announcement permanently?")) return
     setDeleting(id)
     await fetch(`/api/announcements/${id}`, { method:"DELETE" })
     setDeleting(null); load()
@@ -327,15 +327,12 @@ export default function AnnouncementsPage() {
 
   return (
     <div style={{ maxWidth:1020, margin:"0 auto" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24, gap:16, flexWrap:"wrap" }}>
-        <div>
-          <h1 style={{ fontSize:22, fontWeight:800 }}>Announcements</h1>
-          <p style={{ color:"var(--muted-foreground)", marginTop:4, fontSize:13 }}>
-            {isAdmin ? "Create and manage announcements for all employees." : "Company announcements and updates."}
-          </p>
-        </div>
-        {canCreateAnnouncement && <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Announcement</Button>}
-      </div>
+      <PageHeader
+        title="Announcements"
+        subtitle={isAdmin ? "Create and manage announcements for all employees." : "Company announcements and updates."}
+        icon={<Megaphone size={22} />}
+        actions={canCreateAnnouncement ? <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Announcement</Button> : undefined}
+      />
 
       {/* Status filter tabs */}
       {isAdmin && (
@@ -421,8 +418,8 @@ export default function AnnouncementsPage() {
                         </button>
                       )}
                       {canDeleteAnnouncement && (
-                        <button onClick={() => deleteAnn(ann.id)} disabled={deleting===ann.id} title="Delete" style={{ padding:"6px 8px", borderRadius:8, border:"1px solid rgba(239,68,68,0.2)", cursor:"pointer", background:"rgba(239,68,68,0.08)", color:"#EF4444", display:"flex", alignItems:"center" }}>
-                          {deleting===ann.id ? <Loader2 size={13} style={{ animation:"spin .8s linear infinite" }} /> : <Trash2 size={13} />}
+                        <button onClick={() => setDeleteConfirm(ann.id)} title="Delete" style={{ padding:"6px 8px", borderRadius:8, border:"1px solid rgba(239,68,68,0.2)", cursor:"pointer", background:"rgba(239,68,68,0.08)", color:"#EF4444", display:"flex", alignItems:"center" }}>
+                          <Trash2 size={13} />
                         </button>
                       )}
                     </div>
@@ -436,6 +433,20 @@ export default function AnnouncementsPage() {
 
       {showCreate && <AnnModal onClose={() => setShowCreate(false)} onSuccess={load} />}
       {editAnn && <AnnModal ann={editAnn} onClose={() => setEditAnn(null)} onSuccess={load} />}
+      {deleteConfirm && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.5)", zIndex:300, display:"flex", alignItems:"center", justifyContent:"center", padding:24 }} onClick={() => setDeleteConfirm(null)}>
+          <div style={{ background:"var(--card)", borderRadius:14, padding:28, maxWidth:400, width:"100%", boxShadow:"0 8px 32px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
+            <h3 style={{ fontSize:16, fontWeight:800, margin:"0 0 10px" }}>Delete Announcement?</h3>
+            <p style={{ fontSize:13, color:"var(--muted-foreground)", margin:"0 0 24px", lineHeight:1.6 }}>
+              This will permanently remove this announcement. This cannot be undone.
+            </p>
+            <div style={{ display:"flex", justifyContent:"flex-end", gap:10 }}>
+              <button onClick={() => setDeleteConfirm(null)} style={{ padding:"9px 20px", border:"1px solid var(--border)", borderRadius:8, background:"var(--background)", fontSize:13, fontWeight:600, cursor:"pointer" }}>Cancel</button>
+              <button onClick={() => { deleteAnn(deleteConfirm); setDeleteConfirm(null) }} style={{ padding:"9px 20px", background:"#ef4444", color:"white", border:"none", borderRadius:8, fontSize:13, fontWeight:700, cursor:"pointer" }}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )

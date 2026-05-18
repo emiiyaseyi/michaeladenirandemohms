@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (rows.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   if (body.name) {
-    const dup = await prisma.$queryRaw`SELECT id FROM "JobTitle" WHERE name = ${body.name.trim()} AND id != ${id} LIMIT 1` as any[]
+    const dup = await prisma.$queryRaw`SELECT id FROM "JobTitle" WHERE LOWER(name) = LOWER(${body.name.trim()}) AND id != ${id} LIMIT 1` as any[]
     if (dup.length > 0) return NextResponse.json({ error: "Name already exists" }, { status: 409 })
   }
 

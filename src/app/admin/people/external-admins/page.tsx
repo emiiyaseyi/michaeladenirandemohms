@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import { Search, MoreHorizontal, Loader2, Shield, X, Plus } from "lucide-react"
+import { Search, MoreHorizontal, Loader2, Shield, X, Plus, Upload } from "lucide-react"
 
 function Av({ name, photo, size = 36 }: { name: string; photo?: string | null; size?: number }) {
   if (photo) return <img src={photo} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover" }} />
@@ -139,11 +139,12 @@ export default function ExternalAdminsPage() {
     setAddForm({ firstName: "", lastName: "", email: "", phone: "" })
   }
 
+  const [deleteErr, setDeleteErr] = useState("")
   const doDelete = async () => {
-    setDeleting(true)
+    setDeleting(true); setDeleteErr("")
     const r = await fetch(`/api/people/external-admins/${deleteTarget.id}`, { method: "DELETE" })
     setDeleting(false)
-    if (!r.ok) { const d = await r.json(); alert(d.error ?? "Failed"); return }
+    if (!r.ok) { const d = await r.json(); setDeleteErr(d.error ?? "Failed"); return }
     setAdmins(prev => prev.filter(a => a.id !== deleteTarget.id))
     setDeleteTarget(null)
   }
@@ -159,10 +160,16 @@ export default function ExternalAdminsPage() {
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search admins…"
             style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", width: 240, outline: "none" }} />
         </div>
-        <button onClick={() => { setShowAdd(true); setErr("") }}
-          style={{ padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 6 }}>
-          <Plus size={14} /> Add External Admin
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => router.push("/admin/people/external-admins/bulk-upload")}
+            style={{ padding: "9px 18px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
+            <Upload size={14} /> Bulk Upload
+          </button>
+          <button onClick={() => { setShowAdd(true); setErr("") }}
+            style={{ padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 6 }}>
+            <Plus size={14} /> Add External Admin
+          </button>
+        </div>
       </div>
 
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14 }}>
@@ -255,7 +262,7 @@ export default function ExternalAdminsPage() {
                 <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="e.g. 08012345678" style={fi} />
               </div>
               <div style={{ padding: "10px 14px", background: "var(--muted)", borderRadius: 8, fontSize: 12, color: "var(--muted-foreground)" }}>
-                A temporary password will be set. The admin will be prompted to change it on first login.
+                Temporary password: <strong style={{ color: "var(--foreground)", fontFamily: "monospace" }}>Welcome@DSN1</strong> — the admin will be prompted to change it on first login.
               </div>
               {err && <div style={{ padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{err}</div>}
             </div>
@@ -316,9 +323,14 @@ export default function ExternalAdminsPage() {
               <h2 style={{ fontSize: 17, fontWeight: 800 }}>Delete External Admin</h2>
               <button onClick={() => setDeleteTarget(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--muted-foreground)", lineHeight: 1 }}>×</button>
             </div>
-            <p style={{ fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.6, marginBottom: 28 }}>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.6, marginBottom: 16 }}>
               Deleting an external admin can't be undone and we won't keep this admin information once it has been deleted. Click Confirm to continue.
             </p>
+            {deleteErr && (
+              <div style={{ marginBottom: 16, padding: "10px 12px", background: "rgba(239,68,68,0.08)", color: "#EF4444", borderRadius: 8, fontSize: 12 }}>
+                {deleteErr}
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button onClick={() => setDeleteTarget(null)} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
               <button onClick={doDelete} disabled={deleting}

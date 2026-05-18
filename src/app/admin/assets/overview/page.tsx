@@ -133,7 +133,7 @@ export default function AssetsOverviewPage() {
   return (
     <div>
       {/* Toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, rowGap: 16, marginBottom: 20, flexWrap: "wrap" }}>
         <div style={{ position: "relative", flex: "0 0 240px" }}>
           <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search"

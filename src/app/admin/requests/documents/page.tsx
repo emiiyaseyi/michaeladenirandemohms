@@ -1,18 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { Search, MoreHorizontal, Loader2, Plus, ChevronDown, X, Check, FileText } from "lucide-react"
-import { useCurrentUser } from "@/hooks/useCurrentUser"
-
-const DOC_TYPES = [
-  "Offer Letter",
-  "Employment Certificate",
-  "Experience Letter",
-  "Salary Confirmation Letter",
-  "Bank Introduction Letter",
-  "NOC Letter",
-  "Payslip",
-  "Other",
-]
 
 const STATUS_OPTS = [
   { value: "", label: "All" },
@@ -94,6 +82,94 @@ function ReviewPanel({ req, onClose, onDone }: { req: any; onClose: () => void; 
   )
 }
 
+function DocTypeSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [types, setTypes] = useState<{ id: string; name: string }[]>([])
+  const [adding, setAdding] = useState(false)
+  const [newName, setNewName] = useState("")
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState("")
+
+  const fi: React.CSSProperties = { width: "100%", padding: "9px 13px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box" as any }
+
+  useEffect(() => {
+    fetch("/api/requests/document-types")
+      .then(r => r.json())
+      .then(d => setTypes(d.types ?? []))
+      .catch(() => {})
+  }, [])
+
+  const submitNew = async () => {
+    const name = newName.trim()
+    if (!name) { setErr("Name is required"); return }
+    setSaving(true); setErr("")
+    const r = await fetch("/api/requests/document-types", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    })
+    const d = await r.json()
+    setSaving(false)
+    if (!r.ok) { setErr(d.error ?? "Failed to add"); return }
+    setTypes(prev => prev.some(t => t.id === d.type.id) ? prev : [...prev, d.type].sort((a, b) => a.name.localeCompare(b.name)))
+    onChange(d.type.name)
+    setAdding(false)
+    setNewName("")
+  }
+
+  if (adding) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            autoFocus
+            type="text"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") submitNew() }}
+            placeholder="e.g. Visa Support Letter"
+            style={{ ...fi, flex: 1 }}
+            maxLength={80}
+          />
+          <button
+            onClick={submitNew}
+            disabled={saving}
+            style={{ padding: "9px 18px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, cursor: saving ? "wait" : "pointer", fontSize: 13, fontWeight: 700 }}
+          >
+            {saving ? "Saving…" : "Save"}
+          </button>
+          <button
+            onClick={() => { setAdding(false); setNewName(""); setErr("") }}
+            style={{ padding: "9px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}
+          >
+            Cancel
+          </button>
+        </div>
+        {err && <div style={{ fontSize: 12, color: "#ef4444" }}>{err}</div>}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <select
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        style={{ ...fi, appearance: "none" as any, cursor: "pointer" }}
+      >
+        <option value="">Please Select</option>
+        {types.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+      </select>
+      <button
+        type="button"
+        onClick={() => setAdding(true)}
+        style={{ alignSelf: "flex-start", background: "none", border: "none", color: "#2563eb", fontSize: 12, fontWeight: 600, cursor: "pointer", padding: "2px 0", display: "flex", alignItems: "center", gap: 4 }}
+      >
+        <Plus size={12} /> Add new document type
+      </button>
+    </div>
+  )
+}
+
 function RecordModal({ employees, onClose, onSaved }: { employees: any[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState({ employeeId: "", documentType: "", purpose: "", notes: "" })
   const [saving, setSaving] = useState(false)
@@ -134,10 +210,7 @@ function RecordModal({ employees, onClose, onSaved }: { employees: any[]; onClos
           </div>
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Document Type <span style={{ color: "#ef4444" }}>*</span></label>
-            <select value={form.documentType} onChange={set("documentType")} style={{ ...fi, appearance: "none" as any, cursor: "pointer" }}>
-              <option value="">Please Select</option>
-              {DOC_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
+            <DocTypeSelect value={form.documentType} onChange={v => setForm(f => ({ ...f, documentType: v }))} />
           </div>
           <div>
             <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Purpose</label>
@@ -163,7 +236,6 @@ function RecordModal({ employees, onClose, onSaved }: { employees: any[]; onClos
 }
 
 export default function RequestDocumentsPage() {
-  const { user } = useCurrentUser()
   const [requests, setRequests] = useState<any[]>([])
   const [employees, setEmployees] = useState<any[]>([])
   const [total, setTotal] = useState(0)

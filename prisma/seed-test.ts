@@ -3,7 +3,7 @@
  * Requires seed.ts to have been run first (departments, leave types, etc. must exist).
  *
  * Demo login accounts:
- *   hr@datasciencenigeria.ai     /  dsn-staff   (SUPER_ADMIN)
+ *   hr@datasciencenigeria.ai     /  Admin@DSN2024!   (SUPER_ADMIN — set by seed.ts)
  *   staff1@dsn-hrms.com          /  dsn-demo    (STAFF)
  *   staff2@dsn-hrms.com          /  dsn-demo    (STAFF)
  *   staff3@dsn-hrms.com          /  dsn-demo    (STAFF)
@@ -15,6 +15,7 @@
  *   relief1.test@datasciencenigeria.ai      (STAFF)
  *   relief2.test@datasciencenigeria.ai      (STAFF)
  *   ada.obi@datasciencenigeria.ai           (STAFF, reports to projectlead.test)
+ *   intern@dsn-hrms.com                      (STAFF/Intern) — reports to lead1@dsn-hrms.com
  *
  * Run: npm run db:seed:test
  */
@@ -52,8 +53,31 @@ async function main() {
   const hrEmp = await prisma.employee.upsert({
     where:  { userId: hrUser.id },
     update: {},
-    create: { userId: hrUser.id, employeeId: "DSN0001", firstName: "Amina", lastName: "Bello", phone: "+234 801 234 5678", gender: "FEMALE", jobTitle: "HR Manager", departmentId: adminFacility.id, employmentType: "FULL_TIME", category: "NON_TECHNICAL", grossSalary: 750000, employeeStatus: "ACTIVE", hireDate: new Date("2021-03-01") },
+    create: { userId: hrUser.id, employeeId: "DSN0001", firstName: "Amina", lastName: "Bello", phone: "+234 801 234 5678", gender: "FEMALE", jobTitle: "HR Manager", departmentId: adminFacility.id, employmentType: "FULL_TIME", employeeStatus: "ACTIVE", hireDate: new Date("2021-03-01") },
   })
+
+  // ── Intern test account (reports to lead1@dsn-hrms.com) ──────────────────
+  // Clean up legacy intern.test account if it exists
+  const oldInternUser = await prisma.user.findUnique({ where: { email: "intern@dsn-hrms.com" } })
+  if (oldInternUser) {
+    await prisma.employee.deleteMany({ where: { userId: oldInternUser.id } })
+    await prisma.user.delete({ where: { id: oldInternUser.id } })
+  }
+  // Also free up the DSN-IN01 employeeId if held by someone else
+  await prisma.employee.deleteMany({ where: { employeeId: "DSN-IN01", NOT: { user: { email: "intern@dsn-hrms.com" } } } })
+
+  const lead1Emp = await prisma.employee.findFirst({ where: { user: { email: "lead1@dsn-hrms.com" } } })
+  const internTestUser = await prisma.user.upsert({
+    where:  { email: "intern@dsn-hrms.com" },
+    update: { mustChangePassword: false, password: hash("dsn-demo") },
+    create: { name: "Intern Demo", email: "intern@dsn-hrms.com", password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false },
+  })
+  await prisma.employee.upsert({
+    where:  { userId: internTestUser.id },
+    update: { projectLeadId: lead1Emp?.id ?? null },
+    create: { userId: internTestUser.id, employeeId: "DSN-IN01", firstName: "Intern", lastName: "Demo", jobTitle: "Data Science Intern", departmentId: techDelivery.id, employmentType: "INTERN", employeeStatus: "ACTIVE", hireDate: new Date("2024-06-01"), gender: "FEMALE", projectLeadId: lead1Emp?.id },
+  })
+  console.log("  ✓ Intern test account")
 
   // ── Quick-login demo staff accounts ──────────────────────────────────────────
   const demoStaffs = [
@@ -71,25 +95,25 @@ async function main() {
     await prisma.employee.upsert({
       where:  { userId: u.id },
       update: { dateOfBirth: new Date(s.dob) },
-      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.deptId, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: s.salary, gender: s.gender as any, dateOfBirth: new Date(s.dob) },
+      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.deptId, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), gender: s.gender as any, dateOfBirth: new Date(s.dob) },
     })
   }
   console.log("  ✓ Demo login accounts")
 
   // ── 12 Sample Employees ───────────────────────────────────────────────────────
   const samples = [
-    { name: "Emeka Okonkwo",   email: "emeka.okonkwo@datasciencenigeria.ai",   gender: "MALE",   title: "Senior Data Scientist",        dept: equalyzai.id,        type: "FULL_TIME", hire: "2022-05-10", dob: "1990-05-14", cat: "TECHNICAL",     salary: 600000, elevate: true },
-    { name: "Fatima Musa",     email: "fatima.musa@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Analyst",                 dept: equalyzai.id,        type: "FULL_TIME", hire: "2023-01-15", dob: "1996-06-02", cat: "TECHNICAL",     salary: 420000, elevate: false },
-    { name: "Chidi Nwosu",     email: "chidi.nwosu@datasciencenigeria.ai",     gender: "MALE",   title: "Software Engineer",            dept: techDelivery.id,     type: "FULL_TIME", hire: "2022-08-22", dob: "1993-08-30", cat: "TECHNICAL",     salary: 480000, elevate: true },
-    { name: "Ngozi Eze",       email: "ngozi.eze@datasciencenigeria.ai",       gender: "FEMALE", title: "Product Designer",             dept: productDesign.id,    type: "FULL_TIME", hire: "2023-03-01", dob: "1994-07-19", cat: "NON_TECHNICAL", salary: 550000, elevate: true },
-    { name: "Tunde Adeyemi",   email: "tunde.adeyemi@datasciencenigeria.ai",   gender: "MALE",   title: "Programs Lead",                dept: solutionDelivery.id, type: "FULL_TIME", hire: "2021-11-05", dob: "1988-04-25", cat: "NON_TECHNICAL", salary: 520000, elevate: true },
-    { name: "Blessing Okafor", email: "blessing.okafor@datasciencenigeria.ai", gender: "FEMALE", title: "Brand & Comms Manager",        dept: brandComms.id,       type: "FULL_TIME", hire: "2022-02-14", dob: "1991-05-08", cat: "NON_TECHNICAL", salary: 480000, elevate: true },
-    { name: "Ibrahim Sule",    email: "ibrahim.sule@datasciencenigeria.ai",    gender: "MALE",   title: "Finance Officer",              dept: finance.id,          type: "FULL_TIME", hire: "2022-07-18", dob: "1992-06-17", cat: "NON_TECHNICAL", salary: 400000, elevate: false },
-    { name: "Aisha Garba",     email: "aisha.garba@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Engineer",                dept: equalyzai.id,        type: "FULL_TIME", hire: "2023-06-01", dob: "1997-05-21", cat: "TECHNICAL",     salary: 450000, elevate: false },
-    { name: "Kelechi Ibe",     email: "kelechi.ibe@datasciencenigeria.ai",     gender: "MALE",   title: "Frontend Engineer",            dept: techDelivery.id,     type: "FULL_TIME", hire: "2023-09-11", dob: "1998-07-03", cat: "TECHNICAL",     salary: 380000, elevate: false },
-    { name: "Zainab Hassan",   email: "zainab.hassan@datasciencenigeria.ai",   gender: "FEMALE", title: "Data Science Intern",          dept: equalyzai.id,        type: "INTERN",    hire: "2024-01-08", dob: "2001-06-11", cat: "TECHNICAL",     salary: 120000, elevate: false },
-    { name: "Olumide Adewale", email: "olumide.adewale@datasciencenigeria.ai", gender: "MALE",   title: "Backend Engineer",             dept: techDelivery.id,     type: "FULL_TIME", hire: "2022-04-20", dob: "1993-04-28", cat: "TECHNICAL",     salary: 460000, elevate: false },
-    { name: "Grace Okeke",     email: "grace.okeke@datasciencenigeria.ai",     gender: "FEMALE", title: "Business Development Officer",  dept: bizDev.id,           type: "CONTRACT",  hire: "2023-11-01", dob: "1995-05-30", cat: "NON_TECHNICAL", salary: 350000, elevate: false },
+    { name: "Emeka Okonkwo",   email: "emeka.okonkwo@datasciencenigeria.ai",   gender: "MALE",   title: "Senior Data Scientist",        dept: equalyzai.id,        type: "FULL_TIME", hire: "2022-05-10", dob: "1990-05-14", elevate: true },
+    { name: "Fatima Musa",     email: "fatima.musa@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Analyst",                 dept: equalyzai.id,        type: "FULL_TIME", hire: "2023-01-15", dob: "1996-06-02", elevate: false },
+    { name: "Chidi Nwosu",     email: "chidi.nwosu@datasciencenigeria.ai",     gender: "MALE",   title: "Software Engineer",            dept: techDelivery.id,     type: "FULL_TIME", hire: "2022-08-22", dob: "1993-08-30", elevate: true },
+    { name: "Ngozi Eze",       email: "ngozi.eze@datasciencenigeria.ai",       gender: "FEMALE", title: "Product Designer",             dept: productDesign.id,    type: "FULL_TIME", hire: "2023-03-01", dob: "1994-07-19", elevate: true },
+    { name: "Tunde Adeyemi",   email: "tunde.adeyemi@datasciencenigeria.ai",   gender: "MALE",   title: "Programs Lead",                dept: solutionDelivery.id, type: "FULL_TIME", hire: "2021-11-05", dob: "1988-04-25", elevate: true },
+    { name: "Blessing Okafor", email: "blessing.okafor@datasciencenigeria.ai", gender: "FEMALE", title: "Brand & Comms Manager",        dept: brandComms.id,       type: "FULL_TIME", hire: "2022-02-14", dob: "1991-05-08", elevate: true },
+    { name: "Ibrahim Sule",    email: "ibrahim.sule@datasciencenigeria.ai",    gender: "MALE",   title: "Finance Officer",              dept: finance.id,          type: "FULL_TIME", hire: "2022-07-18", dob: "1992-06-17", elevate: false },
+    { name: "Aisha Garba",     email: "aisha.garba@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Engineer",                dept: equalyzai.id,        type: "FULL_TIME", hire: "2023-06-01", dob: "1997-05-21", elevate: false },
+    { name: "Kelechi Ibe",     email: "kelechi.ibe@datasciencenigeria.ai",     gender: "MALE",   title: "Frontend Engineer",            dept: techDelivery.id,     type: "FULL_TIME", hire: "2023-09-11", dob: "1998-07-03", elevate: false },
+    { name: "Zainab Hassan",   email: "zainab.hassan@datasciencenigeria.ai",   gender: "FEMALE", title: "Data Science Intern",          dept: equalyzai.id,        type: "INTERN",    hire: "2024-01-08", dob: "2001-06-11", elevate: false },
+    { name: "Olumide Adewale", email: "olumide.adewale@datasciencenigeria.ai", gender: "MALE",   title: "Backend Engineer",             dept: techDelivery.id,     type: "FULL_TIME", hire: "2022-04-20", dob: "1993-04-28", elevate: false },
+    { name: "Grace Okeke",     email: "grace.okeke@datasciencenigeria.ai",     gender: "FEMALE", title: "Business Development Officer",  dept: bizDev.id,           type: "CONTRACT",  hire: "2023-11-01", dob: "1995-05-30", elevate: false },
   ]
 
   const defaultPwd = hash("dsn-staff")
@@ -108,13 +132,13 @@ async function main() {
     const existingEmp = await prisma.employee.findFirst({ where: { userId: u.id } })
     let emp: any
     if (existingEmp) {
-      emp = await prisma.employee.update({ where: { id: existingEmp.id }, data: { category: s.cat as any, grossSalary: s.salary, jobTitle: s.title, departmentId: s.dept, dateOfBirth: new Date(s.dob) } })
+      emp = await prisma.employee.update({ where: { id: existingEmp.id }, data: { jobTitle: s.title, departmentId: s.dept, dateOfBirth: new Date(s.dob) } })
     } else {
       counter++
       emp = await prisma.employee.upsert({
         where:  { userId: u.id },
-        update: { category: s.cat as any, grossSalary: s.salary, dateOfBirth: new Date(s.dob) },
-        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
+        update: { dateOfBirth: new Date(s.dob) },
+        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
       })
     }
     empRecords[s.email] = emp
@@ -237,33 +261,21 @@ async function main() {
   // ── Leave Balances ────────────────────────────────────────────────────────────
   const annualLeave = await prisma.leaveType.findFirst({ where: { name: "Annual Leave" } })
   const sickLeave   = await prisma.leaveType.findFirst({ where: { name: "Sick Leave" } })
-  const allEmps = [hrEmp, ...Object.values(empRecords), ...Object.values(leaveEmpRecords)].filter(Boolean)
+  const internTestEmp = await prisma.employee.findFirst({ where: { user: { email: "intern@dsn-hrms.com" } } })
+  const allEmps = [hrEmp, ...Object.values(empRecords), ...Object.values(leaveEmpRecords), internTestEmp].filter(Boolean)
   for (const emp of allEmps) {
     if (annualLeave) await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: annualLeave.id, year: 2026 } }, update: {}, create: { employeeId: emp.id, leaveTypeId: annualLeave.id, year: 2026, allocated: 21, used: 0, pending: 0 } })
     if (sickLeave)   await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: emp.id, leaveTypeId: sickLeave.id,   year: 2026 } }, update: {}, create: { employeeId: emp.id, leaveTypeId: sickLeave.id,   year: 2026, allocated: 14, used: 0, pending: 0 } })
   }
   console.log("  ✓ Leave balances")
 
-  // ── Payslips (Jan–Mar 2026) ───────────────────────────────────────────────────
-  const forPay = [{ emp: hrEmp, salary: 750000 }, ...samples.map(s => ({ emp: empRecords[s.email], salary: s.salary }))].filter(e => e.emp)
-  for (const { emp, salary } of forPay) {
-    const basic = salary * 0.5; const housing = salary * 0.2; const transport = salary * 0.1; const meal = salary * 0.05
-    const pension = Math.round(basic * 0.08); const nhf = Math.round(basic * 0.025); const paye = Math.round(Math.max(0, (salary - 200000) * 0.07))
-    const net = Math.round(salary - pension - nhf - paye - 15000)
-    for (const month of [1, 2, 3]) {
-      const ex = await prisma.payslip.findUnique({ where: { employeeId_month_year: { employeeId: emp.id, month, year: 2026 } } })
-      if (!ex) await prisma.payslip.create({ data: { employeeId: emp.id, month, year: 2026, grossSalary: salary, basicSalary: basic, housing, transport, meal, otherAllowances: 0, payeTax: paye, pension, nhf, healthInsurance: 15000, otherDeductions: 0, netPay: net, status: "RELEASED", releasedAt: new Date(`2026-0${month}-28`) } })
-    }
-  }
-  console.log("  ✓ Payslips")
-
   // ── Announcements ─────────────────────────────────────────────────────────────
   for (const ann of [
     { title: "Welcome to DSN HRMS",                body: "We're excited to launch the new DSN HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
-    { title: "Q2 2026 Leave Reminder",             body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF"] as string[] },
+    { title: "Q2 2026 Leave Reminder",             body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
     { title: "Performance Review Cycle Open",      body: "The Q1 2026 performance review cycle is now open. All employees should complete their self-assessment by April 30, 2026.", behavior: "DASHBOARD_SCROLL" as const, targetRoles: [] as string[] },
     { title: "Public Holiday Notice — Workers' Day", body: "May 1, 2026 (Workers' Day) is a public holiday. All offices will be closed.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: [] as string[] },
-    { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF"] as string[] },
+    { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
   ]) {
     const exists = await prisma.announcement.findFirst({ where: { title: ann.title } })
     if (!exists) await prisma.announcement.create({ data: { ...ann, type: "TEXT", status: "PUBLISHED", sendEmail: false, publishedAt: new Date(), createdById: hrUser.id } })
@@ -272,7 +284,7 @@ async function main() {
 
   console.log("\n✅ Test seed complete!")
   console.log("\n🔑 Demo login accounts:")
-  console.log("   HR Admin:  hr@datasciencenigeria.ai  /  dsn-staff   (SUPER_ADMIN)")
+  console.log("   HR Admin:  hr@datasciencenigeria.ai  /  Admin@DSN2024!   (SUPER_ADMIN)")
   console.log("   Staff 1:   staff1@dsn-hrms.com       /  dsn-demo    (STAFF)")
   console.log("   Staff 2:   staff2@dsn-hrms.com       /  dsn-demo    (STAFF)")
   console.log("   Staff 3:   staff3@dsn-hrms.com       /  dsn-demo    (STAFF)")
@@ -282,6 +294,8 @@ async function main() {
   console.log("   Relief 1:      relief1.test@datasciencenigeria.ai       (STAFF)")
   console.log("   Relief 2:      relief2.test@datasciencenigeria.ai       (STAFF)")
   console.log("   Employee:      ada.obi@datasciencenigeria.ai            (STAFF)")
+  console.log("\n🎓 Intern test account (password: dsn-demo):")
+  console.log("   Intern:        intern@dsn-hrms.com        (STAFF/Intern → lead1@dsn-hrms.com)")
 }
 
 main()

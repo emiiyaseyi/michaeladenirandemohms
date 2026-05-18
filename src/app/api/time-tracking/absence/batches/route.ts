@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canViewAbsences")
+  if (perm) return perm
+
   const { searchParams } = new URL(req.url)
   const search = searchParams.get("search") ?? ""
   const batches = await prisma.absenceBatch.findMany({
@@ -12,6 +18,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { user: u2, error: e2 } = await requireAuth()
+  if (e2) return e2
+  const p2 = requirePermission(u2, "canCreateAbsence")
+  if (p2) return p2
+
   const { description, startDate, endDate } = await req.json()
   if (!description?.trim() || !startDate || !endDate)
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 })

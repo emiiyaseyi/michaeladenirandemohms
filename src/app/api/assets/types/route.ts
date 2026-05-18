@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 const SYSTEM_TYPES = [
   "Computer Equipment", "Computer Software", "Computer Accessory",
@@ -8,11 +9,21 @@ const SYSTEM_TYPES = [
 ]
 
 export async function GET() {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canViewAssets")
+  if (perm) return perm
+
   const types = await prisma.assetType.findMany({ orderBy: { name: "asc" } })
   return NextResponse.json({ types })
 }
 
 export async function POST(req: NextRequest) {
+  const { user: u2, error: e2 } = await requireAuth()
+  if (e2) return e2
+  const p2 = requirePermission(u2, "canCreateAsset")
+  if (p2) return p2
+
   const { name } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })
 

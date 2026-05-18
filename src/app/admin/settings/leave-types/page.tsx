@@ -11,7 +11,7 @@ const inp: React.CSSProperties = {
 }
 const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }
 
-const BLANK = { name: "", description: "", defaultDays: "21", waitingDays: "0", genderSpecific: "", requiresDoc: false, minDocDays: "2", isActive: true }
+const BLANK = { name: "", description: "", defaultDays: "10", minNoticeDays: "10", genderSpecific: "", requiresDoc: false, minDocDays: "2", internOnly: false, deductFromAnnual: false, isActive: true }
 
 
 export default function LeaveTypesSettingsPage() {
@@ -58,12 +58,12 @@ export default function LeaveTypesSettingsPage() {
               <div>
                 <div style={{ fontWeight: 600, fontSize: 13 }}>{l.name}</div>
                 <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>
-                  {l.defaultDays} days · {l.genderSpecific ? `${l.genderSpecific} only` : "All genders"} · {l.waitingDays > 0 ? `${l.waitingDays} day notice` : "No notice"}
+                  {l.defaultDays} days · {l.genderSpecific ? `${l.genderSpecific} only` : "All genders"} · {l.minNoticeDays > 0 ? `${l.minNoticeDays} working day notice` : "No fixed notice"}{l.internOnly ? " · Interns only" : ""}{l.deductFromAnnual ? " · Deducts from Annual" : ""}
                 </div>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 12, background: l.isActive ? "var(--success-bg)" : "var(--muted)", color: l.isActive ? "var(--success)" : "var(--muted-foreground)", borderRadius: 999, padding: "2px 10px", fontWeight: 600 }}>{l.isActive ? "Active" : "Inactive"}</span>
-                <button onClick={() => { setEditing(l); setForm({ name: l.name, description: l.description ?? "", defaultDays: String(l.defaultDays), waitingDays: String(l.waitingDays), genderSpecific: l.genderSpecific ?? "", requiresDoc: l.requiresDoc, minDocDays: String(l.minDocDays), isActive: l.isActive }); setError(""); setOpen(true) }} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}><Pencil size={12} /> Edit</button>
+                <button onClick={() => { setEditing(l); setForm({ name: l.name, description: l.description ?? "", defaultDays: String(l.defaultDays), minNoticeDays: String(l.minNoticeDays ?? 10), genderSpecific: l.genderSpecific ?? "", requiresDoc: l.requiresDoc, minDocDays: String(l.minDocDays), internOnly: !!l.internOnly, deductFromAnnual: !!l.deductFromAnnual, isActive: l.isActive }); setError(""); setOpen(true) }} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}><Pencil size={12} /> Edit</button>
                 <button onClick={() => del(l.id)} style={{ background: "var(--danger-bg)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--danger)" }}><Trash2 size={12} /> Delete</button>
               </div>
             </div>
@@ -77,9 +77,10 @@ export default function LeaveTypesSettingsPage() {
           <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
             {error && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{error}</div>}
             <div><label style={lbl}>Name *</label><input required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} style={inp} /></div>
+            <div><label style={lbl}>Description</label><input value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} style={inp} placeholder="Short description shown to employees" /></div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-              <div><label style={lbl}>Default Days</label><input type="number" value={form.defaultDays} onChange={e => setForm(f => ({...f, defaultDays: e.target.value}))} style={inp} /></div>
-              <div><label style={lbl}>Notice Period (days)</label><input type="number" value={form.waitingDays} onChange={e => setForm(f => ({...f, waitingDays: e.target.value}))} style={inp} /></div>
+              <div><label style={lbl}>Annual allocation (days)</label><input type="number" min="0" value={form.defaultDays} onChange={e => setForm(f => ({...f, defaultDays: e.target.value}))} style={inp} /></div>
+              <div><label style={lbl}>Min working-days notice</label><input type="number" min="0" value={form.minNoticeDays} onChange={e => setForm(f => ({...f, minNoticeDays: e.target.value}))} style={inp} /></div>
             </div>
             <div><label style={lbl}>Gender Restriction</label>
               <select value={form.genderSpecific} onChange={e => setForm(f => ({...f, genderSpecific: e.target.value}))} style={inp}>
@@ -88,9 +89,15 @@ export default function LeaveTypesSettingsPage() {
                 <option value="FEMALE">Female only</option>
               </select>
             </div>
-            <div style={{ display: "flex", gap: 20 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
                 <input type="checkbox" checked={form.requiresDoc} onChange={e => setForm(f => ({...f, requiresDoc: e.target.checked}))} /> Requires supporting document
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={form.internOnly} onChange={e => setForm(f => ({...f, internOnly: e.target.checked}))} /> Interns only — hide from non-intern employees
+              </label>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
+                <input type="checkbox" checked={form.deductFromAnnual} onChange={e => setForm(f => ({...f, deductFromAnnual: e.target.checked}))} /> Deduct from Annual Leave balance instead of own
               </label>
               {editing && (
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>

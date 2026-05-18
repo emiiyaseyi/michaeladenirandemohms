@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
-import { Plus, Search, MoreHorizontal, Loader2, Pencil, Trash2 } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Loader2, Pencil, Trash2, ChevronDown, Check } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const th: React.CSSProperties = {
@@ -13,15 +13,9 @@ const td: React.CSSProperties = {
   padding: "14px 20px", fontSize: 13, borderBottom: "1px solid var(--border)",
 }
 
-function StatusBadge({ active }: { active: boolean }) {
-  return (
-    <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: active ? "#DCFCE7" : "#F3F4F6", color: active ? "#16a34a" : "#6B7280" }}>
-      {active ? "Active" : "Inactive"}
-    </span>
-  )
-}
+const PAGE_SIZES = [15, 20, 50]
 
-function RowMenu({ title, onEdit, onToggle, onDelete, canManage }: { title: any; onEdit: () => void; onToggle: () => void; onDelete: () => void; canManage: boolean }) {
+function RowMenu({ onEdit, onDelete, canManage }: { onEdit: () => void; onDelete: () => void; canManage: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -47,12 +41,9 @@ function RowMenu({ title, onEdit, onToggle, onDelete, canManage }: { title: any;
     <>
       <button ref={btnRef} onClick={toggle} style={{ background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6, color: "var(--muted-foreground)" }}><MoreHorizontal size={16} /></button>
       {open && typeof window !== "undefined" && createPortal(
-        <div ref={menuRef} style={{ position: "fixed", top: pos.top, right: pos.right, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 9999, minWidth: 140, padding: "4px 0" }}>
+        <div ref={menuRef} style={{ position: "fixed", top: pos.top, right: pos.right, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 9999, minWidth: 130, padding: "4px 0" }}>
           <button onClick={() => { setOpen(false); onEdit() }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
             <Pencil size={13} /> Edit
-          </button>
-          <button onClick={() => { setOpen(false); onToggle() }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: title.isActive ? "#D97706" : "#16a34a", textAlign: "left" }}>
-            {title.isActive ? "Deactivate" : "Activate"}
           </button>
           <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
           <button onClick={() => { setOpen(false); onDelete() }} style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "9px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#ef4444", textAlign: "left" }}>
@@ -112,6 +103,10 @@ export default function JobTitlesPage() {
   const [editTarget, setEditTarget] = useState<any>(null)
   const [delTarget, setDelTarget] = useState<any>(null)
   const [deleting, setDeleting] = useState(false)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(15)
+  const [pageSizeOpen, setPageSizeOpen] = useState(false)
+  const pageSizeRef = useRef<HTMLDivElement>(null)
 
   const canManage = !!(user?.caps?.canManageSettings)
 
@@ -119,18 +114,27 @@ export default function JobTitlesPage() {
     setLoading(true)
     const r = await fetch("/api/job-titles")
     const d = await r.json()
-    setTitles(d.titles ?? [])
+    setTitles(d.jobTitles ?? [])
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node)) setPageSizeOpen(false)
+    }
+    document.addEventListener("mousedown", h)
+    return () => document.removeEventListener("mousedown", h)
+  }, [])
+
   const filtered = titles.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()))
 
-  const toggleActive = async (t: any) => {
-    await fetch(`/api/job-titles/${t.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive: !t.isActive }) })
-    load()
-  }
+  useEffect(() => { setPage(1) }, [search])
+
+  const totalPages = Math.ceil(filtered.length / pageSize)
+  const start = (page - 1) * pageSize
+  const paginated = filtered.slice(start, start + pageSize)
 
   const deleteTitle = async () => {
     if (!delTarget) return
@@ -176,21 +180,18 @@ export default function JobTitlesPage() {
             <thead>
               <tr>
                 <th style={th}>Name</th>
-                <th style={th}>Status</th>
                 <th style={{ ...th, width: 60 }}></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(t => (
+              {paginated.map(t => (
                 <tr key={t.id} style={{ transition: "background .1s" }}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
                   <td style={td}><span style={{ fontWeight: 600 }}>{t.name}</span></td>
-                  <td style={td}><StatusBadge active={t.isActive} /></td>
                   <td style={{ ...td, textAlign: "right" }}>
-                    <RowMenu title={t} canManage={canManage}
+                    <RowMenu canManage={canManage}
                       onEdit={() => { setEditTarget(t); setModalOpen(true) }}
-                      onToggle={() => toggleActive(t)}
                       onDelete={() => setDelTarget(t)} />
                   </td>
                 </tr>
@@ -198,9 +199,46 @@ export default function JobTitlesPage() {
             </tbody>
           </table>
         )}
-        <div style={{ padding: "12px 20px", borderTop: filtered.length > 0 ? "1px solid var(--border)" : "none", fontSize: 12, color: "var(--muted-foreground)" }}>
-          {filtered.length} of {titles.length} titles
-        </div>
+
+        {filtered.length > 0 && (
+          <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 13, color: "var(--muted-foreground)" }}>
+            <span>{start + 1}–{Math.min(start + pageSize, filtered.length)} of {filtered.length} title{filtered.length !== 1 ? "s" : ""}</span>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {totalPages > 1 && (
+                <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                  <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page <= 1}
+                    style={{ padding: "4px 10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 7, cursor: page <= 1 ? "default" : "pointer", opacity: page <= 1 ? 0.4 : 1, fontSize: 13 }}>‹</button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    const pg = totalPages <= 5 ? i + 1 : page <= 3 ? i + 1 : page >= totalPages - 2 ? totalPages - 4 + i : page - 2 + i
+                    return (
+                      <button key={pg} onClick={() => setPage(pg)}
+                        style={{ padding: "4px 10px", background: page === pg ? "var(--primary)" : "var(--muted)", border: `1px solid ${page === pg ? "var(--primary)" : "var(--border)"}`, borderRadius: 7, cursor: "pointer", fontSize: 13, fontWeight: page === pg ? 700 : 400, color: page === pg ? "white" : "var(--foreground)" }}>
+                        {pg}
+                      </button>
+                    )
+                  })}
+                  <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page >= totalPages}
+                    style={{ padding: "4px 10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 7, cursor: page >= totalPages ? "default" : "pointer", opacity: page >= totalPages ? 0.4 : 1, fontSize: 13 }}>›</button>
+                </div>
+              )}
+              <div ref={pageSizeRef} style={{ position: "relative" }}>
+                <button onClick={() => setPageSizeOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 7, cursor: "pointer", fontSize: 13, color: "var(--foreground)", fontWeight: 600 }}>
+                  {pageSize} / page <ChevronDown size={12} />
+                </button>
+                {pageSizeOpen && (
+                  <div style={{ position: "absolute", bottom: "100%", right: 0, marginBottom: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 110, padding: "4px 0" }}>
+                    {PAGE_SIZES.map(s => (
+                      <button key={s} onClick={() => { setPageSize(s); setPage(1); setPageSizeOpen(false) }}
+                        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "8px 14px", background: pageSize === s ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
+                        {s} / page {pageSize === s && <Check size={12} />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {modalOpen && (

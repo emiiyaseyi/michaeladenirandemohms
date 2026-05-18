@@ -2,8 +2,9 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import { Search, MoreHorizontal, Loader2, ChevronDown, Check, KeyRound, Eye, Upload, RefreshCw, UserPlus, FileUp, FileDown, ShieldCheck, Trash2, UserCog } from "lucide-react"
+import { Search, MoreHorizontal, Loader2, ChevronDown, Check, KeyRound, Eye, RefreshCw, UserPlus, FileUp, ShieldCheck, Trash2, UserCog } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import PageHeader from "@/components/ui/PageHeader"
 
 const STATUS_OPTS = [
   { value: "", label: "All" },
@@ -66,8 +67,8 @@ function RoleBadge({ emp, onChanged, isSuperAdmin }: { emp: any; onChanged: () =
   )
 }
 
-function RowMenu({ emp, onView, onReset, onDelete, onChangeRole }: {
-  emp: any; onView: () => void; onReset: () => void;
+function RowMenu({ onView, onReset, onDelete, onChangeRole }: {
+  onView: () => void; onReset: () => void;
   onDelete?: () => void; onChangeRole?: () => void
 }) {
   const [open, setOpen] = useState(false)
@@ -288,49 +289,49 @@ export default function EmployeesPage() {
     ...(canCreateEmployee ? [
       { label: "Add new Employee", icon: <UserPlus size={13} />, href: "/admin/people/employees/add" },
       { label: "Bulk upload Employees", icon: <FileUp size={13} />, href: "/admin/people/employees/bulk-upload" },
-      { label: "Bulk upload Accounts", icon: <Upload size={13} />, href: "/admin/people/employees/bulk-upload-accounts" },
-      { label: "Bulk upload Annual Earning", icon: <FileDown size={13} />, href: "/admin/people/employees/bulk-upload-earnings" },
     ] : []),
     ...(canEditEmployee ? [
       { label: "Bulk update Employees", icon: <RefreshCw size={13} />, href: "/admin/people/employees/bulk-update" },
     ] : []),
   ]
 
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800 }}>Employees</h1>
-          <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>{employees.length} employee{employees.length !== 1 ? "s" : ""}</p>
-        </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {someSelected && (
-            <button onClick={() => setResetTarget("bulk")} disabled={resetting}
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", background: "none", border: "1px solid var(--border)", borderRadius: 9, cursor: resetting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-              <KeyRound size={14} /> Reset {selected.size} Password{selected.size > 1 ? "s" : ""}
-            </button>
-          )}
-          {(canCreateEmployee || canEditEmployee) && manageItems.length > 0 && (
-            <div ref={manageRef} style={{ position: "relative" }}>
-              <button onClick={() => setManageOpen(o => !o)}
-                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-                Manage <ChevronDown size={14} />
-              </button>
-              {manageOpen && (
-                <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 220, padding: "4px 0" }}>
-                  {manageItems.map(item => (
-                    <button key={item.href} onClick={() => { setManageOpen(false); router.push(item.href) }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
-                      <span style={{ color: "var(--muted-foreground)" }}>{item.icon}</span>
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+  const headerActions = (
+    <>
+      {someSelected && (
+        <button onClick={() => setResetTarget("bulk")} disabled={resetting}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", background: "none", border: "1px solid var(--border)", borderRadius: 9, cursor: resetting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+          <KeyRound size={14} /> Reset {selected.size} Password{selected.size > 1 ? "s" : ""}
+        </button>
+      )}
+      {(canCreateEmployee || canEditEmployee) && manageItems.length > 0 && (
+        <div ref={manageRef} style={{ position: "relative" }}>
+          <button onClick={() => setManageOpen(o => !o)}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            Manage <ChevronDown size={14} />
+          </button>
+          {manageOpen && (
+            <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 220, padding: "4px 0" }}>
+              {manageItems.map(item => (
+                <button key={item.href} onClick={() => { setManageOpen(false); router.push(item.href) }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+                  <span style={{ color: "var(--muted-foreground)" }}>{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
             </div>
           )}
         </div>
-      </div>
+      )}
+    </>
+  )
+
+  return (
+    <div>
+      <PageHeader
+        title="Employees"
+        subtitle={`${employees.length} employee${employees.length !== 1 ? "s" : ""}`}
+        actions={headerActions}
+      />
 
       {resetMsg && (
         <div style={{ padding: "11px 16px", borderRadius: 8, marginBottom: 16, background: "#DCFCE7", border: "1px solid #bbf7d0", fontSize: 13, color: "#15803d" }}>
@@ -340,7 +341,7 @@ export default function EmployeesPage() {
 
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
         {/* Toolbar */}
-        <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", gap: 12, alignItems: "center" }}>
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--border)", display: "flex", gap: 12, rowGap: 16, alignItems: "center", flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "7px 12px", flex: 1, maxWidth: 300 }}>
             <Search size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search employees…"
@@ -447,7 +448,7 @@ export default function EmployeesPage() {
                         <RoleBadge emp={emp} onChanged={load} isSuperAdmin={user?.role === "SUPER_ADMIN"} />
                       </td>
                       <td style={{ ...td, textAlign: "right" }} onClick={e => e.stopPropagation()}>
-                        <RowMenu emp={emp}
+                        <RowMenu
                           onView={() => router.push(`/admin/people/employees/${emp.id}`)}
                           onReset={() => setResetTarget(emp)}
                           onDelete={canDeleteEmployee ? () => setDeleteTarget(emp) : undefined}

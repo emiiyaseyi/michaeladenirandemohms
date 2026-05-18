@@ -14,7 +14,6 @@ const FIELD_LABELS: Record<string, string> = {
   gender: "Gender", dateOfBirth: "Date of Birth", maritalStatus: "Marital Status",
   nationality: "Nationality", stateOfOrigin: "State of Origin",
   nokName: "NOK Name", nokPhone: "NOK Phone", nokRelationship: "NOK Relationship", nokAddress: "NOK Address",
-  bankName: "Bank Name", bankAccountNo: "Account No.", bankAccountName: "Account Name",
 }
 
 const STATUS_META = {

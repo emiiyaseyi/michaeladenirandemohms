@@ -1,6 +1,6 @@
 "use client"
 import { useSession } from "next-auth/react"
-import { getCapabilities, getNavForRole, type SystemRole, type RoleCapabilities } from "@/lib/rbac"
+import { getCapabilities, type SystemRole, type RoleCapabilities } from "@/lib/rbac"
 
 export interface CurrentUser {
   id: string

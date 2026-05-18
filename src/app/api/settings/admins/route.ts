@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 
 const MEMBER_SELECT = {
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
   if (user.role !== "SUPER_ADMIN") return forbidden()
 
   const body = await req.json()
-  const { type, employeeId, firstName, lastName, email, personalNote, systemRoleIds = [], customRoleIds = [] } = body
+  const { type, employeeId, firstName, lastName, email, systemRoleIds = [], customRoleIds = [] } = body
 
   const allRoleIds: string[] = [...systemRoleIds, ...customRoleIds]
 
@@ -64,6 +65,7 @@ export async function POST(req: NextRequest) {
         link: "/admin",
       },
     })
+    sendEmail({ eventKey: "admin_access_granted", toUserId: emp.userId!, variables: { employeeName: "" } }).catch(() => {})
 
     const updated = await prisma.user.findUnique({ where: { id: emp.userId }, select: MEMBER_SELECT })
     return NextResponse.json({ admin: updated }, { status: 201 })

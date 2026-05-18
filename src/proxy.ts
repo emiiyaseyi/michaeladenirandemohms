@@ -4,11 +4,14 @@ import { getToken } from "next-auth/jwt"
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Static assets and auth API — always pass through
+  // Static assets, auth API, and public routes — always pass through
   if (
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon")
+    pathname.startsWith("/favicon") ||
+    pathname.startsWith("/onboard") ||
+    pathname.startsWith("/api/onboard") ||
+    pathname.startsWith("/api/test")
   ) {
     return NextResponse.next()
   }

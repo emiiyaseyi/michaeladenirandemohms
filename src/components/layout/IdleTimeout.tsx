@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useRef, useState, useCallback } from "react"
 import { signOut } from "next-auth/react"
-import { Clock, AlertTriangle } from "lucide-react"
+import { AlertTriangle } from "lucide-react"
 
 // Idle timeout: 10 minutes idle → show 60s warning → auto logout
 const IDLE_MS   = 10 * 60 * 1000  // 10 minutes before warning

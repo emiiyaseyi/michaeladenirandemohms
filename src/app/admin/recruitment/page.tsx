@@ -38,7 +38,6 @@ export default function RecruitmentOverviewPage() {
   const openJobs = jobs.filter(j => j.status === "OPEN").length
   const totalApps = applications.length
   const activeApps = applications.filter(a => a.status === "ACTIVE").length
-  const hired = applications.filter(a => a.status === "HIRED").length
 
   const doAddJob = async () => {
     if (!jobForm.title.trim() || !jobForm.description.trim()) { setErr("Title and description are required."); return }

@@ -66,10 +66,10 @@ export default function BulkUploadEmployeesPage() {
   }
 
   const readyItems = [
-    "Employees full name",
-    "Hire date",
-    "Work location",
-    "Paygrade (Optional)",
+    "First name, last name, work email",
+    "Job title, department name",
+    "Hire date + date of birth (YYYY-MM-DD)",
+    "Gender (MALE or FEMALE)",
   ]
 
   return (

@@ -62,7 +62,7 @@ export default function RoleDetailPage() {
     setExpandedGroups(gs => gs.includes(group) ? gs.filter(g => g !== group) : [...gs, group])
   }
 
-  const toggleGroupAll = (group: string, keys: string[]) => {
+  const toggleGroupAll = (keys: string[]) => {
     if (role?.isSystem) return
     const allOn = keys.every(k => editPermissions[k])
     const updated = { ...editPermissions }
@@ -210,7 +210,7 @@ export default function RoleDetailPage() {
                         type="checkbox"
                         checked={allOn}
                         onClick={e => e.stopPropagation()}
-                        onChange={() => toggleGroupAll(grp.group, keys)}
+                        onChange={() => toggleGroupAll(keys)}
                         style={{ width: 14, height: 14, flexShrink: 0 }}
                       />
                     )}

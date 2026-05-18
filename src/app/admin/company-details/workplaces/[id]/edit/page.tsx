@@ -9,7 +9,6 @@ export default function EditWorkplacePage() {
   const { id } = useParams() as { id: string }
   const [form, setForm] = useState<WpForm>({ addressLine1: "", addressLine2: "", city: "", state: "", country: "Nigeria", zipCode: "", phone: "", email: "", displayName: "" })
   const [isActive, setIsActive] = useState(true)
-  const [isFilingOrMailing, setIsFilingOrMailing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
@@ -32,7 +31,6 @@ export default function EditWorkplacePage() {
           displayName: wp.displayName ?? "",
         })
         setIsActive(wp.isActive ?? true)
-        setIsFilingOrMailing(!!(wp.isFiling || wp.isMailing))
         setLoading(false)
       })
   }, [id])
@@ -86,7 +84,6 @@ export default function EditWorkplacePage() {
             error={error}
             onCancel={() => router.push("/admin/company-details/workplaces")}
             onSave={() => save()}
-            isFilingOrMailing={isFilingOrMailing}
             isActive={isActive}
             onToggleActive={toggleActive}
           />

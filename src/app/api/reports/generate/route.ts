@@ -3,13 +3,28 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 import { format } from "date-fns"
 
+const FIELD_MAP: Record<string, { label: string; get: (e: any) => string | number | null }> = {
+  employeeId:     { label: "Employee ID",      get: (e) => e.employeeId },
+  firstName:      { label: "First Name",       get: (e) => e.firstName },
+  lastName:       { label: "Last Name",        get: (e) => e.lastName },
+  email:          { label: "Email",            get: (e) => e.user?.email ?? "" },
+  phone:          { label: "Phone",            get: (e) => e.phone ?? "" },
+  department:     { label: "Department",       get: (e) => e.department?.name ?? "" },
+  jobTitle:       { label: "Job Title",        get: (e) => e.jobTitle ?? "" },
+  employmentType: { label: "Employment Type",  get: (e) => e.employmentType ?? "" },
+  status:         { label: "Status",           get: (e) => e.employeeStatus ?? "" },
+  hireDate:       { label: "Hire Date",        get: (e) => e.hireDate ? format(e.hireDate, "yyyy-MM-dd") : "" },
+  dob:            { label: "Date of Birth",    get: (e) => e.dateOfBirth ? format(e.dateOfBirth, "yyyy-MM-dd") : "" },
+  gender:         { label: "Gender",           get: (e) => e.gender ?? "" },
+}
+
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (user.role !== "SUPER_ADMIN" && !user.permissions["canViewAllEmployees"]) return forbidden()
 
   const body = await req.json()
-  const { category, reportType, dateFrom, dateTo, departmentId, empType, status, employeeId } = body
+  const { category, reportType, dateFrom, dateTo, departmentId, empType, status, employeeId, selectedFields } = body
 
   let title = reportType || "Report"
   let subtitle = ""
@@ -33,7 +48,7 @@ export async function POST(req: NextRequest) {
       const where: any = {}
       if (status && status !== "all") where.employeeStatus = status
       if (departmentId && departmentId !== "all") where.departmentId = departmentId
-      if (empType && empType !== "all") where.category = empType
+      if (empType && empType !== "all") where.employmentType = empType
       if (employeeId && employeeId !== "all") where.id = employeeId
 
       const employees = await prisma.employee.findMany({
@@ -78,8 +93,8 @@ export async function POST(req: NextRequest) {
 
       } else {
         title = "Employee Roster"; filename = "employee_roster"
-        headers = ["Employee ID", "First Name", "Last Name", "Email", "Job Title", "Department", "Employment Type", "Category", "Status", "Hire Date"]
-        rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, (e.user as any)?.email ?? "", e.jobTitle ?? "", (e.department as any)?.name ?? "", e.employmentType, e.category, e.employeeStatus, e.hireDate ? format(e.hireDate, "yyyy-MM-dd") : ""])
+        headers = ["Employee ID", "First Name", "Last Name", "Email", "Job Title", "Department", "Employment Type", "Status", "Hire Date"]
+        rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, (e.user as any)?.email ?? "", e.jobTitle ?? "", (e.department as any)?.name ?? "", e.employmentType, e.employeeStatus, e.hireDate ? format(e.hireDate, "yyyy-MM-dd") : ""])
       }
 
     } else if (category === "leave") {
@@ -125,75 +140,84 @@ export async function POST(req: NextRequest) {
         rows = [...byType.entries()].map(([t, d]) => [t, d.count, d.days, d.count > 0 ? +(d.days / d.count).toFixed(1) : 0])
       }
 
-    } else if (category === "payroll") {
-      const where: any = {}
-      if (status && status !== "all") where.employeeStatus = status
-      if (departmentId && departmentId !== "all") where.departmentId = departmentId
-      if (employeeId && employeeId !== "all") where.id = employeeId
-      const employees = await prisma.employee.findMany({ where, include: { department: true }, orderBy: { firstName: "asc" } })
+    } else if (category === "performance") {
+      const employeeFilter: any = {}
+      if (departmentId && departmentId !== "all") employeeFilter.departmentId = departmentId
+      if (empType && empType !== "all") employeeFilter.employmentType = empType
+      if (status && status !== "all") employeeFilter.employeeStatus = status
 
-      if (reportType === "Payslips Summary") {
-        title = "Payslips Summary"; filename = "payslips_summary"
-        headers = ["Employee ID", "First Name", "Last Name", "Job Title", "Department", "Gross Salary (₦)", "Employment Type"]
-        rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, e.jobTitle ?? "", (e.department as any)?.name ?? "", e.grossSalary ?? 0, e.employmentType])
-      } else {
-        title = "Salary Analysis"; filename = "salary_analysis"
-        const byDept = new Map<string, { count: number; total: number; min: number; max: number }>()
-        for (const e of employees) {
-          const d = (e.department as any)?.name ?? "No Department"
-          const sal = e.grossSalary ?? 0
-          const cur = byDept.get(d) ?? { count: 0, total: 0, min: Infinity, max: -Infinity }
-          cur.count++; cur.total += sal
-          if (sal < cur.min) cur.min = sal
-          if (sal > cur.max) cur.max = sal
-          byDept.set(d, cur)
-        }
-        headers = ["Department", "Headcount", "Total Salary (₦)", "Average Salary (₦)", "Min Salary (₦)", "Max Salary (₦)"]
-        rows = [...byDept.entries()].map(([dept, d]) => [dept, d.count, d.total, d.count > 0 ? Math.round(d.total / d.count) : 0, d.min === Infinity ? 0 : d.min, d.max === -Infinity ? 0 : d.max])
+      const kpiWhere: any = {
+        ...(employeeId && employeeId !== "all" ? { employeeId } : {}),
+        ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {}),
+        ...(Object.keys(employeeFilter).length > 0 ? { employee: employeeFilter } : {}),
       }
 
-    } else if (category === "performance") {
-      title = reportType; filename = "performance_report"
-      try {
-        const kpis = await (prisma as any).kPI.findMany({
-          where: {
-            ...(employeeId && employeeId !== "all" ? { employeeId } : {}),
-            ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {}),
+      if (reportType === "Appraisals Report") {
+        title = "Appraisals Report"; filename = "appraisals_report"
+        const kpis = await prisma.kPI.findMany({
+          where: kpiWhere,
+          include: {
+            employee: { select: { employeeId: true, firstName: true, lastName: true, department: { select: { name: true } } } },
+            cycle: { select: { name: true, year: true, half: true } },
           },
-          include: { employee: { select: { employeeId: true, firstName: true, lastName: true, department: { select: { name: true } } } } },
+          orderBy: { createdAt: "desc" },
+        })
+        headers = ["Employee ID", "Employee Name", "Department", "KPI Title", "Weight", "Self Score", "Manager Score", "Final Score", "Cycle"]
+        rows = kpis.map((k: any) => [
+          k.employee?.employeeId ?? "",
+          `${k.employee?.firstName ?? ""} ${k.employee?.lastName ?? ""}`.trim(),
+          k.employee?.department?.name ?? "",
+          k.title ?? "",
+          k.weight ?? "",
+          k.selfScore ?? "",
+          k.managerScore ?? "",
+          k.finalScore ?? "",
+          k.cycle ? `${k.cycle.name} ${k.cycle.year}` : "",
+        ])
+
+      } else {
+        title = reportType || "KPI Summary"; filename = "kpi_summary"
+        const kpis = await prisma.kPI.findMany({
+          where: kpiWhere,
+          include: {
+            employee: { select: { employeeId: true, firstName: true, lastName: true, department: { select: { name: true } } } },
+          },
           orderBy: { createdAt: "desc" },
         })
         headers = ["Employee ID", "Employee Name", "Department", "KPI Title", "Target", "Achieved", "Score", "Status"]
-        rows = kpis.map((k: any) => [(k.employee as any)?.employeeId ?? "", `${(k.employee as any)?.firstName ?? ""} ${(k.employee as any)?.lastName ?? ""}`.trim(), (k.employee as any)?.department?.name ?? "", k.title ?? "", k.target ?? "", k.achieved ?? "", k.score ?? "", k.status ?? ""])
-      } catch {
-        headers = ["Employee ID", "First Name", "Last Name", "Department", "Note"]
-        rows = [["—", "—", "—", "—", "No KPI data available for this period"]]
+        rows = kpis.map((k: any) => [
+          k.employee?.employeeId ?? "",
+          `${k.employee?.firstName ?? ""} ${k.employee?.lastName ?? ""}`.trim(),
+          k.employee?.department?.name ?? "",
+          k.title ?? "",
+          k.target ?? "",
+          k.achieved ?? "",
+          k.score ?? "",
+          k.status ?? "",
+        ])
       }
 
-    } else if (category === "attendance") {
-      title = reportType; filename = "attendance_report"
-      const leaveWhere: any = { status: "APPROVED" }
-      if (Object.keys(dateFilter).length > 0) leaveWhere.startDate = dateFilter
-      if (departmentId && departmentId !== "all") leaveWhere.departmentId = departmentId
-      if (employeeId && employeeId !== "all") leaveWhere.employeeId = employeeId
-      const leaves = await prisma.leaveRequest.findMany({
-        where: leaveWhere,
-        include: { employee: { select: { employeeId: true, firstName: true, lastName: true, department: { select: { name: true } } } }, leaveType: { select: { name: true } } },
-        orderBy: { startDate: "desc" },
-      })
-      headers = ["Employee ID", "Employee Name", "Department", "Leave Type", "From", "To", "Days Absent"]
-      rows = leaves.map(r => [(r.employee as any)?.employeeId ?? "", `${(r.employee as any)?.firstName ?? ""} ${(r.employee as any)?.lastName ?? ""}`.trim(), (r.employee as any)?.department?.name ?? "", (r.leaveType as any)?.name ?? "", format(r.startDate, "yyyy-MM-dd"), format(r.endDate, "yyyy-MM-dd"), r.days])
-
     } else {
+      // Custom / Build Your Own
       title = "Custom Report"; filename = "custom_report"
       const where: any = {}
       if (status && status !== "all") where.employeeStatus = status
       if (departmentId && departmentId !== "all") where.departmentId = departmentId
-      if (empType && empType !== "all") where.category = empType
+      if (empType && empType !== "all") where.employmentType = empType
       if (employeeId && employeeId !== "all") where.id = employeeId
-      const employees = await prisma.employee.findMany({ where, include: { department: true, user: { select: { email: true } } }, orderBy: { firstName: "asc" } })
-      headers = ["Employee ID", "First Name", "Last Name", "Email", "Job Title", "Department", "Status", "Employment Type", "Category", "Hire Date", "Gross Salary (₦)"]
-      rows = employees.map(e => [e.employeeId, e.firstName, e.lastName, (e.user as any)?.email ?? "", e.jobTitle ?? "", (e.department as any)?.name ?? "", e.employeeStatus, e.employmentType, e.category, e.hireDate ? format(e.hireDate, "yyyy-MM-dd") : "", e.grossSalary ?? ""])
+
+      const employees = await prisma.employee.findMany({
+        where,
+        include: { department: true, user: { select: { email: true } } },
+        orderBy: { firstName: "asc" },
+      })
+
+      const fields: string[] = Array.isArray(selectedFields) && selectedFields.length > 0
+        ? selectedFields.filter((f: string) => f in FIELD_MAP)
+        : Object.keys(FIELD_MAP)
+
+      headers = fields.map(f => FIELD_MAP[f].label)
+      rows = employees.map(e => fields.map(f => FIELD_MAP[f].get(e)))
     }
 
     return NextResponse.json({ title, subtitle, headers, rows, filename: filename + ".csv", generatedAt: new Date().toISOString(), rowCount: rows.length })

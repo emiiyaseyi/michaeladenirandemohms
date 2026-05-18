@@ -39,7 +39,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     await tx.auditLog.deleteMany({ where: { userId: id } })
     await tx.notification.deleteMany({ where: { userId: id } })
     // Nullify optional FK references
-    await tx.exitRequest.updateMany({ where: { reviewedById: id }, data: { reviewedById: null } })
     await tx.profileUpdateRequest.updateMany({ where: { reviewedBy: id }, data: { reviewedBy: null } })
     await tx.personalDocument.updateMany({ where: { reviewedBy: id }, data: { reviewedBy: null } })
     await tx.passwordResetRequest.updateMany({ where: { userId: id }, data: { userId: null } })

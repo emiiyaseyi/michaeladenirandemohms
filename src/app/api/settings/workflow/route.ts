@@ -10,9 +10,8 @@ const DEFAULT_WORKFLOW = {
       id: "hr",
       name: "HR",
       categories: [
-        { id: "people", name: "People", description: "Approval workflow for HR-related employee requests e.g document, redeployment and exit", chain: [] },
+        { id: "people", name: "People", description: "Approval workflow for HR-related employee requests e.g document requests", chain: [] },
         { id: "time_leave", name: "Time Tracking and Leave", description: "Approval workflow for employee hours and leave requests", chain: ["Head of Department", "Manager", "HR Admin"] },
-        { id: "loans_salary_tax", name: "Loans, Salary Advance and Tax Relief", description: "Approval workflow for loans, salary advance and tax-relief requests", chain: ["Manager", "HR Admin"] },
       ],
     },
     {
@@ -29,6 +28,10 @@ const DEFAULT_WORKFLOW = {
 }
 
 export async function GET() {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canManageSettings) return forbidden()
+
   // Try both the new key and old key for backwards compat
   let setting = await prisma.systemSetting.findUnique({ where: { key: KEY } })
   if (!setting) {

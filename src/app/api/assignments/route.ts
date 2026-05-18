@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canViewAssets")
+  if (perm) return perm
+
   const { searchParams } = new URL(req.url)
   const search = searchParams.get("search") ?? ""
   const status = searchParams.get("status") ?? ""

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
+import { format } from "date-fns"
 import { requireAuth, forbidden, roleBasePath } from "@/lib/api-auth"
 
 async function getHRAdminRecipients(): Promise<{ userId: string; employeeId?: string }[]> {
@@ -133,6 +135,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         link: `${roleBasePath(empRole)}/requests/leave`,
       },
     })
+    sendEmail({
+      eventKey: isApproval ? (stage === "HR_ADMIN" ? "leave_approved" : "leave_progressing") : "leave_rejected",
+      toUserId: request.employee.userId,
+      variables: {
+        employeeName: `${request.employee.firstName} ${request.employee.lastName}`,
+        leaveType: request.leaveType?.name ?? "",
+        startDate: format(request.startDate, "MMM d, yyyy"),
+        endDate: format(request.endDate, "MMM d, yyyy"),
+        days: String(request.days),
+        reliefOfficers: "",
+        note: comment ?? "",
+        rejectedBy: stage === "HR_ADMIN" ? "HR Admin" : "Project Lead",
+        reason: comment ?? "",
+      },
+    }).catch(() => {})
   }
 
   // After PL approves — check if ALL PLs done, then notify HR Admins only
@@ -152,6 +169,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             link: `/admin/requests/leave`,
           },
         })
+        sendEmail({ eventKey: "leave_nudge_hr", toUserId: hr.userId, variables: { requesterName: `${request.employee?.firstName} ${request.employee?.lastName}`, leaveType: request.leaveType?.name ?? "" } }).catch(() => {})
       }
     }
   }
@@ -169,7 +187,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const existing = await prisma.leaveReliefOfficer.findFirst({ where: { leaveRequestId: id, employeeId: h.relieverId } })
       if (!existing) {
         await prisma.leaveReliefOfficer.create({
-          data: { leaveRequestId: id, employeeId: h.relieverId, status: "ACCEPTED" },
+          data: { leaveRequestId: id, employeeId: h.relieverId },
         })
       }
     }
@@ -193,6 +211,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           link: `${roleBasePath((relief.employee.user?.role as string) ?? "STAFF")}/requests/leave?tab=relief`,
         },
       })
+      sendEmail({ eventKey: "relief_assigned", toUserId: relief.employee.userId, variables: { employeeName: `${request.employee?.firstName} ${request.employee?.lastName}`, leaveType: request.leaveType?.name ?? "", startDate: format(request.startDate, "MMM d, yyyy"), endDate: format(request.endDate, "MMM d, yyyy"), tasks: taskNames.join(", ") } }).catch(() => {})
     }
   }
 

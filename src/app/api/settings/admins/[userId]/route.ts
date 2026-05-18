@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 
 const MEMBER_SELECT = {
@@ -41,6 +42,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
       link: roleIds.length > 0 ? "/admin" : "/staff",
     },
   })
+  sendEmail({ eventKey: roleIds?.length > 0 ? "admin_roles_updated" : "admin_access_removed", toUserId: userId, variables: { employeeName: "" } }).catch(() => {})
 
   const updated = await prisma.user.findUnique({ where: { id: userId }, select: MEMBER_SELECT })
   return NextResponse.json({ admin: updated })
@@ -69,6 +71,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       link: "/staff",
     },
   })
+  sendEmail({ eventKey: "admin_access_removed", toUserId: userId, variables: { employeeName: "" } }).catch(() => {})
 
   return NextResponse.json({ success: true })
 }

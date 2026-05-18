@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
@@ -20,6 +21,11 @@ async function saveFile(file: File, folder: string): Promise<string> {
 }
 
 export async function GET(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canViewRentDocuments")
+  if (perm) return perm
+
   const { searchParams } = new URL(req.url)
   const search = searchParams.get("search") ?? ""
   const status = searchParams.get("status") ?? ""

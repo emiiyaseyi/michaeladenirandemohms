@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { DashboardScrollTicker } from "./AnnouncementRenderer"
 
 interface Announcement {
@@ -16,9 +17,12 @@ interface Announcement {
 }
 
 export default function DashboardAnnouncements() {
+  const { data: session } = useSession()
+  const userId = (session?.user as any)?.id as string | undefined
   const [items, setItems] = useState<Announcement[]>([])
 
   useEffect(() => {
+    if (!userId) return
     fetch("/api/announcements")
       .then(r => r.json())
       .then(d => {
@@ -26,8 +30,8 @@ export default function DashboardAnnouncements() {
         setItems(all.filter(a => a.behavior === "DASHBOARD_SCROLL"))
       })
       .catch(() => {})
-  }, [])
+  }, [userId])
 
-  if (items.length === 0) return null
-  return <DashboardScrollTicker items={items} />
+  if (!userId || items.length === 0) return null
+  return <DashboardScrollTicker items={items} userId={userId} />
 }

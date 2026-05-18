@@ -5,11 +5,12 @@ import Avatar from "@/components/ui/Avatar"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
-import Badge from "@/components/ui/Badge"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import PageHeader from "@/components/ui/PageHeader"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import {
   Briefcase, Plus, Search, Users, Calendar, Pencil, Trash2,
-  Archive, CheckCircle, Loader2, AlertCircle, X, ChevronDown, PlayCircle,
+  Archive, CheckCircle, Loader2, AlertCircle, X, PlayCircle,
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
@@ -183,15 +184,25 @@ export default function ProjectsPage() {
     setSaving(false); setEditTarget(null); load()
   }
 
-  const retire = async (id: string, status: string) => {
+  const [statusChange, setStatusChange] = useState<{ id: string; status: string; label: string } | null>(null)
+  const [statusBusy, setStatusBusy] = useState(false)
+  const [statusErr, setStatusErr] = useState("")
+  const retire = (id: string, status: string) => {
     const label = status === "ON_HOLD" ? "on hold" : status === "ACTIVE" ? "active" : "complete"
-    if (!confirm(`Mark this project as ${label}?`)) return
-    const res = await fetch(`/api/projects/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) })
+    setStatusErr("")
+    setStatusChange({ id, status, label })
+  }
+  const doStatusChange = async () => {
+    if (!statusChange) return
+    setStatusBusy(true); setStatusErr("")
+    const res = await fetch(`/api/projects/${statusChange.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: statusChange.status }) })
+    setStatusBusy(false)
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
-      alert(d.error ?? `Failed to update project status`)
+      setStatusErr(d.error ?? `Failed to update project status`)
+      return
     }
-    load()
+    setStatusChange(null); load()
   }
 
   const del = async () => {
@@ -202,13 +213,12 @@ export default function ProjectsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800 }}>Projects</h1>
-          <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Manage projects and assign team members</p>
-        </div>
-        {canManage && <Button size="sm" onClick={() => setCreateOpen(true)}><Plus size={14} /> New Project</Button>}
-      </div>
+      <PageHeader
+        title="Projects"
+        subtitle="Manage projects and assign team members"
+        icon={<Briefcase size={22} />}
+        actions={canManage ? <Button size="sm" onClick={() => setCreateOpen(true)}><Plus size={14} /> New Project</Button> : undefined}
+      />
 
       <Card style={{ padding: "14px 20px", marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "7px 12px", flex: 1, minWidth: 200 }}>
@@ -344,6 +354,15 @@ export default function ProjectsPage() {
           </div>
         </div>
       </Modal>
+      <ConfirmDialog
+        open={!!statusChange}
+        onClose={() => { setStatusChange(null); setStatusErr("") }}
+        onConfirm={doStatusChange}
+        title="Change project status?"
+        body={<div>Mark this project as <strong style={{ color: "var(--foreground)" }}>{statusChange?.label}</strong>?{statusErr && <div style={{ marginTop: 10, padding: 8, background: "rgba(239,68,68,0.08)", color: "#EF4444", borderRadius: 6, fontSize: 12 }}>{statusErr}</div>}</div>}
+        confirmText="Confirm"
+        loading={statusBusy}
+      />
     </div>
   )
 }

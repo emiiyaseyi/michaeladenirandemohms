@@ -2,8 +2,9 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
-import { Building2, Search, ChevronDown, MoreVertical, Inbox, Download } from "lucide-react"
+import { Building2, Search, ChevronDown, MoreVertical, Inbox } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 
 interface Contractor {
   id: string
@@ -120,10 +121,15 @@ export default function ContractorsPage() {
     return () => document.removeEventListener("mousedown", h)
   }, [])
 
-  const deleteContractor = async (id: string) => {
-    if (!confirm("Delete this contractor?")) return
-    await fetch(`/api/contractors/${id}`, { method: "DELETE" })
-    setContractors(cs => cs.filter(c => c.id !== id))
+  const [deleteTarget, setDeleteTarget] = useState<Contractor | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const askDelete = (c: Contractor) => setDeleteTarget(c)
+  const doDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    await fetch(`/api/contractors/${deleteTarget.id}`, { method: "DELETE" })
+    setContractors(cs => cs.filter(c => c.id !== deleteTarget.id))
+    setDeleting(false); setDeleteTarget(null)
   }
 
   const downloadCSV = () => {
@@ -148,7 +154,7 @@ export default function ContractorsPage() {
           />
         </div>
 
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 10, rowGap: 16, alignItems: "center", flexWrap: "wrap" }}>
           {/* Status filter */}
           <div ref={statusRef} style={{ position: "relative" }}>
             <button onClick={() => setShowStatusDrop(v => !v)} style={{ padding: "8px 14px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, color: "var(--foreground)" }}>
@@ -227,7 +233,7 @@ export default function ContractorsPage() {
             <RowMenu
               onView={() => router.push(`/admin/contractors/${c.id}`)}
               onEdit={() => router.push(`/admin/contractors/${c.id}/edit`)}
-              onDelete={() => deleteContractor(c.id)}
+              onDelete={() => askDelete(c)}
               canManage={canManageContractors}
             />
           </div>
@@ -239,6 +245,16 @@ export default function ContractorsPage() {
           {contractors.length} contractor{contractors.length !== 1 ? "s" : ""}
         </div>
       )}
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={doDelete}
+        title="Delete contractor?"
+        body={deleteTarget && <span>Delete <strong style={{ color: "var(--foreground)" }}>{deleteTarget.name}</strong>? This cannot be undone.</span>}
+        confirmText="Delete"
+        variant="danger"
+        loading={deleting}
+      />
     </div>
   )
 }

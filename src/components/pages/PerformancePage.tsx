@@ -14,11 +14,9 @@ export default function PerformancePage() {
   const { user } = useCurrentUser()
   const [kpis, setKpis] = useState<any[]>([])
   const [cycles, setCycles] = useState<any[]>([])
-  const [employees, setEmployees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [tab, setTab] = useState<"kpis"|"cycles"|"appraisals">("kpis")
+  const [tab, setTab] = useState<"kpis"|"cycles">("kpis")
   const [addOpen, setAddOpen] = useState(false)
-  const [cycleName, setCycleName] = useState("")
 
   const load = async () => {
     setLoading(true)
@@ -26,7 +24,6 @@ export default function PerformancePage() {
     const d = await r.json()
     setKpis(d.kpis ?? [])
     setCycles(d.cycles ?? [])
-    setEmployees(d.employees ?? [])
     setLoading(false)
   }
 
@@ -70,9 +67,9 @@ export default function PerformancePage() {
       </div>
 
       <div style={{ display: "flex", gap: 4, marginBottom: 20, background: "var(--muted)", borderRadius: 10, padding: 4, width: "fit-content" }}>
-        {(["kpis","cycles","appraisals"] as const).map(t => (
+        {(["kpis","cycles"] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: tab === t ? "var(--card)" : "transparent", color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", boxShadow: tab === t ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>
-            {t === "kpis" ? "KPIs" : t === "cycles" ? "Cycles" : "Appraisals"}
+            {t === "kpis" ? "KPIs" : "Cycles"}
           </button>
         ))}
       </div>
@@ -142,12 +139,6 @@ export default function PerformancePage() {
             </Card>
           ))}
         </div>
-      )}
-
-      {tab === "appraisals" && (
-        <Card>
-          <EmptyState icon={TrendingUp} title="Appraisals" description="Appraisals are launched per performance cycle. Create a cycle first." />
-        </Card>
       )}
 
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Create Performance Cycle" width={480}>

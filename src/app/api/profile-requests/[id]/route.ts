@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { requireAuth, caps, forbidden, roleBasePath } from "@/lib/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -39,6 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         link: `${empBase}/self-service/profile`,
       },
     })
+    sendEmail({ eventKey: "profile_update_approved", toUserId: req_.employee.userId, variables: { employeeName: `${req_.employee.firstName ?? ""} ${req_.employee.lastName ?? ""}` } }).catch(() => {})
   } else {
     await prisma.profileUpdateRequest.update({
       where: { id },
@@ -55,6 +57,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         link: `${empBase}/self-service/edit`,
       },
     })
+    sendEmail({ eventKey: "profile_update_rejected", toUserId: req_.employee.userId, variables: { employeeName: `${req_.employee.firstName ?? ""} ${req_.employee.lastName ?? ""}`, reason: reviewNote ?? "" } }).catch(() => {})
   }
 
   const updated = await prisma.profileUpdateRequest.findUnique({

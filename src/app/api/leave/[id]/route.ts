@@ -31,7 +31,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const request = await prisma.leaveRequest.findUnique({
     where: { id },
     include: {
-      reliefOfficersList: true,
     },
   })
   if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -51,16 +50,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (request.status !== "PENDING") {
     return NextResponse.json({ error: "Can only edit pending leave requests" }, { status: 400 })
-  }
-
-  // Relief officer lock applies to owner only — admins and PLs can always adjust
-  if (!isAdmin && !isPLEdit) {
-    const anyResponded = request.reliefOfficersList.some(r => r.status !== "PENDING")
-    if (anyResponded) {
-      return NextResponse.json({
-        error: "Cannot edit: a relief officer has already responded. Contact HR to make changes.",
-      }, { status: 400 })
-    }
   }
 
   const updates: any = {}

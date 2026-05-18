@@ -29,10 +29,19 @@ export async function POST(req: NextRequest) {
   }
 
   const hashed = await bcrypt.hash(newPassword, 12)
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { password: hashed, mustChangePassword: false },
-  })
+  const ops: any[] = [
+    prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashed, mustChangePassword: false },
+    }),
+  ]
+  if (mode === "first-login" && user.employeeId) {
+    ops.push(prisma.employee.update({
+      where: { id: user.employeeId },
+      data: { employeeStatus: "ACTIVE" },
+    }))
+  }
+  await prisma.$transaction(ops)
 
   return NextResponse.json({ success: true })
 }

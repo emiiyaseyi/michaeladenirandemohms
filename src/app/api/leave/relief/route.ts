@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
-import { format } from "date-fns"
 
 export async function GET() {
   const { user, error } = await requireAuth()

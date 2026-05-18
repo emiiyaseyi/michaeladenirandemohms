@@ -6,7 +6,7 @@ import { differenceInMonths, differenceInYears, format } from "date-fns"
 const REQUIRED_FIELDS = [
   "firstName", "lastName", "gender", "dateOfBirth", "maritalStatus",
   "personalEmail", "phone", "address", "city", "state",
-  "profilePhoto", "nokName", "nokPhone", "bankName", "bankAccountNo",
+  "profilePhoto", "nokName", "nokPhone",
 ]
 
 function calcCompleteness(emp: any): number {
@@ -58,6 +58,9 @@ export async function GET() {
 
   const departmentId = employee.departmentId
 
+  const inviteCount = await prisma.employeeInvite.count({ where: { employeeId: employee.id } })
+  const cameViaInvite = inviteCount > 0
+
   // Step 2: parallel fetch of everything else (no nested async in Promise.all)
   const [leaveTypes, leaveRequests, teamOnLeave, deptMembers] = await Promise.all([
     prisma.leaveType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
@@ -98,22 +101,37 @@ export async function GET() {
   ])
 
   // Build leave balance summary
-  const leaveBalanceSummary = leaveTypes.map(lt => {
+  // Types with deductFromAnnual=true are hidden from the summary — their usage
+  // is rolled into Annual Leave's balance instead (see Annual Leave row below).
+  const annualLeaveTypeId = leaveTypes.find(lt => lt.name === "Annual Leave")?.id ?? null
+
+  const leaveBalanceSummary = leaveTypes
+    .filter(lt => !lt.deductFromAnnual)
+    .map(lt => {
     const balance = employee.leaveBalances.find(b => b.leaveTypeId === lt.id)
+    // Find all leave types that deduct from this one (so we count their usage too)
+    const deductingTypeIds = lt.id === annualLeaveTypeId
+      ? leaveTypes.filter(t => t.deductFromAnnual).map(t => t.id)
+      : []
+    const idsToCount = [lt.id, ...deductingTypeIds]
+
     if (balance) {
+      // Add usage from deducting types (e.g. Study Leave eating into Annual Leave)
+      const extraUsed = leaveRequests.filter(r => deductingTypeIds.includes(r.leaveTypeId) && r.status === "APPROVED" && new Date(r.endDate) < new Date()).reduce((s, r) => s + r.days, 0)
+      const extraPending = leaveRequests.filter(r => deductingTypeIds.includes(r.leaveTypeId) && r.status === "PENDING").reduce((s, r) => s + r.days, 0)
       return {
         leaveTypeId: lt.id,
         name: lt.name,
         genderSpecific: lt.genderSpecific,
         allocated: balance.allocated,
-        used: balance.used,
-        pending: balance.pending,
-        remaining: Math.max(0, balance.allocated - balance.used - balance.pending),
+        used: balance.used + extraUsed,
+        pending: balance.pending + extraPending,
+        remaining: Math.max(0, balance.allocated - balance.used - balance.pending - extraUsed - extraPending),
       }
     }
     const allocated = lt.defaultDays
-    const usedDays = leaveRequests.filter(r => r.leaveTypeId === lt.id && r.status === "APPROVED" && new Date(r.endDate) < new Date()).reduce((s, r) => s + r.days, 0)
-    const pendingDays = leaveRequests.filter(r => r.leaveTypeId === lt.id && r.status === "PENDING").reduce((s, r) => s + r.days, 0)
+    const usedDays = leaveRequests.filter(r => idsToCount.includes(r.leaveTypeId) && r.status === "APPROVED" && new Date(r.endDate) < new Date()).reduce((s, r) => s + r.days, 0)
+    const pendingDays = leaveRequests.filter(r => idsToCount.includes(r.leaveTypeId) && r.status === "PENDING").reduce((s, r) => s + r.days, 0)
     return {
       leaveTypeId: lt.id,
       name: lt.name,
@@ -182,6 +200,7 @@ export async function GET() {
       workAnniversary: workAnniversary(employee.hireDate),
       timeInCompany: timeInCompany(employee.hireDate),
       completeness: calcCompleteness(employee),
+      cameViaInvite,
       activeProjects: employee.projectAssignments.map(a => ({ id: a.project.id, name: a.project.name, role: a.role })),
       employeeStatus: employee.employeeStatus,
       gender: employee.gender,
@@ -191,7 +210,6 @@ export async function GET() {
       city: employee.city,
       state: employee.state,
       maritalStatus: employee.maritalStatus,
-      bankName: employee.bankName,
       nin: employee.nin,
       aiMembership: employee.aiMembership,
     },

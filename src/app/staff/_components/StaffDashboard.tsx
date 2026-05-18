@@ -6,18 +6,18 @@ import Badge from "@/components/ui/Badge"
 import Link from "next/link"
 import {
   Building2, UserCheck, CalendarDays, Clock, Edit2,
-  ChevronRight, Cake, Award, Loader2, AlertCircle,
-  CalendarCheck, Star, FileText, Users,
+  ChevronRight, Cake, Loader2, AlertCircle,
+  Users,
   Search, Briefcase, TrendingUp,
-  Gift, Megaphone, ChevronLeft,
-  Target, ClipboardList, Globe, Building,
+  Megaphone, ChevronLeft,
+  Target, ClipboardList,
   Map, X, ArrowRight, ArrowLeft, Sparkles,
-  LayoutDashboard, FolderOpen, Zap, CalendarOff,
+  LayoutDashboard, FolderOpen, Zap,
 } from "lucide-react"
-import { formatDate } from "@/lib/utils"
 import { roleLabel } from "@/lib/rbac"
 import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
 import CelebrationsCard from "@/components/shared/CelebrationsCard"
+import DeptOrgLeaveCard from "@/components/shared/DeptOrgLeaveCard"
 
 // ─── Keyframes injected once ─────────────────────────────────────────────────
 const GLOBAL_STYLE = `
@@ -335,7 +335,6 @@ function HeroCard({ profile, onTakeTour }: { profile: any; onTakeTour: () => voi
 // ─── Quick Actions ────────────────────────────────────────────────────────────
 const QUICK_ACTIONS = [
   { label:"Request Leave",   href:"/staff/requests/leave",              color:"#6366F1", icon:CalendarDays },
-  { label:"View Payslip",    href:"/staff/self-service/payslips",       color:"#10B981", icon:FileText },
   { label:"Set KPI Goals",   href:"/staff/performance/objectives",      color:"#F59E0B", icon:Target },
   { label:"Take Appraisal",  href:"/staff/performance/reviews",         color:"#EC4899", icon:TrendingUp },
   { label:"My Documents",    href:"/staff/documents",                   color:"#8B5CF6", icon:ClipboardList },
@@ -494,177 +493,6 @@ function ProfileInfoCard({ profile }: { profile: any }) {
   )
 }
 
-// ─── Department / Organisation Leave Card ────────────────────────────────────
-function DeptOrgLeaveCard({ teamOnLeave }: { teamOnLeave: any[] }) {
-  const [view, setView] = useState<"dept" | "org">("dept")
-  const [orgOnLeave, setOrgOnLeave] = useState<any[]>([])
-  const [orgLoading, setOrgLoading] = useState(false)
-  const orgFetched = useRef(false)
-
-  useEffect(() => {
-    if (view === "org" && !orgFetched.current) {
-      orgFetched.current = true
-      setOrgLoading(true)
-      fetch("/api/employees")
-        .then(r => r.json())
-        .then(d => {
-          const on = (d.employees ?? []).filter((e: any) => e.employeeStatus === "ON_LEAVE")
-          setOrgOnLeave(on)
-          setOrgLoading(false)
-        })
-        .catch(() => setOrgLoading(false))
-    }
-  }, [view])
-
-  const deptList = teamOnLeave ?? []
-  const list = view === "dept" ? deptList : orgOnLeave
-
-  return (
-    <Card style={{ animation:"fadeInUp .4s ease .15s both" }}>
-      <div style={{ padding:"14px 18px", borderBottom:"1px solid var(--border)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-        <span style={{ fontSize:13, fontWeight:700 }}>Who's On Leave</span>
-        <span style={{
-          fontSize:11, fontWeight:700, padding:"2px 9px", borderRadius:999,
-          background: list.length > 0 ? "#EC489918" : "var(--muted)",
-          color: list.length > 0 ? "#EC4899" : "var(--muted-foreground)",
-        }}>
-          {view === "org" && orgLoading ? "…" : list.length} away
-        </span>
-      </div>
-      {/* Toggle */}
-      <div style={{ display:"flex", borderBottom:"1px solid var(--border)", padding:"0 18px" }}>
-        {([ { key:"dept", label:"Department", icon:Building }, { key:"org", label:"Organisation", icon:Globe } ] as const).map(t => (
-          <button key={t.key} onClick={() => setView(t.key)} style={{
-            display:"flex", alignItems:"center", gap:5,
-            padding:"9px 12px 8px", fontSize:12, fontWeight:700,
-            color: view === t.key ? "var(--primary)" : "var(--muted-foreground)",
-            borderTop:"none", borderLeft:"none", borderRight:"none",
-            borderBottom: view === t.key ? "2px solid var(--primary)" : "2px solid transparent",
-            background:"none", cursor:"pointer", marginBottom:-1, whiteSpace:"nowrap",
-          }}>
-            <t.icon size={12} />
-            {t.label}
-          </button>
-        ))}
-      </div>
-      {/* Content */}
-      {view === "org" && orgLoading ? (
-        <div style={{ padding:24, display:"flex", justifyContent:"center" }}>
-          <Loader2 size={18} style={{ animation:"spin .8s linear infinite", color:"var(--muted-foreground)" }} />
-        </div>
-      ) : !list.length ? (
-        <EmptyState icon={CalendarCheck} message={view === "dept" ? "All department members are present" : "Nobody in the organisation is currently on leave"} />
-      ) : (
-        <div style={{ maxHeight:280, overflowY:"auto" }}>
-          {list.map((m: any, i: number) => (
-            <div key={m.id} style={{
-              display:"flex", alignItems:"center", gap:12, padding:"11px 18px",
-              borderBottom: i < list.length - 1 ? "1px solid var(--border)" : "none",
-            }}>
-              <Avatar name={m.name || `${m.firstName} ${m.lastName}`} photo={m.profilePhoto} size={36} />
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {m.name || `${m.firstName} ${m.lastName}`}
-                </div>
-                <div style={{ fontSize:11, color:"var(--muted-foreground)" }}>{m.jobTitle ?? m.department?.name ?? "—"}</div>
-              </div>
-              {m.currentLeave && (
-                <div style={{ textAlign:"right", flexShrink:0 }}>
-                  <div style={{ fontSize:11, fontWeight:700, color:"#0EA5E9", background:"#0EA5E918", borderRadius:5, padding:"2px 8px", display:"inline-block" }}>
-                    {m.currentLeave.leaveType}
-                  </div>
-                  <div style={{ fontSize:10, color:"var(--muted-foreground)", marginTop:2 }}>
-                    Until {formatDate(m.currentLeave.endDate, "MMM d")}
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  )
-}
-
-// ─── Upcoming Celebrations Card ───────────────────────────────────────────────
-function CelebrationsTabs({ upcomingEvents }: { upcomingEvents: any[] }) {
-  const [tab, setTab] = useState<"birthday"|"anniversary"|"onLeave">("birthday")
-
-  const birthdays     = (upcomingEvents ?? []).filter(e => e.type === "birthday")
-  const anniversaries = (upcomingEvents ?? []).filter(e => e.type === "anniversary")
-  const onLeave       = (upcomingEvents ?? []).filter(e => e.type === "onLeave")
-  const counts: Record<string, number> = { birthday: birthdays.length, anniversary: anniversaries.length, onLeave: onLeave.length }
-
-  const TABS = [
-    { key:"birthday",    label:"Birthdays",    icon:Cake,        color:"#EC4899" },
-    { key:"anniversary", label:"Anniversaries", icon:Gift,        color:"#F59E0B" },
-    { key:"onLeave",     label:"On Leave",      icon:CalendarOff, color:"#6366F1" },
-  ] as const
-
-  const items  = tab === "birthday" ? birthdays : tab === "anniversary" ? anniversaries : onLeave
-  const accent = TABS.find(t => t.key === tab)!.color
-
-  return (
-    <Card style={{ animation:"fadeInUp .4s ease .3s both" }}>
-      <div style={{ padding:"14px 18px", borderBottom:"1px solid var(--border)" }}>
-        <span style={{ fontSize:13, fontWeight:700 }}>Upcoming Celebrations</span>
-        <div style={{ fontSize:11, color:"var(--muted-foreground)", marginTop:2 }}>Next 60 days</div>
-      </div>
-      <div style={{ display:"flex", borderBottom:"1px solid var(--border)", padding:"0 18px", overflowX:"auto", scrollbarWidth:"none" }}>
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            display:"flex", alignItems:"center", gap:5,
-            padding:"9px 12px 8px", fontSize:12, fontWeight:700,
-            color: tab === t.key ? t.color : "var(--muted-foreground)",
-            borderTop:"none", borderLeft:"none", borderRight:"none",
-            borderBottom: tab === t.key ? `2px solid ${t.color}` : "2px solid transparent",
-            background:"none", cursor:"pointer", marginBottom:-1, whiteSpace:"nowrap",
-          }}>
-            <t.icon size={12} />
-            {t.label}
-            {counts[t.key] > 0 && (
-              <span style={{ fontSize:10, fontWeight:800, background:`${t.color}18`, color:t.color, borderRadius:999, padding:"1px 6px" }}>
-                {counts[t.key]}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-      {items.length === 0 ? (
-        <EmptyState icon={Star} message={
-          tab === "birthday"    ? "No upcoming birthdays in the next 60 days" :
-          tab === "anniversary" ? "No upcoming anniversaries in the next 60 days" :
-          "No one is currently on leave"
-        } />
-      ) : (
-        <div>
-          {items.slice(0, 6).map((ev: any, i: number) => {
-            const isLeave = tab === "onLeave"
-            const daysUntil = isLeave ? null : Math.ceil((new Date(ev.date).getTime() - Date.now()) / 86400000)
-            const label = isLeave ? "On Leave" : daysUntil === 0 ? "Today!" : daysUntil === 1 ? "Tomorrow" : `${daysUntil}d`
-            return (
-              <div key={i} style={{
-                display:"flex", alignItems:"center", gap:12, padding:"11px 18px",
-                borderBottom: i < items.length - 1 ? "1px solid var(--border)" : "none",
-              }}>
-                <Avatar name={ev.name} photo={ev.profilePhoto} size={36} />
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13, fontWeight:600, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{ev.name}</div>
-                  <div style={{ fontSize:11, color:"var(--muted-foreground)" }}>
-                    {ev.jobTitle ?? "—"}{ev.years ? ` · ${ev.years}yr` : ""}
-                  </div>
-                </div>
-                <span style={{ fontSize:11, fontWeight:800, color:accent, background:`${accent}15`, border:`1px solid ${accent}30`, borderRadius:6, padding:"3px 9px", whiteSpace:"nowrap" }}>
-                  {label}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </Card>
-  )
-}
 
 // ─── Announcements Card ───────────────────────────────────────────────────────
 function AnnouncementsCard() {
@@ -779,7 +607,7 @@ export default function StaffDashboard() {
     </div>
   )
 
-  const { profile, leaveBalances, teamOnLeave, upcomingEvents } = data
+  const { profile, leaveBalances, teamOnLeave } = data
 
   const startTour = () => {
     if (typeof window !== "undefined") localStorage.removeItem(TOUR_KEY)
@@ -811,7 +639,7 @@ export default function StaffDashboard() {
 
       {/* 4. Dept/Org Leave toggle + Announcements */}
       <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap:20 }}>
-        <DeptOrgLeaveCard teamOnLeave={teamOnLeave} />
+        <DeptOrgLeaveCard deptOnLeave={teamOnLeave} />
         <AnnouncementsCard />
       </div>
 

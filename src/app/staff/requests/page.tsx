@@ -1,16 +1,11 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useRouter, usePathname } from "next/navigation"
-import { Wallet, Banknote, CalendarDays, LogOut, ArrowRightLeft, FileText, Inbox, Loader2 } from "lucide-react"
+import { CalendarDays, Inbox, Loader2 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
 const SECTIONS = [
-  { id: "leave",            label: "Leave",            icon: CalendarDays,   path: "/requests/leave" },
-  { id: "salary-advances",  label: "Salary Advances",  icon: Wallet,         path: "/requests/salary-advances" },
-  { id: "loans",            label: "Loans",            icon: Banknote,       path: "/requests/loans" },
-  { id: "exits",            label: "Exits",            icon: LogOut,         path: "/requests/exit" },
-  { id: "redeployments",    label: "Redeployments",    icon: ArrowRightLeft, path: "/requests/redeployments" },
-  { id: "documents",        label: "Documents",        icon: FileText,       path: "/requests/documents" },
+  { id: "leave", label: "Leave", icon: CalendarDays, path: "/requests/leave" },
 ]
 
 const LEAVE_COLS = ["Type", "Start Date", "End Date", "Days", "Status"]
@@ -68,8 +63,6 @@ export default function RequestsPage() {
       .finally(() => setLoading(false))
   }, [active, myEmpId])
 
-  const isLeave = active === "leave"
-
   return (
     <div style={{ display: "flex", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden", minHeight: 520 }}>
 
@@ -117,12 +110,11 @@ export default function RequestsPage() {
             onClick={() => router.push(`${base}${section.path}`)}
             style={{ padding: "8px 18px", background: "var(--primary)", color: "white", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700 }}
           >
-            {isLeave ? "Manage Leave" : "Submit Request"}
+            Manage Leave
           </button>
         </div>
 
-        {isLeave ? (
-          loading ? (
+        {loading ? (
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, color: "var(--muted-foreground)", fontSize: 13 }}>
               <Loader2 size={15} style={{ animation: "spin .8s linear infinite" }} /> Loading…
             </div>
@@ -166,13 +158,7 @@ export default function RequestsPage() {
                 </div>
               )}
             </div>
-          )
-        ) : (
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "60px 40px", gap: 10 }}>
-            <Inbox size={38} style={{ color: "var(--border)" }} />
-            <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>{section.label} — Coming soon</span>
-          </div>
-        )}
+          )}
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>

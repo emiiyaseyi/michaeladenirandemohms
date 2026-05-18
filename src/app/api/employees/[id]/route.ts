@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   const { id } = await params
@@ -61,9 +62,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     "address", "city", "state", "country", "postalCode",
     "departmentId", "jobTitle", "employmentType", "employeeStatus",
     "hireDate", "confirmationDate", "endDate",
-    "managerId", "projectLeadId", "teamId",
-    "bankName", "bankAccountNo", "bankAccountName", "pensionPin", "tin", "nhfNo", "nin", "aiMembership",
-    "grossSalary", "onProbation", "probationEndDate",
+    "managerId", "projectLeadId",
+    "nin", "aiMembership",
+    "onProbation", "probationEndDate",
     "nokName", "nokPhone", "nokRelationship", "nokAddress",
     "annualLeaveBalance", "sickLeaveBalance",
   ]
@@ -76,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       if ((key === "dateOfBirth" || key === "hireDate" || key === "confirmationDate" || key === "endDate" || key === "probationEndDate") && val) {
         val = new Date(val)
       }
-      if ((key === "grossSalary" || key === "annualLeaveBalance" || key === "sickLeaveBalance") && val !== null) {
+      if ((key === "annualLeaveBalance" || key === "sickLeaveBalance") && val !== null) {
         val = Number(val)
       }
       data[key] = val
@@ -130,12 +131,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         link: "/",
       },
     })
+    sendEmail({ eventKey: "role_changed", toUserId: employee.userId, variables: { employeeName: `${employee.firstName} ${employee.lastName}`, previousRole: ROLE_LABEL[previousRole] ?? previousRole, newRole: ROLE_LABEL[body.role] ?? body.role } }).catch(() => {})
   }
 
   return NextResponse.json({ employee })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (user.role !== "SUPER_ADMIN" && !user.permissions["canDeleteEmployee"]) return forbidden()

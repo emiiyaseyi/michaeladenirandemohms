@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/api-auth"
 import { differenceInYears } from "date-fns"
 
 export async function GET() {
-  const { user, error } = await requireAuth()
+  const { error } = await requireAuth()
   if (error) return error
 
   const employees = await prisma.employee.findMany({

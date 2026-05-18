@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canViewDisciplinary")
+  if (perm) return perm
+
   const { searchParams } = new URL(req.url)
   const search = searchParams.get("search") ?? ""
 
@@ -17,6 +23,11 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canViewDisciplinary")
+  if (perm) return perm
+
   const { name, violationTypeId, systemAction, hasThreshold, violationCount, description, exemptedEmployeeIds } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })
 

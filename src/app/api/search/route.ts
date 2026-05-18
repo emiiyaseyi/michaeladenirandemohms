@@ -20,7 +20,6 @@ function navItems(base: string) {
 
   if (isAdmin || isProjectLead) {
     items.push(
-      { type: "nav", label: "Teams",          href: `${b}/people/teams`,            desc: "Team management",                   keywords: ["team","group","squad"] },
       { type: "nav", label: "Org Chart",      href: `${b}/people/org-chart`,        desc: "Organisation hierarchy",            keywords: ["org","chart","hierarchy","structure","reporting"] },
     )
   }
@@ -130,9 +129,7 @@ export async function GET(req: NextRequest) {
     }),
   ])
 
-  const employeeBase = role === "SUPER_ADMIN" || isElevated
-    ? `${roleBase}/people/employees`
-    : `${roleBase}/people/teams`
+  const employeeBase = `${roleBase}/people/employees`
 
   const results: any[] = [
     ...employees.map(e => ({

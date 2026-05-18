@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, forbidden } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -25,4 +26,26 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json({ requests })
+}
+
+export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!user.employeeId) return forbidden("No employee linked to this account")
+
+  const { targetId, message } = await req.json()
+  if (!targetId) return NextResponse.json({ error: "targetId is required" }, { status: 400 })
+  if (targetId === user.employeeId) return NextResponse.json({ error: "Cannot request feedback from yourself" }, { status: 400 })
+
+  const target = await prisma.employee.findUnique({ where: { id: targetId } })
+  if (!target) return NextResponse.json({ error: "Target not found" }, { status: 404 })
+
+  const request = await prisma.feedbackRequest.create({
+    data: { requesterId: user.employeeId, targetId, message: message ?? null },
+    include: {
+      requester: { select: { id: true, firstName: true, lastName: true } },
+      target: { select: { id: true, firstName: true, lastName: true } },
+    },
+  })
+  return NextResponse.json({ request }, { status: 201 })
 }

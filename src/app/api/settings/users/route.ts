@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const {
-    email, password, name, role,
+    email, password, role,
     firstName, lastName, middleName, employeeId: empId,
     jobTitle, departmentId, employmentType,
   } = body

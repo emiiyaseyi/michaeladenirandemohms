@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { EmployeeStatus } from "@prisma/client"
 import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 import bcrypt from "bcryptjs"
+import { sendEmail } from "@/lib/email"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -52,12 +54,24 @@ export async function GET(req: NextRequest) {
     scopeFilter = { managerId: user.employeeId }
   }
 
+  // Hide seeded accounts (SUPER_ADMIN + seeded managers) from the admin employees list.
+  // Manually-elevated staff/PLs (e.g. holding secondary-admin via UI grant) still appear.
+  const hideSeededFilter = {
+    NOT: {
+      OR: [
+        { user: { role: "SUPER_ADMIN" as any } },
+        { managerEntry: { isSystem: true } },
+      ],
+    },
+  }
+
   try {
     const [employees, departments] = await Promise.all([
       prisma.employee.findMany({
         where: {
           AND: [
             scopeFilter,
+            hideSeededFilter,
             search ? { OR: [
               { firstName: { contains: search, mode: "insensitive" } },
               { lastName: { contains: search, mode: "insensitive" } },
@@ -97,13 +111,16 @@ export async function POST(req: NextRequest) {
   if (perm) return perm
 
   const body = await req.json()
-  const { firstName, lastName, middleName, email: workEmail, phone, jobTitle, departmentId, employmentType, hireDate, dateOfBirth, gender, category, grossSalary, projectLeadEmail, role: bodyRole } = body
+  const { firstName, lastName, middleName, email: workEmail, phone, jobTitle, departmentId, employmentType, hireDate, dateOfBirth, gender, projectLeadEmail, role: bodyRole } = body
 
-  if (!firstName || !lastName || !workEmail || !phone || !jobTitle || !hireDate || !gender || !departmentId || !category) {
-    return NextResponse.json({ error: "First name, last name, email, phone, job title, hire date, gender, department and category are required" }, { status: 400 })
+  if (!firstName || !lastName || !workEmail || !hireDate || !departmentId) {
+    return NextResponse.json({ error: "First name, last name, email, hire date and department are required" }, { status: 400 })
   }
 
-  const existing = await prisma.user.findFirst({ where: { email: workEmail } })
+  if (!workEmail.toLowerCase().trim().endsWith("@datasciencenigeria.ai")) {
+    return NextResponse.json({ error: "Employee email must be a @datasciencenigeria.ai address" }, { status: 400 })
+  }
+  const existing = await prisma.user.findFirst({ where: { email: workEmail.toLowerCase().trim() } })
   if (existing) return NextResponse.json({ error: "Email already in use" }, { status: 400 })
 
   const count = await prisma.employee.count()
@@ -117,19 +134,8 @@ export async function POST(req: NextRequest) {
   }
 
   const hashedPwd = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 10)
-  // Generate login email as firstname@datasciencenigeria.ai (fallback to workEmail if needed)
-  const loginEmail = workEmail.includes("@datasciencenigeria")
-    ? workEmail
-    : `${firstName.toLowerCase().replace(/[^a-z]/g, "")}@datasciencenigeria.ai`
-  // Handle collision: append number if exists
-  let finalEmail = loginEmail
-  const emailExists = await prisma.user.findFirst({ where: { email: loginEmail } })
-  if (emailExists) {
-    const count = await prisma.user.count({ where: { email: { startsWith: loginEmail.split("@")[0] } } })
-    finalEmail = `${loginEmail.split("@")[0]}${count + 1}@datasciencenigeria.ai`
-  }
   const newUser = await prisma.user.create({
-    data: { name: `${firstName} ${middleName ? middleName + " " : ""}${lastName}`, email: finalEmail, password: hashedPwd, role: (bodyRole ?? "STAFF") as any }
+    data: { name: `${firstName} ${middleName ? middleName + " " : ""}${lastName}`, email: workEmail.toLowerCase().trim(), password: hashedPwd, role: (bodyRole ?? "STAFF") as any }
   })
 
   const employee = await prisma.employee.create({
@@ -141,12 +147,31 @@ export async function POST(req: NextRequest) {
       hireDate: hireDate ? new Date(hireDate) : null,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       gender: (gender || null) as any,
-      category: (category || "NON_TECHNICAL") as any,
-      grossSalary: grossSalary ? parseFloat(grossSalary) || null : null,
       projectLeadId,
+      employeeStatus: EmployeeStatus.NEEDS_ATTENTION,
     },
     include: { department: true }
   })
+
+  // Both modes: create a 24h invite token + send the mode-specific email.
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+  const invite = await prisma.employeeInvite.create({
+    data: { employeeId: employee.id, expiresAt },
+  })
+  const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/onboard/${invite.token}`
+  const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`
+  const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1"
+  await sendEmail({
+    eventKey: body.inviteMode ? "employee_invite" : "employee_account_created",
+    to: workEmail,
+    variables: {
+      employeeName: firstName,
+      inviteLink,
+      workEmail: workEmail.toLowerCase().trim(),
+      loginUrl,
+      defaultPassword,
+    },
+  }).catch(() => {})
 
   return NextResponse.json({ employee }, { status: 201 })
 }

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { MoreVertical, Inbox } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import ConfirmDialog from "@/components/ui/ConfirmDialog"
 
 type SurveyType = "GENERAL" | "CONFIRMATION" | "EXIT"
 type SurveyStatus = "DRAFT" | "ACTIVE" | "CLOSED"
@@ -167,16 +168,18 @@ export default function SurveysPage() {
     return () => document.removeEventListener("mousedown", handler)
   }, [showTypeDropdown])
 
-  const deleteSurvey = async (id: string) => {
-    if (!confirm("Delete this survey?")) return
-    await fetch(`/api/surveys/${id}`, { method: "DELETE" })
-    fetchSurveys()
-  }
-
-  const deleteTemplate = async (id: string) => {
-    if (!confirm("Delete this template?")) return
-    await fetch(`/api/surveys/templates/${id}`, { method: "DELETE" })
-    fetchTemplates()
+  const [delDialog, setDelDialog] = useState<{ kind: "survey" | "template"; id: string } | null>(null)
+  const [delBusy, setDelBusy] = useState(false)
+  const deleteSurvey = (id: string) => setDelDialog({ kind: "survey", id })
+  const deleteTemplate = (id: string) => setDelDialog({ kind: "template", id })
+  const doDelete = async () => {
+    if (!delDialog) return
+    setDelBusy(true)
+    const url = delDialog.kind === "survey" ? `/api/surveys/${delDialog.id}` : `/api/surveys/templates/${delDialog.id}`
+    await fetch(url, { method: "DELETE" })
+    setDelBusy(false); setDelDialog(null)
+    if (delDialog.kind === "survey") fetchSurveys()
+    else fetchTemplates()
   }
 
   const TYPES: Array<{ value: SurveyType; label: string }> = [
@@ -373,6 +376,16 @@ export default function SurveysPage() {
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={!!delDialog}
+        onClose={() => setDelDialog(null)}
+        onConfirm={doDelete}
+        title={delDialog?.kind === "template" ? "Delete template?" : "Delete survey?"}
+        body={delDialog?.kind === "template" ? "Delete this template? This cannot be undone." : "Delete this survey? All its responses will be removed too."}
+        confirmText="Delete"
+        variant="danger"
+        loading={delBusy}
+      />
     </div>
   )
 }

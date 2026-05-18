@@ -3,11 +3,9 @@ import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, Check, Loader2, Search, X, ChevronDown, Users, UserCog } from "lucide-react"
 
-const STEPS = ["Basic Information", "Personal Details", "Payment Details", "Documents", "Assets", "Tasks", "Welcome Options"]
-const CONTRACT_TYPES = ["Salary/No overtime", "Salary/Eligible for overtime", "Paid by the hour"]
-const PAYBANDS = ["Interns", "WHT Structure", "Payee Structure"]
+const STEPS = ["Basic Information", "Personal Details", "Documents", "Welcome Options"]
 const STATUSES = ["Full-time", "Part-time", "Contract"]
-const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"]
+const GENDERS = ["Male", "Female"]
 const MARITAL = ["Single", "Married", "Divorced", "Widowed"]
 
 function SearchableSelect({ label, value, onChange, options, placeholder, required }: {
@@ -109,6 +107,7 @@ function Field({ label, required, hint, children }: { label: string; required?: 
 export default function AddNewMemberPage() {
   const router = useRouter()
   const [onboardMode, setOnboardMode] = useState<"employee" | "me" | null>(null)
+  const [selectedCard, setSelectedCard] = useState<"employee" | "me" | null>(null)
   const [step, setStep] = useState(0)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState("")
@@ -118,16 +117,13 @@ export default function AddNewMemberPage() {
   const [employees, setEmployees] = useState<any[]>([])
   const [jobTitles, setJobTitles] = useState<any[]>([])
   const [orgDocs, setOrgDocs] = useState<any[]>([])
-  const [orgAssets] = useState<{ id: string; name: string; details: string }[]>([])
-  const [orgTasks] = useState<{ id: string; name: string }[]>([])
 
-  // Step 0: Basic Info + Compensation
+  // Step 0: Basic Info + Employment Details
   const [form, setForm] = useState({
     firstName: "", middleName: "", lastName: "",
     workplaceId: "", email: "", departmentId: "",
     hireDate: "", managerId: "", phone: "", employeeNumber: "",
-    jobTitle: "", payband: "", amount: "", netOrGross: "Gross",
-    contractType: "", employmentStatus: "Full-time", workingDays: "",
+    jobTitle: "", employmentStatus: "Full-time", role: "STAFF",
   })
 
   // Step 1: Personal Details
@@ -138,20 +134,19 @@ export default function AddNewMemberPage() {
     nokName: "", nokRelationship: "", nokEmail: "", nokPhone: "",
   })
 
-  // Step 2: Payment Details
-  const [payment, setPayment] = useState({
-    paymentRoute: "Local Bank", paymentMethod: "Direct Deposit",
-    accountNumber: "", bankName: "", country: "Nigeria",
-    tin: "", nhfNumber: "", pfaName: "", rsaPin: "",
-  })
-
-  // Steps 3-5 selections
+  // Step 2: Documents
   const [selectedDocs, setSelectedDocs] = useState<string[]>([])
-  const [selectedAssets, setSelectedAssets] = useState<string[]>([])
-  const [selectedTasks, setSelectedTasks] = useState<string[]>([])
 
   const [emailChecking, setEmailChecking] = useState(false)
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
+
+  // Invite mode state
+  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF" })
+  const [inviteSuccess, setInviteSuccess] = useState(false)
+  const [inviteSaving, setInviteSaving] = useState(false)
+  const [inviteErr, setInviteErr] = useState("")
+  const [inviteEmailChecking, setInviteEmailChecking] = useState(false)
+  const [inviteEmailAvailable, setInviteEmailAvailable] = useState<boolean | null>(null)
 
   useEffect(() => {
     Promise.all([
@@ -176,24 +171,39 @@ export default function AddNewMemberPage() {
     setEmailAvailable(true)
   }
 
+  const checkInviteEmail = async (email: string) => {
+    if (!email || !email.includes("@")) { setInviteEmailAvailable(null); return }
+    setInviteEmailChecking(true)
+    try {
+      const r = await fetch(`/api/settings/users`)
+      const d = await r.json()
+      const taken = (d.users ?? []).some((u: any) => u.email?.toLowerCase() === email.toLowerCase())
+      setInviteEmailAvailable(!taken)
+    } catch { setInviteEmailAvailable(null) }
+    setInviteEmailChecking(false)
+  }
+
   const setF = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(f => ({ ...f, [k]: e.target.value }))
     if (k === "email") { setEmailAvailable(null); checkEmail(e.target.value) }
   }
   const setP = (k: keyof typeof personal) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setPersonal(p => ({ ...p, [k]: e.target.value }))
-  const setPay = (k: keyof typeof payment) => (v: string) => setPayment(p => ({ ...p, [k]: v }))
+  const setIF = (k: keyof typeof inviteForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setInviteForm(f => ({ ...f, [k]: e.target.value }))
 
   const fi: React.CSSProperties = {
     width: "100%", padding: "10px 14px", border: "1.5px solid var(--border)", borderRadius: 8,
     fontSize: 14, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box",
   }
+  const maxDob = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 13); return d.toISOString().split("T")[0] })()
 
   const validateStep0 = () => {
     if (!form.firstName.trim()) { setErr("First name is required"); return false }
     if (!form.lastName.trim()) { setErr("Last name is required"); return false }
     if (!form.email.trim()) { setErr("Work email is required"); return false }
     if (!form.hireDate) { setErr("Hire date is required"); return false }
+    if (!form.jobTitle) { setErr("Job title is required"); return false }
     return true
   }
 
@@ -207,10 +217,19 @@ export default function AddNewMemberPage() {
   const finish = async () => {
     setSaving(true); setErr("")
     try {
+      const genderMap: Record<string, string> = { Male: "MALE", Female: "FEMALE" }
+      const statusMap: Record<string, string> = { "Full-time": "FULL_TIME", "Part-time": "PART_TIME", "Contract": "CONTRACT" }
       const r = await fetch("/api/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, selectedDocuments: selectedDocs }),
+        body: JSON.stringify({
+          ...form,
+          phone: form.phone || personal.phone2,
+          gender: genderMap[personal.gender] ?? personal.gender,
+          dateOfBirth: personal.birthday || undefined,
+          employmentType: statusMap[form.employmentStatus] ?? "FULL_TIME",
+          selectedDocuments: selectedDocs,
+        }),
       })
       const d = await r.json()
       if (!r.ok) { setErr(d.error ?? "Failed to create employee"); setSaving(false); return }
@@ -245,10 +264,10 @@ export default function AddNewMemberPage() {
               { key: "employee" as const, icon: <Users size={32} style={{ color: "#2563eb" }} />, iconBg: "#EFF6FF", title: "Employee", desc: "Invite your employee to fill in their information" },
               { key: "me" as const, icon: <UserCog size={32} style={{ color: "#db2777" }} />, iconBg: "#FDF2F8", title: "Me", desc: "Admin fills out the details of hired employee" },
             ]).map(card => (
-              <button key={card.key} onClick={() => setOnboardMode(card.key)}
-                style={{ padding: "32px 24px", background: "var(--card)", border: `2px solid ${onboardMode === card.key ? "var(--primary)" : "var(--border)"}`, borderRadius: 16, cursor: "pointer", textAlign: "center", transition: "all .15s" }}
+              <button key={card.key} onClick={() => setSelectedCard(card.key)}
+                style={{ padding: "32px 24px", background: "var(--card)", border: `2px solid ${selectedCard === card.key ? "var(--primary)" : "var(--border)"}`, borderRadius: 16, cursor: "pointer", textAlign: "center", transition: "all .15s" }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--primary)"}
-                onMouseLeave={e => { if (onboardMode !== card.key) (e.currentTarget as HTMLElement).style.borderColor = "var(--border)" }}>
+                onMouseLeave={e => { if (selectedCard !== card.key) (e.currentTarget as HTMLElement).style.borderColor = "var(--border)" }}>
                 <div style={{ width: 64, height: 64, borderRadius: "50%", background: card.iconBg, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
                   {card.icon}
                 </div>
@@ -257,10 +276,130 @@ export default function AddNewMemberPage() {
               </button>
             ))}
           </div>
-          <button onClick={() => { if (!onboardMode) setOnboardMode("me") }}
-            style={{ width: "100%", padding: "14px 0", background: "var(--primary)", border: "none", borderRadius: 10, cursor: "pointer", fontSize: 15, fontWeight: 700, color: "white" }}>
+          <button
+            onClick={() => { if (selectedCard) setOnboardMode(selectedCard) }}
+            disabled={!selectedCard}
+            style={{ width: "100%", padding: "14px 0", background: "var(--primary)", border: "none", borderRadius: 10, cursor: selectedCard ? "pointer" : "not-allowed", fontSize: 15, fontWeight: 700, color: "white", opacity: selectedCard ? 1 : 0.4 }}>
             Proceed
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  if (onboardMode === "employee" && !inviteSuccess) {
+    const submitInvite = async () => {
+      if (!inviteForm.firstName.trim() || !inviteForm.lastName.trim() || !inviteForm.email.trim() || !inviteForm.hireDate || !inviteForm.departmentId || !inviteForm.jobTitle || !inviteForm.gender || !inviteForm.dateOfBirth) {
+        setInviteErr("All fields are required"); return
+      }
+      if (inviteEmailAvailable === false) { setInviteErr("This email is already in use"); return }
+      setInviteSaving(true); setInviteErr("")
+      const genderMap: Record<string, string> = { Male: "MALE", Female: "FEMALE" }
+      const r = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...inviteForm,
+          gender: genderMap[inviteForm.gender] ?? inviteForm.gender,
+          inviteMode: true,
+        }),
+      })
+      const d = await r.json()
+      setInviteSaving(false)
+      if (!r.ok) { setInviteErr(d.error ?? "Failed to send invite"); return }
+      setInviteSuccess(true)
+    }
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--background)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 32px", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+          <button onClick={() => setOnboardMode(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex", alignItems: "center" }}><ChevronLeft size={16} /></button>
+          <span style={{ fontSize: 15, fontWeight: 600, color: "var(--primary)", cursor: "pointer" }} onClick={() => router.push("/admin/people/employees")}>Employees</span>
+          <span style={{ color: "var(--muted-foreground)", fontSize: 15 }}>›</span>
+          <span style={{ fontSize: 15, color: "var(--muted-foreground)" }}>Invite Employee</span>
+        </div>
+        <div style={{ maxWidth: 860, margin: "0 auto", padding: "40px 32px" }}>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16 }}>
+            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Invite Employee</h2>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Enter the basics — the employee will receive a link to complete their own profile.</p>
+            </div>
+            <div style={{ padding: "28px 32px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              <Field label="First Name" required><input value={inviteForm.firstName} onChange={setIF("firstName")} style={fi} placeholder="e.g. Emmanuel" /></Field>
+              <Field label="Last Name" required><input value={inviteForm.lastName} onChange={setIF("lastName")} style={fi} placeholder="e.g. Okafor" /></Field>
+              <Field label="Work Email" required>
+                <div style={{ position: "relative" }}>
+                  <input type="email" value={inviteForm.email}
+                    onChange={e => { setIF("email")(e); setInviteEmailAvailable(null); checkInviteEmail(e.target.value) }}
+                    style={{ ...fi, borderColor: inviteEmailAvailable === false ? "#ef4444" : inviteEmailAvailable === true ? "#16a34a" : "var(--border)", paddingRight: 36 }}
+                    placeholder="email@datasciencenigeria.ai" />
+                  {inviteEmailChecking && <Loader2 size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", animation: "spin .8s linear infinite", color: "var(--muted-foreground)" }} />}
+                  {inviteEmailAvailable === true && !inviteEmailChecking && <Check size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#16a34a" }} />}
+                  {inviteEmailAvailable === false && !inviteEmailChecking && <X size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#ef4444" }} />}
+                </div>
+                {inviteEmailAvailable === false && !inviteEmailChecking && <div style={{ fontSize: 11, color: "#ef4444", marginTop: 3 }}>Email already in use</div>}
+                {inviteEmailAvailable === true && !inviteEmailChecking && <div style={{ fontSize: 11, color: "#16a34a", marginTop: 3 }}>Email is available</div>}
+              </Field>
+              <Field label="Hire Date" required><input type="date" value={inviteForm.hireDate} onChange={setIF("hireDate")} style={fi} /></Field>
+              <SearchableSelect label="Department" value={inviteForm.departmentId} required
+                onChange={v => setInviteForm(f => ({ ...f, departmentId: v }))}
+                options={departments.map(d => ({ value: d.id, label: d.name }))}
+                placeholder="Select department…" />
+              <SearchableSelect label="Job Title" value={inviteForm.jobTitle} required
+                onChange={v => setInviteForm(f => ({ ...f, jobTitle: v }))}
+                options={jobTitles.map(jt => ({ value: jt.name, label: jt.name }))}
+                placeholder="Select job title…" />
+              <Field label="Gender" required>
+                <select value={inviteForm.gender} onChange={setIF("gender")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                  <option value="">Select…</option>
+                  {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </Field>
+              <Field label="Date of Birth" required>
+                <input type="date" value={inviteForm.dateOfBirth} onChange={setIF("dateOfBirth")} max={maxDob} style={fi} />
+              </Field>
+              <Field label="Role" required>
+                <select value={inviteForm.role} onChange={setIF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                  <option value="STAFF">Staff</option>
+                  <option value="PROJECT_LEAD">Project Lead</option>
+                </select>
+              </Field>
+            </div>
+            {inviteErr && <div style={{ margin: "0 32px 16px", padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{inviteErr}</div>}
+            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 12 }}>
+              <button onClick={() => setOnboardMode(null)} style={{ padding: "10px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Back</button>
+              <button onClick={submitInvite} disabled={inviteSaving || inviteEmailAvailable === false} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 28px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: inviteSaving ? "wait" : "pointer", fontSize: 14, fontWeight: 700, color: "white", opacity: inviteSaving || inviteEmailAvailable === false ? 0.5 : 1 }}>
+                {inviteSaving && <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} />}
+                {inviteSaving ? "Sending…" : "Send Invite"}
+              </button>
+            </div>
+          </div>
+        </div>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    )
+  }
+
+  if (onboardMode === "employee" && inviteSuccess) {
+    return (
+      <div style={{ minHeight: "100vh", background: "var(--background)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: "48px 40px", maxWidth: 480, textAlign: "center" }}>
+          <div style={{ width: 64, height: 64, borderRadius: "50%", background: "#DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+            <Check size={28} style={{ color: "#16a34a" }} />
+          </div>
+          <h1 style={{ fontSize: 20, fontWeight: 800, marginBottom: 8 }}>Invite Sent!</h1>
+          <p style={{ fontSize: 14, color: "var(--muted-foreground)", lineHeight: 1.7, marginBottom: 28 }}>
+            An invitation email has been sent to <strong>{inviteForm.email}</strong>. They&apos;ll receive a link to complete their profile.
+          </p>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+            <button onClick={() => { setInviteForm({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF" }); setInviteSuccess(false) }}
+              style={{ padding: "10px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
+              Invite Another
+            </button>
+            <button onClick={() => router.push("/admin/people/employees")}
+              style={{ padding: "10px 24px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>
+              Back to Employees
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -329,48 +468,24 @@ export default function AddNewMemberPage() {
             </div>
 
             <div style={{ padding: "28px 32px" }}>
-              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>1.2 Compensation</h2>
-              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>Set the employee's compensation and contract details.</p>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>1.2 Employment Details</h2>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>Set the employee's job title and employment status.</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                 <SearchableSelect label="Job Title" value={form.jobTitle} required
                   onChange={v => setForm(f => ({ ...f, jobTitle: v }))}
                   options={jobTitles.map(jt => ({ value: jt.name, label: jt.name }))}
                   placeholder="Select job title…" />
-                <Field label="Contract Type" required>
-                  <select value={form.contractType} onChange={setF("contractType")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
-                    <option value="">Select…</option>
-                    {CONTRACT_TYPES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </Field>
-                <Field label="Payband" required>
-                  <select value={form.payband} onChange={setF("payband")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
-                    <option value="">Select payband…</option>
-                    {PAYBANDS.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </Field>
                 <Field label="Status" required>
                   <select value={form.employmentStatus} onChange={setF("employmentStatus")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
                     {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </Field>
-                <Field label="Amount" required>
-                  <input type="number" value={form.amount} onChange={setF("amount")} style={fi} placeholder="e.g. 5000000" />
+                <Field label="Role" required>
+                  <select value={form.role} onChange={setF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                    <option value="STAFF">Staff</option>
+                    <option value="PROJECT_LEAD">Project Lead</option>
+                  </select>
                 </Field>
-                <Field label="Is the amount Net or Gross?" required>
-                  <div style={{ display: "flex", gap: 24, marginTop: 4 }}>
-                    {["Net", "Gross"].map(opt => (
-                      <label key={opt} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14 }}>
-                        <input type="radio" value={opt} checked={form.netOrGross === opt} onChange={setF("netOrGross")} style={{ accentColor: "var(--primary)" }} />
-                        {opt}
-                      </label>
-                    ))}
-                  </div>
-                </Field>
-                {form.employmentStatus === "Part-time" && (
-                  <Field label="Working Days" hint="(days per month)">
-                    <input type="number" value={form.workingDays} onChange={setF("workingDays")} style={fi} placeholder="e.g. 15" min={1} max={31} />
-                  </Field>
-                )}
               </div>
             </div>
 
@@ -392,7 +507,7 @@ export default function AddNewMemberPage() {
                   <input value={personal.phone2} onChange={setP("phone2")} style={fi} placeholder="233 xxxxxxxx" />
                 </Field>
                 <Field label="Birthday" required>
-                  <input type="date" value={personal.birthday} onChange={setP("birthday")} style={fi} />
+                  <input type="date" value={personal.birthday} onChange={setP("birthday")} max={maxDob} style={fi} />
                 </Field>
                 <Field label="Gender" required>
                   <select value={personal.gender} onChange={setP("gender")} style={{ ...fi, appearance: "none" }}>
@@ -469,72 +584,11 @@ export default function AddNewMemberPage() {
           </div>
         )}
 
-        {/* ── Step 2: Payment Details ──────────────────────────────────────── */}
+        {/* ── Step 2: Documents ───────────────────────────────────────────── */}
         {step === 2 && (
           <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ padding: "28px 32px" }}>
-              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 8 }}>3. How should your employee be paid?</h2>
-              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
-                We recommend using Direct Deposit so we can deposit the employee's payslip directly into their personal primary account. You can always change this later through the employee page.
-              </p>
-              <div style={{ padding: "10px 14px", background: "#EFF6FF", borderRadius: 8, marginBottom: 24, fontSize: 13, color: "#1d4ed8", fontWeight: 600 }}>
-                This employee's paygrade is in 🇳🇬 NGN
-              </div>
-              <Field label="Payment Route" required>
-                <div style={{ display: "flex", gap: 24, marginTop: 4, marginBottom: 20 }}>
-                  {["Local Bank", "International Bank Transfer"].map(opt => (
-                    <label key={opt} style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", fontSize: 14 }}>
-                      <input type="radio" value={opt} checked={payment.paymentRoute === opt} onChange={e => setPay("paymentRoute")(e.target.value)} style={{ accentColor: "var(--primary)" }} />
-                      {opt}
-                    </label>
-                  ))}
-                </div>
-              </Field>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-                <Field label="Payment Method" required>
-                  <select value={payment.paymentMethod} onChange={e => setPay("paymentMethod")(e.target.value)} style={{ ...fi, appearance: "none" }}>
-                    <option value="Direct Deposit">Direct Deposit</option>
-                    <option value="Check">Check</option>
-                  </select>
-                </Field>
-                <Field label="Account Number" required>
-                  <input value={payment.accountNumber} onChange={e => setPay("accountNumber")(e.target.value)} style={fi} placeholder="e.g. 0123456789" />
-                </Field>
-                <Field label="Country" required>
-                  <input value={payment.country} onChange={e => setPay("country")(e.target.value)} style={fi} placeholder="e.g. Nigeria" />
-                </Field>
-                <Field label="Tax Identification Number">
-                  <input value={payment.tin} onChange={e => setPay("tin")(e.target.value)} style={fi} placeholder="TIN" />
-                </Field>
-                <Field label="Bank" required>
-                  <input value={payment.bankName} onChange={e => setPay("bankName")(e.target.value)} style={fi} placeholder="e.g. GTBank" />
-                </Field>
-                <Field label="NHF Number">
-                  <input value={payment.nhfNumber} onChange={e => setPay("nhfNumber")(e.target.value)} style={fi} placeholder="NHF Number" />
-                </Field>
-                <Field label="PFA">
-                  <input value={payment.pfaName} onChange={e => setPay("pfaName")(e.target.value)} style={fi} placeholder="Pension Fund Administrator" />
-                </Field>
-                <Field label="RSA PIN">
-                  <input value={payment.rsaPin} onChange={e => setPay("rsaPin")(e.target.value)} style={fi} placeholder="e.g. PEN************" />
-                </Field>
-              </div>
-              <div style={{ marginTop: 20, padding: "12px 14px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, fontSize: 12, color: "#92400E" }}>
-                ⚠ Please be careful entering this info. DSN HRMS won't be liable for payments made into wrong accounts.
-              </div>
-            </div>
-            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-              <button onClick={prevStep} style={{ padding: "10px 28px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Previous</button>
-              <button onClick={nextStep} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Next</button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 3: Documents ───────────────────────────────────────────── */}
-        {step === 3 && (
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
             <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
-              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>4. Onboarding Documents</h2>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>3. Onboarding Documents</h2>
               <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
                 {firstName} will be able to review and sign these documents after onboarding is complete. The document will then be securely stored for you to access anytime.
               </p>
@@ -569,76 +623,8 @@ export default function AddNewMemberPage() {
           </div>
         )}
 
-        {/* ── Step 4: Assets ──────────────────────────────────────────────── */}
-        {step === 4 && (
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
-              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>5. Assets</h2>
-              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>You can withdraw assets from {firstName} at anytime.</p>
-            </div>
-            <div style={{ padding: "28px 32px" }}>
-              <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>What custom assets would you like to include for {firstName}?</p>
-              <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
-                <div style={{ padding: "12px 20px", background: "var(--muted)", borderBottom: "1px solid var(--border)", display: "grid", gridTemplateColumns: "40px 1fr 1fr" }}>
-                  <input type="checkbox" disabled style={{ cursor: "not-allowed" }} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted-foreground)" }}>Asset Type</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted-foreground)" }}>Details</span>
-                </div>
-                {orgAssets.length === 0 ? (
-                  <div style={{ padding: "24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>No assets configured yet.</div>
-                ) : orgAssets.map(a => (
-                  <label key={a.id} style={{ display: "grid", gridTemplateColumns: "40px 1fr 1fr", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid var(--border)", cursor: "pointer" }}>
-                    <input type="checkbox" checked={selectedAssets.includes(a.id)}
-                      onChange={e => setSelectedAssets(ids => e.target.checked ? [...ids, a.id] : ids.filter(i => i !== a.id))}
-                      style={{ accentColor: "var(--primary)" }} />
-                    <span style={{ fontSize: 14 }}>{a.name}</span>
-                    <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>{a.details}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-              <button onClick={prevStep} style={{ padding: "10px 28px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Previous</button>
-              <button onClick={nextStep} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Next</button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 5: Tasks ───────────────────────────────────────────────── */}
-        {step === 5 && (
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
-              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>6. {firstName}'s Tasks</h2>
-              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Assign tasks to {firstName}</p>
-            </div>
-            <div style={{ padding: "28px 32px" }}>
-              <p style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Which tasks will you like to assign to {firstName}?</p>
-              <div style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden" }}>
-                <div style={{ padding: "12px 20px", background: "var(--muted)", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 12 }}>
-                  <input type="checkbox" disabled style={{ cursor: "not-allowed" }} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--muted-foreground)" }}>Task</span>
-                </div>
-                {orgTasks.length === 0 ? (
-                  <div style={{ padding: "24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 14 }}>No tasks configured yet.</div>
-                ) : orgTasks.map(t => (
-                  <label key={t.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderBottom: "1px solid var(--border)", cursor: "pointer" }}>
-                    <input type="checkbox" checked={selectedTasks.includes(t.id)}
-                      onChange={e => setSelectedTasks(ids => e.target.checked ? [...ids, t.id] : ids.filter(i => i !== t.id))}
-                      style={{ accentColor: "var(--primary)" }} />
-                    <span style={{ fontSize: 14 }}>{t.name}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-            <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "space-between" }}>
-              <button onClick={prevStep} style={{ padding: "10px 28px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>Previous</button>
-              <button onClick={nextStep} style={{ padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 700, color: "white" }}>Next</button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Step 6: Welcome Options ─────────────────────────────────────── */}
-        {step === 6 && (
+        {/* ── Step 3: Welcome Options ─────────────────────────────────────── */}
+        {step === 3 && (
           <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", maxWidth: 600, margin: "0 auto" }}>
             <div style={{ padding: "48px 40px" }}>
               <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, lineHeight: 1.6 }}>

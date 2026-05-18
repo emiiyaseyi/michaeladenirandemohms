@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { useRouter, useParams } from "next/navigation"
+import { useParams } from "next/navigation"
 import { createPortal } from "react-dom"
 import { X } from "lucide-react"
 
@@ -15,7 +15,7 @@ function ConfirmModal({ title, message, onConfirm, onCancel, confirming }: {
           <button onClick={onCancel} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={16} style={{ color: "var(--muted-foreground)" }} /></button>
         </div>
         <div style={{ padding: "20px 24px" }}>
-          <div style={{ fontSize: 14, color: "var(--foreground)", marginBottom: 4 }}>Are you sure you want to release this asset?</div>
+          <div style={{ fontSize: 14, color: "var(--foreground)", marginBottom: 4 }}>{message}</div>
           <div style={{ fontSize: 14, color: "var(--muted-foreground)" }}>Click confirm to continue action.</div>
         </div>
         <div style={{ padding: "0 24px 20px", display: "flex", justifyContent: "flex-end", gap: 10 }}>
@@ -37,7 +37,6 @@ function ConfirmModal({ title, message, onConfirm, onCancel, confirming }: {
 const PAGE_SIZE = 10
 
 export default function EmployeeAssetsPage() {
-  const router = useRouter()
   const params = useParams()
   const employeeId = params.employeeId as string
 
@@ -66,8 +65,6 @@ export default function EmployeeAssetsPage() {
 
   const totalPages = Math.max(1, Math.ceil(assignments.length / PAGE_SIZE))
   const paged = assignments.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const start = (page - 1) * PAGE_SIZE + 1
-  const end = Math.min(page * PAGE_SIZE, assignments.length)
 
   const allPageSelected = paged.length > 0 && paged.every(a => selected.has(a.id))
   const somePageSelected = paged.some(a => selected.has(a.id))
@@ -88,18 +85,6 @@ export default function EmployeeAssetsPage() {
     const next = new Set(selected)
     if (next.has(id)) next.delete(id); else next.add(id)
     setSelected(next)
-  }
-
-  const doRelease = async (assignmentId: string) => {
-    setConfirming(true)
-    await fetch(`/api/assets/_/assignments/${assignmentId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "release" }),
-    })
-    setConfirming(false)
-    setReleaseTarget(null)
-    load()
   }
 
   // release single — find asset id from assignment

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
+  const perm = requirePermission(user, "canViewContractors")
+  if (perm) return perm
 
   const { searchParams } = new URL(req.url)
   const status = searchParams.get("status")

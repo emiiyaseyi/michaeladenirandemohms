@@ -36,6 +36,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# Private uploads (not web-accessible; gated via /api/files)
+/private/uploads/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

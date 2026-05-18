@@ -14,7 +14,7 @@ const DEFAULTS: Record<ComplianceKey, object> = {
 }
 
 export async function GET() {
-  const { user, error } = await requireAuth()
+  const { error } = await requireAuth()
   if (error) return error
 
   const settings = await prisma.systemSetting.findMany({ where: { key: { in: [...KEYS] } } })

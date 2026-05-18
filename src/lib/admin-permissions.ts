@@ -22,7 +22,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "canViewOrgChart", label: "View org chart" },
       { key: "canViewCustomGroups", label: "View custom groups" },
       { key: "canManageCustomGroups", label: "Manage custom groups" },
-      { key: "canViewCompensation", label: "View compensation details" },
       { key: "canViewPersonalDetails", label: "View personal details" },
       { key: "canManageProfileRequests", label: "Manage profile update requests" },
       { key: "canViewPersonalDocuments", label: "View personal documents" },
@@ -57,43 +56,11 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    group: "Loans",
+    group: "Intern Reports",
     items: [
-      { key: "canViewLoans", label: "View loan requests" },
-      { key: "canCreateLoan", label: "Create loans" },
-      { key: "canEditLoan", label: "Edit loans" },
-      { key: "canDeleteLoan", label: "Delete loans" },
-      { key: "canApproveLoan", label: "Approve loans" },
-    ],
-  },
-  {
-    group: "Salary Advances",
-    items: [
-      { key: "canViewSalaryAdvances", label: "View salary advances" },
-      { key: "canCreateSalaryAdvance", label: "Create salary advances" },
-      { key: "canEditSalaryAdvance", label: "Edit salary advances" },
-      { key: "canDeleteSalaryAdvance", label: "Delete salary advances" },
-      { key: "canApproveSalaryAdvance", label: "Approve salary advances" },
-    ],
-  },
-  {
-    group: "Exit Requests",
-    items: [
-      { key: "canViewExitRequests", label: "View exit requests" },
-      { key: "canCreateExitRequest", label: "Create exit requests" },
-      { key: "canEditExitRequest", label: "Edit exit requests" },
-      { key: "canDeleteExitRequest", label: "Delete exit requests" },
-      { key: "canApproveExitRequest", label: "Approve exit requests" },
-    ],
-  },
-  {
-    group: "Redeployments",
-    items: [
-      { key: "canViewRedeployments", label: "View redeployments" },
-      { key: "canCreateRedeployment", label: "Create redeployments" },
-      { key: "canEditRedeployment", label: "Edit redeployments" },
-      { key: "canDeleteRedeployment", label: "Delete redeployments" },
-      { key: "canApproveRedeployment", label: "Approve redeployments" },
+      { key: "canViewInternReports", label: "View intern weekly reports" },
+      { key: "canReviewInternReports", label: "Fill Team Lead feedback on reports" },
+      { key: "canFillAttendance", label: "Fill attendance ratings for interns" },
     ],
   },
   {

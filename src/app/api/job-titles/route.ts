@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 
 export async function GET(_req: NextRequest) {
-  const { user, error } = await requireAuth()
+  const { error } = await requireAuth()
   if (error) return error
 
   const jobTitles = await prisma.$queryRaw`
@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   const { name } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })
 
-  const existing = await prisma.$queryRaw`SELECT id FROM "JobTitle" WHERE name = ${name.trim()} LIMIT 1`
+  const existing = await prisma.$queryRaw`SELECT id FROM "JobTitle" WHERE LOWER(name) = LOWER(${name.trim()}) LIMIT 1`
   if ((existing as any[]).length > 0) return NextResponse.json({ error: "A job title with this name already exists" }, { status: 409 })
 
   const [title] = await prisma.$queryRaw`

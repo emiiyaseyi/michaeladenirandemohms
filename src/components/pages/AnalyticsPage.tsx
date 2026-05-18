@@ -2,9 +2,12 @@
 import { useState, useEffect } from "react"
 import Card from "@/components/ui/Card"
 import StatCard from "@/components/ui/StatCard"
-import { BarChart3, Users, CalendarDays, TrendingUp, Briefcase, UserCheck, UserMinus, Target } from "lucide-react"
+import PageHeader from "@/components/ui/PageHeader"
+import EmptyState from "@/components/ui/EmptyState"
+import { Users, CalendarDays, Briefcase, UserCheck, BarChart3, Loader2 } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts"
 
+// Chart palette — colours stay hard-coded because they're chart data, not UI tokens.
 const COLORS = ["#0052A5","#E3192A","#0B8A4A","#7C3AED","#C2410C","#0E7490","#B45309"]
 
 export default function AnalyticsPage() {
@@ -15,15 +18,16 @@ export default function AnalyticsPage() {
     fetch("/api/analytics").then(r => r.json()).then(d => { setData(d); setLoading(false) })
   }, [])
 
-  if (loading) return <div style={{ padding: 80, textAlign: "center", color: "var(--muted-foreground)" }}>Loading analytics...</div>
-  if (!data) return null
+  if (loading) return (
+    <Card>
+      <EmptyState icon={Loader2} title="Loading analytics" description="Pulling the latest organisation-wide metrics…" />
+    </Card>
+  )
+  if (!data) return <Card><EmptyState icon={BarChart3} title="No data" description="Analytics are not available right now." /></Card>
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 20, fontWeight: 800 }}>Analytics & Reports</h1>
-        <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Organisation-wide HR insights</p>
-      </div>
+      <PageHeader title="Analytics & Reports" subtitle="Organisation-wide HR insights" icon={<BarChart3 size={22} />} />
 
       {/* Key metrics */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: 16, marginBottom: 24 }}>

@@ -180,6 +180,22 @@ body.mobile-nav-open .mobile-nav-overlay { display: block; }
 .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 main { min-width: 0; }
 
+/* Safety net: on mobile, any table that escapes its container can horizontally scroll
+   by wrapping itself in an auto-overflowing block. This handles tables in pages that
+   don't explicitly use .table-scroll wrappers. */
+@media (max-width: 899px) {
+  main table { display: block; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+}
+
+/* ─── 4K + ultrawide cap: keep content readable on very wide screens ─── */
+@media (min-width: 2400px) {
+  .content-shell main {
+    max-width: 1800px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
 /* ─── Responsive grid utilities ──────────────────────────────── */
 .grid-2col {
   display: grid;

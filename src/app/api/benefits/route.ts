@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
-  const { user, error } = await requireAuth()
+  const { error } = await requireAuth()
   if (error) return error
 
   const search = req.nextUrl.searchParams.get("search") ?? ""

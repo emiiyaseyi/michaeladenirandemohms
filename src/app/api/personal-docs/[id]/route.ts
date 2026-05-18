@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -38,11 +39,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       link: "/self-service/profile?tab=documents",
     },
   })
+  sendEmail({ eventKey: status === "APPROVED" ? "personal_doc_approved" : "personal_doc_rejected", toUserId: doc.employee.userId, variables: { employeeName: `${doc.employee.firstName} ${doc.employee.lastName}`, documentType: TYPE_LABELS[doc.type] ?? doc.type, note: reviewNote ?? "" } }).catch(() => {})
 
   return NextResponse.json({ doc: updated })
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
 

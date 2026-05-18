@@ -3,12 +3,12 @@ import { usePathname, useRouter } from "next/navigation"
 
 const TABS = [
   { label: "Admins",             href: "/admin/settings/admins" },
-  { label: "HR & Payroll",       href: "/admin/settings/hr-payroll" },
   { label: "Departments",        href: "/admin/settings/departments" },
   { label: "Leave Types",        href: "/admin/settings/leave-types" },
   { label: "Public Holidays",    href: "/admin/settings/public-holidays" },
   { label: "Approval Workflows", href: "/admin/settings/approval-workflows" },
   { label: "Customization",      href: "/admin/settings/customization" },
+  { label: "Intern Reports",     href: "/admin/settings/intern-reports" },
 ]
 
 export default function SettingsNav() {

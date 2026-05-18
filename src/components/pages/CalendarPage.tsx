@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useRef } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
 // ── Constants ─────────────────────────────────────────────────────────────────

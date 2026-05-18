@@ -1,7 +1,7 @@
 "use client"
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Cell,
+  Tooltip, ResponsiveContainer,
 } from "recharts"
 
 type DataPoint = { label: string; inCompany: number; exited: number }

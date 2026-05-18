@@ -5,11 +5,13 @@ import DashboardAnnouncements from "@/components/layout/DashboardAnnouncements"
 import RecentEmployeesPanel from "@/components/shared/RecentEmployeesPanel"
 import PendingLeavePanel from "@/components/shared/PendingLeavePanel"
 import CelebrationsCard from "@/components/shared/CelebrationsCard"
+import AnnouncementsCard from "@/components/shared/AnnouncementsCard"
+import DeptOrgLeaveCard from "@/components/shared/DeptOrgLeaveCard"
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
 import Link from "next/link"
 import {
-  CalendarDays, FileText, Target, TrendingUp, ClipboardList,
+  CalendarDays, Target, TrendingUp, ClipboardList,
   Users, Edit2, Clock, Building2,
 } from "lucide-react"
 
@@ -17,7 +19,6 @@ const ACCENTS = ["#6366F1", "#10B981", "#F59E0B", "#EC4899", "#0EA5E9", "#8B5CF6
 
 const QUICK_ACTIONS = [
   { label: "Request Leave",  href: "/project-lead/requests/leave",        color: "#6366F1", icon: CalendarDays },
-  { label: "View Payslip",   href: "/project-lead/self-service/payslips", color: "#10B981", icon: FileText },
   { label: "Set KPI Goals",  href: "/project-lead/performance/objectives", color: "#F59E0B", icon: Target },
   { label: "Appraisals",     href: "/project-lead/performance/reviews",   color: "#EC4899", icon: TrendingUp },
   { label: "My Documents",   href: "/project-lead/documents",             color: "#8B5CF6", icon: ClipboardList },
@@ -27,7 +28,7 @@ const QUICK_ACTIONS = [
 const REQUIRED_FIELDS = [
   "firstName", "lastName", "gender", "dateOfBirth", "maritalStatus",
   "personalEmail", "phone", "address", "city", "state",
-  "profilePhoto", "nokName", "nokPhone", "bankName", "bankAccountNo",
+  "profilePhoto", "nokName", "nokPhone",
 ]
 function calcCompleteness(emp: any): number {
   const filled = REQUIRED_FIELDS.filter(f => emp[f] != null && emp[f] !== "").length
@@ -76,7 +77,7 @@ export default async function ProjectLeadDashboard() {
   const [
     leaveTypes,
     teamSize, active, onLeave,
-    pendingLeaveCount, pendingLeaveRequests, teamMembers,
+    pendingLeaveCount, pendingLeaveRequests, teamMembers, deptOnLeaveRaw,
   ] = await Promise.all([
     prisma.leaveType.findMany({ where: { isActive: true }, orderBy: { name: "asc" } }),
     prisma.employee.count({ where: memberFilter }),
@@ -107,7 +108,34 @@ export default async function ProjectLeadDashboard() {
         projectAssignments: { include: { project: { select: { id: true, name: true, status: true } } } },
       },
     }),
+    deptIds.length > 0
+      ? prisma.employee.findMany({
+          where: {
+            departmentId: { in: deptIds },
+            leaveRequests: { some: { status: "APPROVED", endDate: { gte: new Date() } } },
+          },
+          select: {
+            id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true,
+            leaveRequests: {
+              where: { status: "APPROVED", endDate: { gte: new Date() } },
+              include: { leaveType: true },
+              orderBy: { startDate: "asc" },
+              take: 1,
+            },
+          },
+        })
+      : Promise.resolve([]),
   ])
+
+  const deptOnLeave = deptOnLeaveRaw.map((m: any) => ({
+    id: m.id,
+    name: `${m.firstName} ${m.lastName}`,
+    jobTitle: m.jobTitle,
+    profilePhoto: m.profilePhoto,
+    currentLeave: m.leaveRequests[0]
+      ? { leaveType: m.leaveRequests[0].leaveType.name, endDate: m.leaveRequests[0].endDate }
+      : null,
+  }))
 
   // Leave balances
   const leaveBalanceSummary = leaveTypes
@@ -297,11 +325,15 @@ export default async function ProjectLeadDashboard() {
         </div>
       )}
 
+      {/* ── Who's On Leave ────────────────────────────────────────────────────── */}
+      <DeptOrgLeaveCard deptOnLeave={deptOnLeave} />
+
       {/* ── Panels ────────────────────────────────────────────────────────────── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 480px), 1fr))", gap: 20 }}>
         <RecentEmployeesPanel employees={teamMembers} viewAllHref="/project-lead/people" />
         <PendingLeavePanel leaveRequests={pendingLeaveRequests} viewAllHref="/project-lead/requests/leave" />
         <CelebrationsCard />
+        <AnnouncementsCard />
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createPortal } from "react-dom"
 import { ChevronDown, UploadCloud, X, Loader2 } from "lucide-react"
 
@@ -16,12 +16,13 @@ function EmployeeSelect({ value, onChange, error, includeAll }: { value: string;
   const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    fetch("/api/employees?limit=500")
+    const url = includeAll ? "/api/employees?limit=500" : "/api/employees?limit=500&status=ACTIVE"
+    fetch(url)
       .then(r => r.json())
       .then(d => setEmployees((d.employees ?? []).sort((a: Employee, b: Employee) =>
         `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)
       )))
-  }, [])
+  }, [includeAll])
 
   const toggle = () => {
     if (!open && btnRef.current) {
@@ -138,8 +139,10 @@ function ViolationTypeSelect({ value, onChange, error }: { value: string; onChan
 
 export default function RecordViolationPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const preselectedEmployeeId = searchParams.get("employeeId") ?? ""
   const [includeAll, setIncludeAll] = useState(false)
-  const [employeeId, setEmployeeId] = useState("")
+  const [employeeId, setEmployeeId] = useState(preselectedEmployeeId)
   const [violationTypeId, setViolationTypeId] = useState("")
   const [expectingResponse, setExpectingResponse] = useState(false)
   const [incidentDate, setIncidentDate] = useState("")
@@ -165,11 +168,9 @@ export default function RecordViolationPage() {
     if (!validate()) return
     setSaving(true); setApiErr("")
 
-    // Use a placeholder recordedById — in a real app this would be the current user's employee ID
-    // Fetching current session employee id
-    const meRes = await fetch("/api/auth/me").catch(() => null)
+    const meRes = await fetch("/api/self-service/profile").catch(() => null)
     const me = meRes?.ok ? await meRes.json() : null
-    const recordedById = me?.employeeId ?? employeeId
+    const recordedById = me?.profile?.id ?? employeeId
 
     const fd = new FormData()
     fd.append("employeeId", employeeId)
@@ -267,7 +268,7 @@ export default function RecordViolationPage() {
               <span style={hint} title="The date the incident occurred">?</span>
             </label>
             <div style={{ position: "relative", maxWidth: 340 }}>
-              <input type="date" value={incidentDate} onChange={e => { setIncidentDate(e.target.value); setErrors(p => ({ ...p, incidentDate: "" })) }}
+              <input type="date" value={incidentDate} max={new Date().toISOString().split("T")[0]} onChange={e => { setIncidentDate(e.target.value); setErrors(p => ({ ...p, incidentDate: "" })) }}
                 style={{ ...inp(errors.incidentDate), paddingRight: 40 }} />
             </div>
             {errors.incidentDate && <div style={errMsg}>{errors.incidentDate}</div>}

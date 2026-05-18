@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { sendEmail } from "@/lib/email"
+import { requireAuth, caps } from "@/lib/api-auth"
 
 const VALID_TYPES = ["SSCE", "FIRST_DEGREE", "NYSC", "PROFESSIONAL_CERT", "UTILITY_BILL", "NIN_SLIP", "OTHER"]
 
@@ -72,8 +73,10 @@ export async function POST(req: NextRequest) {
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const ext = file.name.split(".").pop() ?? "pdf"
-  const filename = `${empId}_${type}_${Date.now()}.${ext}`
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "personal-docs")
+  // Unguessable filename + private directory (not web-served).
+  // Files are gated behind /api/files/[...path] with per-doc permission check.
+  const filename = `${crypto.randomUUID()}.${ext}`
+  const uploadDir = path.join(process.cwd(), "private", "uploads", "personal-docs")
   await mkdir(uploadDir, { recursive: true })
   await writeFile(path.join(uploadDir, filename), buffer)
 
@@ -84,7 +87,7 @@ export async function POST(req: NextRequest) {
     data: {
       employeeId: empId,
       type: type as any,
-      fileUrl: `/uploads/personal-docs/${filename}`,
+      fileUrl: `/api/files/personal-docs/${filename}`,
       fileName: file.name,
       notes: notes || null,
       status: "PENDING",
@@ -112,6 +115,9 @@ export async function POST(req: NextRequest) {
         link: `/employees/personal-docs`,
       })),
     })
+    for (const a of admins) {
+      sendEmail({ eventKey: "personal_doc_uploaded", toUserId: a.id, variables: { employeeName: `${emp?.firstName ?? ""} ${emp?.lastName ?? ""}`, documentType: typeLabel[type] ?? type } }).catch(() => {})
+    }
   }
 
   return NextResponse.json({ doc }, { status: 201 })

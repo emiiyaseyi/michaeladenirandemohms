@@ -8,6 +8,10 @@ const KEY = "custom_roles"
 // duties are granular permission keys (e.g. "canViewPayslips", "canApproveLeave")
 
 export async function GET() {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  if (!caps(user.role).canManageSettings) return forbidden()
+
   const setting = await prisma.systemSetting.findUnique({ where: { key: KEY } })
   const roles = setting ? (setting.value as any).roles ?? [] : []
   return NextResponse.json({ customRoles: roles })

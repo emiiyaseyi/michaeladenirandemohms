@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { sendEmail } from "@/lib/email"
 import { format, subDays, isWeekend, startOfDay, endOfDay } from "date-fns"
 import { roleBasePath } from "@/lib/api-auth"
 
@@ -56,6 +57,7 @@ export async function POST() {
         link: `${empBase}/dashboard`,
       },
     })
+    sendEmail({ eventKey: "welcome_back", toUserId: emp.userId, variables: { employeeName: `${emp.firstName} ${emp.lastName}`, leaveType: lr.leaveType.name } }).catch(() => {})
 
     // Build a deduplicated set of people to notify: PLs + relief officers + all admins
     const notifyUserIds = new Set<string>()
@@ -90,6 +92,7 @@ export async function POST() {
           link: `/admin/requests/leave`,
         },
       })
+      sendEmail({ eventKey: "employee_back_hr", toUserId: userId, variables: { employeeName: `${emp.firstName} ${emp.lastName}`, leaveType: lr.leaveType.name, returnDate: format(new Date(), "MMM d, yyyy") } }).catch(() => {})
     }
 
     count++

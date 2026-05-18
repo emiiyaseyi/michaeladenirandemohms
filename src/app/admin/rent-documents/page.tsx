@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { Search, Plus, MoreHorizontal, Inbox, ChevronDown, Loader2 } from "lucide-react"
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
-import { formatDate } from "@/lib/utils"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 
 const STATUS_OPTIONS = [
@@ -65,7 +64,7 @@ function StatusDropdown({ value, onChange }: { value: string; onChange: (v: stri
   )
 }
 
-function RowMenu({ doc, onEdit, onDelete, canManage }: { doc: any; onEdit: () => void; onDelete: () => void; canManage: boolean }) {
+function RowMenu({ onEdit, onDelete, canManage }: { onEdit: () => void; onDelete: () => void; canManage: boolean }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, right: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
@@ -222,7 +221,7 @@ export default function RentDocumentsPage() {
                   </td>
                   <td style={td}><Badge status={doc.status} /></td>
                   <td style={{ ...td, textAlign: "right" }} onClick={e => e.stopPropagation()}>
-                    <RowMenu doc={doc}
+                    <RowMenu
                       onEdit={() => router.push(`/admin/rent-documents/${doc.id}/edit`)}
                       onDelete={() => setDelTarget(doc)}
                       canManage={canManageRentDocuments} />

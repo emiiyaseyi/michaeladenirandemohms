@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
+  const { error } = await requireAuth()
+  if (error) return error
+
   const { searchParams } = new URL(req.url)
   const year = parseInt(searchParams.get("year") ?? String(new Date().getFullYear()))
   const holidays = await (prisma as any).publicHoliday.findMany({

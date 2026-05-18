@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Card from "@/components/ui/Card"
 import Avatar from "@/components/ui/Avatar"
 import Badge from "@/components/ui/Badge"
@@ -7,10 +7,11 @@ import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import {
   Building2, Users, Plus, Search, X, Loader2,
-  UserPlus, UserMinus, ChevronRight, Edit2, Trash2,
-  AlertCircle, CheckCircle,
+  UserPlus, UserMinus, Edit2, Trash2,
+  AlertCircle,
 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import PageHeader from "@/components/ui/PageHeader"
 
 const fi: React.CSSProperties = {
   width: "100%", padding: "9px 12px", border: "1px solid var(--border)",
@@ -19,15 +20,120 @@ const fi: React.CSSProperties = {
 
 const DEPT_COLORS = ["#6366F1","#10B981","#F59E0B","#EC4899","#0EA5E9","#8B5CF6","#F97316","#14B8A6","#EF4444","#84CC16"]
 
+// ── Browsable picker (open by default, search filters) ────────────────────────
+function BrowsablePicker({
+  options, value, onChange, placeholder = "Select…", searchPlaceholder = "Filter…",
+  renderOption, getKey = (o: any) => o.id, getSearchString = (o: any) => `${o.firstName} ${o.lastName}`,
+  defaultLimit = 30,
+}: {
+  options: any[]
+  value: string
+  onChange: (id: string) => void
+  placeholder?: string
+  searchPlaceholder?: string
+  renderOption: (o: any, selected: boolean) => React.ReactNode
+  getKey?: (o: any) => string
+  getSearchString?: (o: any) => string
+  defaultLimit?: number
+}) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState("")
+  const selected = options.find(o => getKey(o) === value)
+  const filtered = useMemo(() => {
+    if (!q.trim()) return options.slice(0, defaultLimit)
+    const needle = q.toLowerCase()
+    return options.filter(o => getSearchString(o).toLowerCase().includes(needle)).slice(0, defaultLimit)
+  }, [q, options, defaultLimit, getSearchString])
+
+  if (selected) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--primary-50, rgba(11,92,46,0.07))", borderRadius: 8, border: "1.5px solid var(--primary)" }}>
+        <div style={{ flex: 1 }}>{renderOption(selected, true)}</div>
+        <button onClick={() => { onChange(""); setOpen(false); setQ("") }}
+          style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
+          <X size={14} />
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{ ...fi, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", color: "var(--muted-foreground)" }}>
+        <span>{placeholder}</span>
+        <Search size={13} />
+      </button>
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: 280, display: "flex", flexDirection: "column" }}>
+          <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border)" }}>
+            <div style={{ position: "relative" }}>
+              <Search size={12} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
+              <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder={searchPlaceholder}
+                style={{ width: "100%", paddingLeft: 30, paddingRight: 8, paddingTop: 6, paddingBottom: 6, border: "1px solid var(--border)", borderRadius: 6, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box" }} />
+            </div>
+          </div>
+          <div style={{ overflowY: "auto", flex: 1 }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding: 16, fontSize: 12, color: "var(--muted-foreground)", textAlign: "center" }}>No results</div>
+            ) : filtered.map(o => (
+              <button key={getKey(o)} onClick={() => { onChange(getKey(o)); setOpen(false); setQ("") }}
+                style={{ width: "100%", padding: "9px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer", textAlign: "left" }}
+                onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = "transparent"}>
+                {renderOption(o, false)}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Confirm Modal (reusable) ──────────────────────────────────────────────────
+function ConfirmModal({
+  open, onClose, onConfirm, title, body, confirmText = "Confirm", variant = "primary", loading = false, disabled = false, disabledHint,
+}: {
+  open: boolean; onClose: () => void; onConfirm: () => void
+  title: string; body: React.ReactNode
+  confirmText?: string; variant?: "primary" | "danger"
+  loading?: boolean; disabled?: boolean; disabledHint?: string
+}) {
+  if (!open) return null
+  const confirmBg = variant === "danger" ? "#DC2626" : "var(--primary)"
+  return (
+    <Modal open onClose={loading ? () => {} : onClose} title={title} width={460}>
+      <div style={{ padding: "20px 24px", fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.65 }}>
+        {body}
+        {disabled && disabledHint && (
+          <div style={{ marginTop: 12, padding: "10px 12px", background: "var(--warning-bg, #FEF3C7)", color: "var(--warning, #92400E)", borderRadius: 8, fontSize: 12 }}>
+            {disabledHint}
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <Button variant="secondary" onClick={onClose} disabled={loading}>Cancel</Button>
+        <button onClick={onConfirm} disabled={loading || disabled}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", background: confirmBg, color: "white", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: loading || disabled ? "not-allowed" : "pointer", opacity: loading || disabled ? 0.6 : 1 }}>
+          {loading && <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} />}
+          {loading ? "Working…" : confirmText}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
 // ── Department Members Modal ──────────────────────────────────────────────────
 function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: boolean; onClose: () => void }) {
   const [members, setMembers] = useState<any[]>([])
   const [allEmployees, setAllEmployees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [addQuery, setAddQuery] = useState("")
   const [addOpen, setAddOpen] = useState(false)
-  const [saving, setSaving] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
   const [error, setError] = useState("")
+  const [removeTarget, setRemoveTarget] = useState<any | null>(null)
+  const [removing, setRemoving] = useState(false)
 
   const load = async () => {
     setLoading(true)
@@ -46,30 +152,40 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
       .catch(() => {})
   }, [isAdmin])
 
+  const memberIds = useMemo(() => new Set(members.map((m: any) => m.id)), [members])
+
+  // Eligible to add: not already a member. SUPER_ADMIN + seeded managers are already filtered out by the API (R6.4).
+  const eligible = useMemo(
+    () => allEmployees.filter(e => !memberIds.has(e.id)),
+    [allEmployees, memberIds]
+  )
+
   const addEmployee = async (employeeId: string) => {
-    setSaving(employeeId); setError("")
+    setAdding(true); setError("")
     const r = await fetch("/api/settings/departments/members", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deptId: dept.id, employeeId }),
+      body: JSON.stringify({ deptId: dept.id, employeeIds: [employeeId] }),
     })
-    setSaving(null)
+    setAdding(false)
     if (!r.ok) { const d = await r.json(); setError(d.error ?? "Failed"); return }
-    setAddOpen(false); setAddQuery(""); load()
+    setAddOpen(false); load()
   }
 
-  const removeEmployee = async (employeeId: string) => {
-    if (!confirm("Remove this employee from the department?")) return
-    setSaving(employeeId); setError("")
-    await fetch(`/api/settings/departments/members?employeeId=${employeeId}`, { method: "DELETE" })
-    setSaving(null); load()
+  const askRemove = (m: any) => { setRemoveTarget(m); setError("") }
+  const doRemove = async () => {
+    if (!removeTarget) return
+    setRemoving(true); setError("")
+    const r = await fetch(`/api/settings/departments/members?deptId=${dept.id}&employeeId=${removeTarget.id}`, { method: "DELETE" })
+    setRemoving(false)
+    if (!r.ok) {
+      const d = await r.json()
+      setError(d.error ?? "Failed to remove")
+      // Keep modal open so the user can read the error
+      return
+    }
+    setRemoveTarget(null); load()
   }
-
-  const memberIds = new Set(members.map((m: any) => m.id))
-  const eligible = allEmployees.filter(e =>
-    !memberIds.has(e.id) &&
-    `${e.firstName} ${e.lastName}`.toLowerCase().includes(addQuery.toLowerCase())
-  )
 
   return (
     <Modal open onClose={onClose} title={`${dept.name} — Members`} width={600}>
@@ -80,7 +196,6 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
           </div>
         )}
 
-        {/* Add employee section (admin only) */}
         {isAdmin && (
           <div style={{ marginBottom: 16 }}>
             {!addOpen ? (
@@ -89,38 +204,24 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
               </button>
             ) : (
               <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "12px 14px", background: "var(--muted)" }}>
-                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Search & add employee</div>
-                <div style={{ position: "relative" }}>
-                  <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
-                  <input
-                    autoFocus
-                    value={addQuery}
-                    onChange={e => setAddQuery(e.target.value)}
-                    placeholder="Type employee name…"
-                    style={{ ...fi, paddingLeft: 32 }}
-                  />
-                </div>
-                {addQuery.length > 0 && (
-                  <div style={{ marginTop: 6, maxHeight: 180, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)" }}>
-                    {eligible.length === 0 ? (
-                      <div style={{ padding: "12px 14px", fontSize: 12, color: "var(--muted-foreground)", textAlign: "center" }}>No eligible employees found</div>
-                    ) : eligible.slice(0, 8).map((e: any) => (
-                      <button key={e.id} onClick={() => addEmployee(e.id)} disabled={saving === e.id}
-                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                        onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
-                        onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = "transparent"}
-                      >
-                        <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={30} />
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
-                          {e.jobTitle && <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle}</div>}
-                        </div>
-                        {saving === e.id ? <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> : <UserPlus size={14} style={{ color: "var(--primary)" }} />}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <button onClick={() => { setAddOpen(false); setAddQuery("") }} style={{ marginTop: 8, fontSize: 12, color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Pick an employee to add</div>
+                <BrowsablePicker
+                  options={eligible}
+                  value=""
+                  onChange={id => id && addEmployee(id)}
+                  placeholder={adding ? "Adding…" : `Choose from ${eligible.length} eligible employee(s)…`}
+                  searchPlaceholder="Filter by name…"
+                  renderOption={(e) => (
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={28} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
+                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle ?? "—"}</div>
+                      </div>
+                    </div>
+                  )}
+                />
+                <button onClick={() => setAddOpen(false)} style={{ marginTop: 8, fontSize: 12, color: "var(--muted-foreground)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
                   Cancel
                 </button>
               </div>
@@ -128,7 +229,6 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
           </div>
         )}
 
-        {/* Member list */}
         <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
           {members.length} Member{members.length !== 1 ? "s" : ""}
         </div>
@@ -145,13 +245,13 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
                 <Avatar name={`${m.firstName} ${m.lastName}`} photo={m.profilePhoto} size={36} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.firstName} {m.lastName}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{m.jobTitle ?? "—"}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{m.jobTitle ?? "—"}{m.isPrimary && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "var(--primary)" }}>· Primary</span>}</div>
                 </div>
                 <Badge status={m.employeeStatus ?? "ACTIVE"} />
                 {isAdmin && (
-                  <button onClick={() => removeEmployee(m.id)} disabled={saving === m.id} title="Remove from department"
+                  <button onClick={() => askRemove(m)} title="Remove from department"
                     style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", borderRadius: 6, padding: "5px 8px", cursor: "pointer", color: "#EF4444", display: "flex", alignItems: "center" }}>
-                    {saving === m.id ? <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> : <UserMinus size={13} />}
+                    <UserMinus size={13} />
                   </button>
                 )}
               </div>
@@ -162,6 +262,20 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
       <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
         <Button variant="secondary" onClick={onClose}>Close</Button>
       </div>
+      <ConfirmModal
+        open={!!removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={doRemove}
+        title="Remove from department?"
+        body={removeTarget && (
+          <span>
+            <strong style={{ color: "var(--foreground)" }}>{removeTarget.firstName} {removeTarget.lastName}</strong> will no longer be a member of <strong style={{ color: "var(--foreground)" }}>{dept.name}</strong>. They stay in any other departments they belong to.
+          </span>
+        )}
+        confirmText="Remove"
+        variant="danger"
+        loading={removing}
+      />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </Modal>
   )
@@ -169,11 +283,14 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
 
 // ── Department Form Modal ─────────────────────────────────────────────────────
 function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () => void; onSuccess: () => void }) {
-  const [form, setForm] = useState({ name: dept?.name ?? "", description: dept?.description ?? "", leadId: dept?.lead?.id ?? "" })
+  const [form, setForm] = useState({
+    name: dept?.name ?? "",
+    description: dept?.description ?? "",
+    leadEmployeeId: dept?.lead?.id ?? dept?.leadEmployeeId ?? "",
+  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [employees, setEmployees] = useState<any[]>([])
-  const [empSearch, setEmpSearch] = useState("")
 
   useEffect(() => {
     fetch("/api/employees?status=ACTIVE")
@@ -181,16 +298,16 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
       .then(d => setEmployees(d.employees ?? []))
   }, [])
 
-  const filteredEmps = employees.filter(e => {
-    if (!empSearch) return true
-    const q = empSearch.toLowerCase()
-    return `${e.firstName} ${e.lastName} ${e.employeeId}`.toLowerCase().includes(q)
-  })
-
-  const selectedLead = employees.find(e => e.id === form.leadId)
+  // Lead-eligible: PROJECT_LEAD role only (secondary admins are also eligible per spec, but
+  // they're typically PLs too; the API enforces the rule server-side as the source of truth).
+  const eligibleLeads = useMemo(
+    () => employees.filter(e => (e.user?.role ?? "STAFF") === "PROJECT_LEAD"),
+    [employees]
+  )
 
   const save = async () => {
     if (!form.name.trim()) { setError("Name is required"); return }
+    if (!form.leadEmployeeId) { setError("Department lead is required"); return }
     setLoading(true); setError("")
     const method = dept ? "PATCH" : "POST"
     const body = dept ? { ...form, id: dept.id } : form
@@ -214,59 +331,27 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} style={{ ...fi, resize: "vertical" }} placeholder="Optional description" />
         </div>
 
-        {/* Department Lead selector */}
         <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Department Lead</label>
-          {selectedLead ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", background: "var(--primary-50, rgba(11,92,46,0.07))", borderRadius: 8, border: "1.5px solid var(--primary)" }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white", flexShrink: 0 }}>
-                {selectedLead.firstName[0]}{selectedLead.lastName[0]}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--primary)" }}>{selectedLead.firstName} {selectedLead.lastName}</div>
-                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{selectedLead.jobTitle ?? ""}</div>
-              </div>
-              <button onClick={() => { setForm(f => ({ ...f, leadId: "" })); setEmpSearch("") }}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}>
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <div style={{ position: "relative" }}>
-              <Search size={13} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
-              <input
-                value={empSearch}
-                onChange={e => setEmpSearch(e.target.value)}
-                placeholder="Search employee to assign as lead…"
-                style={{ ...fi, paddingLeft: 30 }}
-              />
-              {empSearch && filteredEmps.length > 0 && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto" }}>
-                  {filteredEmps.slice(0, 8).map(e => (
-                    <button key={e.id} onClick={() => { setForm(f => ({ ...f, leadId: e.id })); setEmpSearch("") }}
-                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderBottom: "1px solid var(--border)", cursor: "pointer", textAlign: "left" }}
-                      onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
-                      onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = "transparent"}
-                    >
-                      <div style={{ width: 28, height: 28, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: "white", flexShrink: 0 }}>
-                        {e.firstName[0]}{e.lastName[0]}
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
-                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.employeeId} · {e.jobTitle ?? ""}</div>
-                      </div>
-                    </button>
-                  ))}
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Department Lead <span style={{ color: "var(--accent)" }}>*</span></label>
+          <BrowsablePicker
+            options={eligibleLeads}
+            value={form.leadEmployeeId}
+            onChange={id => setForm(f => ({ ...f, leadEmployeeId: id }))}
+            placeholder={`Choose from ${eligibleLeads.length} Project Lead(s)…`}
+            searchPlaceholder="Filter project leads…"
+            renderOption={(e, sel) => (
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ width: 28, height: 28, borderRadius: "50%", background: sel ? "var(--primary)" : "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: sel ? "white" : "var(--muted-foreground)", flexShrink: 0 }}>
+                  {e.firstName[0]}{e.lastName[0]}
                 </div>
-              )}
-              {empSearch && filteredEmps.length === 0 && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: 12, fontSize: 12, color: "var(--muted-foreground)", zIndex: 50 }}>
-                  No employees found
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: sel ? "var(--primary)" : "var(--foreground)" }}>{e.firstName} {e.lastName}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.employeeId} · {e.jobTitle ?? "—"}</div>
                 </div>
-              )}
-            </div>
-          )}
-          <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Optional. The lead will appear on the department card.</div>
+              </div>
+            )}
+          />
+          <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Required. Only Project Leads can be selected.</div>
         </div>
 
         {error && <div style={{ color: "#EF4444", fontSize: 13, display: "flex", gap: 6 }}><AlertCircle size={14} />{error}</div>}
@@ -290,7 +375,8 @@ export default function DepartmentsPage() {
   const [viewDept, setViewDept] = useState<any>(null)
   const [editDept, setEditDept] = useState<any>(null)
   const [showCreate, setShowCreate] = useState(false)
-  const [deleting, setDeleting] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
+  const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState("")
 
   const load = async () => {
@@ -302,13 +388,13 @@ export default function DepartmentsPage() {
 
   useEffect(() => { load() }, [])
 
-  const deleteDept = async (id: string, name: string) => {
-    if (!confirm(`Delete department "${name}"? This cannot be undone.`)) return
-    setDeleting(id); setDeleteError("")
-    const r = await fetch(`/api/settings/departments?id=${id}`, { method: "DELETE" })
-    setDeleting(null)
+  const doDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true); setDeleteError("")
+    const r = await fetch(`/api/settings/departments?id=${deleteTarget.id}`, { method: "DELETE" })
+    setDeleting(false)
     if (!r.ok) { const d = await r.json(); setDeleteError(d.error ?? "Failed to delete"); return }
-    load()
+    setDeleteTarget(null); load()
   }
 
   const filtered = departments.filter(d =>
@@ -317,21 +403,19 @@ export default function DepartmentsPage() {
 
   return (
     <div style={{ maxWidth: 1040, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>Departments</h1>
-          <p style={{ color: "var(--muted-foreground)", marginTop: 4, fontSize: 13 }}>{departments.length} department{departments.length !== 1 ? "s" : ""} across the organisation</p>
-        </div>
-        {isAdmin && <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Department</Button>}
-      </div>
+      <PageHeader
+        title="Departments"
+        subtitle={`${departments.length} department${departments.length !== 1 ? "s" : ""} across the organisation`}
+        icon={<Building2 size={22} />}
+        actions={isAdmin ? <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Department</Button> : undefined}
+      />
 
-      {deleteError && (
+      {deleteError && !deleteTarget && (
         <div style={{ display: "flex", gap: 8, background: "rgba(239,68,68,0.08)", color: "#EF4444", padding: "12px 16px", borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
           <AlertCircle size={14} />{deleteError}
         </div>
       )}
 
-      {/* Search */}
       <div style={{ position: "relative", maxWidth: 360, marginBottom: 20 }}>
         <Search size={14} style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search departments…"
@@ -357,7 +441,6 @@ export default function DepartmentsPage() {
             const count = dept._count?.employees ?? 0
             return (
               <div key={dept.id} style={{ background: "var(--card)", borderRadius: 14, border: "1px solid var(--border)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                {/* Color bar */}
                 <div style={{ height: 4, background: color }} />
                 <div style={{ padding: "16px 18px", flex: 1 }}>
                   <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 12 }}>
@@ -397,8 +480,8 @@ export default function DepartmentsPage() {
                     <button onClick={() => setEditDept(dept)} style={{ padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: "var(--muted)", border: "1px solid var(--border)", color: "var(--foreground)", display: "flex", alignItems: "center" }}>
                       <Edit2 size={13} />
                     </button>
-                    <button onClick={() => deleteDept(dept.id, dept.name)} disabled={deleting === dept.id} style={{ padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", display: "flex", alignItems: "center" }}>
-                      {deleting === dept.id ? <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> : <Trash2 size={13} />}
+                    <button onClick={() => { setDeleteTarget(dept); setDeleteError("") }} style={{ padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#EF4444", display: "flex", alignItems: "center" }}>
+                      <Trash2 size={13} />
                     </button>
                   </>}
                 </div>
@@ -411,6 +494,28 @@ export default function DepartmentsPage() {
       {viewDept && <DeptMembersModal dept={viewDept} isAdmin={isAdmin} onClose={() => setViewDept(null)} />}
       {editDept && <DeptFormModal dept={editDept} onClose={() => setEditDept(null)} onSuccess={load} />}
       {showCreate && <DeptFormModal onClose={() => setShowCreate(false)} onSuccess={load} />}
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={doDelete}
+        title="Delete department?"
+        body={deleteTarget && (
+          <div>
+            <p>
+              Delete <strong style={{ color: "var(--foreground)" }}>{deleteTarget.name}</strong>? This cannot be undone.
+            </p>
+            {deleteError && (
+              <div style={{ marginTop: 12, padding: "10px 12px", background: "rgba(239,68,68,0.08)", color: "#EF4444", borderRadius: 8, fontSize: 12 }}>
+                {deleteError}
+              </div>
+            )}
+          </div>
+        )}
+        confirmText="Delete"
+        variant="danger"
+        loading={deleting}
+      />
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>

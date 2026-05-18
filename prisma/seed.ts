@@ -12,6 +12,7 @@
 import "dotenv/config"
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
+import { EMAIL_EVENTS } from "../src/lib/email-events"
 
 const prisma = new PrismaClient()
 
@@ -50,17 +51,42 @@ async function main() {
   ])
   console.log("  ✓ Divisions & Departments")
 
-  // ── Leave Types ──────────────────────────────────────────────────────────────
+  // ── Leave Types (DSN policy) ────────────────────────────────────────────────
+  // All re-seeds also refresh the policy fields so existing rows can't drift.
+  const leavePolicy = {
+    annual:        { name: "Annual Leave",        description: "Standard annual leave",                                          defaultDays: 10, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    sick:          { name: "Sick Leave",          description: "Medical leave — align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    compassionate: { name: "Compassionate Leave", description: "Bereavement / family emergency — align with your Project Lead.", defaultDays: 5,  minNoticeDays: 0,  requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    maternity:     { name: "Maternity Leave",     description: "Maternity leave for expectant mothers.",                         defaultDays: 90, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: "FEMALE" as const, excludeWeekends: true,  isActive: true },
+    paternity:     { name: "Paternity Leave",     description: "Paternity leave for new fathers.",                               defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: "MALE" as const,   excludeWeekends: true,  isActive: true },
+    casual:        { name: "Casual Leave",        description: "Casual leave (interns only).",                                   defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: true,  deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    study:         { name: "Study Leave",         description: "Educational leave — deducted from your Annual Leave allocation.", defaultDays: 0,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: true,  genderSpecific: null,     excludeWeekends: true,  isActive: true },
+  }
+
+  await Promise.all(Object.values(leavePolicy).map(p =>
+    prisma.leaveType.upsert({
+      where:  { name: p.name },
+      update: p,
+      create: p,
+    })
+  ))
+
+  // Soft-disable any legacy types that DSN no longer offers
+  await prisma.leaveType.updateMany({
+    where: { name: { in: ["Work From Home"] } },
+    data:  { isActive: false },
+  })
+
+  console.log("  ✓ Leave Types (7 active per DSN policy; Work From Home soft-disabled)")
+
+  // ── Request Document Types (starter set; admins can add more from the UI) ────
   await Promise.all([
-    prisma.leaveType.upsert({ where: { name: "Annual Leave" },    update: {}, create: { name: "Annual Leave",    description: "Standard annual leave",              defaultDays: 21, waitingDays: 7, excludeWeekends: true } }),
-    prisma.leaveType.upsert({ where: { name: "Sick Leave" },      update: {}, create: { name: "Sick Leave",      description: "Medical leave",                      defaultDays: 14, requiresDoc: true, minDocDays: 2 } }),
-    prisma.leaveType.upsert({ where: { name: "Maternity Leave" }, update: {}, create: { name: "Maternity Leave", description: "Maternity leave for new mothers",     defaultDays: 90, genderSpecific: "FEMALE", waitingDays: 14 } }),
-    prisma.leaveType.upsert({ where: { name: "Paternity Leave" }, update: {}, create: { name: "Paternity Leave", description: "Paternity leave for new fathers",     defaultDays: 5,  genderSpecific: "MALE" } }),
-    prisma.leaveType.upsert({ where: { name: "Casual Leave" },    update: {}, create: { name: "Casual Leave",    description: "Short casual leave",                 defaultDays: 5 } }),
-    prisma.leaveType.upsert({ where: { name: "Work From Home" },  update: {}, create: { name: "Work From Home",  description: "Remote work days",                   defaultDays: 12 } }),
-    prisma.leaveType.upsert({ where: { name: "Study Leave" },     update: {}, create: { name: "Study Leave",     description: "Educational leave",                  defaultDays: 5, waitingDays: 14 } }),
+    prisma.requestDocumentType.upsert({ where: { name: "Employment Confirmation Letter" }, update: {}, create: { name: "Employment Confirmation Letter" } }),
+    prisma.requestDocumentType.upsert({ where: { name: "Experience Letter" },              update: {}, create: { name: "Experience Letter" } }),
+    prisma.requestDocumentType.upsert({ where: { name: "NOC Letter" },                     update: {}, create: { name: "NOC Letter" } }),
+    prisma.requestDocumentType.upsert({ where: { name: "Other" },                          update: {}, create: { name: "Other" } }),
   ])
-  console.log("  ✓ Leave Types")
+  console.log("  ✓ Request Document Types")
 
   // ── Public Holidays (Nigeria 2026) ───────────────────────────────────────────
   const year = 2026
@@ -117,15 +143,11 @@ async function main() {
       permissions: {
         canViewAllEmployees: true, canCreateEmployee: true, canEditEmployee: true, canDeleteEmployee: true, canApproveEmployee: true,
         canViewOffers: true, canManageOffers: true, canViewOrgChart: true,
-        canViewCustomGroups: true, canManageCustomGroups: true, canViewCompensation: true,
+        canViewCustomGroups: true, canManageCustomGroups: true,
         canViewPersonalDetails: true, canManageProfileRequests: true, canViewPersonalDocuments: true,
         canManageDepartments: true, canViewJobTitles: true, canManageJobTitles: true,
         canViewJobs: true, canCreateJob: true, canEditJob: true, canDeleteJob: true, canPostJob: true, canApproveJob: true, canViewApplicants: true, canManageHiringSettings: true,
         canViewAllLeave: true, canCreateLeave: true, canEditLeave: true, canDeleteLeave: true, canApproveLeave: true, canViewLeaveTypes: true, canManageLeaveTypes: true,
-        canViewLoans: true, canCreateLoan: true, canEditLoan: true, canDeleteLoan: true, canApproveLoan: true,
-        canViewSalaryAdvances: true, canCreateSalaryAdvance: true, canEditSalaryAdvance: true, canDeleteSalaryAdvance: true, canApproveSalaryAdvance: true,
-        canViewExitRequests: true, canCreateExitRequest: true, canEditExitRequest: true, canDeleteExitRequest: true, canApproveExitRequest: true,
-        canViewRedeployments: true, canCreateRedeployment: true, canEditRedeployment: true, canDeleteRedeployment: true, canApproveRedeployment: true,
         canViewSurveys: true, canCreateSurvey: true, canEditSurvey: true, canDeleteSurvey: true,
         canViewDocuments: true, canManageDocuments: true, canRecallDocuments: true, canDeleteDocuments: true, canMakeOffers: true, canManageOfferTemplates: true,
         canViewBenefits: true, canManageBenefits: true,
@@ -137,6 +159,7 @@ async function main() {
         canViewAssets: true, canCreateAsset: true, canEditAsset: true, canDeleteAsset: true, canManageAssetAssignments: true,
         canViewContractors: true, canManageContractors: true,
         canViewRentDocuments: true, canManageRentDocuments: true,
+        canViewInternReports: true, canReviewInternReports: true, canFillAttendance: true,
         canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
         canViewAuditLog: true,
         canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true, canManageCustomization: true,
@@ -150,19 +173,18 @@ async function main() {
       permissions: {
         canViewAllEmployees: true, canCreateEmployee: true, canEditEmployee: true, canDeleteEmployee: true, canApproveEmployee: true,
         canViewOffers: true, canManageOffers: true, canViewOrgChart: true,
-        canViewCustomGroups: true, canManageCustomGroups: true, canViewCompensation: true,
+        canViewCustomGroups: true, canManageCustomGroups: true,
         canViewPersonalDetails: true, canManageProfileRequests: true, canViewPersonalDocuments: true,
         canManageDepartments: true, canViewJobTitles: true, canManageJobTitles: true,
         canViewJobs: true, canCreateJob: true, canEditJob: true, canDeleteJob: true, canPostJob: true, canApproveJob: true, canViewApplicants: true, canManageHiringSettings: true,
         canViewAllLeave: true, canCreateLeave: true, canEditLeave: true, canDeleteLeave: true, canApproveLeave: true, canViewLeaveTypes: true, canManageLeaveTypes: true,
-        canViewExitRequests: true, canCreateExitRequest: true, canEditExitRequest: true, canDeleteExitRequest: true, canApproveExitRequest: true,
-        canViewRedeployments: true, canCreateRedeployment: true, canEditRedeployment: true, canDeleteRedeployment: true, canApproveRedeployment: true,
         canViewSurveys: true, canCreateSurvey: true, canEditSurvey: true, canDeleteSurvey: true,
         canViewDocuments: true, canManageDocuments: true, canRecallDocuments: true, canDeleteDocuments: true, canMakeOffers: true, canManageOfferTemplates: true,
         canViewBenefits: true, canManageBenefits: true,
         canViewDisciplinary: true, canManageViolations: true, canManagePolicies: true, canManageViolationTypes: true, canManageTriggers: true, canViewSuspensions: true, canManageSuspensions: true,
         canViewAnnouncements: true, canCreateAnnouncement: true, canEditAnnouncement: true, canDeleteAnnouncement: true, canManageAnnouncementGroups: true,
         canViewContractors: true, canManageContractors: true,
+        canViewInternReports: true, canReviewInternReports: true, canFillAttendance: true,
         canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
         canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true,
       },
@@ -184,16 +206,6 @@ async function main() {
       permissions: {
         canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true,
         canViewBenefits: true, canManageBenefits: true,
-      },
-    },
-    {
-      slug: "loans-admin",
-      name: "Loans, Salary Advance and Tax Relief Admin",
-      description: "Loan requests and salary advance management.",
-      permissions: {
-        canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true, canViewCompensation: true,
-        canViewLoans: true, canCreateLoan: true, canEditLoan: true, canDeleteLoan: true, canApproveLoan: true,
-        canViewSalaryAdvances: true, canCreateSalaryAdvance: true, canEditSalaryAdvance: true, canDeleteSalaryAdvance: true, canApproveSalaryAdvance: true,
       },
     },
     {
@@ -241,11 +253,99 @@ async function main() {
   for (const r of SYSTEM_ROLES) {
     await prisma.adminRole.upsert({
       where:  { slug: r.slug },
-      update: { name: r.name, description: r.description },
+      update: { name: r.name, description: r.description, permissions: r.permissions },
       create: { slug: r.slug, name: r.name, description: r.description, isSystem: true, permissions: r.permissions },
     })
   }
   console.log(`  ✓ ${SYSTEM_ROLES.length} system admin roles seeded`)
+
+  // ── Job Titles ────────────────────────────────────────────────────────────────
+  const JOB_TITLES = [
+    // Leadership & Executive
+    "CEO/Founder",
+    "Chief Finance Officer",
+    "Executive Director, Talent & Process",
+    "Director, AI Solutions Delivery",
+    // Technology & Engineering
+    "AI/DPI Lead",
+    "Data Analyst",
+    "Data Analyst/Geospatial Lead",
+    "Data Analyst/ML Engineer",
+    "EqualyzAI AI Solutions",
+    "Enterprise Technical Solutions/Products Consultant",
+    "Northern Nigeria Technical Project Lead",
+    "Quality Assurance Engineer",
+    "Senior Quality Assurance Engineer",
+    "Software Analyst",
+    "System Support Analyst",
+    "System Support/Admin Analyst",
+    "Technical Delivery (Consultant) Lead",
+    "Technical Delivery (Solutions and Training) Lead",
+    "UI/UX Designer",
+    "UI/UX Designer (Associate)",
+    // Programs & Delivery
+    "Business Development Lead",
+    "Community Project Analyst",
+    "Product Lead",
+    "Program Manager",
+    "Programe Assistant",
+    "Project Analyst",
+    "Project Assistant",
+    "Project Data Analyst",
+    "Project/Delivery Coordinator",
+    // Creative & Brand
+    "Brand Analyst",
+    "Content Creator and Social Media Manager",
+    "Creative Analyst",
+    // Operations & Administration
+    "Admin/Executive Assistant",
+    "Finance Officer",
+    "HR Analyst",
+    "Legal/Administrative Lead",
+    // Interns
+    "Admin Intern",
+    "Finance Intern",
+    "Legal Intern",
+    "Intern",
+  ]
+  await prisma.jobTitle.createMany({
+    data: JOB_TITLES.map(name => ({ name })),
+    skipDuplicates: true,
+  })
+  console.log(`  ✓ ${JOB_TITLES.length} job titles seeded`)
+
+  // ── Email Settings (disabled by default until email is configured) ──────────
+  await prisma.emailSettings.upsert({
+    where: { id: "singleton" },
+    update: {},
+    create: {
+      id: "singleton",
+      enabled: false,
+      fromName: "DSN HRMS",
+      fromEmail: "noreply@hrms.dsnsandbox.com",
+      eventToggles: {},
+    },
+  })
+  console.log("  ✓ Email settings (defaults, disabled until configured)")
+
+  // ── Email Templates (seed defaults, inactive by default until email is configured) ──
+  let templateCount = 0
+  for (const [eventKey, def] of Object.entries(EMAIL_EVENTS)) {
+    await prisma.emailTemplate.upsert({
+      where: { eventKey },
+      update: {}, // never overwrite customised templates
+      create: {
+        eventKey,
+        name: def.name,
+        subject: def.defaultSubject,
+        body: def.defaultBody,
+        variables: def.variables,
+        isActive: true,
+      },
+    })
+    templateCount++
+  }
+  console.log(`  ✓ ${templateCount} email templates seeded (defaults, isActive=true)`)
 
   // Resolve IDs for elevation assignments in demo data
   const hrAdminRole = await prisma.adminRole.findUnique({ where: { slug: "hr-admin" } })
@@ -287,7 +387,7 @@ async function main() {
     const emp = await prisma.employee.upsert({
       where: { userId: u.id },
       update: { dateOfBirth: new Date(s.dob) },
-      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: s.salary, gender: s.gender as any, dateOfBirth: new Date(s.dob) },
+      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), gender: s.gender as any, dateOfBirth: new Date(s.dob) },
     })
     demoEmpIds[s.email] = emp.id
     if (s.elevate && hrAdminRole) {
@@ -316,7 +416,7 @@ async function main() {
     const emp = await prisma.employee.upsert({
       where: { userId: u.id },
       update: { dateOfBirth: new Date(pl.dob) },
-      create: { userId: u.id, employeeId: pl.empId, firstName: pl.fn, lastName: pl.ln, jobTitle: pl.title, departmentId: pl.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), grossSalary: pl.salary, gender: pl.gender as any, dateOfBirth: new Date(pl.dob) },
+      create: { userId: u.id, employeeId: pl.empId, firstName: pl.fn, lastName: pl.ln, jobTitle: pl.title, departmentId: pl.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), gender: pl.gender as any, dateOfBirth: new Date(pl.dob) },
     })
     demoPLEmpIds[pl.email] = emp.id
     // Assign departments
@@ -332,18 +432,18 @@ async function main() {
 
   // 12 sample employees
   const samples = [
-    { name: "Emeka Okonkwo",   email: "emeka.okonkwo@datasciencenigeria.ai",   gender: "MALE",   title: "Senior Data Scientist",       dept: equalyzai!.id,        type: "FULL_TIME", hire: "2022-05-10", dob: "1990-05-14", cat: "TECHNICAL",     salary: 600000, role: "STAFF", elevate: true },
-    { name: "Fatima Musa",     email: "fatima.musa@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Analyst",                dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-01-15", dob: "1996-06-02", cat: "TECHNICAL",     salary: 420000, role: "STAFF", elevate: false },
-    { name: "Chidi Nwosu",     email: "chidi.nwosu@datasciencenigeria.ai",     gender: "MALE",   title: "Software Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-08-22", dob: "1993-08-30", cat: "TECHNICAL",     salary: 480000, role: "STAFF", elevate: true },
-    { name: "Ngozi Eze",       email: "ngozi.eze@datasciencenigeria.ai",       gender: "FEMALE", title: "Product Designer",            dept: productDesign!.id,    type: "FULL_TIME", hire: "2023-03-01", dob: "1994-07-19", cat: "NON_TECHNICAL", salary: 550000, role: "STAFF", elevate: true },
-    { name: "Tunde Adeyemi",   email: "tunde.adeyemi@datasciencenigeria.ai",   gender: "MALE",   title: "Programs Lead",               dept: solutionDelivery!.id, type: "FULL_TIME", hire: "2021-11-05", dob: "1988-04-25", cat: "NON_TECHNICAL", salary: 520000, role: "STAFF", elevate: true },
-    { name: "Blessing Okafor", email: "blessing.okafor@datasciencenigeria.ai", gender: "FEMALE", title: "Brand & Comms Manager",       dept: brandComms!.id,       type: "FULL_TIME", hire: "2022-02-14", dob: "1991-05-08", cat: "NON_TECHNICAL", salary: 480000, role: "STAFF", elevate: true },
-    { name: "Ibrahim Sule",    email: "ibrahim.sule@datasciencenigeria.ai",    gender: "MALE",   title: "Finance Officer",             dept: finance!.id,          type: "FULL_TIME", hire: "2022-07-18", dob: "1992-06-17", cat: "NON_TECHNICAL", salary: 400000, role: "STAFF", elevate: false },
-    { name: "Aisha Garba",     email: "aisha.garba@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Engineer",               dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-06-01", dob: "1997-05-21", cat: "TECHNICAL",     salary: 450000, role: "STAFF", elevate: false },
-    { name: "Kelechi Ibe",     email: "kelechi.ibe@datasciencenigeria.ai",     gender: "MALE",   title: "Frontend Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2023-09-11", dob: "1998-07-03", cat: "TECHNICAL",     salary: 380000, role: "STAFF", elevate: false },
-    { name: "Zainab Hassan",   email: "zainab.hassan@datasciencenigeria.ai",   gender: "FEMALE", title: "Data Science Intern",         dept: equalyzai!.id,        type: "INTERN",    hire: "2024-01-08", dob: "2001-06-11", cat: "TECHNICAL",     salary: 120000, role: "STAFF", elevate: false },
-    { name: "Olumide Adewale", email: "olumide.adewale@datasciencenigeria.ai", gender: "MALE",   title: "Backend Engineer",            dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-04-20", dob: "1993-04-28", cat: "TECHNICAL",     salary: 460000, role: "STAFF", elevate: false },
-    { name: "Grace Okeke",     email: "grace.okeke@datasciencenigeria.ai",     gender: "FEMALE", title: "Business Development Officer",dept: bizDev!.id,           type: "CONTRACT",  hire: "2023-11-01", dob: "1995-05-30", cat: "NON_TECHNICAL", salary: 350000, role: "STAFF", elevate: false },
+    { name: "Emeka Okonkwo",   email: "emeka.okonkwo@datasciencenigeria.ai",   gender: "MALE",   title: "Senior Data Scientist",       dept: equalyzai!.id,        type: "FULL_TIME", hire: "2022-05-10", dob: "1990-05-14", role: "STAFF", elevate: true },
+    { name: "Fatima Musa",     email: "fatima.musa@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Analyst",                dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-01-15", dob: "1996-06-02", role: "STAFF", elevate: false },
+    { name: "Chidi Nwosu",     email: "chidi.nwosu@datasciencenigeria.ai",     gender: "MALE",   title: "Software Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-08-22", dob: "1993-08-30", role: "STAFF", elevate: true },
+    { name: "Ngozi Eze",       email: "ngozi.eze@datasciencenigeria.ai",       gender: "FEMALE", title: "Product Designer",            dept: productDesign!.id,    type: "FULL_TIME", hire: "2023-03-01", dob: "1994-07-19", role: "STAFF", elevate: true },
+    { name: "Tunde Adeyemi",   email: "tunde.adeyemi@datasciencenigeria.ai",   gender: "MALE",   title: "Programs Lead",               dept: solutionDelivery!.id, type: "FULL_TIME", hire: "2021-11-05", dob: "1988-04-25", role: "STAFF", elevate: true },
+    { name: "Blessing Okafor", email: "blessing.okafor@datasciencenigeria.ai", gender: "FEMALE", title: "Brand & Comms Manager",       dept: brandComms!.id,       type: "FULL_TIME", hire: "2022-02-14", dob: "1991-05-08", role: "STAFF", elevate: true },
+    { name: "Ibrahim Sule",    email: "ibrahim.sule@datasciencenigeria.ai",    gender: "MALE",   title: "Finance Officer",             dept: finance!.id,          type: "FULL_TIME", hire: "2022-07-18", dob: "1992-06-17", role: "STAFF", elevate: false },
+    { name: "Aisha Garba",     email: "aisha.garba@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Engineer",               dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-06-01", dob: "1997-05-21", role: "STAFF", elevate: false },
+    { name: "Kelechi Ibe",     email: "kelechi.ibe@datasciencenigeria.ai",     gender: "MALE",   title: "Frontend Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2023-09-11", dob: "1998-07-03", role: "STAFF", elevate: false },
+    { name: "Zainab Hassan",   email: "zainab.hassan@datasciencenigeria.ai",   gender: "FEMALE", title: "Data Science Intern",         dept: equalyzai!.id,        type: "INTERN",    hire: "2024-01-08", dob: "2001-06-11", role: "STAFF", elevate: false },
+    { name: "Olumide Adewale", email: "olumide.adewale@datasciencenigeria.ai", gender: "MALE",   title: "Backend Engineer",            dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-04-20", dob: "1993-04-28", role: "STAFF", elevate: false },
+    { name: "Grace Okeke",     email: "grace.okeke@datasciencenigeria.ai",     gender: "FEMALE", title: "Business Development Officer",dept: bizDev!.id,           type: "CONTRACT",  hire: "2023-11-01", dob: "1995-05-30", role: "STAFF", elevate: false },
   ]
 
   const defaultPwd = hash("dsn-staff")
@@ -362,13 +462,13 @@ async function main() {
     const existingEmp = await prisma.employee.findFirst({ where: { userId: u.id } })
     let emp: any
     if (existingEmp) {
-      emp = await prisma.employee.update({ where: { id: existingEmp.id }, data: { category: s.cat as any, grossSalary: s.salary, jobTitle: s.title, departmentId: s.dept, dateOfBirth: new Date(s.dob) } })
+      emp = await prisma.employee.update({ where: { id: existingEmp.id }, data: { jobTitle: s.title, departmentId: s.dept, dateOfBirth: new Date(s.dob) } })
     } else {
       counter++
       emp = await prisma.employee.upsert({
         where: { userId: u.id },
-        update: { category: s.cat as any, grossSalary: s.salary, dateOfBirth: new Date(s.dob) },
-        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, category: s.cat as any, grossSalary: s.salary, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
+        update: { dateOfBirth: new Date(s.dob) },
+        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
       })
     }
     empRecords[s.email] = emp
@@ -391,7 +491,6 @@ async function main() {
   // Manager / dept lead relationships
   const emeka = empRecords["emeka.okonkwo@datasciencenigeria.ai"]
   const chidi = empRecords["chidi.nwosu@datasciencenigeria.ai"]
-  const tunde = empRecords["tunde.adeyemi@datasciencenigeria.ai"]
   const blessing = empRecords["blessing.okafor@datasciencenigeria.ai"]
   await Promise.all([
     prisma.employee.update({ where: { id: empRecords["fatima.musa@datasciencenigeria.ai"]?.id },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
@@ -401,6 +500,30 @@ async function main() {
     prisma.employee.update({ where: { id: empRecords["olumide.adewale@datasciencenigeria.ai"]?.id },data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
     prisma.employee.update({ where: { id: empRecords["grace.okeke@datasciencenigeria.ai"]?.id },    data: { managerId: blessing?.id } }),
   ])
+
+  // Backfill EmployeeDepartment junction rows for everyone with a primary departmentId
+  const allEmployeesWithDept = await prisma.employee.findMany({
+    where: { departmentId: { not: null } },
+    select: { id: true, departmentId: true },
+  })
+  for (const e of allEmployeesWithDept) {
+    if (!e.departmentId) continue
+    await prisma.employeeDepartment.upsert({
+      where: { employeeId_departmentId: { employeeId: e.id, departmentId: e.departmentId } },
+      update: { isPrimary: true },
+      create: { employeeId: e.id, departmentId: e.departmentId, isPrimary: true },
+    })
+  }
+  console.log(`  ✓ EmployeeDepartment backfill (${allEmployeesWithDept.length} rows)`)
+
+  // Department leads — point each demo dept at the right PL
+  const lead1Emp = demoPLEmpIds["lead1@dsn-hrms.com"]
+  const lead2Emp = demoPLEmpIds["lead2@dsn-hrms.com"]
+  if (equalyzai && lead1Emp)        await prisma.department.update({ where: { id: equalyzai.id },        data: { leadEmployeeId: lead1Emp } })
+  if (techDelivery && lead1Emp)     await prisma.department.update({ where: { id: techDelivery.id },     data: { leadEmployeeId: lead1Emp } })
+  if (adminFacility && lead2Emp)    await prisma.department.update({ where: { id: adminFacility.id },    data: { leadEmployeeId: lead2Emp } })
+  if (finance && lead2Emp)          await prisma.department.update({ where: { id: finance.id },          data: { leadEmployeeId: lead2Emp } })
+  console.log("  ✓ Department leads assigned")
 
   // Projects
   const projectDefs = [
@@ -457,27 +580,14 @@ async function main() {
   }
   console.log("  ✓ Leave balances")
 
-  // Payslips (Jan–Mar 2026)
-  const forPay = samples.map(s => ({ emp: empRecords[s.email], salary: s.salary })).filter(e => e.emp)
-  for (const { emp, salary } of forPay) {
-    const basic = salary * 0.5; const housing = salary * 0.2; const transport = salary * 0.1; const meal = salary * 0.05
-    const pension = Math.round(basic * 0.08); const nhf = Math.round(basic * 0.025); const paye = Math.round(Math.max(0, (salary - 200000) * 0.07))
-    const net = Math.round(salary - pension - nhf - paye - 15000)
-    for (const month of [1, 2, 3]) {
-      const ex = await prisma.payslip.findUnique({ where: { employeeId_month_year: { employeeId: emp.id, month, year: 2026 } } })
-      if (!ex) await prisma.payslip.create({ data: { employeeId: emp.id, month, year: 2026, grossSalary: salary, basicSalary: basic, housing, transport, meal, otherAllowances: 0, payeTax: paye, pension, nhf, healthInsurance: 15000, otherDeductions: 0, netPay: net, status: "RELEASED", releasedAt: new Date(`2026-0${month}-28`) } })
-    }
-  }
-  console.log("  ✓ Payslips")
-
   // Announcements
   const superAdminUser = await prisma.user.findUnique({ where: { email: "hr@datasciencenigeria.ai" }, select: { id: true } })
   const annDefs = [
     { title: "Welcome to DSN HRMS",              body: "We're excited to launch the new DSN HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
-    { title: "Q2 2026 Leave Reminder",           body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF"] as string[] },
+    { title: "Q2 2026 Leave Reminder",           body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
     { title: "Performance Review Cycle Open",    body: "The Q1 2026 performance review cycle is now open. All employees should complete their self-assessment by April 30, 2026.", behavior: "DASHBOARD_SCROLL" as const, targetRoles: [] as string[] },
     { title: "Public Holiday Notice — Workers' Day", body: "May 1, 2026 (Workers' Day) is a public holiday. All offices will be closed.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: [] as string[] },
-    { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF"] as string[] },
+    { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
   ]
   if (superAdminUser) {
     for (const ann of annDefs) {
@@ -509,8 +619,6 @@ async function main() {
         zipCode:      "11011",
         phone:        "08140000853",
         email:        "info@datasciencenigeria.ai",
-        isFiling:     true,
-        isMailing:    true,
         isActive:     true,
       },
     })

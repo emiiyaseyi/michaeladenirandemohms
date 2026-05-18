@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Search, X } from "lucide-react"
+import { ArrowLeft, Search } from "lucide-react"
 
 const inp: React.CSSProperties = {
   width: "100%", padding: "10px 14px", border: "1px solid var(--border)",

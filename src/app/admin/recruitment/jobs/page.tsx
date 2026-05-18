@@ -132,8 +132,8 @@ export default function JobsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 12, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, gap: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 12, rowGap: 16, flexWrap: "wrap" }}>
           <div style={{ position: "relative" }}>
             <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--muted-foreground)" }} />
             <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search jobs…"

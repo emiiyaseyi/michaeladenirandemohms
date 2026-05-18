@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     orderBy: { firstName: "asc" },
   })
 
-  const headers = ["employeeId", "firstName", "lastName", "email", "jobTitle", "departmentName", "employmentType", "category", "grossSalary", "hireDate", "employeeStatus"]
+  const headers = ["employeeId", "firstName", "lastName", "email", "jobTitle", "departmentName", "employmentType", "hireDate", "employeeStatus"]
   const rows = employees.map(e => [
     e.employeeId,
     e.firstName,
@@ -51,8 +51,6 @@ export async function GET(req: NextRequest) {
     e.jobTitle ?? "",
     (e.department as any)?.name ?? "",
     e.employmentType,
-    e.category,
-    e.grossSalary ?? "",
     e.hireDate ? format(e.hireDate, "yyyy-MM-dd") : "",
     e.employeeStatus,
   ])
@@ -87,7 +85,7 @@ export async function POST(req: NextRequest) {
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]
-    const { employeeId, jobTitle, departmentName, employmentType, category, grossSalary, hireDate } = row
+    const { employeeId, jobTitle, departmentName, employmentType, hireDate } = row
 
     if (!employeeId?.trim()) {
       results.push({ row: i + 2, status: "skipped", error: "Missing employeeId" })
@@ -108,8 +106,6 @@ export async function POST(req: NextRequest) {
       if (jobTitle?.trim()) updateData.jobTitle = jobTitle.trim()
       if (deptId !== emp.departmentId) updateData.departmentId = deptId
       if (employmentType?.trim()) updateData.employmentType = employmentType.trim()
-      if (category?.trim()) updateData.category = category.trim()
-      if (grossSalary?.trim()) updateData.grossSalary = parseFloat(grossSalary.trim()) || null
       if (hireDate?.trim()) updateData.hireDate = new Date(hireDate.trim())
 
       if (Object.keys(updateData).length > 0) {
