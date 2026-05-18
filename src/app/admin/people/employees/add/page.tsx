@@ -141,7 +141,7 @@ export default function AddNewMemberPage() {
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
 
   // Invite mode state
-  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "" })
+  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "" })
   const [inviteSuccess, setInviteSuccess] = useState(false)
   const [inviteSaving, setInviteSaving] = useState(false)
   const [inviteErr, setInviteErr] = useState("")
@@ -289,12 +289,21 @@ export default function AddNewMemberPage() {
 
   if (onboardMode === "employee" && !inviteSuccess) {
     const submitInvite = async () => {
-      if (!inviteForm.firstName.trim() || !inviteForm.lastName.trim() || !inviteForm.email.trim() || !inviteForm.hireDate || !inviteForm.departmentId || !inviteForm.jobTitle) {
-        setInviteErr("First name, last name, email, hire date, department and job title are required"); return
+      if (!inviteForm.firstName.trim() || !inviteForm.lastName.trim() || !inviteForm.email.trim() || !inviteForm.hireDate || !inviteForm.departmentId || !inviteForm.jobTitle || !inviteForm.gender || !inviteForm.dateOfBirth) {
+        setInviteErr("All fields are required"); return
       }
       if (inviteEmailAvailable === false) { setInviteErr("This email is already in use"); return }
       setInviteSaving(true); setInviteErr("")
-      const r = await fetch("/api/employees", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...inviteForm, inviteMode: true }) })
+      const genderMap: Record<string, string> = { Male: "MALE", Female: "FEMALE" }
+      const r = await fetch("/api/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...inviteForm,
+          gender: genderMap[inviteForm.gender] ?? inviteForm.gender,
+          inviteMode: true,
+        }),
+      })
       const d = await r.json()
       setInviteSaving(false)
       if (!r.ok) { setInviteErr(d.error ?? "Failed to send invite"); return }
@@ -339,6 +348,15 @@ export default function AddNewMemberPage() {
                 onChange={v => setInviteForm(f => ({ ...f, jobTitle: v }))}
                 options={jobTitles.map(jt => ({ value: jt.name, label: jt.name }))}
                 placeholder="Select job title…" />
+              <Field label="Gender" required>
+                <select value={inviteForm.gender} onChange={setIF("gender")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                  <option value="">Select…</option>
+                  {GENDERS.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </Field>
+              <Field label="Date of Birth" required>
+                <input type="date" value={inviteForm.dateOfBirth} onChange={setIF("dateOfBirth")} max={maxDob} style={fi} />
+              </Field>
             </div>
             {inviteErr && <div style={{ margin: "0 32px 16px", padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{inviteErr}</div>}
             <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 12 }}>
@@ -367,7 +385,7 @@ export default function AddNewMemberPage() {
             An invitation email has been sent to <strong>{inviteForm.email}</strong>. They&apos;ll receive a link to complete their profile.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <button onClick={() => { setInviteForm({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "" }); setInviteSuccess(false) }}
+            <button onClick={() => { setInviteForm({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "" }); setInviteSuccess(false) }}
               style={{ padding: "10px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
               Invite Another
             </button>

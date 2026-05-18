@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
 import { X, Megaphone, ChevronLeft, ChevronRight, Volume2 } from "lucide-react"
 
 interface Announcement {
@@ -15,20 +16,23 @@ interface Announcement {
   publishedAt: string | null
 }
 
-const SEEN_KEY = "dsn_seen_announcements"
+// Per-user key so two users sharing the same browser don't inherit each other's dismissals.
+function seenKeyFor(userId: string): string {
+  return `dsn_seen_announcements:${userId}`
+}
 
-function getSeenIds(): Set<string> {
+function getSeenIds(userId: string): Set<string> {
   try {
-    const raw = localStorage.getItem(SEEN_KEY)
+    const raw = localStorage.getItem(seenKeyFor(userId))
     return new Set(raw ? JSON.parse(raw) : [])
   } catch { return new Set() }
 }
 
-function markSeen(id: string) {
+function markSeen(userId: string, id: string) {
   try {
-    const seen = getSeenIds()
+    const seen = getSeenIds(userId)
     seen.add(id)
-    localStorage.setItem(SEEN_KEY, JSON.stringify([...seen]))
+    localStorage.setItem(seenKeyFor(userId), JSON.stringify([...seen]))
   } catch {}
 }
 
@@ -49,7 +53,7 @@ function embedUrl(url: string): string | null {
 
 // ─── Popup ────────────────────────────────────────────────────────────────────
 
-function PopupAnnouncement({ items }: { items: Announcement[] }) {
+function PopupAnnouncement({ items, userId }: { items: Announcement[]; userId: string }) {
   const [idx, setIdx] = useState(0)
   const [open, setOpen] = useState(true)
 
@@ -57,7 +61,7 @@ function PopupAnnouncement({ items }: { items: Announcement[] }) {
   const item = items[idx]
 
   const close = () => {
-    items.forEach(a => markSeen(a.id))
+    items.forEach(a => markSeen(userId, a.id))
     setOpen(false)
   }
 
@@ -136,7 +140,7 @@ function PopupAnnouncement({ items }: { items: Announcement[] }) {
 
 // ─── Notification Bar ─────────────────────────────────────────────────────────
 
-function NotificationBarAnnouncement({ items }: { items: Announcement[] }) {
+function NotificationBarAnnouncement({ items, userId }: { items: Announcement[]; userId: string }) {
   const [idx, setIdx] = useState(0)
   const [dismissed, setDismissed] = useState(false)
 
@@ -167,7 +171,7 @@ function NotificationBarAnnouncement({ items }: { items: Announcement[] }) {
           ))}
         </div>
       )}
-      <button onClick={() => { items.forEach(a => markSeen(a.id)); setDismissed(true) }}
+      <button onClick={() => { items.forEach(a => markSeen(userId, a.id)); setDismissed(true) }}
         style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 4, padding: "3px 7px", cursor: "pointer", color: "white", display: "flex", alignItems: "center", flexShrink: 0 }}>
         <X size={12} />
       </button>
@@ -177,7 +181,7 @@ function NotificationBarAnnouncement({ items }: { items: Announcement[] }) {
 
 // ─── Dashboard Scroll Ticker ──────────────────────────────────────────────────
 
-export function DashboardScrollTicker({ items }: { items: Announcement[] }) {
+export function DashboardScrollTicker({ items, userId }: { items: Announcement[]; userId: string }) {
   const [dismissed, setDismissed] = useState(false)
 
   if (dismissed || items.length === 0) return null
@@ -206,7 +210,7 @@ export function DashboardScrollTicker({ items }: { items: Announcement[] }) {
           {text}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{text}
         </div>
       </div>
-      <button onClick={() => { items.forEach(a => markSeen(a.id)); setDismissed(true) }}
+      <button onClick={() => { items.forEach(a => markSeen(userId, a.id)); setDismissed(true) }}
         style={{ background: "none", border: "none", cursor: "pointer", color: "var(--primary)", flexShrink: 0, display: "flex", padding: 2 }}>
         <X size={13} />
       </button>
@@ -217,24 +221,27 @@ export function DashboardScrollTicker({ items }: { items: Announcement[] }) {
 // ─── Main renderer ────────────────────────────────────────────────────────────
 
 export default function AnnouncementRenderer({ userRole: _userRole }: { userRole: string }) {
+  const { data: session } = useSession()
+  const userId = (session?.user as any)?.id as string | undefined
+
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
+    if (!userId) return
     fetch("/api/announcements")
       .then(r => r.json())
       .then(d => {
         const all: Announcement[] = d.announcements ?? []
-        const seen = getSeenIds()
-        // Filter out already-seen announcements (respect once-per-session for popups)
+        const seen = getSeenIds(userId)
         const unseen = all.filter(a => !seen.has(a.id))
         setAnnouncements(unseen)
         setLoaded(true)
       })
       .catch(() => setLoaded(true))
-  }, [])
+  }, [userId])
 
-  if (!loaded) return null
+  if (!userId || !loaded) return null
 
   const popups = announcements.filter(a => a.behavior === "POPUP")
   const bars = announcements.filter(a => a.behavior === "NOTIFICATION_BAR")
@@ -243,8 +250,8 @@ export default function AnnouncementRenderer({ userRole: _userRole }: { userRole
 
   return (
     <div>
-      {bars.length > 0 && <NotificationBarAnnouncement items={bars} />}
-      {popups.length > 0 && <PopupAnnouncement items={popups} />}
+      {bars.length > 0 && <NotificationBarAnnouncement items={bars} userId={userId} />}
+      {popups.length > 0 && <PopupAnnouncement items={popups} userId={userId} />}
     </div>
   )
 }

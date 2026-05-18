@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Search, ChevronDown, Info } from "lucide-react"
 
 const inp: React.CSSProperties = {
@@ -100,10 +100,12 @@ function IntervalDropdown({ value, onChange }: { value: string; onChange: (v: st
 
 export default function AssignAssetPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const preselectedEmployeeId = searchParams.get("employeeId") ?? ""
   const [employees, setEmployees] = useState<any[]>([])
   const [assets, setAssets] = useState<any[]>([])
   const [form, setForm] = useState({
-    employeeId: "", assetId: "", assignedOn: "",
+    employeeId: preselectedEmployeeId, assetId: "", assignedOn: "",
     hasTenure: false as boolean | null,
     period: "", interval: "", note: "",
   })

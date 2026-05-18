@@ -14,7 +14,7 @@ export async function GET() {
   ])
 
   return NextResponse.json({
-    settings: settings ?? { id: "singleton", enabled: false, fromName: "DSN HRMS", fromEmail: "no-reply@datasciencenigeria.ai", eventToggles: {} },
+    settings: settings ?? { id: "singleton", enabled: false, fromName: "DSN HRMS", fromEmail: "noreply@hrms.dsnsandbox.com", eventToggles: {} },
     templates,
     eventDefs: EMAIL_EVENTS,
   })
@@ -41,7 +41,7 @@ export async function PATCH(req: NextRequest) {
       id: "singleton",
       enabled: enabled ?? false,
       fromName: fromName ?? "DSN HRMS",
-      fromEmail: fromEmail ?? "no-reply@datasciencenigeria.ai",
+      fromEmail: fromEmail ?? "noreply@hrms.dsnsandbox.com",
       eventToggles: eventToggles ?? {},
     },
   })

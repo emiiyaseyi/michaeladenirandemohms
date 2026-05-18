@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import PageHeader from "@/components/ui/PageHeader"
 import { addBusinessDays, format, parseISO, isWeekend } from "date-fns"
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -99,18 +100,25 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
   const [form, setForm] = useState({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", documentUrl: "", projectLeads: [] as PLEntry[] })
 
   const selType = leaveTypes.find(t => t.id === form.leaveTypeId)
-  const selBal = balances.find(b => b.leaveTypeId === form.leaveTypeId)
+  // If the selected type deducts from Annual Leave, surface the Annual Leave balance instead
+  const annualLeaveType = leaveTypes.find(t => t.name === "Annual Leave")
+  const balanceSourceTypeId = selType?.deductFromAnnual && annualLeaveType ? annualLeaveType.id : form.leaveTypeId
+  const selBal = balances.find(b => b.leaveTypeId === balanceSourceTypeId)
 
+  const applicantEmp: any = form.employeeId ? employees.find((e: any) => e.id === form.employeeId) : null
+  const applicantIsIntern = ((applicantEmp?.jobTitle as string) ?? "").toLowerCase().includes("intern")
   const visibleTypes = leaveTypes.filter(lt => {
+    if (lt.internOnly && !applicantIsIntern) return false
     if (!lt.genderSpecific) return true
-    const empGender = form.employeeId ? employees.find((e: any) => e.id === form.employeeId)?.gender : employeeGender
+    const empGender = applicantEmp?.gender ?? employeeGender
     if (!empGender) return true
     return lt.genderSpecific === empGender
   })
 
   const getMinDate = () => {
-    if (!selType?.waitingDays || isAdmin) return format(new Date(), "yyyy-MM-dd")
-    return format(addBusinessDays(new Date(), selType.waitingDays), "yyyy-MM-dd")
+    const notice = selType?.minNoticeDays ?? 0
+    if (notice <= 0 || isAdmin) return format(new Date(), "yyyy-MM-dd")
+    return format(addBusinessDays(new Date(), notice), "yyyy-MM-dd")
   }
 
   useEffect(() => {
@@ -246,8 +254,10 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
                       style={{ padding: "12px 14px", borderRadius: 10, border: `2px solid ${exhausted ? "var(--border)" : sel ? "var(--primary)" : "var(--border)"}`, background: exhausted ? "var(--muted)" : sel ? "var(--primary-50)" : "var(--background)", cursor: exhausted ? "not-allowed" : "pointer", textAlign: "left", transition: "all .15s", opacity: exhausted ? 0.6 : 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: exhausted ? "var(--muted-foreground)" : sel ? "var(--primary)" : "var(--foreground)" }}>{lt.name}</div>
                       {bal && <div style={{ fontSize: 11, color: exhausted ? "var(--accent)" : "var(--muted-foreground)", marginTop: 3, fontWeight: exhausted ? 700 : 400 }}>{exhausted ? "Balance exhausted" : `${bal.remaining} days remaining of ${lt.defaultDays}`}</div>}
-                      {lt.waitingDays > 0 && !isAdmin && !exhausted && <div style={{ fontSize: 10, color: "var(--warning)", marginTop: 3 }}>⚠ {lt.waitingDays} working days notice required</div>}
+                      {lt.minNoticeDays > 0 && !isAdmin && !exhausted && <div style={{ fontSize: 10, color: "var(--warning)", marginTop: 3 }}>⚠ {lt.minNoticeDays} working days notice required</div>}
                       {lt.genderSpecific && !exhausted && <div style={{ fontSize: 10, color: "var(--info)", marginTop: 2 }}>{lt.genderSpecific === "FEMALE" ? "Female staff only" : "Male staff only"}</div>}
+                      {lt.internOnly && !exhausted && <div style={{ fontSize: 10, color: "var(--info)", marginTop: 2 }}>Interns only</div>}
+                      {lt.deductFromAnnual && !exhausted && <div style={{ fontSize: 10, color: "var(--muted-foreground)", marginTop: 2 }}>Deducted from Annual Leave</div>}
                     </button>
                   )
                 })}
@@ -267,10 +277,10 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
                 <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>— {selBal.remaining} days available</span>
               </div>
             )}
-            {selType?.waitingDays > 0 && !isAdmin && (
+            {selType?.minNoticeDays > 0 && !isAdmin && (
               <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8 }}>
                 <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                This leave requires {selType.waitingDays} working days notice. The earliest start date is <strong style={{ marginLeft: 4 }}>{formatDate(getMinDate())}</strong>.
+                This leave requires {selType.minNoticeDays} working days notice. The earliest start date is <strong style={{ marginLeft: 4 }}>{formatDate(getMinDate())}</strong>.
               </div>
             )}
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
@@ -1435,33 +1445,33 @@ export default function LeavePage() {
   const totalPages = Math.max(1, Math.ceil(filteredRequests.length / PAGE_SIZE))
   const pagedRequests = filteredRequests.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
+  const headerActions = (
+    <>
+      {canCreateLeave && isInAdminPanel && (
+        <button onClick={() => router.push("/admin/requests/leave/record")}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+          <Plus size={13} /> Record Leave for an Employee
+        </button>
+      )}
+      {canSubmit && !isInAdminPanel && (
+        <button onClick={() => {
+          const base = pathname?.startsWith("/project-lead") ? "/project-lead" : "/staff"
+          router.push(`${base}/requests/leave/apply`)
+        }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+          <Plus size={13} /> Apply for Leave
+        </button>
+      )}
+    </>
+  )
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800 }}>Leave Management</h1>
-          <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>
-            {isAdmin ? "Manage all leave requests across the organisation" : "Your leave requests and team availability"}
-          </p>
-        </div>
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {canCreateLeave && isInAdminPanel && (
-            <button onClick={() => router.push("/admin/requests/leave/record")}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-              <Plus size={13} /> Record Leave for an Employee
-            </button>
-          )}
-          {canSubmit && !isInAdminPanel && (
-            <button onClick={() => {
-              const base = pathname?.startsWith("/project-lead") ? "/project-lead" : "/staff"
-              router.push(`${base}/requests/leave/apply`)
-            }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-              <Plus size={13} /> Apply for Leave
-            </button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        title="Leave Management"
+        subtitle={isAdmin ? "Manage all leave requests across the organisation" : "Your leave requests and team availability"}
+        icon={<CalendarDays size={22} />}
+        actions={headerActions}
+      />
 
       {/* Main navigation tabs */}
       <div style={{ display: "flex", gap: 0, borderBottom: "2px solid var(--border)" }}>

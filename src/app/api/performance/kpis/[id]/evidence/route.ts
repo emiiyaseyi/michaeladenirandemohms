@@ -31,12 +31,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "File too large (max 10 MB)" }, { status: 400 })
   }
 
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "kpi-evidence")
+  const uploadDir = path.join(process.cwd(), "private", "uploads", "kpi-evidence")
   await mkdir(uploadDir, { recursive: true })
-  const filename = `${Date.now()}_${user.id}.${ext}`
+  // Unguessable filename + private directory (gated via /api/files/[...path])
+  const filename = `${crypto.randomUUID()}.${ext}`
   await writeFile(path.join(uploadDir, filename), buffer)
 
-  const evidenceUrl = `/uploads/kpi-evidence/${filename}`
+  const evidenceUrl = `/api/files/kpi-evidence/${filename}`
   const updated = await prisma.kPI.update({ where: { id }, data: { evidenceUrl } })
 
   return NextResponse.json({ kpi: updated })

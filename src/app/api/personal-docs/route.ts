@@ -73,8 +73,10 @@ export async function POST(req: NextRequest) {
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const ext = file.name.split(".").pop() ?? "pdf"
-  const filename = `${empId}_${type}_${Date.now()}.${ext}`
-  const uploadDir = path.join(process.cwd(), "public", "uploads", "personal-docs")
+  // Unguessable filename + private directory (not web-served).
+  // Files are gated behind /api/files/[...path] with per-doc permission check.
+  const filename = `${crypto.randomUUID()}.${ext}`
+  const uploadDir = path.join(process.cwd(), "private", "uploads", "personal-docs")
   await mkdir(uploadDir, { recursive: true })
   await writeFile(path.join(uploadDir, filename), buffer)
 
@@ -85,7 +87,7 @@ export async function POST(req: NextRequest) {
     data: {
       employeeId: empId,
       type: type as any,
-      fileUrl: `/uploads/personal-docs/${filename}`,
+      fileUrl: `/api/files/personal-docs/${filename}`,
       fileName: file.name,
       notes: notes || null,
       status: "PENDING",

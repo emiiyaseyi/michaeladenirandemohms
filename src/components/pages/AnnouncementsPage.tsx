@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
+import PageHeader from "@/components/ui/PageHeader"
 import {
   Megaphone, Plus, Edit2, Trash2, Send, Archive,
   X, Loader2, AlertCircle, Check, Image, FileText,
@@ -326,15 +327,12 @@ export default function AnnouncementsPage() {
 
   return (
     <div style={{ maxWidth:1020, margin:"0 auto" }}>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:24, gap:16, flexWrap:"wrap" }}>
-        <div>
-          <h1 style={{ fontSize:22, fontWeight:800 }}>Announcements</h1>
-          <p style={{ color:"var(--muted-foreground)", marginTop:4, fontSize:13 }}>
-            {isAdmin ? "Create and manage announcements for all employees." : "Company announcements and updates."}
-          </p>
-        </div>
-        {canCreateAnnouncement && <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Announcement</Button>}
-      </div>
+      <PageHeader
+        title="Announcements"
+        subtitle={isAdmin ? "Create and manage announcements for all employees." : "Company announcements and updates."}
+        icon={<Megaphone size={22} />}
+        actions={canCreateAnnouncement ? <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Announcement</Button> : undefined}
+      />
 
       {/* Status filter tabs */}
       {isAdmin && (

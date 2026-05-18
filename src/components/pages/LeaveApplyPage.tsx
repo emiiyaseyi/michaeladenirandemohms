@@ -96,6 +96,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
   const [projectLeadEmployees, setProjectLeadEmployees] = useState<any[]>([])
   const [balances, setBalances] = useState<any[]>([])
   const [employeeGender, setEmployeeGender] = useState<string>("")
+  const [employeeJobTitle, setEmployeeJobTitle] = useState<string>("")
   const [currentUserEmployeeId, setCurrentUserEmployeeId] = useState<string>("")
   const [loading, setLoading] = useState(true)
 
@@ -131,6 +132,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
       setProjectLeadEmployees(ld.projectLeadEmployees ?? [])
       if (pd) setBalances(pd.leaveBalances ?? [])
       if (empRaw?.employee?.gender) setEmployeeGender(empRaw.employee.gender)
+      if (empRaw?.employee?.jobTitle) setEmployeeJobTitle(empRaw.employee.jobTitle)
       if (empRaw?.employee?.id) setCurrentUserEmployeeId(empRaw.employee.id)
     }).finally(() => setLoading(false))
   }, [])
@@ -154,19 +156,34 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   const selType = leaveTypes.find(t => t.id === form.leaveTypeId)
-  const selBal = balances.find(b => b.leaveTypeId === form.leaveTypeId)
+  // If the selected type deducts from Annual Leave, surface the Annual Leave balance instead
+  const annualLeaveType = leaveTypes.find(t => t.name === "Annual Leave")
+  const balanceSourceTypeId = selType?.deductFromAnnual && annualLeaveType ? annualLeaveType.id : form.leaveTypeId
+  const selBal = balances.find(b => b.leaveTypeId === balanceSourceTypeId)
   const applicantId = form.employeeId || currentUserEmployeeId
 
+  // Resolve the applicant's gender + jobTitle to filter what they can apply for.
+  // When admin is applying on behalf of someone else, use that employee's data.
+  const applicantEmp: any = form.employeeId ? employees.find((e: any) => e.id === form.employeeId) : null
+  const applicantGender = applicantEmp?.gender ?? employeeGender
+  const applicantJobTitle: string = applicantEmp?.jobTitle ?? employeeJobTitle
+  const applicantIsIntern = (applicantJobTitle ?? "").toLowerCase().includes("intern")
+
   const visibleTypes = leaveTypes.filter(lt => {
+    // Hide intern-only types from non-interns. Admin override doesn't apply —
+    // the API enforces this server-side too, so even an admin acting on behalf
+    // of a non-intern can't apply for an intern-only type for them.
+    if (lt.internOnly && !applicantIsIntern) return false
+    // Gender filter
     if (!lt.genderSpecific) return true
-    const empGender = form.employeeId ? employees.find((e: any) => e.id === form.employeeId)?.gender : employeeGender
-    if (!empGender) return true
-    return lt.genderSpecific === empGender
+    if (!applicantGender) return true
+    return lt.genderSpecific === applicantGender
   })
 
   const getMinDate = () => {
-    if (!selType?.waitingDays || isAdmin) return format(new Date(), "yyyy-MM-dd")
-    return format(addBusinessDays(new Date(), selType.waitingDays), "yyyy-MM-dd")
+    const notice = selType?.minNoticeDays ?? 0
+    if (notice <= 0 || isAdmin) return format(new Date(), "yyyy-MM-dd")
+    return format(addBusinessDays(new Date(), notice), "yyyy-MM-dd")
   }
 
   const selectedPLIds = form.projectLeads.map(p => p.employeeId)
@@ -369,13 +386,19 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                                 {exhausted && <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)" }}>Balance exhausted</div>}
 
                                 {/* Tags */}
-                                {(lt.waitingDays > 0 && !isAdmin && !exhausted) || (lt.genderSpecific && !exhausted) ? (
+                                {(lt.minNoticeDays > 0 && !isAdmin && !exhausted) || (lt.genderSpecific && !exhausted) || lt.deductFromAnnual || lt.internOnly ? (
                                   <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-                                    {lt.waitingDays > 0 && !isAdmin && !exhausted && (
-                                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: "rgba(234,179,8,0.12)", color: "var(--warning)" }}>{lt.waitingDays}d notice</span>
+                                    {lt.minNoticeDays > 0 && !isAdmin && !exhausted && (
+                                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: "rgba(234,179,8,0.12)", color: "var(--warning)" }}>{lt.minNoticeDays}d notice</span>
                                     )}
                                     {lt.genderSpecific && !exhausted && (
                                       <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: "var(--muted)", color: "var(--muted-foreground)" }}>{lt.genderSpecific === "FEMALE" ? "Female only" : "Male only"}</span>
+                                    )}
+                                    {lt.internOnly && (
+                                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: "var(--info-bg)", color: "var(--info)" }}>Interns only</span>
+                                    )}
+                                    {lt.deductFromAnnual && (
+                                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: "var(--muted)", color: "var(--muted-foreground)" }}>From Annual Leave</span>
                                     )}
                                   </div>
                                 ) : null}
@@ -398,10 +421,10 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                           <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>— {selBal.remaining} days available</span>
                         </div>
                       )}
-                      {selType?.waitingDays > 0 && !isAdmin && (
+                      {selType?.minNoticeDays > 0 && !isAdmin && (
                         <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8 }}>
                           <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-                          This leave requires {selType.waitingDays} working days notice. Earliest start: <strong style={{ marginLeft: 4 }}>{formatDate(getMinDate())}</strong>
+                          This leave requires {selType.minNoticeDays} working days notice. Earliest start: <strong style={{ marginLeft: 4 }}>{formatDate(getMinDate())}</strong>
                         </div>
                       )}
                       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>

@@ -161,7 +161,6 @@ model Employee {
   leaveRequests      LeaveRequest[]       @relation("EmployeeLeave")
   reliefFor          LeaveRequest[]       @relation("ReliefOfficer")
   notifications      Notification[]       @relation("EmployeeNotifications")
-  onboardingTasks    OnboardingTask[]
   projectAssignments ProjectAssignment[]
   documentRequests     DocumentRequest[]
   offerLettersSent     OfferLetter[]        @relation("OfferManager")
@@ -379,22 +378,6 @@ model CustomGroupMember {
   employee   Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, employeeId])
-}
-
-model OnboardingTask {
-  id          String             @id @default(cuid())
-  employeeId  String
-  title       String
-  description String?
-  category    OnboardingCategory @default(HR)
-  assignedTo  String?
-  dueDate     DateTime?
-  status      TaskStatus         @default(PENDING)
-  completedAt DateTime?
-  notes       String?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  employee    Employee           @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model LeaveType {
@@ -915,21 +898,6 @@ enum OfferStatus {
   EXPIRED
 }
 
-enum OnboardingCategory {
-  HR
-  IT
-  FINANCE
-  ADMIN
-  TEAM
-}
-
-enum TaskStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  OVERDUE
-}
-
 enum ReliefStatus {
   PENDING
   ACCEPTED
@@ -1444,7 +1412,7 @@ model EmailSettings {
   id           String   @id @default("singleton")
   enabled      Boolean  @default(false)
   fromName     String   @default("DSN HRMS")
-  fromEmail    String   @default("no-reply@datasciencenigeria.ai")
+  fromEmail    String   @default("noreply@hrms.dsnsandbox.com")
   eventToggles Json     @default("{}")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

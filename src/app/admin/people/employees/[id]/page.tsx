@@ -4,11 +4,11 @@ import { useRouter, useParams } from "next/navigation"
 import {
   ChevronLeft, ChevronDown, Edit2, Upload, Loader2,
   Building2, User, CreditCard, FileText, Briefcase, MapPin,
-  Receipt, Shield, X, Search, Check, UserCog,
+  X, Search, Check, UserCog,
 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 
-const TABS = ["Job & Pay", "Personal", "Request", "Documents", "Benefits", "Assets", "Tasks", "Disciplinary", "Notes", "Logs"]
+const TABS = ["Job", "Personal", "Request", "Documents", "Assets", "Disciplinary", "Logs"]
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
   ACTIVE:     { bg: "#DCFCE7", color: "#16a34a", label: "Active" },
@@ -207,24 +207,6 @@ function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any
       <InfoCard icon={<Building2 size={16} color="#2563eb" />} iconBg="#EFF6FF" title="Workplace">
         <InfoRow label="Current Workplace" value={emp.workplace?.displayName ?? "Data Science Nigeria"} />
       </InfoCard>
-
-      <InfoCard icon={<Receipt size={16} color="#d97706" />} iconBg="#FEF3C7" title="Tax Info"
-        onEdit={() => openModal("tax", { tin: emp.tin ?? "" })}>
-        <InfoRow label="TIN" value={emp.tin} />
-      </InfoCard>
-
-      <InfoCard icon={<Shield size={16} color="#d97706" />} iconBg="#FEF3C7" title="Pension"
-        onEdit={() => openModal("pension", { pensionPin: emp.pensionPin ?? "" })}>
-        <InfoRow label="Pension PIN" value={emp.pensionPin} />
-        <InfoRow label="EVC" value="₦0.00" />
-      </InfoCard>
-
-      <div style={{ gridColumn: "1 / -1" }}>
-        <InfoCard icon={<Shield size={16} color="#6b7280" />} iconBg="#F3F4F6" title="NHF"
-          onEdit={() => openModal("nhf", { nhfNo: emp.nhfNo ?? "" })}>
-          <InfoRow label="NHF Number" value={emp.nhfNo} />
-        </InfoCard>
-      </div>
 
       {emp.user?.role === "PROJECT_LEAD" && <PLDepartmentsCard emp={emp} />}
     </div>
@@ -570,89 +552,56 @@ function TabDocuments({ emp }: { emp: any }) {
   )
 }
 
-function TabBenefits({ emp }: { emp: any }) {
-  const sections = [
-    { title: "PFA / Pension", icon: <Shield size={16} color="#d97706" />, iconBg: "#FEF3C7",
-      rows: [{ label: "Pension PIN", value: emp.pensionPin }, { label: "EVC (Annual)", value: "₦0.00" }, { label: "Employer Contribution", value: "₦0.00" }] },
-    { title: "Medical / HMO", icon: <User size={16} color="#16a34a" />, iconBg: "#DCFCE7",
-      rows: [{ label: "HMO Provider", value: null }, { label: "HMO Number", value: null }, { label: "Plan", value: null }] },
-    { title: "NHF", icon: <Shield size={16} color="#6b7280" />, iconBg: "#F3F4F6",
-      rows: [{ label: "NHF Number", value: emp.nhfNo }, { label: "Contribution Rate", value: "2.5%" }] },
-  ]
-  return (
-    <div className="grid-2col" style={{ gap: 20 }}>
-      {sections.map(s => (
-        <InfoCard key={s.title} icon={s.icon} iconBg={s.iconBg} title={s.title}>
-          {s.rows.map(r => <InfoRow key={r.label} label={r.label} value={r.value} />)}
-        </InfoCard>
-      ))}
-    </div>
-  )
-}
-
-function TabAssets({ emp: _emp }: { emp: any }) {
-  return (
-    <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
-      <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 15, fontWeight: 700 }}>Assigned Assets</span>
-        <button style={{ padding: "7px 14px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>Add Asset</button>
-      </div>
-      <div style={{ padding: 48, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No assets assigned yet.</div>
-    </div>
-  )
-}
-
-function TabTasks({ emp }: { emp: any }) {
-  const [tasks, setTasks] = useState<any[]>([])
+function TabAssets({ emp }: { emp: any }) {
+  const router = useRouter()
+  const [assignments, setAssignments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-  const [subTab, setSubTab] = useState<"ONBOARDING" | "ROUTINE">("ONBOARDING")
 
   useEffect(() => {
-    fetch(`/api/employees/${emp.id}/onboarding-tasks`)
-      .then(r => r.ok ? r.json() : { tasks: [] })
-      .then(d => { setTasks(d.tasks ?? []); setLoading(false) })
+    fetch(`/api/employees/${emp.id}/assets`)
+      .then(r => r.ok ? r.json() : { assignments: [] })
+      .then(d => { setAssignments(d.assignments ?? []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [emp.id])
 
   const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
-    PENDING: { bg: "#FEF3C7", color: "#92400e" },
-    IN_PROGRESS: { bg: "#DBEAFE", color: "#1d4ed8" },
-    COMPLETED: { bg: "#DCFCE7", color: "#15803d" },
-    OVERDUE: { bg: "#FEE2E2", color: "#DC2626" },
+    ASSIGNED: { bg: "#DCFCE7", color: "#15803d" },
+    RETURNED: { bg: "#F3F4F6", color: "#6B7280" },
+    LOST:     { bg: "#FEE2E2", color: "#DC2626" },
+    DAMAGED:  { bg: "#FEF3C7", color: "#92400e" },
   }
-  const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"
   const th: React.CSSProperties = { padding: "10px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }
   const td: React.CSSProperties = { padding: "12px 20px", fontSize: 13, borderBottom: "1px solid var(--border)" }
 
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
       <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 4 }}>
-          {(["ONBOARDING", "ROUTINE"] as const).map(t => (
-            <button key={t} onClick={() => setSubTab(t)}
-              style={{ padding: "7px 16px", background: subTab === t ? "var(--primary)" : "var(--muted)", border: subTab === t ? "none" : "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: subTab === t ? "white" : "var(--foreground)" }}>
-              {t === "ONBOARDING" ? "Onboarding" : "Routine"}
-            </button>
-          ))}
-        </div>
-        <button style={{ padding: "7px 14px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>Assign Task</button>
+        <span style={{ fontSize: 15, fontWeight: 700 }}>Assigned Assets</span>
+        <button
+          onClick={() => router.push(`/admin/assets/assignments/new?employeeId=${emp.id}`)}
+          style={{ padding: "7px 14px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}
+        >
+          Add Asset
+        </button>
       </div>
       {loading ? (
         <div style={{ padding: 40, textAlign: "center" }}><Loader2 size={16} style={{ animation: "spin .8s linear infinite", color: "var(--primary)" }} /></div>
-      ) : tasks.length === 0 ? (
-        <div style={{ padding: 48, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No tasks assigned yet.</div>
+      ) : assignments.length === 0 ? (
+        <div style={{ padding: 48, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No assets assigned yet.</div>
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><th style={th}>Task</th><th style={th}>Category</th><th style={th}>Due Date</th><th style={th}>Status</th></tr></thead>
+          <thead><tr><th style={th}>Asset</th><th style={th}>Type</th><th style={th}>Identifier</th><th style={th}>Assigned</th><th style={th}>Status</th></tr></thead>
           <tbody>
-            {tasks.map((t: any) => {
-              const sc = STATUS_COLOR[t.status] ?? { bg: "#F3F4F6", color: "#6B7280" }
+            {assignments.map((a: any) => {
+              const sc = STATUS_COLOR[a.status] ?? { bg: "#F3F4F6", color: "#6B7280" }
               return (
-                <tr key={t.id}>
-                  <td style={td}><span style={{ fontWeight: 600 }}>{t.title}</span></td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{t.category}</td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{fmtDate(t.dueDate)}</td>
-                  <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: sc.bg, color: sc.color }}>{t.status}</span></td>
+                <tr key={a.id}>
+                  <td style={td}><span style={{ fontWeight: 600 }}>{a.asset?.name ?? "—"}</span></td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.asset?.assetType?.name ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.asset?.identifier ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{fmtDate(a.assignedOn)}</td>
+                  <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: sc.bg, color: sc.color }}>{a.status}</span></td>
                 </tr>
               )
             })}
@@ -664,47 +613,61 @@ function TabTasks({ emp }: { emp: any }) {
   )
 }
 
-function TabDisciplinary() {
+function TabDisciplinary({ emp }: { emp: any }) {
+  const router = useRouter()
+  const [violations, setViolations] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch(`/api/employees/${emp.id}/disciplinary`)
+      .then(r => r.ok ? r.json() : { violations: [] })
+      .then(d => { setViolations(d.violations ?? []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [emp.id])
+
+  const STATUS_COLOR: Record<string, { bg: string; color: string }> = {
+    TO_REVIEW:  { bg: "#FEF3C7", color: "#92400e" },
+    REVIEWED:   { bg: "#DBEAFE", color: "#1d4ed8" },
+    DISMISSED:  { bg: "#F3F4F6", color: "#6B7280" },
+    ESCALATED:  { bg: "#FEE2E2", color: "#DC2626" },
+  }
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"
+  const th: React.CSSProperties = { padding: "10px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }
+  const td: React.CSSProperties = { padding: "12px 20px", fontSize: 13, borderBottom: "1px solid var(--border)" }
+
   return (
     <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
       <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <span style={{ fontSize: 15, fontWeight: 700 }}>Disciplinary Records</span>
-        <button style={{ padding: "7px 14px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>Add Record</button>
+        <button
+          onClick={() => router.push(`/admin/disciplinary/violations/new?employeeId=${emp.id}`)}
+          style={{ padding: "7px 14px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}
+        >
+          Add Record
+        </button>
       </div>
-      <div style={{ padding: 48, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No disciplinary records found.</div>
-    </div>
-  )
-}
-
-function TabNotes({ emp: _emp }: { emp: any }) {
-  const [note, setNote] = useState("")
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-
-  const saveNote = async () => {
-    if (!note.trim()) return
-    setSaving(true)
-    await new Promise(r => setTimeout(r, 600))
-    setSaving(false); setSaved(true); setNote("")
-    setTimeout(() => setSaved(false), 3000)
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: "20px 24px" }}>
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>Add Note</div>
-        <textarea value={note} onChange={e => setNote(e.target.value)} rows={5} placeholder="Write a note about this employee…"
-          style={{ width: "100%", padding: "10px 14px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
-        <div style={{ marginTop: 12, display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12 }}>
-          {saved && <span style={{ fontSize: 13, color: "#16a34a", fontWeight: 600 }}>Note saved!</span>}
-          <button onClick={saveNote} disabled={!note.trim() || saving}
-            style={{ padding: "8px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: note.trim() ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 700, color: "white", opacity: note.trim() ? 1 : 0.5, display: "flex", alignItems: "center", gap: 6 }}>
-            {saving && <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} />}
-            {saving ? "Saving…" : "Save Note"}
-          </button>
-        </div>
-      </div>
-      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: 48, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No notes yet.</div>
+      {loading ? (
+        <div style={{ padding: 40, textAlign: "center" }}><Loader2 size={16} style={{ animation: "spin .8s linear infinite", color: "var(--primary)" }} /></div>
+      ) : violations.length === 0 ? (
+        <div style={{ padding: 48, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No disciplinary records found.</div>
+      ) : (
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr><th style={th}>Date</th><th style={th}>Type</th><th style={th}>Details</th><th style={th}>Status</th></tr></thead>
+          <tbody>
+            {violations.map((v: any) => {
+              const sc = STATUS_COLOR[v.status] ?? { bg: "#F3F4F6", color: "#6B7280" }
+              return (
+                <tr key={v.id}>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{fmtDate(v.incidentDate)}</td>
+                  <td style={td}><span style={{ fontWeight: 600 }}>{v.violationType?.name ?? "—"}</span></td>
+                  <td style={{ ...td, color: "var(--muted-foreground)", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.details}</td>
+                  <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: sc.bg, color: sc.color }}>{v.status}</span></td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      )}
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
@@ -759,7 +722,7 @@ export default function EmployeeProfilePage() {
   const canChangeRole = currentUser?.role === "SUPER_ADMIN" || (currentUser?.can("canEditEmployee") ?? false)
   const [emp, setEmp] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState("Job & Pay")
+  const [activeTab, setActiveTab] = useState("Job")
   const [manageOpen, setManageOpen] = useState(false)
   const manageRef = useRef<HTMLDivElement>(null)
 
@@ -1061,23 +1024,6 @@ export default function EmployeeProfilePage() {
           </div>
         ),
       },
-      tax: {
-        title: "Edit Tax Info",
-        content: <MF label="Tax Identification Number"><input value={mf.tin ?? ""} onChange={setMF("tin")} style={fi} placeholder="TIN" /></MF>,
-      },
-      pension: {
-        title: "Edit Pension",
-        content: <MF label="Pension PIN"><input value={mf.pensionPin ?? ""} onChange={setMF("pensionPin")} style={fi} placeholder="e.g. PEN123456789012" /></MF>,
-      },
-      nhf: {
-        title: "Edit NHF",
-        content: (
-          <div>
-            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 16 }}>This information is used to remit NHF contributions, so please make sure it's accurate.</p>
-            <MF label="NHF Number"><input value={mf.nhfNo ?? ""} onChange={setMF("nhfNo")} style={fi} placeholder="NHF Number" /></MF>
-          </div>
-        ),
-      },
       customField: {
         title: "Custom Field Information",
         content: (
@@ -1225,15 +1171,12 @@ export default function EmployeeProfilePage() {
 
       {/* Tab Content */}
       <div style={{ maxWidth: 1280, margin: "0 auto", padding: "32px 32px" }}>
-        {activeTab === "Job & Pay" && <TabJobPay emp={emp} openModal={openModal} />}
+        {activeTab === "Job" && <TabJobPay emp={emp} openModal={openModal} />}
         {activeTab === "Personal" && <TabPersonal emp={emp} openModal={openModal} onUpload={triggerUpload} uploadedDocs={uploadedDocs} />}
         {activeTab === "Request" && <TabRequest emp={emp} />}
         {activeTab === "Documents" && <TabDocuments emp={emp} />}
-        {activeTab === "Benefits" && <TabBenefits emp={emp} />}
         {activeTab === "Assets" && <TabAssets emp={emp} />}
-        {activeTab === "Tasks" && <TabTasks emp={emp} />}
-        {activeTab === "Disciplinary" && <TabDisciplinary />}
-        {activeTab === "Notes" && <TabNotes emp={emp} />}
+        {activeTab === "Disciplinary" && <TabDisciplinary emp={emp} />}
         {activeTab === "Logs" && <TabLogs emp={emp} />}
       </div>
 

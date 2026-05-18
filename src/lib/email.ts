@@ -69,6 +69,15 @@ export async function sendEmail(opts: SendEmailOpts): Promise<void> {
 
     if (recipients.length === 0) { console.error(`[email] SKIP ${opts.eventKey}: no recipients resolved`); return }
 
+    // Safety: when EMAIL_FORCE_TO is set, redirect every outgoing email to that single address.
+    // Used for testing — defaults off so production is unaffected.
+    const forceTo = process.env.EMAIL_FORCE_TO?.trim()
+    if (forceTo) {
+      console.log(`[email] FORCE-TO active for ${opts.eventKey}: redirecting ${recipients.length} → ${forceTo}`)
+      recipients = [forceTo]
+      opts.cc = undefined
+    }
+
     const vars = { ...opts.variables }
 
     const subject = replaceVars(effectiveSubject, vars)

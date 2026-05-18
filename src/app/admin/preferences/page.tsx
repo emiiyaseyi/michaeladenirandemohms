@@ -4,21 +4,6 @@ import { signOut } from "next-auth/react"
 import { User, Eye, EyeOff } from "lucide-react"
 import Modal from "@/components/ui/Modal"
 
-const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
-const DAYS = Array.from({ length: 31 }, (_, i) => i + 1)
-const YEARS = Array.from({ length: 86 }, (_, i) => new Date().getFullYear() - 15 - i)
-
-function parseDob(iso: string | null) {
-  if (!iso) return { month: "", day: "", year: "" }
-  const d = new Date(iso)
-  return { month: String(d.getMonth() + 1), day: String(d.getDate()), year: String(d.getFullYear()) }
-}
-
-function formatDob(iso: string | null) {
-  if (!iso) return null
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-}
-
 function FieldLabel({ required, children }: { required?: boolean; children: React.ReactNode }) {
   return (
     <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "var(--foreground)", marginBottom: 6 }}>
@@ -41,22 +26,6 @@ function TextInput({ value, onChange, placeholder }: { value: string; onChange: 
   )
 }
 
-function SelectInput({ value, onChange, children }: { value: string; onChange: (v: string) => void; children: React.ReactNode }) {
-  return (
-    <div style={{ position: "relative" }}>
-      <select
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        style={{ width: "100%", padding: "10px 36px 10px 14px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 14, background: "var(--background)", color: value ? "var(--foreground)" : "var(--muted-foreground)", outline: "none", appearance: "none", cursor: "pointer", boxSizing: "border-box", transition: "border-color 0.15s" }}
-        onFocus={e => { e.currentTarget.style.borderColor = "var(--primary)" }}
-        onBlur={e => { e.currentTarget.style.borderColor = "var(--border)" }}
-      >
-        {children}
-      </select>
-      <svg style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m6 9 6 6 6-6"/></svg>
-    </div>
-  )
-}
 
 function PasswordInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   const [show, setShow] = useState(false)
@@ -102,13 +71,10 @@ function Row({ label, sub, value }: { label: string; sub?: string; value: string
 }
 
 export default function PreferencesPage() {
-  const [data, setData] = useState<{ email: string; name: string; phone: string | null; dateOfBirth: string | null; nin: string | null } | null>(null)
+  const [data, setData] = useState<{ email: string; name: string; phone: string | null; nin: string | null } | null>(null)
 
   const [editOpen, setEditOpen] = useState(false)
   const [editNin, setEditNin] = useState("")
-  const [editMonth, setEditMonth] = useState("")
-  const [editDay, setEditDay] = useState("")
-  const [editYear, setEditYear] = useState("")
   const [editPhone, setEditPhone] = useState("")
   const [editSaving, setEditSaving] = useState(false)
   const [editError, setEditError] = useState("")
@@ -129,11 +95,7 @@ export default function PreferencesPage() {
 
   function openEdit() {
     if (!data) return
-    const dob = parseDob(data.dateOfBirth)
     setEditNin(data.nin ?? "")
-    setEditMonth(dob.month)
-    setEditDay(dob.day)
-    setEditYear(dob.year)
     setEditPhone(data.phone ?? "")
     setEditError("")
     setEditOpen(true)
@@ -141,27 +103,18 @@ export default function PreferencesPage() {
 
   async function saveEdit() {
     setEditError("")
-    const hasPart = editMonth || editDay || editYear
-    if (hasPart && !(editMonth && editDay && editYear)) {
-      setEditError("Please complete all birth date fields.")
-      return
-    }
-    const dateOfBirth = (editMonth && editDay && editYear)
-      ? new Date(Number(editYear), Number(editMonth) - 1, Number(editDay)).toISOString()
-      : null
-
     setEditSaving(true)
     const res = await fetch("/api/self-service/profile/update", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone: editPhone || null, nin: editNin || null, dateOfBirth }),
+      body: JSON.stringify({ phone: editPhone || null, nin: editNin || null }),
     })
     setEditSaving(false)
     if (!res.ok) {
       setEditError((await res.json().catch(() => ({}))).error ?? "Failed to save.")
       return
     }
-    setData(d => d ? { ...d, phone: editPhone || null, nin: editNin || null, dateOfBirth } : d)
+    setData(d => d ? { ...d, phone: editPhone || null, nin: editNin || null } : d)
     setEditOpen(false)
   }
 
@@ -207,7 +160,6 @@ export default function PreferencesPage() {
           <div style={{ borderBottom: "1px solid var(--border)" }} />
           <Row label="Email" sub="Your registered email address" value={data?.email ?? null} />
           <Row label="Phone number" sub="Your registered phone number" value={data?.phone ?? null} />
-          <Row label="Birth Date" value={data?.dateOfBirth ? formatDob(data.dateOfBirth) : null} />
           <div style={{ padding: "14px 0 20px", display: "flex", justifyContent: "flex-end" }}>
             <button
               onClick={openEdit}
@@ -223,7 +175,7 @@ export default function PreferencesPage() {
           <div style={{ padding: "20px 0 4px", fontSize: 13, fontWeight: 500, color: "var(--muted-foreground)" }}>Security</div>
           <div style={{ borderBottom: "1px solid var(--border)" }} />
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0", borderBottom: "1px solid var(--border)" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0 24px" }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: "var(--foreground)" }}>Password</div>
             <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
               <span style={{ fontSize: 18, letterSpacing: 4, color: "var(--muted-foreground)", lineHeight: 1 }}>••••••••••••</span>
@@ -233,19 +185,6 @@ export default function PreferencesPage() {
               >
                 Change Password
               </button>
-            </div>
-          </div>
-
-          {/* 2FA row */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", padding: "20px 0 24px" }}>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--foreground)" }}>Two-Factor Authentication</div>
-              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 4, maxWidth: 480 }}>
-                Adds an extra layer of security to your account to protect you from unauthorised access and transactions.
-              </div>
-            </div>
-            <div style={{ width: 44, height: 24, borderRadius: 12, background: "var(--muted)", border: "1px solid var(--border)", position: "relative", cursor: "not-allowed", flexShrink: 0, marginTop: 2 }}>
-              <div style={{ position: "absolute", left: 3, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, borderRadius: "50%", background: "var(--muted-foreground)" }} />
             </div>
           </div>
         </div>
@@ -258,40 +197,13 @@ export default function PreferencesPage() {
             We&apos;ll use this information to quickly and securely verify your identity over the phone when you call our team. Rest assured, your information is in good hands.
           </p>
 
-          {/* Row 1: NIN + Month */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <div>
-              <FieldLabel>National ID. Number</FieldLabel>
-              <TextInput value={editNin} onChange={setEditNin} placeholder="Enter your NIN" />
-            </div>
-            <div>
-              <FieldLabel required>Month</FieldLabel>
-              <SelectInput value={editMonth} onChange={setEditMonth}>
-                <option value="">Please select</option>
-                {MONTHS.map((m, i) => <option key={m} value={String(i + 1)}>{m}</option>)}
-              </SelectInput>
-            </div>
+          {/* NIN */}
+          <div style={{ marginBottom: 16 }}>
+            <FieldLabel>National ID. Number</FieldLabel>
+            <TextInput value={editNin} onChange={setEditNin} placeholder="Enter your NIN" />
           </div>
 
-          {/* Row 2: Day + Year */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-            <div>
-              <FieldLabel required>Day</FieldLabel>
-              <SelectInput value={editDay} onChange={setEditDay}>
-                <option value="">Please select</option>
-                {DAYS.map(d => <option key={d} value={String(d)}>{d}</option>)}
-              </SelectInput>
-            </div>
-            <div>
-              <FieldLabel required>Year</FieldLabel>
-              <SelectInput value={editYear} onChange={setEditYear}>
-                <option value="">Please select</option>
-                {YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
-              </SelectInput>
-            </div>
-          </div>
-
-          {/* Row 3: Mobile */}
+          {/* Mobile */}
           <div style={{ marginBottom: 24 }}>
             <FieldLabel>Mobile number</FieldLabel>
             <TextInput value={editPhone} onChange={setEditPhone} placeholder="e.g. 07034100652" />

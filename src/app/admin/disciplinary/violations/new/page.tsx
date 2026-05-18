@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createPortal } from "react-dom"
 import { ChevronDown, UploadCloud, X, Loader2 } from "lucide-react"
 
@@ -139,8 +139,10 @@ function ViolationTypeSelect({ value, onChange, error }: { value: string; onChan
 
 export default function RecordViolationPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const preselectedEmployeeId = searchParams.get("employeeId") ?? ""
   const [includeAll, setIncludeAll] = useState(false)
-  const [employeeId, setEmployeeId] = useState("")
+  const [employeeId, setEmployeeId] = useState(preselectedEmployeeId)
   const [violationTypeId, setViolationTypeId] = useState("")
   const [expectingResponse, setExpectingResponse] = useState(false)
   const [incidentDate, setIncidentDate] = useState("")

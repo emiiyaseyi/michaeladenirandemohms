@@ -184,7 +184,7 @@ export default function EmailConfigSection() {
                       </div>
                       <div>
                         <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>From Email</label>
-                        <input style={inp} type="email" value={settings.fromEmail} onChange={e => { setSettings(s => ({ ...s, fromEmail: e.target.value })); setSettingsDirty(true) }} placeholder="no-reply@datasciencenigeria.ai" />
+                        <input style={inp} type="email" value={settings.fromEmail} onChange={e => { setSettings(s => ({ ...s, fromEmail: e.target.value })); setSettingsDirty(true) }} placeholder="noreply@hrms.dsnsandbox.com" />
                       </div>
                     </div>
 

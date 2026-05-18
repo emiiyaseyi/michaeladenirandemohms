@@ -119,7 +119,7 @@ export default function BulkUpdateEmployeesPage() {
     `${e.firstName} ${e.lastName}`.toLowerCase().includes(empSearch.toLowerCase())
   )
 
-  const readyItems = ["Employees full name", "Hire date", "Work location", "Paygrade (Optional)"]
+  const readyItems = ["Employees full name", "Hire date", "Work location"]
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--background)" }}>

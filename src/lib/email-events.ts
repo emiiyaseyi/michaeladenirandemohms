@@ -7,8 +7,11 @@ export interface EmailEventDef {
   defaultBody: string
 }
 
+// Wrap the logo in an anchor — Gmail (and a few other clients) show a
+// "download image" icon on hover for bare <img> tags. Linking it suppresses
+// that, and gives a small navigational benefit if the recipient does click.
 const LOGO =
-  `<div style="text-align:center;padding:4px 0 20px;"><img src="https://hrms.dsnsandbox.com/dsn-logo.svg" alt="DSN" width="150" style="max-width:150px;height:auto;" /></div>`
+  `<div style="text-align:center;padding:4px 0 20px;"><a href="https://hrms.dsnsandbox.com" style="display:inline-block;text-decoration:none;border:0;outline:none;"><img src="https://hrms.dsnsandbox.com/dsn-logo.svg" alt="DSN" width="150" style="max-width:150px;height:auto;border:0;outline:none;text-decoration:none;display:block;" /></a></div>`
 
 const ROW = (label: string, val: string) =>
   `<tr><td style="padding:10px 14px;font-size:13px;color:#6b7280;border-bottom:1px solid #f3f4f6;width:130px;">${label}</td><td style="padding:10px 14px;font-size:13px;font-weight:600;color:#111827;border-bottom:1px solid #f3f4f6;">${val}</td></tr>`
@@ -365,26 +368,45 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   // ── People / Onboarding ───────────────────────────────────────────────────
 
   employee_invite: {
-    name: "Employee Onboarding Invitation",
+    name: "Employee Invite — Complete Profile",
     category: "People",
-    description: "Sent to new employees with their personal invitation link to complete their profile.",
-    variables: ["employeeName", "inviteLink"],
-    defaultSubject: "You're invited — complete your profile at DSN HRMS",
+    description: "Sent to new employees added via 'Invite' mode. Invites them to set a password and complete their profile.",
+    variables: ["employeeName", "inviteLink", "workEmail", "loginUrl", "defaultPassword"],
+    defaultSubject: "You're invited to complete your DSN HRMS profile",
     defaultBody:
       LOGO +
-      `<h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px;text-align:center;letter-spacing:-0.4px;">Welcome to the team!</h1>` +
-      `<p style="font-size:15px;color:#6b7280;text-align:center;margin:0 0 28px;">Hi <strong style="color:#111827;">{{employeeName}}</strong> — your account is ready. Let's get you set up.</p>` +
-      `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:18px 22px;margin-bottom:24px;">` +
-      `<p style="font-size:13px;font-weight:700;color:#166534;margin:0 0 10px;text-transform:uppercase;letter-spacing:0.5px;">What you need to do</p>` +
-      `<ol style="margin:0;padding-left:18px;font-size:14px;color:#374151;line-height:2;">` +
-      `<li>Click the button below to open your personal onboarding page</li>` +
-      `<li>Fill in your personal details, home address and banking information</li>` +
-      `<li>Submit — HR will be notified once you're done</li>` +
-      `</ol></div>` +
-      `<div style="text-align:center;margin:28px 0 20px;"><a href="{{inviteLink}}" style="display:inline-block;padding:14px 44px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.2px;">Complete My Profile →</a></div>` +
-      `<p style="font-size:12px;color:#9ca3af;text-align:center;margin:0 0 4px;">Or paste this link in your browser:</p>` +
-      `<p style="font-size:12px;word-break:break-all;text-align:center;margin:0 0 24px;"><a href="{{inviteLink}}" style="color:#16a34a;">{{inviteLink}}</a></p>` +
-      `<div style="border-top:1px solid #f3f4f6;padding-top:16px;text-align:center;"><p style="font-size:12px;color:#9ca3af;margin:0;">⏱ This link expires <strong style="color:#374151;">24 hours</strong> after you first open it. &nbsp;|&nbsp; If you did not expect this, please ignore it.</p></div>`,
+      `<h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px;text-align:center;letter-spacing:-0.4px;">Welcome to Data Science Nigeria</h1>` +
+      `<p style="font-size:15px;color:#6b7280;text-align:center;margin:0 0 24px;">Hi <strong style="color:#111827;">{{employeeName}}</strong>, your DSN HRMS account has been created and you've been invited to complete your profile.</p>` +
+      `<div style="text-align:center;margin:28px 0 20px;"><a href="{{inviteLink}}" style="display:inline-block;padding:14px 44px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.2px;">Set your password →</a></div>` +
+      `<p style="font-size:13px;color:#6b7280;text-align:center;margin:0 0 18px;">Or sign in directly using your work email and the default password:</p>` +
+      TABLE(
+        ROW("Login page", `<a href="{{loginUrl}}" style="color:#16a34a;">{{loginUrl}}</a>`),
+        ROW("Email", "{{workEmail}}"),
+        ROW("Password", "{{defaultPassword}}"),
+      ) +
+      P("On first sign-in you'll be asked to set your own password. After that, the dashboard will guide you to complete your profile.") +
+      `<div style="border-top:1px solid #f3f4f6;padding-top:16px;text-align:center;"><p style="font-size:12px;color:#9ca3af;margin:0;">⏱ The set-password link above expires <strong style="color:#374151;">24 hours</strong> after this email was sent. After that, use the direct-login option.</p></div>`,
+  },
+
+  employee_account_created: {
+    name: "Employee Account Created",
+    category: "People",
+    description: "Sent to new employees added via 'Me' mode (admin filled the profile). Provides a set-password link and default credentials.",
+    variables: ["employeeName", "inviteLink", "workEmail", "loginUrl", "defaultPassword"],
+    defaultSubject: "Your DSN HRMS account is ready",
+    defaultBody:
+      LOGO +
+      `<h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px;text-align:center;letter-spacing:-0.4px;">Welcome to Data Science Nigeria</h1>` +
+      `<p style="font-size:15px;color:#6b7280;text-align:center;margin:0 0 24px;">Hi <strong style="color:#111827;">{{employeeName}}</strong>, your DSN HRMS account has been created.</p>` +
+      `<div style="text-align:center;margin:28px 0 20px;"><a href="{{inviteLink}}" style="display:inline-block;padding:14px 44px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.2px;">Set your password →</a></div>` +
+      `<p style="font-size:13px;color:#6b7280;text-align:center;margin:0 0 18px;">Or sign in directly using your work email and the default password:</p>` +
+      TABLE(
+        ROW("Login page", `<a href="{{loginUrl}}" style="color:#16a34a;">{{loginUrl}}</a>`),
+        ROW("Email", "{{workEmail}}"),
+        ROW("Password", "{{defaultPassword}}"),
+      ) +
+      P("On first sign-in you'll be asked to set your own password.") +
+      `<div style="border-top:1px solid #f3f4f6;padding-top:16px;text-align:center;"><p style="font-size:12px;color:#9ca3af;margin:0;">⏱ The set-password link above expires <strong style="color:#374151;">24 hours</strong> after this email was sent. After that, use the direct-login option.</p></div>`,
   },
 
   // ── Birthdays ──────────────────────────────────────────────────────────────

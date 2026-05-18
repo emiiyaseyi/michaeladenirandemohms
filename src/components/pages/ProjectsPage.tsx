@@ -6,6 +6,7 @@ import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import PageHeader from "@/components/ui/PageHeader"
 import {
   Briefcase, Plus, Search, Users, Calendar, Pencil, Trash2,
   Archive, CheckCircle, Loader2, AlertCircle, X, PlayCircle,
@@ -201,13 +202,12 @@ export default function ProjectsPage() {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800 }}>Projects</h1>
-          <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>Manage projects and assign team members</p>
-        </div>
-        {canManage && <Button size="sm" onClick={() => setCreateOpen(true)}><Plus size={14} /> New Project</Button>}
-      </div>
+      <PageHeader
+        title="Projects"
+        subtitle="Manage projects and assign team members"
+        icon={<Briefcase size={22} />}
+        actions={canManage ? <Button size="sm" onClick={() => setCreateOpen(true)}><Plus size={14} /> New Project</Button> : undefined}
+      />
 
       <Card style={{ padding: "14px 20px", marginBottom: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "7px 12px", flex: 1, minWidth: 200 }}>

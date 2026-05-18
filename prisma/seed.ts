@@ -51,17 +51,33 @@ async function main() {
   ])
   console.log("  ✓ Divisions & Departments")
 
-  // ── Leave Types ──────────────────────────────────────────────────────────────
-  await Promise.all([
-    prisma.leaveType.upsert({ where: { name: "Annual Leave" },    update: {}, create: { name: "Annual Leave",    description: "Standard annual leave",              defaultDays: 21, waitingDays: 7, excludeWeekends: true } }),
-    prisma.leaveType.upsert({ where: { name: "Sick Leave" },      update: {}, create: { name: "Sick Leave",      description: "Medical leave",                      defaultDays: 14, requiresDoc: true, minDocDays: 2 } }),
-    prisma.leaveType.upsert({ where: { name: "Maternity Leave" }, update: {}, create: { name: "Maternity Leave", description: "Maternity leave for new mothers",     defaultDays: 90, genderSpecific: "FEMALE", waitingDays: 14 } }),
-    prisma.leaveType.upsert({ where: { name: "Paternity Leave" }, update: {}, create: { name: "Paternity Leave", description: "Paternity leave for new fathers",     defaultDays: 5,  genderSpecific: "MALE" } }),
-    prisma.leaveType.upsert({ where: { name: "Casual Leave" },    update: {}, create: { name: "Casual Leave",    description: "Short casual leave",                 defaultDays: 5 } }),
-    prisma.leaveType.upsert({ where: { name: "Work From Home" },  update: {}, create: { name: "Work From Home",  description: "Remote work days",                   defaultDays: 12 } }),
-    prisma.leaveType.upsert({ where: { name: "Study Leave" },     update: {}, create: { name: "Study Leave",     description: "Educational leave",                  defaultDays: 5, waitingDays: 14 } }),
-  ])
-  console.log("  ✓ Leave Types")
+  // ── Leave Types (DSN policy) ────────────────────────────────────────────────
+  // All re-seeds also refresh the policy fields so existing rows can't drift.
+  const leavePolicy = {
+    annual:        { name: "Annual Leave",        description: "Standard annual leave",                                          defaultDays: 10, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    sick:          { name: "Sick Leave",          description: "Medical leave — align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    compassionate: { name: "Compassionate Leave", description: "Bereavement / family emergency — align with your Project Lead.", defaultDays: 5,  minNoticeDays: 0,  requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    maternity:     { name: "Maternity Leave",     description: "Maternity leave for expectant mothers.",                         defaultDays: 90, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: "FEMALE" as const, excludeWeekends: true,  isActive: true },
+    paternity:     { name: "Paternity Leave",     description: "Paternity leave for new fathers.",                               defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: "MALE" as const,   excludeWeekends: true,  isActive: true },
+    casual:        { name: "Casual Leave",        description: "Casual leave (interns only).",                                   defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: true,  deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    study:         { name: "Study Leave",         description: "Educational leave — deducted from your Annual Leave allocation.", defaultDays: 0,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: true,  genderSpecific: null,     excludeWeekends: true,  isActive: true },
+  }
+
+  await Promise.all(Object.values(leavePolicy).map(p =>
+    prisma.leaveType.upsert({
+      where:  { name: p.name },
+      update: p,
+      create: p,
+    })
+  ))
+
+  // Soft-disable any legacy types that DSN no longer offers
+  await prisma.leaveType.updateMany({
+    where: { name: { in: ["Work From Home"] } },
+    data:  { isActive: false },
+  })
+
+  console.log("  ✓ Leave Types (7 active per DSN policy; Work From Home soft-disabled)")
 
   // ── Request Document Types (starter set; admins can add more from the UI) ────
   await Promise.all([
@@ -306,7 +322,7 @@ async function main() {
       id: "singleton",
       enabled: false,
       fromName: "DSN HRMS",
-      fromEmail: "no-reply@datasciencenigeria.ai",
+      fromEmail: "noreply@hrms.dsnsandbox.com",
       eventToggles: {},
     },
   })
@@ -544,10 +560,10 @@ async function main() {
   const superAdminUser = await prisma.user.findUnique({ where: { email: "hr@datasciencenigeria.ai" }, select: { id: true } })
   const annDefs = [
     { title: "Welcome to DSN HRMS",              body: "We're excited to launch the new DSN HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
-    { title: "Q2 2026 Leave Reminder",           body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF"] as string[] },
+    { title: "Q2 2026 Leave Reminder",           body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
     { title: "Performance Review Cycle Open",    body: "The Q1 2026 performance review cycle is now open. All employees should complete their self-assessment by April 30, 2026.", behavior: "DASHBOARD_SCROLL" as const, targetRoles: [] as string[] },
     { title: "Public Holiday Notice — Workers' Day", body: "May 1, 2026 (Workers' Day) is a public holiday. All offices will be closed.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: [] as string[] },
-    { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF"] as string[] },
+    { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
   ]
   if (superAdminUser) {
     for (const ann of annDefs) {

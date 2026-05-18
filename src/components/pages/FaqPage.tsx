@@ -4,15 +4,19 @@ import Card from "@/components/ui/Card"
 import { HelpCircle, ChevronDown, ChevronUp, Search } from "lucide-react"
 
 const FAQS = [
-  { cat: "Leave", q: "How do I apply for leave?", a: "Navigate to Self Service → Leave and click 'Apply for Leave'. Select your leave type, dates, and assign relief officers." },
+  { cat: "Leave", q: "How do I apply for leave?", a: "Open Requests → Leave from the sidebar and click 'Apply for Leave'. Select your leave type, dates, project lead, and relief officer." },
   { cat: "Leave", q: "How are leave days calculated?", a: "Leave days are calculated as working days only — weekends (Saturday and Sunday) and public holidays are automatically excluded." },
-  { cat: "Leave", q: "Can I cancel an approved leave?", a: "Yes, you can cancel a pending or approved leave request from the Leave section at any time. Admins can cancel on behalf of any employee." },
-  { cat: "Leave", q: "What is a relief officer?", a: "A relief officer is a colleague who covers your responsibilities during your leave. You nominate them when applying, and they can accept or decline the assignment." },
-  { cat: "Profile", q: "How do I update my profile?", a: "Go to Self Service → My Profile or Dashboard → Edit Profile. You can update personal info, contact, address, and next of kin." },
-  { cat: "Profile", q: "Why can't I change my name or role?", a: "Name, employee ID, job title, and system role are managed by HR and can only be updated by an Admin or HR Admin." },
-  { cat: "Profile", q: "How is profile completeness calculated?", a: "Profile completeness is based on required fields: personal info, contact, address, and next of kin." },
-  { cat: "General", q: "How do I contact HR?", a: "Send an email directly to hr@datasciencenigeria.ai." },
-  { cat: "General", q: "How do I get my login credentials?", a: "Your login credentials are issued by HR when your account is created. Contact hr@datasciencenigeria.ai if you have not received them or need a reset." },
+  { cat: "Leave", q: "Can I cancel an approved leave?", a: "Yes. Open Requests → Leave, find the request and use the row menu to cancel. Pending and approved requests can both be cancelled; admins can cancel on behalf of any employee." },
+  { cat: "Leave", q: "What is a relief officer?", a: "A relief officer is a colleague who covers your responsibilities during your leave. You nominate them when applying. They are notified once your leave is fully approved." },
+  { cat: "Profile", q: "How do I update my profile?", a: "Click 'Personal' at the bottom of the sidebar to open your profile, then click 'Edit'. You can update personal info, contact, address, and next of kin. Locked fields (name, job title, department) require an admin." },
+  { cat: "Profile", q: "Why can't I change my name or role?", a: "Name, employee ID, job title, and system role are managed by HR. Submitting a change for a locked field creates a profile-update request that HR must approve." },
+  { cat: "Profile", q: "How is profile completeness calculated?", a: "Completeness is the percentage of 13 required fields you've filled: first name, last name, gender, date of birth, marital status, personal email, phone, address, city, state, profile photo, next-of-kin name, next-of-kin phone." },
+  { cat: "Profile", q: "I see a 'Complete your profile' popup — why?", a: "You were added through the Invite flow, which leaves most fields blank for you to fill in yourself. The popup appears on each new login until completeness reaches 100%. Click 'Complete my profile' to jump straight to the edit page." },
+  { cat: "Account", q: "How do I get my login credentials?", a: "When HR adds you, you receive an email. It contains a 'Set your password' link that expires 24 hours after it's sent. If the link expires, sign in at the login page using your work email and the default password 'Welcome@DSN1' — you'll be prompted to set a new password on first login." },
+  { cat: "Account", q: "My set-password link expired. What now?", a: "Go to the login page directly, enter your work email and the default password 'Welcome@DSN1'. You'll be redirected to a screen that asks you to set a new password. Once set, log back in with the new password." },
+  { cat: "Account", q: "How do I change my password?", a: "Click 'Change Password' at the bottom of the sidebar. Enter your current password, then your new one (8+ characters, including uppercase, number, and symbol)." },
+  { cat: "Announcements", q: "Why don't I see an announcement my colleague saw?", a: "Once you close an announcement, it stays dismissed for you in that browser. Other people sharing the same computer have their own dismiss list and will still see it. New announcements from HR appear automatically." },
+  { cat: "General", q: "How do I contact HR?", a: "Send an email to hr@datasciencenigeria.ai." },
 ]
 
 const CATS = ["All", ...Array.from(new Set(FAQS.map(f => f.cat)))]

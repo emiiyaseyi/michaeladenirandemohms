@@ -2,8 +2,9 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import { Search, MoreHorizontal, Loader2, ChevronDown, Check, KeyRound, Eye, Upload, RefreshCw, UserPlus, FileUp, FileDown, ShieldCheck, Trash2, UserCog } from "lucide-react"
+import { Search, MoreHorizontal, Loader2, ChevronDown, Check, KeyRound, Eye, RefreshCw, UserPlus, FileUp, ShieldCheck, Trash2, UserCog } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import PageHeader from "@/components/ui/PageHeader"
 
 const STATUS_OPTS = [
   { value: "", label: "All" },
@@ -288,49 +289,49 @@ export default function EmployeesPage() {
     ...(canCreateEmployee ? [
       { label: "Add new Employee", icon: <UserPlus size={13} />, href: "/admin/people/employees/add" },
       { label: "Bulk upload Employees", icon: <FileUp size={13} />, href: "/admin/people/employees/bulk-upload" },
-      { label: "Bulk upload Accounts", icon: <Upload size={13} />, href: "/admin/people/employees/bulk-upload-accounts" },
-      { label: "Bulk upload Annual Earning", icon: <FileDown size={13} />, href: "/admin/people/employees/bulk-upload-earnings" },
     ] : []),
     ...(canEditEmployee ? [
       { label: "Bulk update Employees", icon: <RefreshCw size={13} />, href: "/admin/people/employees/bulk-update" },
     ] : []),
   ]
 
-  return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
-        <div>
-          <h1 style={{ fontSize: 20, fontWeight: 800 }}>Employees</h1>
-          <p style={{ color: "var(--muted-foreground)", fontSize: 13, marginTop: 2 }}>{employees.length} employee{employees.length !== 1 ? "s" : ""}</p>
-        </div>
-        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {someSelected && (
-            <button onClick={() => setResetTarget("bulk")} disabled={resetting}
-              style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", background: "none", border: "1px solid var(--border)", borderRadius: 9, cursor: resetting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-              <KeyRound size={14} /> Reset {selected.size} Password{selected.size > 1 ? "s" : ""}
-            </button>
-          )}
-          {(canCreateEmployee || canEditEmployee) && manageItems.length > 0 && (
-            <div ref={manageRef} style={{ position: "relative" }}>
-              <button onClick={() => setManageOpen(o => !o)}
-                style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
-                Manage <ChevronDown size={14} />
-              </button>
-              {manageOpen && (
-                <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 220, padding: "4px 0" }}>
-                  {manageItems.map(item => (
-                    <button key={item.href} onClick={() => { setManageOpen(false); router.push(item.href) }}
-                      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
-                      <span style={{ color: "var(--muted-foreground)" }}>{item.icon}</span>
-                      {item.label}
-                    </button>
-                  ))}
-                </div>
-              )}
+  const headerActions = (
+    <>
+      {someSelected && (
+        <button onClick={() => setResetTarget("bulk")} disabled={resetting}
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 16px", background: "none", border: "1px solid var(--border)", borderRadius: 9, cursor: resetting ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+          <KeyRound size={14} /> Reset {selected.size} Password{selected.size > 1 ? "s" : ""}
+        </button>
+      )}
+      {(canCreateEmployee || canEditEmployee) && manageItems.length > 0 && (
+        <div ref={manageRef} style={{ position: "relative" }}>
+          <button onClick={() => setManageOpen(o => !o)}
+            style={{ display: "flex", alignItems: "center", gap: 7, padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 9, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white" }}>
+            Manage <ChevronDown size={14} />
+          </button>
+          {manageOpen && (
+            <div style={{ position: "absolute", right: 0, top: "calc(100% + 4px)", background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 220, padding: "4px 0" }}>
+              {manageItems.map(item => (
+                <button key={item.href} onClick={() => { setManageOpen(false); router.push(item.href) }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+                  <span style={{ color: "var(--muted-foreground)" }}>{item.icon}</span>
+                  {item.label}
+                </button>
+              ))}
             </div>
           )}
         </div>
-      </div>
+      )}
+    </>
+  )
+
+  return (
+    <div>
+      <PageHeader
+        title="Employees"
+        subtitle={`${employees.length} employee${employees.length !== 1 ? "s" : ""}`}
+        actions={headerActions}
+      />
 
       {resetMsg && (
         <div style={{ padding: "11px 16px", borderRadius: 8, marginBottom: 16, background: "#DCFCE7", border: "1px solid #bbf7d0", fontSize: 13, color: "#15803d" }}>

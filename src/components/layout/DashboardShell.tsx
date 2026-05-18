@@ -2,6 +2,8 @@ import Sidebar from "./Sidebar"
 import TopBarWrapper from "./TopBarWrapper"
 import SidebarAwareLayout from "./SidebarAwareLayout"
 import IdleTimeout from "@/components/layout/IdleTimeout"
+import ProfileCompletionReminder from "@/components/layout/ProfileCompletionReminder"
+import { getRoleHome } from "@/lib/rbac"
 import type { NavItem } from "@/lib/rbac"
 
 interface Props {
@@ -12,6 +14,7 @@ interface Props {
 }
 
 export default function DashboardShell({ user, nav, homeUrl = "/", children }: Props) {
+  const rolePath = getRoleHome(user?.role)
   return (
     <div style={{ display: "flex", minHeight: "100vh" }}>
       <Sidebar user={user} nav={nav} homeUrl={homeUrl} />
@@ -21,6 +24,7 @@ export default function DashboardShell({ user, nav, homeUrl = "/", children }: P
         </main>
       </SidebarAwareLayout>
       <IdleTimeout />
+      <ProfileCompletionReminder rolePath={rolePath} />
     </div>
   )
 }

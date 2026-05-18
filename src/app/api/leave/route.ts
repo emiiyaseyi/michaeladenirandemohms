@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
       where: scopeFilter,
       include: {
         employee: { include: { department: true } },
-        leaveType: { select: { id: true, name: true, defaultDays: true, requiresDoc: true, minDocDays: true, genderSpecific: true, waitingDays: true, excludeWeekends: true, rolloverPolicy: true, isActive: true, description: true } },
+        leaveType: { select: { id: true, name: true, defaultDays: true, requiresDoc: true, minDocDays: true, genderSpecific: true, waitingDays: true, minNoticeDays: true, internOnly: true, deductFromAnnual: true, excludeWeekends: true, rolloverPolicy: true, isActive: true, description: true } },
         approvals: { include: { employee: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { createdAt: "asc" } },
         reliefOfficersList: { include: { employee: { select: { id: true, firstName: true, lastName: true } } } },
       },

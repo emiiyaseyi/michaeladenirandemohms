@@ -15,8 +15,15 @@ export async function GET(req: NextRequest) {
   const isAdmin = caps(user.role).canViewAllEmployees
 
   const all = req.nextUrl.searchParams.get("all") === "true"
+  // Non-admins only see docs that are active AND have canView=true.
+  // canDownload + canCopy are surfaced on the row for the UI to enforce
+  // (download button + copy-protection styling).
   const docs = await prisma.orgDocument.findMany({
-    where: isAdmin && all ? {} : { isActive: true },
+    where: isAdmin && all
+      ? {}
+      : isAdmin
+        ? { isActive: true }
+        : { isActive: true, canView: true },
     include: {
       uploadedBy: { select: { name: true } },
       acknowledgments: {

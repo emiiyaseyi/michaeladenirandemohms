@@ -2,6 +2,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { AlertTriangle } from "lucide-react"
+import Card from "@/components/ui/Card"
 
 interface ContractorFormData {
   name: string
@@ -62,10 +63,9 @@ export default function ContractorForm({ initial, onSubmit }: Props) {
   )
 
   const card = (title: string, children: React.ReactNode) => (
-    <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, marginBottom: 20 }}>
-      <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", fontSize: 16, fontWeight: 700, color: "var(--foreground)" }}>{title}</div>
-      <div style={{ padding: "24px" }}>{children}</div>
-    </div>
+    <Card title={title} style={{ marginBottom: 20 }}>
+      {children}
+    </Card>
   )
 
   const col2 = (a: React.ReactNode, b: React.ReactNode) => (

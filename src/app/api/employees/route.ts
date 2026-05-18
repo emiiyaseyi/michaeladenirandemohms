@@ -136,25 +136,30 @@ export async function POST(req: NextRequest) {
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
       gender: (gender || null) as any,
       projectLeadId,
-      ...(body.inviteMode ? { employeeStatus: EmployeeStatus.NEEDS_ATTENTION } : {}),
+      employeeStatus: EmployeeStatus.NEEDS_ATTENTION,
     },
     include: { department: true }
   })
 
-  // If invite mode, generate token and send invite email
-  if (body.inviteMode) {
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-    const invite = await prisma.employeeInvite.create({
-      data: { employeeId: employee.id, expiresAt },
-    })
-    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/onboard/${invite.token}`
-    const expiryDate = expiresAt.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
-    await sendEmail({
-      eventKey: "employee_invite",
-      to: workEmail,
-      variables: { employeeName: firstName, inviteLink, expiryDate },
-    }).catch(() => {})
-  }
+  // Both modes: create a 24h invite token + send the mode-specific email.
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+  const invite = await prisma.employeeInvite.create({
+    data: { employeeId: employee.id, expiresAt },
+  })
+  const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/onboard/${invite.token}`
+  const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`
+  const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1"
+  await sendEmail({
+    eventKey: body.inviteMode ? "employee_invite" : "employee_account_created",
+    to: workEmail,
+    variables: {
+      employeeName: firstName,
+      inviteLink,
+      workEmail: workEmail.toLowerCase().trim(),
+      loginUrl,
+      defaultPassword,
+    },
+  }).catch(() => {})
 
   return NextResponse.json({ employee }, { status: 201 })
 }

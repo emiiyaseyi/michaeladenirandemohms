@@ -11,6 +11,7 @@ import {
   AlertCircle,
 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import PageHeader from "@/components/ui/PageHeader"
 
 const fi: React.CSSProperties = {
   width: "100%", padding: "9px 12px", border: "1px solid var(--border)",
@@ -317,13 +318,12 @@ export default function DepartmentsPage() {
 
   return (
     <div style={{ maxWidth: 1040, margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 24, gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ fontSize: 22, fontWeight: 800, color: "var(--foreground)" }}>Departments</h1>
-          <p style={{ color: "var(--muted-foreground)", marginTop: 4, fontSize: 13 }}>{departments.length} department{departments.length !== 1 ? "s" : ""} across the organisation</p>
-        </div>
-        {isAdmin && <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Department</Button>}
-      </div>
+      <PageHeader
+        title="Departments"
+        subtitle={`${departments.length} department${departments.length !== 1 ? "s" : ""} across the organisation`}
+        icon={<Building2 size={22} />}
+        actions={isAdmin ? <Button onClick={() => setShowCreate(true)}><Plus size={14} /> New Department</Button> : undefined}
+      />
 
       {deleteError && (
         <div style={{ display: "flex", gap: 8, background: "rgba(239,68,68,0.08)", color: "#EF4444", padding: "12px 16px", borderRadius: 10, fontSize: 13, marginBottom: 16 }}>
