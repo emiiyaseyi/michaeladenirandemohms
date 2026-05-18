@@ -3,10 +3,10 @@ import { prisma } from "@/lib/prisma"
 import { sendEmail, sendEmailToMany } from "@/lib/email"
 import { format } from "date-fns"
 
-export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret")
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization")
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
   const today = new Date()

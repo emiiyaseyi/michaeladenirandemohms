@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 const KEY = "custom_roles"
 
@@ -10,7 +10,8 @@ const KEY = "custom_roles"
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
 
   const setting = await prisma.systemSetting.findUnique({ where: { key: KEY } })
   const roles = setting ? (setting.value as any).roles ?? [] : []
@@ -20,7 +21,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
 
   const { name, description, duties } = await req.json()
   if (!name || !Array.isArray(duties) || duties.length === 0) {
@@ -51,7 +53,8 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
 
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")

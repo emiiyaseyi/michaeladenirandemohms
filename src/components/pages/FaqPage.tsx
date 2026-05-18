@@ -16,7 +16,7 @@ const FAQS = [
   { cat: "Account", q: "My set-password link expired. What now?", a: "Go to the login page directly, enter your work email and the default password 'Welcome@DSN1'. You'll be redirected to a screen that asks you to set a new password. Once set, log back in with the new password." },
   { cat: "Account", q: "How do I change my password?", a: "Click 'Change Password' at the bottom of the sidebar. Enter your current password, then your new one (8+ characters, including uppercase, number, and symbol)." },
   { cat: "Announcements", q: "Why don't I see an announcement my colleague saw?", a: "Once you close an announcement, it stays dismissed for you in that browser. Other people sharing the same computer have their own dismiss list and will still see it. New announcements from HR appear automatically." },
-  { cat: "General", q: "How do I contact HR?", a: "Send an email to hr@datasciencenigeria.ai." },
+  { cat: "General", q: "How do I contact HR?", a: "Send an email to edodida@datasciencenigeria.ai." },
 ]
 
 const CATS = ["All", ...Array.from(new Set(FAQS.map(f => f.cat)))]

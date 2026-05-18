@@ -7,6 +7,7 @@ export async function proxy(req: NextRequest) {
   // Static assets, auth API, and public routes — always pass through
   if (
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/cron") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
     pathname.startsWith("/onboard") ||

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 const KEY = "approval_workflow"
 
@@ -30,7 +30,8 @@ const DEFAULT_WORKFLOW = {
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
 
   // Try both the new key and old key for backwards compat
   let setting = await prisma.systemSetting.findUnique({ where: { key: KEY } })
@@ -45,7 +46,8 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  const denied = requirePermission(user, "canManageSettings")
+  if (denied) return denied
 
   const body = await req.json()
 

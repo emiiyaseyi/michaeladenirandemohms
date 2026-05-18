@@ -43,7 +43,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { productivityRating, ldRating, reflectionsRating, tlComment, comment } = body
 
   // Validate ratings (only required when primary reviewer submits ratings)
-  const isPrimary = myReviewerRecord?.isPrimary ?? (report.employee.projectLeadId === user.employeeId)
+  const isPrimary =
+    (myReviewerRecord?.isPrimary === true) ||
+    (report.employee.projectLeadId === user.employeeId)
   if (isPrimary) {
     for (const [key, val] of [["productivityRating", productivityRating], ["ldRating", ldRating], ["reflectionsRating", reflectionsRating]] as [string, number][]) {
       if (val !== undefined && (val < 0 || val > 3 || !Number.isInteger(val))) {
@@ -132,7 +134,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           title: "Intern Report Ready for Attendance",
           message: `${report.employee.firstName} ${report.employee.lastName}'s report for ${format(report.weekEnd, "MMM d, yyyy")} has been fully reviewed. Please fill in the attendance rating.`,
           type: "INFO",
-          link: "/admin/intern-reports",
+          link: "/admin/reports/intern-reports",
         },
       }).catch(() => {})
     }

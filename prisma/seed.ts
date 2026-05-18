@@ -127,11 +127,11 @@ async function main() {
   {
     const hashed = await bcrypt.hash("Admin@DSN2024!", 12)
     await prisma.user.upsert({
-      where:  { email: "hr@datasciencenigeria.ai" },
+      where:  { email: "edodida@datasciencenigeria.ai" },
       update: { role: "SUPER_ADMIN" as any, mustChangePassword: false },
-      create: { name: "HR Admin", email: "hr@datasciencenigeria.ai", password: hashed, role: "SUPER_ADMIN" as any, mustChangePassword: false },
+      create: { name: "HR Admin", email: "edodida@datasciencenigeria.ai", password: hashed, role: "SUPER_ADMIN" as any, mustChangePassword: false },
     })
-    console.log("  ✓ Admin account (hr@datasciencenigeria.ai)")
+    console.log("  ✓ Admin account (edodida@datasciencenigeria.ai)")
   }
 
   // ── System Admin Roles ────────────────────────────────────────────────────────
@@ -162,7 +162,7 @@ async function main() {
         canViewInternReports: true, canReviewInternReports: true, canFillAttendance: true,
         canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
         canViewAuditLog: true,
-        canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true, canManageCustomization: true,
+        canManageSettings: true, canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true, canManageCustomization: true,
         canManageAdmins: true, canCreateCustomRole: true, canEditCustomRole: true, canDeleteCustomRole: true,
       },
     },
@@ -186,7 +186,7 @@ async function main() {
         canViewContractors: true, canManageContractors: true,
         canViewInternReports: true, canReviewInternReports: true, canFillAttendance: true,
         canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
-        canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true,
+        canManageSettings: true, canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true,
       },
     },
     {
@@ -197,6 +197,7 @@ async function main() {
         canViewAllEmployees: true, canViewOrgChart: true, canViewPersonalDetails: true,
         canViewAllLeave: true, canCreateLeave: true, canEditLeave: true, canDeleteLeave: true, canApproveLeave: true, canViewLeaveTypes: true, canManageLeaveTypes: true,
         canViewAbsences: true, canCreateAbsence: true, canEditAbsence: true, canDeleteAbsence: true, canReviewAbsence: true,
+        canManageSettings: true,
       },
     },
     {
@@ -581,7 +582,7 @@ async function main() {
   console.log("  ✓ Leave balances")
 
   // Announcements
-  const superAdminUser = await prisma.user.findUnique({ where: { email: "hr@datasciencenigeria.ai" }, select: { id: true } })
+  const superAdminUser = await prisma.user.findUnique({ where: { email: "edodida@datasciencenigeria.ai" }, select: { id: true } })
   const annDefs = [
     { title: "Welcome to DSN HRMS",              body: "We're excited to launch the new DSN HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
     { title: "Q2 2026 Leave Reminder",           body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
@@ -627,7 +628,7 @@ async function main() {
 
   console.log("\n✅ Demo data complete.")
   console.log("\n🔑 Demo login accounts:")
-  console.log("   HR Admin:  hr@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")
+  console.log("   HR Admin:  edodida@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")
   console.log("   Admin 1:   staff1@dsn-hrms.com       /  dsn-demo        (STAFF + HR Admin role — elevated)")
   console.log("   Staff 1:   staff3@dsn-hrms.com       /  dsn-demo        (plain STAFF)")
   console.log("   Staff 2:   staff4@dsn-hrms.com       /  dsn-demo        (plain STAFF)")

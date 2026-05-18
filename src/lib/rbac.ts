@@ -137,7 +137,13 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Roles & Permissions", href: "/settings/roles-permissions" },
     ],
   },
-  { label: "Reports",       href: "/reports",       icon: "BarChart2",  roles: ["ADMIN"], section: "OTHER", permission: "canViewReports" },
+  {
+    label: "Reports", icon: "BarChart2", roles: ["ADMIN"], section: "OTHER", permission: "canViewReports",
+    children: [
+      { label: "Reports", href: "/reports", exact: true },
+      { label: "Interns", href: "/reports/intern-reports", permission: "canViewInternReports" },
+    ],
+  },
   {
     label: "Assets", icon: "Package", roles: ["ADMIN"], permission: "canViewAssets",
     children: [
@@ -152,7 +158,6 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/announcements",
   },
   { label: "Analytics",     href: "/analytics",     icon: "BarChart3",     roles: ["ADMIN"], permission: "canViewAnalytics" },
-  { label: "Intern Reports", href: "/intern-reports", icon: "ClipboardList", roles: ["ADMIN"], permission: "canViewInternReports" },
   { label: "Trash",         href: "/trash",         icon: "Trash2",        roles: ["ADMIN"], permission: "canViewAuditLog" },
 
   // ── EXTRAS ───────────────────────────────────────────────────────────────────

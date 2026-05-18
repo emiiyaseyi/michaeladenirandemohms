@@ -3,7 +3,7 @@
  * Requires seed.ts to have been run first (departments, leave types, etc. must exist).
  *
  * Demo login accounts:
- *   hr@datasciencenigeria.ai     /  Admin@DSN2024!   (SUPER_ADMIN — set by seed.ts)
+ *   edodida@datasciencenigeria.ai     /  Admin@DSN2024!   (SUPER_ADMIN — set by seed.ts)
  *   staff1@dsn-hrms.com          /  dsn-demo    (STAFF)
  *   staff2@dsn-hrms.com          /  dsn-demo    (STAFF)
  *   staff3@dsn-hrms.com          /  dsn-demo    (STAFF)
@@ -46,9 +46,9 @@ async function main() {
 
   // ── HR Admin (SUPER_ADMIN) — don't override role set by seed.ts ───────────────
   const hrUser = await prisma.user.upsert({
-    where:  { email: "hr@datasciencenigeria.ai" },
+    where:  { email: "edodida@datasciencenigeria.ai" },
     update: { mustChangePassword: false },
-    create: { name: "Amina Bello", email: "hr@datasciencenigeria.ai", password: hash("dsn-staff"), role: "SUPER_ADMIN", mustChangePassword: false },
+    create: { name: "Amina Bello", email: "edodida@datasciencenigeria.ai", password: hash("dsn-staff"), role: "SUPER_ADMIN", mustChangePassword: false },
   })
   const hrEmp = await prisma.employee.upsert({
     where:  { userId: hrUser.id },
@@ -179,6 +179,13 @@ async function main() {
     prisma.employee.updateMany({ where: { departmentId: brandComms.id },       data: { projectLeadId: blessing?.id } }),
     prisma.employee.updateMany({ where: { departmentId: adminFacility.id },    data: { projectLeadId: hrEmp.id } }),
   ])
+  // Restore intern's projectLead to lead1 (department bulk-update above overrides it)
+  if (lead1Emp) {
+    await prisma.employee.updateMany({
+      where: { user: { email: "intern@dsn-hrms.com" } },
+      data: { projectLeadId: lead1Emp.id },
+    })
+  }
 
   // ── Projects ──────────────────────────────────────────────────────────────────
   const projectDefs = [
@@ -284,7 +291,7 @@ async function main() {
 
   console.log("\n✅ Test seed complete!")
   console.log("\n🔑 Demo login accounts:")
-  console.log("   HR Admin:  hr@datasciencenigeria.ai  /  Admin@DSN2024!   (SUPER_ADMIN)")
+  console.log("   HR Admin:  edodida@datasciencenigeria.ai  /  Admin@DSN2024!   (SUPER_ADMIN)")
   console.log("   Staff 1:   staff1@dsn-hrms.com       /  dsn-demo    (STAFF)")
   console.log("   Staff 2:   staff2@dsn-hrms.com       /  dsn-demo    (STAFF)")
   console.log("   Staff 3:   staff3@dsn-hrms.com       /  dsn-demo    (STAFF)")
