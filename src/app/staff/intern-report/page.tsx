@@ -35,9 +35,15 @@ const initEntries = (): Record<string, Record<DayKey, {tasks: string, hours: str
     Object.fromEntries(DAYS_LIST.map(d => [d, { tasks: "", hours: "" }])) as Record<DayKey, {tasks: string, hours: string}>
   ]))
 
-type Settings = { submissionDay: number; openHour: number; lateHour: number; closeHour: number; lateDeduction: number }
+type Settings = {
+  submissionDay: number; openHour: number; lateHour: number; closeHour: number;
+  lateDeduction: number; lateDeductionSunday: number; warningThresholdMinutes: number;
+}
 
-const DEFAULTS: Settings = { submissionDay: 5, openHour: 16, lateHour: 20, closeHour: 24, lateDeduction: 2 }
+const DEFAULTS: Settings = {
+  submissionDay: 5, openHour: 16, lateHour: 20, closeHour: 24,
+  lateDeduction: 2, lateDeductionSunday: 3, warningThresholdMinutes: 15,
+}
 
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
 function hourLabel(h: number) {
@@ -46,29 +52,160 @@ function hourLabel(h: number) {
   return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`
 }
 
-function computeWindow(cfg: Settings): { text: string; open: boolean; late: boolean } {
-  const now = new Date()
-  const wat = new Date(now.getTime() + 60 * 60 * 1000)
-  const day = wat.getDay()
-  const hours = wat.getHours()
-  const minutes = wat.getMinutes()
+function pad(n: number) { return String(n).padStart(2, "0") }
+function fmtRemaining(ms: number): string {
+  if (ms < 0) ms = 0
+  const totalSec = Math.floor(ms / 1000)
+  const h = Math.floor(totalSec / 3600)
+  const m = Math.floor((totalSec % 3600) / 60)
+  const s = totalSec % 60
+  return `${pad(h)}:${pad(m)}:${pad(s)}`
+}
 
-  if (day !== cfg.submissionDay) {
-    const diff = ((cfg.submissionDay - day + 7) % 7) || 7
-    return { text: `Opens in ${diff} day${diff !== 1 ? "s" : ""} (${DAYS[cfg.submissionDay]} ${hourLabel(cfg.openHour)} WAT)`, open: false, late: false }
+type Phase =
+  | { kind: "closed_before"; ms: number; label: string }
+  | { kind: "ontime"; ms: number; label: string }
+  | { kind: "warning"; ms: number; label: string }
+  | { kind: "late_friday"; ms: number }
+  | { kind: "late_saturday"; ms: number }
+  | { kind: "late_sunday"; ms: number }
+  | { kind: "closed_after" }
+
+function computePhase(cfg: Settings, nowWat: Date): Phase {
+  const day = nowWat.getDay() // 0=Sun … 5=Fri … 6=Sat
+  const FRI = cfg.submissionDay
+  const SAT = (FRI + 1) % 7
+  const SUN = (FRI + 2) % 7
+
+  // Helper: build a Date in WAT for today at HH:00
+  const todayAt = (h: number) => {
+    const d = new Date(nowWat)
+    d.setHours(h, 0, 0, 0)
+    return d
   }
-  if (hours < cfg.openHour) {
-    const minsLeft = (cfg.openHour - hours - 1) * 60 + (60 - minutes)
-    const h = Math.floor(minsLeft / 60); const m = minsLeft % 60
-    return { text: `Submission opens in ${h}h ${m}m (${hourLabel(cfg.openHour)} WAT)`, open: false, late: false }
+  // ms until target WAT moment relative to nowWat
+  const msTo = (target: Date) => target.getTime() - nowWat.getTime()
+
+  if (day === FRI) {
+    const openAt = todayAt(cfg.openHour)
+    const lateAt = todayAt(cfg.lateHour)
+    const closeFridayAt = todayAt(24)
+    if (nowWat < openAt) {
+      return { kind: "closed_before", ms: msTo(openAt), label: `Opens at ${hourLabel(cfg.openHour)} WAT` }
+    }
+    const warningStart = new Date(lateAt.getTime() - cfg.warningThresholdMinutes * 60 * 1000)
+    if (nowWat < warningStart) return { kind: "ontime",  ms: msTo(lateAt), label: "On-time" }
+    if (nowWat < lateAt)        return { kind: "warning", ms: msTo(lateAt), label: `Last ${cfg.warningThresholdMinutes} min!` }
+    return { kind: "late_friday", ms: msTo(closeFridayAt) }
   }
-  if (cfg.closeHour < 24 && hours >= cfg.closeHour) {
-    return { text: "Submission window has closed for today.", open: false, late: false }
+
+  if (day === SAT) {
+    const tomorrowMidnight = todayAt(24)
+    return { kind: "late_saturday", ms: msTo(tomorrowMidnight) }
   }
-  if (hours >= cfg.lateHour) {
-    return { text: `Late submission (after ${hourLabel(cfg.lateHour)} WAT) — ${cfg.lateDeduction} point${cfg.lateDeduction !== 1 ? "s" : ""} will be deducted`, open: true, late: true }
+
+  if (day === SUN) {
+    const tomorrowMidnight = todayAt(24)
+    return { kind: "late_sunday", ms: msTo(tomorrowMidnight) }
   }
-  return { text: `Submission window is open (${hourLabel(cfg.openHour)} – ${hourLabel(cfg.lateHour)} WAT on ${DAYS[cfg.submissionDay]}s)`, open: true, late: false }
+
+  // Mon-Thu — next Friday at openHour
+  const daysUntilFri = ((FRI - day + 7) % 7) || 7
+  const next = new Date(nowWat)
+  next.setDate(nowWat.getDate() + daysUntilFri)
+  next.setHours(cfg.openHour, 0, 0, 0)
+  return { kind: "closed_before", ms: msTo(next), label: `Next window: ${DAYS[FRI]} ${hourLabel(cfg.openHour)} WAT` }
+}
+
+function computeWindow(cfg: Settings): { text: string; open: boolean; late: boolean } {
+  const nowWat = new Date(Date.now() + 60 * 60 * 1000)
+  const phase = computePhase(cfg, nowWat)
+  switch (phase.kind) {
+    case "closed_before": return { text: phase.label, open: false, late: false }
+    case "closed_after":  return { text: "Submission window closed. Next opens Friday.", open: false, late: false }
+    case "ontime":        return { text: `On-time window`, open: true, late: false }
+    case "warning":       return { text: phase.label, open: true, late: false }
+    case "late_friday":   return { text: `LATE — submit before midnight (0 pt deduction so far)`, open: true, late: true }
+    case "late_saturday": return { text: `Saturday submission — −${cfg.lateDeduction} pts`, open: true, late: true }
+    case "late_sunday":   return { text: `Sunday submission — −${cfg.lateDeductionSunday} pts (final day)`, open: true, late: true }
+  }
+}
+
+function CountdownBanner({ cfg }: { cfg: Settings }) {
+  const [now, setNow] = useState(() => new Date(Date.now() + 60 * 60 * 1000))
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date(Date.now() + 60 * 60 * 1000)), 1000)
+    return () => clearInterval(t)
+  }, [])
+  const phase = computePhase(cfg, now)
+
+  let bg = "#F3F4F6"; let color = "#374151"; let icon = "🕒"; let title = ""; let subtitle = ""
+  switch (phase.kind) {
+    case "closed_before":
+      bg = "#F3F4F6"; color = "#374151"; icon = "🕒"
+      title = phase.label
+      subtitle = `Opens in ${fmtRemaining(phase.ms)}`
+      break
+    case "ontime":
+      bg = "#DCFCE7"; color = "#15803D"; icon = "✓"
+      title = "ON-TIME WINDOW"
+      subtitle = `${fmtRemaining(phase.ms)} left`
+      break
+    case "warning":
+      bg = "#FEE2E2"; color = "#DC2626"; icon = "⚠"
+      title = phase.label
+      subtitle = `${fmtRemaining(phase.ms)} to deadline`
+      break
+    case "late_friday":
+      bg = "#FEE2E2"; color = "#DC2626"; icon = "⏰"
+      title = "LATE — submit before midnight"
+      subtitle = `${fmtRemaining(phase.ms)} left (no deduction yet)`
+      break
+    case "late_saturday":
+      bg = "#FEE2E2"; color = "#DC2626"; icon = "⏰"
+      title = `Saturday — −${cfg.lateDeduction} pts`
+      subtitle = `Window closes Sunday midnight • ${fmtRemaining(phase.ms)} left today`
+      break
+    case "late_sunday":
+      bg = "#FEE2E2"; color = "#DC2626"; icon = "🔥"
+      title = `Sunday — −${cfg.lateDeductionSunday} pts • FINAL DAY`
+      subtitle = `${fmtRemaining(phase.ms)} until window closes`
+      break
+    case "closed_after":
+      bg = "#F3F4F6"; color = "#374151"; icon = "🕒"
+      title = "Window closed"
+      subtitle = "Next: Friday 4:00 PM WAT"
+      break
+  }
+
+  return (
+    <div style={{
+      background: bg, borderRadius: 16, padding: "22px 28px",
+      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+      marginBottom: 20, border: `2px solid ${color}33`,
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+        <div style={{ fontSize: 32, lineHeight: 1 }}>{icon}</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color, marginBottom: 4 }}>
+            {title}
+          </div>
+          <div style={{ fontSize: 13, color, opacity: 0.85 }}>
+            {subtitle}
+          </div>
+        </div>
+      </div>
+      {phase.kind !== "closed_after" && (
+        <div style={{
+          fontSize: 38, fontWeight: 900, color, fontVariantNumeric: "tabular-nums",
+          fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", letterSpacing: "0.02em",
+        }}>
+          {phase.kind === "closed_before" ? fmtRemaining(phase.ms)
+            : fmtRemaining(phase.ms)}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function StatusBadge({ status }: { status: string }) {
@@ -78,6 +215,7 @@ function StatusBadge({ status }: { status: string }) {
     LATE:             { label: "Late",      bg: "#FEF3C7", color: "#D97706" },
     REVIEWED:         { label: "Reviewed",  bg: "#DCFCE7", color: "#15803D" },
     ATTENDANCE_FILLED:{ label: "Completed", bg: "#DCFCE7", color: "#15803D" },
+    MISSING:          { label: "Missed",    bg: "#FEE2E2", color: "#DC2626" },
   }
   const s = map[status] ?? map.DRAFT
   return <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>{s.label}</span>
@@ -183,18 +321,36 @@ export default function InternReportPage() {
   const alreadySubmitted = submitOk
     || ["SUBMITTED","LATE","REVIEWED","ATTENDANCE_FILLED"].includes(thisWeekReport?.status)
 
+  // Compulsory: every Mon-Fri daily reflection must be non-empty after trim
+  const missingReflectionDays = REFLECTION_DAYS
+    .filter(d => !dailyReflections[d.key] || dailyReflections[d.key].trim().length === 0)
+    .map(d => d.label)
+  const allReflectionsFilled = missingReflectionDays.length === 0
+
+  const hasMissingPlaceholder = thisWeekReport?.status === "MISSING"
+
   return (
     <div style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
       {/* Header */}
-      <div style={{ marginBottom: 28 }}>
+      <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
           <ClipboardList size={22} style={{ color: "var(--primary)" }} />
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Weekly Report</h1>
         </div>
         <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
-          Submit your weekly task log every {DAYS[cfg.submissionDay]} between {hourLabel(cfg.openHour)} and {hourLabel(cfg.lateHour)} WAT.
+          Window: {DAYS[cfg.submissionDay]} {hourLabel(cfg.openHour)} → Sunday 11:59 PM WAT.
+          On time: 0 pts • Sat: −{cfg.lateDeduction} pts • Sun: −{cfg.lateDeductionSunday} pts.
         </p>
       </div>
+
+      {/* Big live countdown — phase + colour change as Friday → Sat → Sun progresses */}
+      <CountdownBanner cfg={cfg} />
+
+      {hasMissingPlaceholder && (
+        <div style={{ padding: "14px 18px", background: "#FEE2E2", border: "1px solid #FECACA", borderRadius: 10, marginBottom: 20, color: "#991B1B", fontSize: 13 }}>
+          <strong>Missed week record on file.</strong> A "Missing" placeholder was auto-created for this week (−3 pts). Ask an admin to clear it before you can submit retroactively.
+        </div>
+      )}
 
       {/* Submission Form — full width */}
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginBottom: 24 }}>
@@ -224,13 +380,6 @@ export default function InternReportPage() {
         ) : (
           <>
             <div style={{ padding: "16px 24px 0" }}>
-              <div style={{
-                fontSize: 12, color: window.late ? "#92400E" : window.open ? "#166534" : "#4B5563",
-                padding: "8px 12px", background: window.late ? "#FEF3C7" : window.open ? "#F0FDF4" : "#F3F4F6",
-                borderRadius: 8, marginBottom: 20,
-              }}>
-                {window.text}
-              </div>
 
               {/* Task table */}
               <div style={{ overflowX: "auto", marginBottom: 20 }}>
@@ -287,31 +436,42 @@ export default function InternReportPage() {
 
               {/* Daily Reflections */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "var(--foreground)" }}>
-                  Daily Reflections
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "var(--foreground)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span>Daily Reflections</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em" }}>Required — all 5 days</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-                  {REFLECTION_DAYS.map(({ key, label }) => (
-                    <div key={key}>
-                      <label style={{ display: "block", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>
-                        {label}
-                      </label>
-                      <textarea
-                        value={dailyReflections[key]}
-                        onChange={e => setDailyReflections(r => ({ ...r, [key]: e.target.value }))}
-                        rows={4}
-                        disabled={!window.open}
-                        placeholder="What did you work on, learn, or reflect on today?"
-                        style={{
-                          width: "100%", padding: "8px 10px", border: "1.5px solid var(--border)",
-                          borderRadius: 8, fontSize: 12, background: "var(--background)",
-                          color: "var(--foreground)", outline: "none", resize: "vertical",
-                          boxSizing: "border-box", opacity: !window.open ? 0.6 : 1,
-                        }}
-                      />
-                    </div>
-                  ))}
+                  {REFLECTION_DAYS.map(({ key, label }) => {
+                    const empty = !dailyReflections[key] || dailyReflections[key].trim().length === 0
+                    return (
+                      <div key={key}>
+                        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: empty ? "#DC2626" : "var(--muted-foreground)", marginBottom: 5 }}>
+                          {label}
+                          {empty && <span style={{ fontSize: 12 }}>*</span>}
+                        </label>
+                        <textarea
+                          value={dailyReflections[key]}
+                          onChange={e => setDailyReflections(r => ({ ...r, [key]: e.target.value }))}
+                          rows={4}
+                          disabled={!window.open}
+                          placeholder="What did you work on, learn, or reflect on today?"
+                          style={{
+                            width: "100%", padding: "8px 10px",
+                            border: `1.5px solid ${empty && window.open ? "#FCA5A5" : "var(--border)"}`,
+                            borderRadius: 8, fontSize: 12, background: "var(--background)",
+                            color: "var(--foreground)", outline: "none", resize: "vertical",
+                            boxSizing: "border-box", opacity: !window.open ? 0.6 : 1,
+                          }}
+                        />
+                      </div>
+                    )
+                  })}
                 </div>
+                {window.open && missingReflectionDays.length > 0 && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#DC2626" }}>
+                    Missing reflections for: <strong>{missingReflectionDays.join(", ")}</strong>. All 5 days are compulsory.
+                  </div>
+                )}
               </div>
 
               {/* Reviewers */}
@@ -377,15 +537,31 @@ export default function InternReportPage() {
               )}
             </div>
 
-            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12 }}>
+              {window.open && !allReflectionsFilled && (
+                <span style={{ fontSize: 12, color: "#DC2626" }}>
+                  Fill all 5 daily reflections to submit.
+                </span>
+              )}
+              {window.open && hasMissingPlaceholder && (
+                <span style={{ fontSize: 12, color: "#DC2626" }}>
+                  Admin must clear the missing-report record first.
+                </span>
+              )}
               <button
                 onClick={handleSubmit}
-                disabled={!window.open || submitting}
+                disabled={!window.open || submitting || !allReflectionsFilled || hasMissingPlaceholder}
+                title={
+                  !window.open ? "Submission window closed"
+                    : hasMissingPlaceholder ? "Ask an admin to clear the missing-report record first"
+                    : !allReflectionsFilled ? `Missing: ${missingReflectionDays.join(", ")}`
+                    : "Submit Report"
+                }
                 style={{
                   padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8,
-                  cursor: window.open && !submitting ? "pointer" : "not-allowed",
+                  cursor: (window.open && !submitting && allReflectionsFilled && !hasMissingPlaceholder) ? "pointer" : "not-allowed",
                   fontSize: 14, fontWeight: 700, color: "white",
-                  opacity: !window.open || submitting ? 0.5 : 1,
+                  opacity: (!window.open || submitting || !allReflectionsFilled || hasMissingPlaceholder) ? 0.5 : 1,
                 }}
               >
                 {submitting ? "Submitting…" : "Submit Report"}

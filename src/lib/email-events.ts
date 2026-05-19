@@ -483,6 +483,21 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       NOTE("An Excel copy of the report is attached to this email."),
   },
 
+  intern_report_missing: {
+    name: "Intern Report — Missing (auto-flagged)",
+    description: "Sent to the intern's Project Lead on Monday morning when an intern did not submit a weekly report by Sunday midnight.",
+    category: "People",
+    variables: ["internName", "weekRange", "reviewLink"],
+    defaultSubject: "Missed weekly report — {{internName}} ({{weekRange}})",
+    defaultBody:
+      LOGO +
+      H("Missed Weekly Report") +
+      P("<strong>{{internName}}</strong> did not submit a weekly report for <strong>{{weekRange}}</strong>. A 'Missed' placeholder has been auto-recorded with a 3-point deduction.") +
+      P("If this was an oversight or there was a valid reason, please coordinate with HR — an admin can clear the missed-record so the intern can submit retroactively.") +
+      `<div style="text-align:center;margin:24px 0;"><a href="{{reviewLink}}" style="display:inline-block;padding:12px 32px;background:#dc2626;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Review in HRMS</a></div>` +
+      NOTE("This is an automated notification."),
+  },
+
   intern_report_reviewed: {
     name: "Weekly Report — All Reviews Complete",
     description: "Sent to an intern when all reviewers have completed feedback on their weekly report.",

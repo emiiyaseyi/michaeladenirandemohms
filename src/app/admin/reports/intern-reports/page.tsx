@@ -33,6 +33,7 @@ function StatusBadge({ status }: { status: string }) {
     LATE:      { label: "Late",       bg: "#FEF3C7", color: "#D97706" },
     REVIEWED:  { label: "Reviewed",   bg: "#DCFCE7", color: "#15803D" },
     DRAFT:     { label: "Draft",      bg: "#F3F4F6", color: "#6B7280" },
+    MISSING:   { label: "Missed",     bg: "#FEE2E2", color: "#DC2626" },
   }
   const s = map[status] ?? map.DRAFT
   return <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>{s.label}</span>
@@ -365,10 +366,12 @@ export default function AdminInternReportsPage() {
                     </td>
                     <td style={{ padding: "12px 16px" }}>
                       <div style={{ display: "flex", gap: 8 }}>
-                        <button onClick={() => setViewingId(r.id)}
-                          style={{ padding: "5px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
-                          View
-                        </button>
+                        {r.status !== "MISSING" && (
+                          <button onClick={() => setViewingId(r.id)}
+                            style={{ padding: "5px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                            View
+                          </button>
+                        )}
                         {r.status === "REVIEWED" && (
                           <button onClick={() => openAttendance(r.id)}
                             style={{ padding: "5px 12px", background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
@@ -377,6 +380,18 @@ export default function AdminInternReportsPage() {
                         )}
                         {(r.status === "SUBMITTED" || r.status === "LATE") && (
                           <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Awaiting review</span>
+                        )}
+                        {r.status === "MISSING" && (
+                          <button
+                            onClick={async () => {
+                              if (!confirm(`Clear the missed-report record for ${r.employee?.firstName} ${r.employee?.lastName}? They will be able to submit retroactively.`)) return
+                              const res = await fetch(`/api/intern-reports/${r.id}`, { method: "DELETE" })
+                              if (!res.ok) { alert("Failed to clear record"); return }
+                              setReports(prev => prev.filter(x => x.id !== r.id))
+                            }}
+                            style={{ padding: "5px 12px", background: "#DC2626", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
+                            Clear missed record
+                          </button>
                         )}
                       </div>
                     </td>

@@ -26,6 +26,8 @@ export default function InternReportSettingsPage() {
     lateHour: number
     closeHour: number
     lateDeduction: number
+    lateDeductionSunday: number
+    warningThresholdMinutes: number
     attendanceCriteria: { score: number; description: string }[]
   }>({
     submissionDay: 5,
@@ -33,6 +35,8 @@ export default function InternReportSettingsPage() {
     lateHour: 20,
     closeHour: 24,
     lateDeduction: 2,
+    lateDeductionSunday: 3,
+    warningThresholdMinutes: 15,
     attendanceCriteria: DEFAULT_CRITERIA,
   })
   const [loading, setLoading] = useState(true)
@@ -51,6 +55,8 @@ export default function InternReportSettingsPage() {
           lateHour: d.lateHour ?? 20,
           closeHour: d.closeHour ?? 24,
           lateDeduction: d.lateDeduction ?? 2,
+          lateDeductionSunday: d.lateDeductionSunday ?? 3,
+          warningThresholdMinutes: d.warningThresholdMinutes ?? 15,
           attendanceCriteria: d.attendanceCriteria ?? DEFAULT_CRITERIA,
         })
         setLoading(false)
@@ -111,10 +117,10 @@ export default function InternReportSettingsPage() {
           {row("Late Threshold (submissions after this time are late)", "lateHour", HOUR_OPTIONS.slice(0, 24))}
           {row("Window Closes (no submissions after this time)", "closeHour", HOUR_OPTIONS.slice(1))}
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Late Submission Deduction</div>
-              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Points deducted for late submissions</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Saturday Deduction</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Points deducted for submissions made on Saturday</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
@@ -127,16 +133,55 @@ export default function InternReportSettingsPage() {
             </div>
           </div>
 
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Sunday Deduction</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Points deducted for submissions made on Sunday (final day of window)</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number" min={0} max={10} step={1}
+                value={settings.lateDeductionSunday}
+                onChange={e => set("lateDeductionSunday", Number(e.target.value))}
+                style={{ width: 80, padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", textAlign: "center" }}
+              />
+              <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>pts</span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Warning Threshold</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Minutes before the late threshold when the countdown turns red as a warning</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number" min={0} max={120} step={1}
+                value={settings.warningThresholdMinutes}
+                onChange={e => set("warningThresholdMinutes", Number(e.target.value))}
+                style={{ width: 80, padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", textAlign: "center" }}
+              />
+              <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>min</span>
+            </div>
+          </div>
+
           {/* Preview */}
           <div style={{ background: "var(--muted)", borderRadius: 10, padding: "12px 16px", marginTop: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Preview</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Preview — current window</div>
             <div style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.8 }}>
-              Interns can submit every <strong>{DAYS[settings.submissionDay]}</strong> between{" "}
-              <strong>{hourLabel(settings.openHour)} WAT</strong> and{" "}
-              <strong>{settings.closeHour === 24 ? "midnight" : hourLabel(settings.closeHour)} WAT</strong>.
+              Window opens <strong>{DAYS[settings.submissionDay]} {hourLabel(settings.openHour)} WAT</strong> and stays open through <strong>Sunday 11:59 PM WAT</strong>.
               <br />
-              Submissions after <strong>{hourLabel(settings.lateHour)} WAT</strong> are marked <em>late</em> and incur a{" "}
-              <strong>{settings.lateDeduction}-point deduction</strong>.
+              • <strong>{DAYS[settings.submissionDay]} {hourLabel(settings.openHour)}–{hourLabel(settings.lateHour)}:</strong> on time — 0 pts
+              <br />
+              • <strong>{DAYS[settings.submissionDay]} {hourLabel(settings.lateHour)}–midnight:</strong> LATE flag, 0 pts
+              <br />
+              • <strong>Saturday:</strong> LATE, <strong>−{settings.lateDeduction} pts</strong>
+              <br />
+              • <strong>Sunday:</strong> LATE, <strong>−{settings.lateDeductionSunday} pts</strong>
+              <br />
+              • <strong>Monday onwards:</strong> window closed. No submission row → auto-created as <strong>MISSING (−{settings.lateDeductionSunday} pts)</strong> by Monday cron.
+              <br />
+              Countdown turns red <strong>{settings.warningThresholdMinutes} minutes</strong> before the late threshold.
             </div>
           </div>
 

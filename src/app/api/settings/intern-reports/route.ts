@@ -8,6 +8,8 @@ const DEFAULTS = {
   lateHour: 20,
   closeHour: 24,
   lateDeduction: 2,
+  lateDeductionSunday: 3,
+  warningThresholdMinutes: 15,
 }
 
 const DEFAULT_CRITERIA = [
@@ -33,7 +35,7 @@ export async function PATCH(req: NextRequest) {
   if (user.role !== "SUPER_ADMIN" && !user.permissions?.canViewInternReports) return forbidden()
 
   const body = await req.json()
-  const { submissionDay, openHour, lateHour, closeHour, lateDeduction, attendanceCriteria } = body
+  const { submissionDay, openHour, lateHour, closeHour, lateDeduction, lateDeductionSunday, warningThresholdMinutes, attendanceCriteria } = body
 
   const settings = await prisma.internReportSettings.upsert({
     where: { id: "singleton" },
@@ -43,6 +45,8 @@ export async function PATCH(req: NextRequest) {
       ...(lateHour !== undefined && { lateHour: Number(lateHour) }),
       ...(closeHour !== undefined && { closeHour: Number(closeHour) }),
       ...(lateDeduction !== undefined && { lateDeduction: Number(lateDeduction) }),
+      ...(lateDeductionSunday !== undefined && { lateDeductionSunday: Number(lateDeductionSunday) }),
+      ...(warningThresholdMinutes !== undefined && { warningThresholdMinutes: Number(warningThresholdMinutes) }),
       ...(attendanceCriteria !== undefined && { attendanceCriteria }),
     },
     create: {
@@ -52,6 +56,8 @@ export async function PATCH(req: NextRequest) {
       lateHour: Number(lateHour ?? DEFAULTS.lateHour),
       closeHour: Number(closeHour ?? DEFAULTS.closeHour),
       lateDeduction: Number(lateDeduction ?? DEFAULTS.lateDeduction),
+      lateDeductionSunday: Number(lateDeductionSunday ?? DEFAULTS.lateDeductionSunday),
+      warningThresholdMinutes: Number(warningThresholdMinutes ?? DEFAULTS.warningThresholdMinutes),
       attendanceCriteria: attendanceCriteria ?? DEFAULT_CRITERIA,
     },
   })

@@ -57,6 +57,7 @@ function StatusBadge({ status }: { status: string }) {
     LATE:      { label: "Late",       bg: "#FEF3C7", color: "#D97706" },
     REVIEWED:  { label: "Reviewed",   bg: "#DCFCE7", color: "#15803D" },
     DRAFT:     { label: "Draft",      bg: "#F3F4F6", color: "#6B7280" },
+    MISSING:   { label: "Missed",     bg: "#FEE2E2", color: "#DC2626" },
   }
   const s = map[status] ?? map.DRAFT
   return <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>{s.label}</span>

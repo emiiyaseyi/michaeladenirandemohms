@@ -1435,6 +1435,7 @@ enum InternReportStatus {
   SUBMITTED
   LATE
   REVIEWED
+  MISSING
 }
 
 model InternWeeklyReport {
@@ -1500,12 +1501,14 @@ model InternReportReviewer {
 }
 
 model InternReportSettings {
-  id                String   @id @default("singleton")
-  submissionDay     Int      @default(5)   // 0=Sun … 5=Fri … 6=Sat
-  openHour          Int      @default(16)  // WAT hour when window opens
-  lateHour          Int      @default(20)  // WAT hour after which submission is late
-  closeHour         Int      @default(24)  // WAT hour after which no submission allowed
-  lateDeduction     Int      @default(2)   // points deducted for late submission
-  attendanceCriteria Json?
-  updatedAt         DateTime @updatedAt
+  id                       String   @id @default("singleton")
+  submissionDay            Int      @default(5)   // 0=Sun … 5=Fri … 6=Sat
+  openHour                 Int      @default(16)  // WAT hour when window opens on submissionDay
+  lateHour                 Int      @default(20)  // WAT hour after which Friday submission is LATE
+  closeHour                Int      @default(24)  // legacy — no longer used (window now closes Sun 23:59)
+  lateDeduction            Int      @default(2)   // points deducted for Saturday submissions
+  lateDeductionSunday      Int      @default(3)   // points deducted for Sunday submissions
+  warningThresholdMinutes  Int      @default(15)  // minutes before lateHour that the countdown turns red
+  attendanceCriteria       Json?
+  updatedAt                DateTime @updatedAt
 }
