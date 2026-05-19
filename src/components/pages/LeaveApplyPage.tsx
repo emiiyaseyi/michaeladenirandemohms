@@ -169,11 +169,17 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
   const applicantJobTitle: string = applicantEmp?.jobTitle ?? employeeJobTitle
   const applicantIsIntern = (applicantJobTitle ?? "").toLowerCase().includes("intern")
 
+  // Leave types interns are entitled to ON TOP of intern-only ones (e.g. Casual).
+  // Annual + Sick + Compassionate + Study are full-employee benefits — interns don't get them.
+  const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
+
   const visibleTypes = leaveTypes.filter(lt => {
     // Hide intern-only types from non-interns. Admin override doesn't apply —
     // the API enforces this server-side too, so even an admin acting on behalf
     // of a non-intern can't apply for an intern-only type for them.
     if (lt.internOnly && !applicantIsIntern) return false
+    // Interns only see intern-only types + a whitelist (Sick / Compassionate / Maternity / Paternity).
+    if (applicantIsIntern && !lt.internOnly && !INTERN_ALLOWED_NON_INTERN_TYPES.includes(lt.name)) return false
     // Gender filter
     if (!lt.genderSpecific) return true
     if (!applicantGender) return true

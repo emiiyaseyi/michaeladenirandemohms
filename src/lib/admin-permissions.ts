@@ -103,15 +103,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    group: "Projects",
-    items: [
-      { key: "canViewProjects", label: "View all projects" },
-      { key: "canCreateProject", label: "Create projects" },
-      { key: "canManageProjectAssignments", label: "Assign & remove team members" },
-      { key: "canCloseProject", label: "Close or archive projects" },
-    ],
-  },
-  {
     group: "Time Tracking",
     items: [
       { key: "canViewAbsences", label: "View absences" },

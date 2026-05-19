@@ -173,6 +173,23 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       NOTE("Log in to your HRMS portal to view your handover notes."),
   },
 
+  leave_edited_by_other: {
+    name: "Your Leave Request Was Edited",
+    category: "Leave",
+    description: "Sent to the requester when an admin or approving PL edits their pending leave request.",
+    variables: ["employeeName", "editorName", "changes", "leaveType", "startDate", "endDate"],
+    defaultSubject: "Your {{leaveType}} request was edited by {{editorName}}",
+    defaultBody:
+      LOGO +
+      H("Your Leave Request Was Edited") +
+      P("Hi <strong>{{employeeName}}</strong>, <strong>{{editorName}}</strong> updated your {{leaveType}} request.") +
+      P("Changes: {{changes}}") +
+      TABLE(
+        ROW("Period", "{{startDate}} – {{endDate}}"),
+      ) +
+      NOTE("Log in to your HRMS portal to review the changes."),
+  },
+
   welcome_back: {
     name: "Welcome Back from Leave",
     category: "Leave",
@@ -184,6 +201,20 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       H("Welcome Back!") +
       P("Hi <strong>{{employeeName}}</strong>, welcome back from your <strong>{{leaveType}}</strong>! We hope you had a great break.") +
       NOTE("Log in to your portal to catch up."),
+  },
+
+  leave_started_stakeholder: {
+    name: "Team Member on Leave Today",
+    category: "Leave",
+    description: "Sent to PLs, relief officers, and admins when a team member's leave starts.",
+    variables: ["employeeName", "leaveType", "startDate", "endDate", "reliefs"],
+    defaultSubject: "{{employeeName}} is on {{leaveType}} from today",
+    defaultBody:
+      LOGO +
+      H("Team Member on Leave") +
+      P("<strong>{{employeeName}}</strong> is on <strong>{{leaveType}}</strong> from {{startDate}} until {{endDate}}.") +
+      P("Relief officers: {{reliefs}}") +
+      NOTE(),
   },
 
   employee_back_hr: {

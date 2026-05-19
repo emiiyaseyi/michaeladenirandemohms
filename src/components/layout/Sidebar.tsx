@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { signOut } from "next-auth/react"
+import { useLogoutConfirm } from "@/components/layout/LogoutConfirm"
 import {
   ChevronRight, LogOut, ChevronDown, ArrowLeftRight,
   LayoutDashboard, UserCircle, Users, CalendarDays, Briefcase, TrendingUp,
@@ -62,6 +62,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
   user: any; nav: NavItem[]; homeUrl?: string; extraNav?: NavItem[]
 }) {
   const path = usePathname()
+  const { confirmLogout, modal: logoutModal } = useLogoutConfirm()
 
   const nav = [...baseNav]
   for (const item of extraNav) {
@@ -296,7 +297,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
             </div>
           </div>
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={confirmLogout}
             title="Sign out"
             style={{
               background: "none", border: "none", cursor: "pointer",
@@ -310,6 +311,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
           </button>
         </div>
       </div>
+      {logoutModal}
     </aside>
   )
 }

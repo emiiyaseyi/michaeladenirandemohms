@@ -105,10 +105,13 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
   const balanceSourceTypeId = selType?.deductFromAnnual && annualLeaveType ? annualLeaveType.id : form.leaveTypeId
   const selBal = balances.find(b => b.leaveTypeId === balanceSourceTypeId)
 
-  const applicantEmp: any = form.employeeId ? employees.find((e: any) => e.id === form.employeeId) : null
+  const applicantIdForFilter = form.employeeId || currentUserEmployeeId
+  const applicantEmp: any = applicantIdForFilter ? employees.find((e: any) => e.id === applicantIdForFilter) : null
   const applicantIsIntern = ((applicantEmp?.jobTitle as string) ?? "").toLowerCase().includes("intern")
+  const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
   const visibleTypes = leaveTypes.filter(lt => {
     if (lt.internOnly && !applicantIsIntern) return false
+    if (applicantIsIntern && !lt.internOnly && !INTERN_ALLOWED_NON_INTERN_TYPES.includes(lt.name)) return false
     if (!lt.genderSpecific) return true
     const empGender = applicantEmp?.gender ?? employeeGender
     if (!empGender) return true
@@ -614,7 +617,7 @@ function LeaveDetailModal({ req, onClose, isAdmin, currentUserEmployeeId }: { re
                       {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
                     </div>
                     {pending && plApprovals[0]?.deadline && <CountdownTimer deadline={plApprovals.find((a: any) => !a.action)?.deadline} />}
-                    {isAdmin && pending && (
+                    {isAdmin && pending && req.status === "PENDING" && (
                       <button onClick={() => nudgeStage("PROJECT_LEAD")} disabled={nudging === "PROJECT_LEAD" || nudged["PROJECT_LEAD"]}
                         style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["PROJECT_LEAD"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["PROJECT_LEAD"] ? "var(--success)" : "var(--warning)", cursor: nudging === "PROJECT_LEAD" ? "wait" : "pointer", flexShrink: 0 }}>
                         <Bell size={10} />{nudged["PROJECT_LEAD"] ? "Sent!" : nudging === "PROJECT_LEAD" ? "…" : "Nudge"}
@@ -670,7 +673,7 @@ function LeaveDetailModal({ req, onClose, isAdmin, currentUserEmployeeId }: { re
                       {notReached && <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Not yet reached</span>}
                     </div>
                     {a?.action && <Badge status={a.action} />}
-                    {isAdmin && pending && (
+                    {isAdmin && pending && req.status === "PENDING" && (
                       <button onClick={() => nudgeStage("HR_ADMIN")} disabled={nudging === "HR_ADMIN" || nudged["HR_ADMIN"]}
                         style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6, border: "1px solid var(--warning)", background: nudged["HR_ADMIN"] ? "var(--success-bg)" : "var(--warning-bg)", color: nudged["HR_ADMIN"] ? "var(--success)" : "var(--warning)", cursor: nudging === "HR_ADMIN" ? "wait" : "pointer", flexShrink: 0 }}>
                         <Bell size={10} />{nudged["HR_ADMIN"] ? "Sent!" : nudging === "HR_ADMIN" ? "…" : "Nudge"}
@@ -707,20 +710,37 @@ function LeaveDetailModal({ req, onClose, isAdmin, currentUserEmployeeId }: { re
                 {visibleEntries.map((entry: any, i: number) => {
                   const plApproval = (req.approvals ?? []).find((a: any) => a.employeeId === entry.projectLeadId)
                   const plName = plApproval?.employee ? `${plApproval.employee.firstName} ${plApproval.employee.lastName}` : "Project Lead"
-                  const reliefRecord = entry.relieverId ? (req.reliefOfficersList ?? []).find((r: any) => r.employeeId === entry.relieverId) : null
-                  const reliefName = reliefRecord?.employee ? `${reliefRecord.employee.firstName} ${reliefRecord.employee.lastName}` : null
+                  // Try resolving the relief name from the official LeaveReliefOfficer list (post-HR-approval),
+                  // then from PL approvals (pre-approval lookup), then fall back to "None".
+                  let reliefName: string | null = null
+                  if (entry.relieverId) {
+                    const rec = (req.reliefOfficersList ?? []).find((r: any) => r.employeeId === entry.relieverId)
+                    if (rec?.employee) reliefName = `${rec.employee.firstName} ${rec.employee.lastName}`
+                    if (!reliefName) {
+                      const ap = (req.approvals ?? []).find((a: any) => a.employeeId === entry.relieverId)
+                      if (ap?.employee) reliefName = `${ap.employee.firstName} ${ap.employee.lastName}`
+                    }
+                    if (!reliefName) reliefName = "Assigned (id only)"
+                  }
                   return (
                     <div key={i} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 14px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: reliefName || entry.taskDescription ? 6 : 0 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
                         <span style={{ fontSize: 12, fontWeight: 700 }}>{plName}</span>
                         <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>→</span>
                         <span style={{ fontSize: 12, fontWeight: 600, color: "var(--primary)" }}>{entry.taskName}</span>
                       </div>
                       {entry.taskDescription && (
-                        <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: reliefName ? 4 : 0 }}>{entry.taskDescription}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 4 }}>{entry.taskDescription}</div>
                       )}
-                      {reliefName && (
-                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>Relief: <strong>{reliefName}</strong></div>
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: entry.documentUrl ? 4 : 0 }}>
+                        Relief: {reliefName
+                          ? <strong>{reliefName}</strong>
+                          : <em style={{ color: "var(--warning)" }}>None — an approving PL or ADMIN must assign one before this can be approved</em>}
+                      </div>
+                      {entry.documentUrl && (
+                        <a href={entry.documentUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: "var(--primary)", fontWeight: 600, textDecoration: "underline" }}>
+                          Handover document →
+                        </a>
                       )}
                     </div>
                   )
@@ -1151,6 +1171,12 @@ function ReliefDutiesPanel({ currentUserEmployeeId }: { currentUserEmployeeId?: 
                           <div key={idx}>
                             <div style={{ fontWeight: 600, color: "var(--foreground)" }}>{e.taskName}</div>
                             {e.taskDescription && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{e.taskDescription}</div>}
+                            {e.documentUrl && (
+                              <a href={e.documentUrl} target="_blank" rel="noopener noreferrer"
+                                style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 11, fontWeight: 600, color: "var(--primary)", textDecoration: "none", marginTop: 2 }}>
+                                <CalendarCheck size={10} /> Handover document
+                              </a>
+                            )}
                           </div>
                         ))
                       })()}
@@ -1205,6 +1231,17 @@ export default function LeavePage() {
   const [sentNudges, setSentNudges] = useState<Set<string>>(new Set())
   const [approveTarget, setApproveTarget] = useState<{ id: string; stage?: string; req: any } | null>(null)
   const [approving, setApproving] = useState(false)
+  const [approveError, setApproveError] = useState("")
+  // For HR bypass: editable handover entries (PL → task → relief)
+  const [bypassHandover, setBypassHandover] = useState<any[]>([])
+  useEffect(() => {
+    setApproveError("")
+    if (approveTarget?.stage === "HR_ADMIN") {
+      try { setBypassHandover(JSON.parse(approveTarget.req.handoverNotes ?? "[]")) } catch { setBypassHandover([]) }
+    } else {
+      setBypassHandover([])
+    }
+  }, [approveTarget])
   const [plApproveTarget, setPLApproveTarget] = useState<any | null>(null)
   const [reviewReq, setReviewReq] = useState<any | null>(null)
   const [search, setSearch] = useState("")
@@ -1258,8 +1295,37 @@ export default function LeavePage() {
   }, [employeeId])
 
   const approve = async (id: string, stage?: string) => {
+    setApproveError("")
+    // HR bypass: require a relief officer on every handover entry before approving
+    if (stage === "HR_ADMIN" && bypassHandover.length > 0) {
+      const missing = bypassHandover.filter((e: any) => !e.relieverId)
+      if (missing.length > 0) {
+        setApproveError(`Pick a relief officer for every handover entry (${missing.length} missing) before approving.`)
+        return
+      }
+    }
     setApproving(true)
-    await fetch(`/api/leave/${id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "APPROVED", stage }) })
+    // Persist any edits to handover/reliefs before approving — bail loudly if it fails
+    if (stage === "HR_ADMIN" && bypassHandover.length > 0 && approveTarget?.req.handoverNotes !== JSON.stringify(bypassHandover)) {
+      const patchRes = await fetch(`/api/leave/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ handoverNotes: JSON.stringify(bypassHandover) }),
+      })
+      if (!patchRes.ok) {
+        const d = await patchRes.json().catch(() => ({}))
+        setApproveError(`Couldn't save relief changes: ${d?.error ?? `HTTP ${patchRes.status}`}. Approval blocked — please try again or refresh.`)
+        setApproving(false)
+        return
+      }
+    }
+    const apRes = await fetch(`/api/leave/${id}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "APPROVED", stage }) })
+    if (!apRes.ok) {
+      const d = await apRes.json().catch(() => ({}))
+      setApproveError(`Approval failed: ${d?.error ?? `HTTP ${apRes.status}`}.`)
+      setApproving(false)
+      return
+    }
     setApproving(false)
     setApproveTarget(null)
     load()
@@ -1531,16 +1597,41 @@ export default function LeavePage() {
                 )}
               </div>
             )}
-            {(reviewReq.reliefOfficersList ?? []).length > 0 && (
-              <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>Relief Officers</div>
-                {(reviewReq.reliefOfficersList ?? []).map((r: any, i: number) => (
-                  <div key={i} style={{ display: "flex", alignItems: "center", paddingTop: i > 0 ? 8 : 0, paddingBottom: 8, borderBottom: i < reviewReq.reliefOfficersList.length - 1 ? "1px solid var(--border)" : "none" }}>
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : (r.name ?? r.relieverId)}</span>
+            {(() => {
+              // Show reliefs from the official list when present (post-HR-approval) OR
+              // fall back to handoverNotes JSON entries (pre-approval).
+              const fromList = (reviewReq.reliefOfficersList ?? []) as any[]
+              let entries: Array<{ name: string; task?: string }> = fromList.map((r: any) => ({
+                name: r.employee ? `${r.employee.firstName} ${r.employee.lastName}` : (r.name ?? r.relieverId),
+              }))
+              if (entries.length === 0 && reviewReq.handoverNotes) {
+                try {
+                  const handover = JSON.parse(reviewReq.handoverNotes) as any[]
+                  entries = handover
+                    .filter((h: any) => h.relieverId)
+                    .map((h: any) => {
+                      const e = employees.find((x: any) => x.id === h.relieverId)
+                      const name = e ? `${e.firstName} ${e.lastName}` : h.relieverId
+                      return { name, task: h.taskName ?? undefined }
+                    })
+                } catch {}
+              }
+              if (entries.length === 0) return null
+              const isProposed = fromList.length === 0
+              return (
+                <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border)" }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 10 }}>
+                    Relief Officers {isProposed && <span style={{ fontWeight: 500, textTransform: "none", color: "var(--muted-foreground)" }}>(proposed — confirmed on HR approval)</span>}
                   </div>
-                ))}
-              </div>
-            )}
+                  {entries.map((r, i) => (
+                    <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, paddingTop: i > 0 ? 8 : 0, paddingBottom: 8, borderBottom: i < entries.length - 1 ? "1px solid var(--border)" : "none" }}>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{r.name}</span>
+                      {r.task && <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>· {r.task}</span>}
+                    </div>
+                  ))}
+                </div>
+              )
+            })()}
             {reviewReq.documentUrl && (
               <div style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>Supporting Document</div>
@@ -1555,12 +1646,20 @@ export default function LeavePage() {
                 style={{ width: "100%", padding: "10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                 <Eye size={14} /> View Full Details
               </button>
-              {reviewReq.status === "PENDING" && isHRApprover && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && (
+              {reviewReq.status === "PENDING" && isHRApprover && reviewReq.currentStage === "PENDING_PROJECT_LEAD" && (<>
                 <button onClick={() => nudge(reviewReq.id, "PROJECT_LEAD")}
                   style={{ width: "100%", padding: "10px", background: sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "var(--success-bg)" : "var(--warning-bg)", color: sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "var(--success)" : "var(--warning)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
                   <Bell size={14} /> {sentNudges.has(`${reviewReq.id}:PROJECT_LEAD`) ? "Reminder Sent" : "Remind Project Lead"}
                 </button>
-              )}
+                <button onClick={() => { setApproveTarget({ id: reviewReq.id, stage: "HR_ADMIN", req: reviewReq }); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--success-bg)", color: "var(--success)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <Check size={14} /> Approve Leave (Bypass PL)
+                </button>
+                <button onClick={() => { setRejectId(reviewReq.id); setReviewReq(null) }}
+                  style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                  <X size={14} /> Reject Leave
+                </button>
+              </>)}
               {reviewReq.status === "PENDING" && isHRApprover && reviewReq.currentStage === "PENDING_HR_ADMIN" && (<>
                 <button onClick={() => { setApproveTarget({ id: reviewReq.id, stage: "HR_ADMIN", req: reviewReq }); setReviewReq(null) }}
                   style={{ width: "100%", padding: "10px", background: "var(--success-bg)", color: "var(--success)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
@@ -1595,12 +1694,22 @@ export default function LeavePage() {
                   <Edit3 size={14} /> Edit Request
                 </button>
               )}
-              {canDeleteLeave && reviewReq.status === "PENDING" && (reviewReq.employeeId === user?.employeeId || isAdmin) && (
-                <button onClick={() => { cancel(reviewReq.id); setReviewReq(null) }}
-                  style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  <Trash2 size={14} /> Cancel Request
-                </button>
-              )}
+              {(() => {
+                if (reviewReq.status !== "PENDING") return null
+                const isOwner = reviewReq.employeeId === user?.employeeId
+                // Owner can cancel their own request only while NO approver has acted yet.
+                const noActionYet = (reviewReq.approvals ?? []).every((a: any) => !a.action)
+                const ownerCanCancel = isOwner && noActionYet
+                // Admins with canDeleteLeave can always cancel a pending request.
+                const adminCanCancel = canDeleteLeave && (isAdmin || isOwner)
+                if (!ownerCanCancel && !adminCanCancel) return null
+                return (
+                  <button onClick={() => { cancel(reviewReq.id); setReviewReq(null) }}
+                    style={{ width: "100%", padding: "10px", background: "var(--danger-bg)", color: "var(--accent)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    <Trash2 size={14} /> Cancel Request
+                  </button>
+                )
+              })()}
             </div>
           </div>
         </>
@@ -1613,14 +1722,14 @@ export default function LeavePage() {
       {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />}
 
       {/* Approve confirmation modal */}
-      <Modal open={!!approveTarget} onClose={() => { if (!approving) setApproveTarget(null) }} title="Confirm Approval" width={420}>
+      <Modal open={!!approveTarget} onClose={() => { if (!approving) setApproveTarget(null) }} title="Confirm Approval" width={480}>
         {approveTarget && (
-          <div style={{ padding: "20px 24px" }}>
+          <div style={{ padding: "20px 24px", maxHeight: "75vh", overflowY: "auto" }}>
             <p style={{ fontSize: 14, color: "var(--muted-foreground)", lineHeight: 1.6, marginBottom: 16 }}>
               You are about to approve the leave request for{" "}
               <strong>{approveTarget.req.employee?.firstName} {approveTarget.req.employee?.lastName}</strong>.
             </p>
-            <div style={{ background: "var(--muted)", borderRadius: 8, padding: "12px 14px", fontSize: 13, display: "flex", flexDirection: "column", gap: 6, marginBottom: 20 }}>
+            <div style={{ background: "var(--muted)", borderRadius: 8, padding: "12px 14px", fontSize: 13, display: "flex", flexDirection: "column", gap: 6, marginBottom: 16 }}>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--muted-foreground)" }}>Leave Type</span>
                 <span style={{ fontWeight: 600 }}>{approveTarget.req.leaveType?.name}</span>
@@ -1633,7 +1742,57 @@ export default function LeavePage() {
                 <span style={{ color: "var(--muted-foreground)" }}>Duration</span>
                 <span style={{ fontWeight: 600 }}>{approveTarget.req.days} day{approveTarget.req.days !== 1 ? "s" : ""}</span>
               </div>
+              {approveTarget.req.documentUrl && (
+                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2 }}>
+                  <a href={approveTarget.req.documentUrl} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--primary)", fontWeight: 600, textDecoration: "none" }}>
+                    <CalendarCheck size={12} /> View supporting document →
+                  </a>
+                </div>
+              )}
             </div>
+            {/* HR bypass: editable handover table */}
+            {approveTarget.stage === "HR_ADMIN" && bypassHandover.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 8 }}>Handover & Relief Officers</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {bypassHandover.map((entry: any, i: number) => {
+                    const plEmp = employees.find((e: any) => e.id === entry.projectLeadId)
+                    const plName = plEmp ? `${plEmp.firstName} ${plEmp.lastName}` : "Project Lead"
+                    const reliefCandidates = employees.filter((e: any) => e.id !== approveTarget.req.employeeId && e.id !== entry.projectLeadId)
+                    return (
+                      <div key={i} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "10px 12px" }}>
+                        <div style={{ fontSize: 12, marginBottom: 6 }}>
+                          <span style={{ fontWeight: 700 }}>{plName}</span>
+                          {entry.taskName && <span style={{ color: "var(--muted-foreground)" }}> → {entry.taskName}</span>}
+                        </div>
+                        <label style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 600 }}>Relief Officer</label>
+                        <select
+                          value={entry.relieverId ?? ""}
+                          onChange={e => {
+                            const newId = e.target.value
+                            setBypassHandover(prev => prev.map((x, idx) => idx === i ? { ...x, relieverId: newId || null } : x))
+                          }}
+                          style={{ width: "100%", marginTop: 4, padding: "7px 10px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 13, background: "var(--background)", color: "var(--foreground)" }}
+                        >
+                          <option value="">— None —</option>
+                          {reliefCandidates.map((c: any) => (
+                            <option key={c.id} value={c.id}>{c.firstName} {c.lastName}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  })}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 8 }}>
+                  You're approving without waiting for the Project Lead(s). You can adjust relief officers before confirming.
+                </div>
+              </div>
+            )}
+            {approveError && (
+              <div style={{ background: "var(--danger-bg)", border: "1px solid var(--accent)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "var(--accent)", fontWeight: 600, marginBottom: 12 }}>
+                {approveError}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <Button variant="secondary" size="sm" onClick={() => setApproveTarget(null)} disabled={approving}>Cancel</Button>
               <Button size="sm" onClick={() => approve(approveTarget.id, approveTarget.stage)} disabled={approving}>

@@ -86,9 +86,6 @@ export async function GET(req: NextRequest) {
         include: {
           department: true,
           manager: { select: { firstName: true, lastName: true } },
-          projectAssignments: {
-            include: { project: { select: { id: true, name: true, status: true } } },
-          },
           user: { select: { role: true, email: true } },
         },
         orderBy: { createdAt: "desc" },

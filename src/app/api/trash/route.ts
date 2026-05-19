@@ -7,7 +7,7 @@ export async function GET(_req: NextRequest) {
   if (error) return error
   if (!caps(user.role).canManageSettings) return forbidden()
 
-  const [announcements, documents, projects] = await Promise.all([
+  const [announcements, documents] = await Promise.all([
     prisma.announcement.findMany({
       where: { status: "RETIRED" },
       include: { createdBy: { select: { name: true } } },
@@ -18,13 +18,9 @@ export async function GET(_req: NextRequest) {
       include: { uploadedBy: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.project.findMany({
-      where: { status: "CANCELLED" },
-      orderBy: { updatedAt: "desc" },
-    }),
   ])
 
-  return NextResponse.json({ announcements, documents, projects })
+  return NextResponse.json({ announcements, documents })
 }
 
 // Restore: PATCH /api/trash with { type, id }
@@ -44,11 +40,6 @@ export async function PATCH(req: NextRequest) {
     await prisma.orgDocument.update({
       where: { id },
       data: { isActive: true },
-    })
-  } else if (type === "project") {
-    await prisma.project.update({
-      where: { id },
-      data: { status: "ON_HOLD" },
     })
   } else {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 })
@@ -72,9 +63,6 @@ export async function DELETE(req: NextRequest) {
     await prisma.announcement.delete({ where: { id } })
   } else if (type === "document") {
     await prisma.orgDocument.delete({ where: { id } })
-  } else if (type === "project") {
-    await prisma.projectAssignment.deleteMany({ where: { projectId: id } })
-    await prisma.project.delete({ where: { id } })
   } else {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 })
   }

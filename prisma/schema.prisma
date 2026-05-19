@@ -185,7 +185,6 @@ model Employee {
   leaveRequests      LeaveRequest[]       @relation("EmployeeLeave")
   reliefFor          LeaveRequest[]       @relation("ReliefOfficer")
   notifications      Notification[]       @relation("EmployeeNotifications")
-  projectAssignments ProjectAssignment[]
   documentRequests     DocumentRequest[]
   offerLettersSent     OfferLetter[]        @relation("OfferManager")
   customGroupMemberships CustomGroupMember[]
@@ -729,34 +728,6 @@ enum FeedbackRequestStatus {
   FULFILLED
 }
 
-model Project {
-  id          String              @id @default(cuid())
-  name        String
-  description String?
-  ownerId     String?
-  status      ProjectStatus       @default(ACTIVE)
-  startDate   DateTime?
-  endDate     DateTime?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  assignments ProjectAssignment[]
-}
-
-model ProjectAssignment {
-  id         String    @id @default(cuid())
-  projectId  String
-  employeeId String
-  role       String?
-  startDate  DateTime?
-  endDate    DateTime?
-  createdAt  DateTime  @default(now())
-  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, employeeId])
-}
-
-
 model LeaveBalance {
   id          String    @id @default(cuid())
   employeeId  String
@@ -1118,13 +1089,6 @@ enum FeedbackType {
   SELF
   THREE_SIXTY
   KUDOS
-}
-
-enum ProjectStatus {
-  ACTIVE
-  COMPLETED
-  ON_HOLD
-  CANCELLED
 }
 
 

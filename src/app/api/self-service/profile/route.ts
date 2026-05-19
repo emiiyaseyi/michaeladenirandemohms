@@ -43,10 +43,6 @@ export async function GET() {
       department: true,
       projectLead: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
       manager: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
-      projectAssignments: {
-        where: { project: { status: "ACTIVE" } },
-        include: { project: { select: { id: true, name: true, status: true } } },
-      },
       leaveBalances: {
         where: { year: currentYear },
         include: { leaveType: true },
@@ -105,43 +101,46 @@ export async function GET() {
   // is rolled into Annual Leave's balance instead (see Annual Leave row below).
   const annualLeaveTypeId = leaveTypes.find(lt => lt.name === "Annual Leave")?.id ?? null
 
+  // Intern entitlement — must match the apply-form filter and API enforcement.
+  const isIntern = (employee.jobTitle ?? "").toLowerCase().includes("intern")
+  const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
+
   const leaveBalanceSummary = leaveTypes
     .filter(lt => !lt.deductFromAnnual)
+    .filter(lt => {
+      // Hide types the user is not entitled to apply for.
+      if (lt.internOnly && !isIntern) return false
+      if (isIntern && !lt.internOnly && !INTERN_ALLOWED_NON_INTERN_TYPES.includes(lt.name)) return false
+      return true
+    })
     .map(lt => {
-    const balance = employee.leaveBalances.find(b => b.leaveTypeId === lt.id)
-    // Find all leave types that deduct from this one (so we count their usage too)
-    const deductingTypeIds = lt.id === annualLeaveTypeId
-      ? leaveTypes.filter(t => t.deductFromAnnual).map(t => t.id)
-      : []
-    const idsToCount = [lt.id, ...deductingTypeIds]
+      const balance = employee.leaveBalances.find(b => b.leaveTypeId === lt.id)
+      // Types that deduct from this one (e.g. Study Leave deducts from Annual)
+      const deductingTypeIds = lt.id === annualLeaveTypeId
+        ? leaveTypes.filter(t => t.deductFromAnnual).map(t => t.id)
+        : []
+      const idsToCount = [lt.id, ...deductingTypeIds]
 
-    if (balance) {
-      // Add usage from deducting types (e.g. Study Leave eating into Annual Leave)
-      const extraUsed = leaveRequests.filter(r => deductingTypeIds.includes(r.leaveTypeId) && r.status === "APPROVED" && new Date(r.endDate) < new Date()).reduce((s, r) => s + r.days, 0)
-      const extraPending = leaveRequests.filter(r => deductingTypeIds.includes(r.leaveTypeId) && r.status === "PENDING").reduce((s, r) => s + r.days, 0)
+      // Approved leave is deducted IMMEDIATELY on approval (regardless of start date),
+      // so the employee can't double-book against an already-approved future leave.
+      const usedDays = leaveRequests
+        .filter(r => idsToCount.includes(r.leaveTypeId) && r.status === "APPROVED")
+        .reduce((s, r) => s + r.days, 0)
+      const pendingDays = leaveRequests
+        .filter(r => idsToCount.includes(r.leaveTypeId) && r.status === "PENDING")
+        .reduce((s, r) => s + r.days, 0)
+
+      const allocated = balance?.allocated ?? lt.defaultDays
       return {
         leaveTypeId: lt.id,
         name: lt.name,
         genderSpecific: lt.genderSpecific,
-        allocated: balance.allocated,
-        used: balance.used + extraUsed,
-        pending: balance.pending + extraPending,
-        remaining: Math.max(0, balance.allocated - balance.used - balance.pending - extraUsed - extraPending),
+        allocated,
+        used: usedDays,
+        pending: pendingDays,
+        remaining: Math.max(0, allocated - usedDays - pendingDays),
       }
-    }
-    const allocated = lt.defaultDays
-    const usedDays = leaveRequests.filter(r => idsToCount.includes(r.leaveTypeId) && r.status === "APPROVED" && new Date(r.endDate) < new Date()).reduce((s, r) => s + r.days, 0)
-    const pendingDays = leaveRequests.filter(r => idsToCount.includes(r.leaveTypeId) && r.status === "PENDING").reduce((s, r) => s + r.days, 0)
-    return {
-      leaveTypeId: lt.id,
-      name: lt.name,
-      genderSpecific: lt.genderSpecific,
-      allocated,
-      used: usedDays,
-      pending: pendingDays,
-      remaining: Math.max(0, allocated - usedDays - pendingDays),
-    }
-  })
+    })
 
   // Filter balances by employee gender
   const filteredBalances = leaveBalanceSummary.filter(lb => {
@@ -201,7 +200,6 @@ export async function GET() {
       timeInCompany: timeInCompany(employee.hireDate),
       completeness: calcCompleteness(employee),
       cameViaInvite,
-      activeProjects: employee.projectAssignments.map(a => ({ id: a.project.id, name: a.project.name, role: a.role })),
       employeeStatus: employee.employeeStatus,
       gender: employee.gender,
       // Contact & personal

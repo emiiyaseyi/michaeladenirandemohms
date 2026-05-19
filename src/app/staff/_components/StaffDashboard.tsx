@@ -476,18 +476,6 @@ function ProfileInfoCard({ profile }: { profile: any }) {
             </div>
           </div>
         ))}
-        {profile.activeProjects?.length > 0 && (
-          <div style={{ marginTop:8, borderTop:"1px solid var(--border)", paddingTop:10 }}>
-            <div style={{ fontSize:10, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.05em", color:"var(--muted-foreground)", marginBottom:6 }}>Active Projects</div>
-            {profile.activeProjects.map((p: any) => (
-              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:6, marginBottom:4 }}>
-                <div style={{ width:6, height:6, borderRadius:"50%", background:"#10B981", flexShrink:0 }} />
-                <span style={{ fontSize:12, fontWeight:600 }}>{p.name}</span>
-                {p.role && <span style={{ fontSize:11, color:"var(--muted-foreground)" }}>· {p.role}</span>}
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </Card>
   )

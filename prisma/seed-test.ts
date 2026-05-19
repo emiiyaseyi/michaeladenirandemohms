@@ -187,28 +187,6 @@ async function main() {
     })
   }
 
-  // ── Projects ──────────────────────────────────────────────────────────────────
-  const projectDefs = [
-    { id: "proj-001", name: "AI Talent Analytics Platform",  status: "ACTIVE",  members: ["emeka.okonkwo@datasciencenigeria.ai", "fatima.musa@datasciencenigeria.ai", "aisha.garba@datasciencenigeria.ai"] },
-    { id: "proj-002", name: "DSN Data Labelling Pipeline",   status: "ACTIVE",  members: ["emeka.okonkwo@datasciencenigeria.ai", "zainab.hassan@datasciencenigeria.ai"] },
-    { id: "proj-003", name: "HRMS v2.0 Development",         status: "ACTIVE",  members: ["chidi.nwosu@datasciencenigeria.ai", "kelechi.ibe@datasciencenigeria.ai", "olumide.adewale@datasciencenigeria.ai"] },
-    { id: "proj-004", name: "Mobile App Revamp",             status: "ACTIVE",  members: ["kelechi.ibe@datasciencenigeria.ai", "olumide.adewale@datasciencenigeria.ai", "chidi.nwosu@datasciencenigeria.ai"] },
-    { id: "proj-005", name: "Q2 2026 Cohort Launch",         status: "ACTIVE",  members: ["tunde.adeyemi@datasciencenigeria.ai", "fatima.musa@datasciencenigeria.ai"] },
-    { id: "proj-006", name: "Brand Identity Refresh",        status: "ACTIVE",  members: ["blessing.okafor@datasciencenigeria.ai", "grace.okeke@datasciencenigeria.ai"] },
-    { id: "proj-007", name: "Partner Onboarding Automation", status: "ON_HOLD", members: ["grace.okeke@datasciencenigeria.ai", "blessing.okafor@datasciencenigeria.ai"] },
-    { id: "proj-008", name: "Financial Reporting Dashboard",  status: "ACTIVE",  members: ["ibrahim.sule@datasciencenigeria.ai", "fatima.musa@datasciencenigeria.ai"] },
-  ]
-  for (const p of projectDefs) {
-    const existing = await prisma.project.findUnique({ where: { id: p.id } })
-    if (!existing) await prisma.project.create({ data: { id: p.id, name: p.name, status: p.status as any, startDate: new Date("2026-01-01") } })
-    for (const email of p.members) {
-      const emp = empRecords[email]; if (!emp) continue
-      const exists = await prisma.projectAssignment.findUnique({ where: { projectId_employeeId: { projectId: p.id, employeeId: emp.id } } })
-      if (!exists) await prisma.projectAssignment.create({ data: { projectId: p.id, employeeId: emp.id, role: email === p.members[0] ? "LEAD" : "MEMBER" } })
-    }
-  }
-  console.log("  ✓ Projects")
-
   // ── Job Postings & Applications ───────────────────────────────────────────────
   await Promise.all([
     prisma.jobPosting.upsert({ where: { id: "job-ds-001" },     update: {}, create: { id: "job-ds-001",     title: "Senior Data Scientist", departmentId: equalyzai.id,    description: "We are looking for a Senior Data Scientist to join our growing team.", employmentType: "FULL_TIME", status: "OPEN", openDate: new Date() } }),

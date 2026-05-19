@@ -443,23 +443,6 @@ export default function SSProfilePage() {
         }}
       />
 
-      {/* Active projects */}
-      {profile.activeProjects?.length > 0 && (
-        <Card>
-          <div style={{ padding:"14px 18px", borderBottom:"1px solid var(--border)" }}>
-            <div style={{ fontSize:13, fontWeight:700 }}>Active Projects</div>
-          </div>
-          <div style={{ padding:"8px 18px 12px" }}>
-            {profile.activeProjects.map((p: any) => (
-              <div key={p.id} style={{ display:"flex", alignItems:"center", gap:10, padding:"9px 0", borderTop:"1px solid var(--border)" }}>
-                <div style={{ width:8, height:8, borderRadius:"50%", background:"#10B981", flexShrink:0 }} />
-                <span style={{ fontSize:13, fontWeight:600 }}>{p.name}</span>
-                {p.role && <span style={{ fontSize:11, color:"var(--muted-foreground)" }}>· {p.role}</span>}
-              </div>
-            ))}
-          </div>
-        </Card>
-      )}
     </div>
   )
 }

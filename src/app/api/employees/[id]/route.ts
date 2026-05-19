@@ -28,10 +28,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       department: true,
       manager: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
       projectLead: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
-      projectAssignments: {
-        include: { project: { select: { id: true, name: true, status: true } } },
-        where: { project: { status: "ACTIVE" } },
-      },
       user: { select: { role: true, email: true, projectLeadDepartments: { include: { department: { select: { id: true, name: true } } } } } },
     },
   })

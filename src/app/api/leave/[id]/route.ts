@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps } from "@/lib/api-auth"
+import { requireAuth, roleBasePath } from "@/lib/api-auth"
+import { sendEmail } from "@/lib/email"
 import { parseISO, format } from "date-fns"
 import { eachDayOfInterval, isWeekend } from "date-fns"
 
@@ -35,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   })
   if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  const isAdmin = caps(user.role).canViewAllLeave
+  const isAdmin = user.role === "SUPER_ADMIN" || !!user.permissions["canViewAllLeave"]
   const isOwner = request.employeeId === user.employeeId
 
   // Approver with a pending approval on this request may adjust dates
@@ -66,5 +67,51 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const updated = await prisma.leaveRequest.update({ where: { id }, data: updates })
+
+  // Notify the requester if someone OTHER than them edited their leave.
+  if (!isOwner && Object.keys(updates).length > 0) {
+    const ownerEmp = await prisma.employee.findUnique({
+      where: { id: request.employeeId },
+      select: { firstName: true, lastName: true, userId: true, user: { select: { role: true } } },
+    })
+    const editorEmp = user.employeeId
+      ? await prisma.employee.findUnique({ where: { id: user.employeeId }, select: { firstName: true, lastName: true } })
+      : null
+    const editorName = editorEmp ? `${editorEmp.firstName} ${editorEmp.lastName}` : (user.name || "an admin")
+    const leaveType = await prisma.leaveType.findUnique({ where: { id: request.leaveTypeId }, select: { name: true } })
+
+    const changeLabels: string[] = []
+    if (updates.startDate || updates.endDate) changeLabels.push("dates")
+    if (updates.reason !== undefined) changeLabels.push("reason")
+    if (updates.handoverNotes !== undefined) changeLabels.push("handover/relief")
+    const changesSummary = changeLabels.join(", ")
+
+    if (ownerEmp?.userId) {
+      const base = roleBasePath((ownerEmp.user?.role as string) ?? "STAFF")
+      await prisma.notification.create({
+        data: {
+          userId: ownerEmp.userId,
+          employeeId: request.employeeId,
+          title: "Your Leave Request Was Edited",
+          message: `${editorName} updated your ${leaveType?.name ?? "leave"} request (${changesSummary}). Review the new details.`,
+          type: "WARNING",
+          link: `${base}/requests/leave`,
+        },
+      }).catch(() => {})
+      sendEmail({
+        eventKey: "leave_edited_by_other",
+        toUserId: ownerEmp.userId,
+        variables: {
+          employeeName: `${ownerEmp.firstName} ${ownerEmp.lastName}`,
+          editorName,
+          changes: changesSummary,
+          leaveType: leaveType?.name ?? "leave",
+          startDate: format(updated.startDate, "MMM d, yyyy"),
+          endDate: format(updated.endDate, "MMM d, yyyy"),
+        },
+      }).catch(() => {})
+    }
+  }
+
   return NextResponse.json({ request: updated })
 }
