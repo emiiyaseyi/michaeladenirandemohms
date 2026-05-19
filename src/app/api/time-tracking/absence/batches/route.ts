@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -29,5 +30,11 @@ export async function POST(req: NextRequest) {
   const batch = await prisma.absenceBatch.create({
     data: { description: description.trim(), startDate: new Date(startDate), endDate: new Date(endDate) },
   })
+
+  await logAudit({
+    req, actor: u2, action: "ABSENCE_BATCH_CREATE", entity: "AbsenceBatch", entityId: batch.id,
+    newValues: { description, startDate, endDate },
+  })
+
   return NextResponse.json({ batch }, { status: 201 })
 }

@@ -105,7 +105,6 @@ export default async function ProjectLeadDashboard() {
       include: {
         department: true,
         manager: { select: { id: true, firstName: true, lastName: true } },
-        projectAssignments: { include: { project: { select: { id: true, name: true, status: true } } } },
       },
     }),
     deptIds.length > 0
@@ -137,13 +136,30 @@ export default async function ProjectLeadDashboard() {
       : null,
   }))
 
-  // Leave balances
+  // Leave balances — compute used/pending dynamically from this PL's leave requests.
+  // Approved leave is deducted IMMEDIATELY (not after endDate).
+  const ownLeaveRequests = employeeId
+    ? await prisma.leaveRequest.findMany({
+        where: { employeeId, status: { in: ["PENDING", "APPROVED"] } },
+        select: { leaveTypeId: true, days: true, status: true },
+      })
+    : []
+  const ownStats = new Map<string, { used: number; pending: number }>()
+  for (const r of ownLeaveRequests) {
+    const cur = ownStats.get(r.leaveTypeId) ?? { used: 0, pending: 0 }
+    if (r.status === "APPROVED") cur.used += r.days
+    else if (r.status === "PENDING") cur.pending += r.days
+    ownStats.set(r.leaveTypeId, cur)
+  }
+  // PLs aren't interns, so hide intern-only types.
   const leaveBalanceSummary = leaveTypes
+    .filter(lt => !lt.internOnly)
     .filter(lt => !lt.genderSpecific || !employee?.gender || lt.genderSpecific === employee.gender)
     .map(lt => {
       const bal = employee?.leaveBalances.find(b => b.leaveTypeId === lt.id)
-      if (bal) return { name: lt.name, allocated: bal.allocated, used: bal.used, pending: bal.pending, remaining: Math.max(0, bal.allocated - bal.used - bal.pending) }
-      return { name: lt.name, allocated: lt.defaultDays, used: 0, pending: 0, remaining: lt.defaultDays }
+      const stats = ownStats.get(lt.id) ?? { used: 0, pending: 0 }
+      const allocated = bal?.allocated ?? lt.defaultDays
+      return { name: lt.name, allocated, used: stats.used, pending: stats.pending, remaining: Math.max(0, allocated - stats.used - stats.pending) }
     })
 
   const fullName = employee ? `${employee.firstName} ${employee.lastName}` : (session?.user?.name ?? "Project Lead")

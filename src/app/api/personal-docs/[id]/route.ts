@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -41,20 +42,36 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   })
   sendEmail({ eventKey: status === "APPROVED" ? "personal_doc_approved" : "personal_doc_rejected", toUserId: doc.employee.userId, variables: { employeeName: `${doc.employee.firstName} ${doc.employee.lastName}`, documentType: TYPE_LABELS[doc.type] ?? doc.type, note: reviewNote ?? "" } }).catch(() => {})
 
+  await logAudit({
+    req, actor: user,
+    action: status === "APPROVED" ? "PERSONAL_DOC_APPROVE" : "PERSONAL_DOC_REJECT",
+    entity: "PersonalDocument", entityId: id,
+    targetUserId: doc.employee.userId,
+    oldValues: { status: doc.status }, newValues: { status },
+    reason: reviewNote ?? null,
+  })
+
   return NextResponse.json({ doc: updated })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
 
   const { id } = await params
-  const doc = await prisma.personalDocument.findUnique({ where: { id }, select: { employeeId: true } })
+  const doc = await prisma.personalDocument.findUnique({ where: { id }, select: { employeeId: true, type: true, fileName: true, employee: { select: { userId: true } } } })
   if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
   const isOwner = user.employeeId === doc.employeeId
   if (!isAdminRole(user.role) && !isOwner) return forbidden()
 
   await prisma.personalDocument.delete({ where: { id } })
+
+  await logAudit({
+    req, actor: user, action: "PERSONAL_DOC_DELETE", entity: "PersonalDocument", entityId: id,
+    targetUserId: doc.employee?.userId ?? null,
+    oldValues: { type: doc.type, fileName: doc.fileName },
+  })
+
   return NextResponse.json({ ok: true })
 }

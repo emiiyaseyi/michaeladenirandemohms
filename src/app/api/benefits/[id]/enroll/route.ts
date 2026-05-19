@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 // POST — enroll employees (upsert deduction settings)
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -47,6 +48,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     )
   )
 
+  await logAudit({
+    req, actor: user, action: "BENEFIT_ENROLL", entity: "Benefit", entityId: benefitId,
+    newValues: { count: results.length, employeeIds: enrollments.map((e: any) => e.employeeId) },
+  })
+
   return NextResponse.json({ count: results.length })
 }
 
@@ -63,6 +69,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   await prisma.benefitEnrollment.deleteMany({
     where: { benefitId, employeeId: { in: employeeIds } },
+  })
+
+  await logAudit({
+    req, actor: user, action: "BENEFIT_UNENROLL", entity: "Benefit", entityId: benefitId,
+    oldValues: { employeeIds },
   })
 
   return NextResponse.json({ ok: true })

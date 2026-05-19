@@ -120,8 +120,29 @@ export async function POST(req: NextRequest) {
           where: { year, ...(employeeId && employeeId !== "all" ? { employeeId } : {}) },
           include: { employee: { select: { employeeId: true, firstName: true, lastName: true } }, leaveType: { select: { name: true } } },
         })
+        // Compute used/pending dynamically — stored .used/.pending columns aren't maintained.
+        const yearStart = new Date(year, 0, 1)
+        const yearEnd = new Date(year + 1, 0, 1)
+        const balancePairs = balances.map(b => ({ employeeId: b.employeeId, leaveTypeId: b.leaveTypeId }))
+        const reqRows = balancePairs.length > 0
+          ? await prisma.leaveRequest.findMany({
+              where: { status: { in: ["PENDING", "APPROVED"] }, startDate: { gte: yearStart, lt: yearEnd }, OR: balancePairs },
+              select: { employeeId: true, leaveTypeId: true, days: true, status: true },
+            })
+          : []
+        const stats = new Map<string, { used: number; pending: number }>()
+        for (const r of reqRows) {
+          const key = `${r.employeeId}:${r.leaveTypeId}`
+          const cur = stats.get(key) ?? { used: 0, pending: 0 }
+          if (r.status === "APPROVED") cur.used += r.days
+          else if (r.status === "PENDING") cur.pending += r.days
+          stats.set(key, cur)
+        }
         headers = ["Employee ID", "Employee Name", "Leave Type", "Year", "Allocated", "Used", "Pending", "Remaining"]
-        rows = balances.map(b => [(b.employee as any)?.employeeId ?? "", `${(b.employee as any)?.firstName ?? ""} ${(b.employee as any)?.lastName ?? ""}`.trim(), (b.leaveType as any)?.name ?? "", b.year, b.allocated, b.used, b.pending, Math.max(0, b.allocated - b.used - b.pending)])
+        rows = balances.map(b => {
+          const s = stats.get(`${b.employeeId}:${b.leaveTypeId}`) ?? { used: 0, pending: 0 }
+          return [(b.employee as any)?.employeeId ?? "", `${(b.employee as any)?.firstName ?? ""} ${(b.employee as any)?.lastName ?? ""}`.trim(), (b.leaveType as any)?.name ?? "", b.year, b.allocated, s.used, s.pending, Math.max(0, b.allocated - s.used - s.pending)]
+        })
 
       } else {
         title = "Leave Utilization Report"; filename = "leave_utilization"

@@ -156,10 +156,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
   // ── Derived ──────────────────────────────────────────────────────────────────
 
   const selType = leaveTypes.find(t => t.id === form.leaveTypeId)
-  // If the selected type deducts from Annual Leave, surface the Annual Leave balance instead
-  const annualLeaveType = leaveTypes.find(t => t.name === "Annual Leave")
-  const balanceSourceTypeId = selType?.deductFromAnnual && annualLeaveType ? annualLeaveType.id : form.leaveTypeId
-  const selBal = balances.find(b => b.leaveTypeId === balanceSourceTypeId)
+  const selBal = balances.find(b => b.leaveTypeId === form.leaveTypeId)
   const applicantId = form.employeeId || currentUserEmployeeId
 
   // Resolve the applicant's gender + jobTitle to filter what they can apply for.
@@ -169,11 +166,17 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
   const applicantJobTitle: string = applicantEmp?.jobTitle ?? employeeJobTitle
   const applicantIsIntern = (applicantJobTitle ?? "").toLowerCase().includes("intern")
 
+  // Leave types interns are entitled to ON TOP of intern-only ones (e.g. Casual).
+  // Annual + Sick + Compassionate are full-employee benefits — interns don't get them.
+  const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
+
   const visibleTypes = leaveTypes.filter(lt => {
     // Hide intern-only types from non-interns. Admin override doesn't apply —
     // the API enforces this server-side too, so even an admin acting on behalf
     // of a non-intern can't apply for an intern-only type for them.
     if (lt.internOnly && !applicantIsIntern) return false
+    // Interns only see intern-only types + a whitelist (Sick / Compassionate / Maternity / Paternity).
+    if (applicantIsIntern && !lt.internOnly && !INTERN_ALLOWED_NON_INTERN_TYPES.includes(lt.name)) return false
     // Gender filter
     if (!lt.genderSpecific) return true
     if (!applicantGender) return true
@@ -386,7 +389,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                                 {exhausted && <div style={{ fontSize: 11, fontWeight: 700, color: "var(--accent)" }}>Balance exhausted</div>}
 
                                 {/* Tags */}
-                                {(lt.minNoticeDays > 0 && !isAdmin && !exhausted) || (lt.genderSpecific && !exhausted) || lt.deductFromAnnual || lt.internOnly ? (
+                                {(lt.minNoticeDays > 0 && !isAdmin && !exhausted) || (lt.genderSpecific && !exhausted) || lt.internOnly ? (
                                   <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                                     {lt.minNoticeDays > 0 && !isAdmin && !exhausted && (
                                       <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: "rgba(234,179,8,0.12)", color: "var(--warning)" }}>{lt.minNoticeDays}d notice</span>
@@ -396,9 +399,6 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                                     )}
                                     {lt.internOnly && (
                                       <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: "var(--info-bg)", color: "var(--info)" }}>Interns only</span>
-                                    )}
-                                    {lt.deductFromAnnual && (
-                                      <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 20, background: "var(--muted)", color: "var(--muted-foreground)" }}>From Annual Leave</span>
                                     )}
                                   </div>
                                 ) : null}

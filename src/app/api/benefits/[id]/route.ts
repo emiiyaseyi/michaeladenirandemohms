@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAuth()
@@ -31,6 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
   const body = await req.json()
+  const before = await prisma.benefit.findUnique({ where: { id } })
 
   const benefit = await prisma.benefit.update({
     where: { id },
@@ -43,16 +45,31 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     },
   })
 
+  const diff = before ? diffFields(before as any, benefit as any, ["name", "effectiveDate", "category", "status", "enrollType"] as any) : null
+  if (diff) {
+    await logAudit({
+      req, actor: user, action: "BENEFIT_EDIT", entity: "Benefit", entityId: id,
+      oldValues: diff.old, newValues: diff.new,
+    })
+  }
+
   return NextResponse.json({ benefit })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   const perm = requirePermission(user, "canViewBenefits")
   if (perm) return perm
 
   const { id } = await params
+  const before = await prisma.benefit.findUnique({ where: { id }, select: { name: true } })
   await prisma.benefit.delete({ where: { id } })
+
+  await logAudit({
+    req, actor: user, action: "BENEFIT_DELETE", entity: "Benefit", entityId: id,
+    oldValues: before ?? undefined,
+  })
+
   return NextResponse.json({ ok: true })
 }

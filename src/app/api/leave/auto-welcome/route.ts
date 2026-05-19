@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { format, subDays, isWeekend, startOfDay, endOfDay } from "date-fns"
@@ -11,7 +11,12 @@ function lastBusinessDay(): Date {
   return d
 }
 
-export async function POST() {
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization")
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+  }
+
   const lbd = lastBusinessDay()
 
   // Find approved leaves that ended on the last business day

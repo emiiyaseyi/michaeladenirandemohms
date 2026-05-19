@@ -8,7 +8,7 @@ const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"]
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
 
   const formData = await req.formData()
@@ -23,9 +23,10 @@ export async function POST(req: NextRequest) {
   const bytes = await file.arrayBuffer()
   const buffer = Buffer.from(bytes)
 
-  // Unguessable filename + private directory (gated via /api/files/[...path])
+  // Filename: <uploaderUserId>_<uuid>.<ext>
+  // Prefix lets the file-access gate recognize the uploader before any LeaveRequest exists.
   const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf"
-  const filename = `${randomUUID()}.${ext}`
+  const filename = `${user.id}_${randomUUID()}.${ext}`
   const uploadDir = path.join(process.cwd(), "private", "uploads", "leave-docs")
 
   await mkdir(uploadDir, { recursive: true })

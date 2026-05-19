@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
@@ -94,5 +95,14 @@ export async function POST(req: NextRequest) {
       status: status as any,
     },
   })
+
+  const targetEmp = await prisma.employee.findUnique({ where: { id: employeeId }, select: { userId: true } })
+  await logAudit({
+    req, actor: user, action: "SUSPENSION_CREATE", entity: "Suspension", entityId: suspension.id,
+    targetUserId: targetEmp?.userId ?? null,
+    newValues: { startDate, endDate, alreadyOccurred, status },
+    reason,
+  })
+
   return NextResponse.json({ suspension }, { status: 201 })
 }

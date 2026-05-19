@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import bcrypt from "bcryptjs"
 
 export async function POST(req: NextRequest) {
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
 
   const employees = await prisma.employee.findMany({
     where: { id: { in: employeeIds } },
-    select: { userId: true },
+    select: { id: true, userId: true },
   })
 
   const defaultPwd = process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1"
@@ -25,6 +26,13 @@ export async function POST(req: NextRequest) {
     where: { id: { in: employees.map(e => e.userId) } },
     data: { password: hashed, mustChangePassword: true },
   })
+
+  for (const e of employees) {
+    await logAudit({
+      req, actor: user, action: "EMPLOYEE_BULK_PASSWORD_RESET", entity: "User", entityId: e.userId,
+      targetUserId: e.userId,
+    })
+  }
 
   return NextResponse.json({ ok: true, count: employees.length })
 }

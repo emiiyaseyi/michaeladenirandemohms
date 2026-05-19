@@ -173,6 +173,23 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       NOTE("Log in to your HRMS portal to view your handover notes."),
   },
 
+  leave_edited_by_other: {
+    name: "Your Leave Request Was Edited",
+    category: "Leave",
+    description: "Sent to the requester when an admin or approving PL edits their pending leave request.",
+    variables: ["employeeName", "editorName", "changes", "leaveType", "startDate", "endDate"],
+    defaultSubject: "Your {{leaveType}} request was edited by {{editorName}}",
+    defaultBody:
+      LOGO +
+      H("Your Leave Request Was Edited") +
+      P("Hi <strong>{{employeeName}}</strong>, <strong>{{editorName}}</strong> updated your {{leaveType}} request.") +
+      P("Changes: {{changes}}") +
+      TABLE(
+        ROW("Period", "{{startDate}} – {{endDate}}"),
+      ) +
+      NOTE("Log in to your HRMS portal to review the changes."),
+  },
+
   welcome_back: {
     name: "Welcome Back from Leave",
     category: "Leave",
@@ -184,6 +201,20 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       H("Welcome Back!") +
       P("Hi <strong>{{employeeName}}</strong>, welcome back from your <strong>{{leaveType}}</strong>! We hope you had a great break.") +
       NOTE("Log in to your portal to catch up."),
+  },
+
+  leave_started_stakeholder: {
+    name: "Team Member on Leave Today",
+    category: "Leave",
+    description: "Sent to PLs, relief officers, and admins when a team member's leave starts.",
+    variables: ["employeeName", "leaveType", "startDate", "endDate", "reliefs"],
+    defaultSubject: "{{employeeName}} is on {{leaveType}} from today",
+    defaultBody:
+      LOGO +
+      H("Team Member on Leave") +
+      P("<strong>{{employeeName}}</strong> is on <strong>{{leaveType}}</strong> from {{startDate}} until {{endDate}}.") +
+      P("Relief officers: {{reliefs}}") +
+      NOTE(),
   },
 
   employee_back_hr: {
@@ -450,6 +481,21 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       P("Please log in and provide your comments on this report.") +
       `<div style="text-align:center;margin:24px 0;"><a href="{{reviewLink}}" style="display:inline-block;padding:12px 32px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Review Report</a></div>` +
       NOTE("An Excel copy of the report is attached to this email."),
+  },
+
+  intern_report_missing: {
+    name: "Intern Report — Missing (auto-flagged)",
+    description: "Sent to the intern's Project Lead on Monday morning when an intern did not submit a weekly report by Sunday midnight.",
+    category: "People",
+    variables: ["internName", "weekRange", "reviewLink"],
+    defaultSubject: "Missed weekly report — {{internName}} ({{weekRange}})",
+    defaultBody:
+      LOGO +
+      H("Missed Weekly Report") +
+      P("<strong>{{internName}}</strong> did not submit a weekly report for <strong>{{weekRange}}</strong>. A 'Missed' placeholder has been auto-recorded with a 3-point deduction.") +
+      P("If this was an oversight or there was a valid reason, please coordinate with HR — an admin can clear the missed-record so the intern can submit retroactively.") +
+      `<div style="text-align:center;margin:24px 0;"><a href="{{reviewLink}}" style="display:inline-block;padding:12px 32px;background:#dc2626;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Review in HRMS</a></div>` +
+      NOTE("This is an automated notification."),
   },
 
   intern_report_reviewed: {

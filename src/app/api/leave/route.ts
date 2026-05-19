@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { eachDayOfInterval, isWeekend, format, parseISO, addHours, addDays } from "date-fns"
 
 async function calcDays(startDate: Date, endDate: Date, leaveTypeId: string) {
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
       where: scopeFilter,
       include: {
         employee: { include: { department: true } },
-        leaveType: { select: { id: true, name: true, defaultDays: true, requiresDoc: true, minDocDays: true, genderSpecific: true, waitingDays: true, minNoticeDays: true, internOnly: true, deductFromAnnual: true, excludeWeekends: true, rolloverPolicy: true, isActive: true, description: true } },
+        leaveType: { select: { id: true, name: true, defaultDays: true, requiresDoc: true, minDocDays: true, genderSpecific: true, waitingDays: true, minNoticeDays: true, internOnly: true, excludeWeekends: true, rolloverPolicy: true, isActive: true, description: true } },
         approvals: { include: { employee: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { createdAt: "asc" } },
         reliefOfficersList: { include: { employee: { select: { id: true, firstName: true, lastName: true } } } },
       },
@@ -178,19 +179,39 @@ export async function GET(req: NextRequest) {
     return !!perms?.["canApproveLeave"]
   })
 
-  // Batch-fetch leave balances for all request employee+leaveType pairs
+  // Batch-fetch allocations for all (employee, leaveType) pairs in this view
   const pairs = [...new Map(requests.map(r => [`${r.employeeId}:${r.leaveTypeId}`, { employeeId: r.employeeId, leaveTypeId: r.leaveTypeId }])).values()]
-  const leaveBalances = pairs.length > 0
-    ? await prisma.leaveBalance.findMany({ where: { year: currentYear, OR: pairs } })
-    : []
-  const balanceMap = new Map(leaveBalances.map(b => [`${b.employeeId}:${b.leaveTypeId}`, b]))
+  const [allocationRows, requestStats] = await Promise.all([
+    pairs.length > 0
+      ? prisma.leaveBalance.findMany({ where: { year: currentYear, OR: pairs } })
+      : Promise.resolve([]),
+    // Compute used/pending dynamically from LeaveRequest — stored .used/.pending columns
+    // are not maintained, and approved leave is deducted IMMEDIATELY (not after endDate).
+    pairs.length > 0
+      ? prisma.leaveRequest.findMany({
+          where: { status: { in: ["PENDING", "APPROVED"] }, OR: pairs },
+          select: { employeeId: true, leaveTypeId: true, days: true, status: true },
+        })
+      : Promise.resolve([]),
+  ])
+  const allocationMap = new Map(allocationRows.map(b => [`${b.employeeId}:${b.leaveTypeId}`, b.allocated]))
+  const statsMap = new Map<string, { used: number; pending: number }>()
+  for (const r of requestStats) {
+    const key = `${r.employeeId}:${r.leaveTypeId}`
+    const cur = statsMap.get(key) ?? { used: 0, pending: 0 }
+    if (r.status === "APPROVED") cur.used += r.days
+    else if (r.status === "PENDING") cur.pending += r.days
+    statsMap.set(key, cur)
+  }
 
   const enriched = requests.map(r => {
-    const b = balanceMap.get(`${r.employeeId}:${r.leaveTypeId}`)
+    const key = `${r.employeeId}:${r.leaveTypeId}`
+    const allocated = allocationMap.get(key) ?? r.leaveType?.defaultDays ?? 0
+    const stats = statsMap.get(key) ?? { used: 0, pending: 0 }
     return {
       ...r,
       currentStage: computeStage(r),
-      employeeLeaveBalance: b ? { allocated: b.allocated, used: b.used, pending: b.pending, remaining: Math.max(0, b.allocated - b.used - b.pending) } : null,
+      employeeLeaveBalance: { allocated, used: stats.used, pending: stats.pending, remaining: Math.max(0, allocated - stats.used - stats.pending) },
     }
   })
   return NextResponse.json({ requests: enriched, leaveTypes, employees, projectLeadEmployees })
@@ -238,11 +259,15 @@ export async function POST(req: NextRequest) {
   if (!leaveType) return NextResponse.json({ error: "Leave type not found" }, { status: 404 })
 
   // Intern-only check
-  if (leaveType.internOnly) {
-    const isIntern = (employee.jobTitle ?? "").toLowerCase().includes("intern")
-    if (!isIntern) {
-      return NextResponse.json({ error: `${leaveType.name} is only available to interns.` }, { status: 400 })
-    }
+  const applicantIsIntern = (employee.jobTitle ?? "").toLowerCase().includes("intern")
+  if (leaveType.internOnly && !applicantIsIntern) {
+    return NextResponse.json({ error: `${leaveType.name} is only available to interns.` }, { status: 400 })
+  }
+  // Interns are entitled only to intern-only types + a whitelist (Maternity / Paternity).
+  // Annual + Sick + Compassionate + other full-employee types are blocked.
+  const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
+  if (applicantIsIntern && !leaveType.internOnly && !INTERN_ALLOWED_NON_INTERN_TYPES.includes(leaveType.name)) {
+    return NextResponse.json({ error: `Interns aren't entitled to ${leaveType.name}. Use Casual Leave instead.` }, { status: 400 })
   }
 
   // Working-days notice check
@@ -295,6 +320,7 @@ export async function POST(req: NextRequest) {
     taskName: pl.taskName,
     taskDescription: pl.taskDescription ?? null,
     relieverId: pl.relieverId ?? null,
+    documentUrl: pl.documentUrl ?? null,
   }))
 
   const request = await prisma.leaveRequest.create({
@@ -313,6 +339,12 @@ export async function POST(req: NextRequest) {
       approvals: { create: approvalRecords },
     },
     include: { employee: true, leaveType: true },
+  })
+
+  await logAudit({
+    req, actor: user, action: "LEAVE_CREATE", entity: "LeaveRequest", entityId: request.id,
+    targetUserId: employee.userId,
+    newValues: { leaveTypeId, leaveTypeName: request.leaveType.name, startDate: start, endDate: end, days, reason, status: "PENDING" },
   })
 
   // Notify all project leads

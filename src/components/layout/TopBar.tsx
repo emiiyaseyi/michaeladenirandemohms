@@ -8,7 +8,7 @@ import {
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { useTheme } from "@/components/ThemeProvider"
-import { signOut } from "next-auth/react"
+import { useLogoutConfirm } from "@/components/layout/LogoutConfirm"
 import { roleLabel } from "@/lib/rbac"
 
 type Notification = {
@@ -72,6 +72,7 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function TopBar({ title, user }: { title: string; user: any }) {
   const { theme, toggle: cycleTheme } = useTheme()
   const router = useRouter()
+  const { confirmLogout, modal: logoutModal } = useLogoutConfirm()
 
   const [query, setQuery]         = useState("")
   const [results, setResults]     = useState<any[]>([])
@@ -481,7 +482,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               )}
               <div style={{ padding: "6px 0", borderTop: "1px solid var(--border)" }}>
                 <button
-                  onClick={() => signOut({ callbackUrl: "/login" })}
+                  onClick={() => { setUserOpen(false); confirmLogout() }}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", transition: "background 0.12s" }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--danger-bg)" }}
                   onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent" }}
@@ -662,7 +663,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
 
             {/* Logout */}
             <button
-              onClick={() => signOut({ callbackUrl: "/login" })}
+              onClick={() => { setMobileMenuOpen(false); confirmLogout() }}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--danger-bg)"}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
@@ -675,6 +676,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      {logoutModal}
     </header>
   )
 }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { EmployeeStatus } from "@prisma/client"
 import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import bcrypt from "bcryptjs"
 import { sendEmail } from "@/lib/email"
 
@@ -86,9 +87,6 @@ export async function GET(req: NextRequest) {
         include: {
           department: true,
           manager: { select: { firstName: true, lastName: true } },
-          projectAssignments: {
-            include: { project: { select: { id: true, name: true, status: true } } },
-          },
           user: { select: { role: true, email: true } },
         },
         orderBy: { createdAt: "desc" },
@@ -172,6 +170,16 @@ export async function POST(req: NextRequest) {
       defaultPassword,
     },
   }).catch(() => {})
+
+  await logAudit({
+    req, actor: user, action: "EMPLOYEE_CREATE", entity: "Employee", entityId: employee.id,
+    targetUserId: newUser.id,
+    newValues: {
+      employeeId, firstName, lastName, email: newUser.email,
+      jobTitle: jobTitle ?? null, departmentId: departmentId ?? null,
+      role: newUser.role, employmentType: employee.employmentType,
+    },
+  })
 
   return NextResponse.json({ employee }, { status: 201 })
 }

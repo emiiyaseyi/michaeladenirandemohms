@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 const ALLOWED = ["pdf", "jpeg", "jpg", "png", "docx", "xlsx"]
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
@@ -39,6 +40,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const evidenceUrl = `/api/files/kpi-evidence/${filename}`
   const updated = await prisma.kPI.update({ where: { id }, data: { evidenceUrl } })
+
+  await logAudit({
+    req, actor: user, action: "KPI_EVIDENCE_UPLOAD", entity: "KPI", entityId: id,
+    targetUserId: user.id,
+    newValues: { evidenceUrl, fileName: file.name },
+  })
 
   return NextResponse.json({ kpi: updated })
 }

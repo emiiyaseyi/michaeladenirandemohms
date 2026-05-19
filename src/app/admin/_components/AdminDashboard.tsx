@@ -87,7 +87,6 @@ export default async function AdminDashboard() {
           include: {
             department: true,
             manager: { select: { id: true, firstName: true, lastName: true } },
-            projectAssignments: { include: { project: { select: { id: true, name: true, status: true } } } },
           },
         })
       : Promise.resolve([]),

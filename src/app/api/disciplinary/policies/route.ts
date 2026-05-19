@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -45,5 +46,11 @@ export async function POST(req: NextRequest) {
     },
     include: { violationType: true, _count: { select: { exemptions: true } } },
   })
+
+  await logAudit({
+    req, actor: user, action: "POLICY_CREATE", entity: "DisciplinaryPolicy", entityId: policy.id,
+    newValues: { name: policy.name, violationTypeId, systemAction, hasThreshold, violationCount },
+  })
+
   return NextResponse.json({ policy }, { status: 201 })
 }

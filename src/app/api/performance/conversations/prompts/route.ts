@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: Request) {
   const { user, error } = await requireAuth()
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   const { user: u2, error: e2 } = await requireAuth()
   if (e2) return e2
   const p2 = requirePermission(u2, "canManageConversations")
@@ -35,6 +36,10 @@ export async function POST(req: Request) {
     const { title, description, type } = await req.json()
     const prompt = await prisma.conversationPrompt.create({
       data: { title, description, type: type ?? "CHECK_IN" },
+    })
+    await logAudit({
+      req, actor: u2, action: "CONVERSATION_PROMPT_CREATE", entity: "ConversationPrompt", entityId: prompt.id,
+      newValues: { title, type },
     })
     return NextResponse.json({ prompt }, { status: 201 })
   } catch {

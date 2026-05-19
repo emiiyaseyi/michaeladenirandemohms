@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 import { EMAIL_EVENTS } from "@/lib/email-events"
 
 export async function GET() {
@@ -34,6 +35,8 @@ export async function PATCH(req: NextRequest) {
   if (fromEmail !== undefined) data.fromEmail = fromEmail
   if (eventToggles !== undefined) data.eventToggles = eventToggles
 
+  const before = await prisma.emailSettings.findUnique({ where: { id: "singleton" } })
+
   const settings = await prisma.emailSettings.upsert({
     where: { id: "singleton" },
     update: data,
@@ -45,6 +48,14 @@ export async function PATCH(req: NextRequest) {
       eventToggles: eventToggles ?? {},
     },
   })
+
+  const diff = before ? diffFields(before as any, settings as any, ["enabled", "fromName", "fromEmail", "eventToggles"] as any) : null
+  if (diff || !before) {
+    await logAudit({
+      req, actor: user, action: "EMAIL_SETTINGS_UPDATE", entity: "EmailSettings", entityId: "singleton",
+      oldValues: diff?.old, newValues: diff?.new ?? data,
+    })
+  }
 
   return NextResponse.json({ settings })
 }

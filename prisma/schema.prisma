@@ -56,7 +56,8 @@ model User {
   lastLoginAt     DateTime?
   adminRoles             UserAdminRole[]
   accounts               Account[]
-  auditLogs              AuditLog[]
+  auditActorLogs         AuditLog[]            @relation("AuditActor")
+  auditTargetLogs        AuditLog[]            @relation("AuditTarget")
   employee               Employee?
   notifications          Notification[]
   announcements          Announcement[]        @relation("AnnouncementCreator")
@@ -185,7 +186,6 @@ model Employee {
   leaveRequests      LeaveRequest[]       @relation("EmployeeLeave")
   reliefFor          LeaveRequest[]       @relation("ReliefOfficer")
   notifications      Notification[]       @relation("EmployeeNotifications")
-  projectAssignments ProjectAssignment[]
   documentRequests     DocumentRequest[]
   offerLettersSent     OfferLetter[]        @relation("OfferManager")
   customGroupMemberships CustomGroupMember[]
@@ -420,7 +420,6 @@ model LeaveType {
   minDocDays       Int            @default(2)
   minNoticeDays    Int            @default(10)
   internOnly       Boolean        @default(false)
-  deductFromAnnual Boolean        @default(false)
   isActive         Boolean        @default(true)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -729,34 +728,6 @@ enum FeedbackRequestStatus {
   FULFILLED
 }
 
-model Project {
-  id          String              @id @default(cuid())
-  name        String
-  description String?
-  ownerId     String?
-  status      ProjectStatus       @default(ACTIVE)
-  startDate   DateTime?
-  endDate     DateTime?
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  assignments ProjectAssignment[]
-}
-
-model ProjectAssignment {
-  id         String    @id @default(cuid())
-  projectId  String
-  employeeId String
-  role       String?
-  startDate  DateTime?
-  endDate    DateTime?
-  createdAt  DateTime  @default(now())
-  employee   Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  @@unique([projectId, employeeId])
-}
-
-
 model LeaveBalance {
   id          String    @id @default(cuid())
   employeeId  String
@@ -805,16 +776,26 @@ model Notification {
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  action    String
-  entity    String
-  entityId  String?
-  oldValues Json?
-  newValues Json?
-  ipAddress String?
-  createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id])
+  id           String   @id @default(cuid())
+  userId       String?
+  targetUserId String?
+  action       String
+  entity       String
+  entityId     String?
+  oldValues    Json?
+  newValues    Json?
+  reason       String?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  user         User?    @relation("AuditActor",  fields: [userId],       references: [id], onDelete: SetNull)
+  targetUser   User?    @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityId])
+  @@index([userId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@index([entity, action])
 }
 
 enum OrgDocCategory {
@@ -1118,13 +1099,6 @@ enum FeedbackType {
   SELF
   THREE_SIXTY
   KUDOS
-}
-
-enum ProjectStatus {
-  ACTIVE
-  COMPLETED
-  ON_HOLD
-  CANCELLED
 }
 
 
@@ -1461,6 +1435,7 @@ enum InternReportStatus {
   SUBMITTED
   LATE
   REVIEWED
+  MISSING
 }
 
 model InternWeeklyReport {
@@ -1526,12 +1501,14 @@ model InternReportReviewer {
 }
 
 model InternReportSettings {
-  id                String   @id @default("singleton")
-  submissionDay     Int      @default(5)   // 0=Sun … 5=Fri … 6=Sat
-  openHour          Int      @default(16)  // WAT hour when window opens
-  lateHour          Int      @default(20)  // WAT hour after which submission is late
-  closeHour         Int      @default(24)  // WAT hour after which no submission allowed
-  lateDeduction     Int      @default(2)   // points deducted for late submission
-  attendanceCriteria Json?
-  updatedAt         DateTime @updatedAt
+  id                       String   @id @default("singleton")
+  submissionDay            Int      @default(5)   // 0=Sun … 5=Fri … 6=Sat
+  openHour                 Int      @default(16)  // WAT hour when window opens on submissionDay
+  lateHour                 Int      @default(20)  // WAT hour after which Friday submission is LATE
+  closeHour                Int      @default(24)  // legacy — no longer used (window now closes Sun 23:59)
+  lateDeduction            Int      @default(2)   // points deducted for Saturday submissions
+  lateDeductionSunday      Int      @default(3)   // points deducted for Sunday submissions
+  warningThresholdMinutes  Int      @default(15)  // minutes before lateHour that the countdown turns red
+  attendanceCriteria       Json?
+  updatedAt                DateTime @updatedAt
 }

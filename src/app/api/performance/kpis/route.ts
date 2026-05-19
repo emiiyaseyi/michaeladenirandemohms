@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -70,5 +71,12 @@ export async function POST(req: NextRequest) {
     },
     include: { employee: true },
   })
+
+  await logAudit({
+    req, actor: user, action: "KPI_CREATE", entity: "KPI", entityId: kpi.id,
+    targetUserId: user.id,
+    newValues: { title, weight, cycleId, keyResultArea, target, deadline },
+  })
+
   return NextResponse.json({ kpi }, { status: 201 })
 }

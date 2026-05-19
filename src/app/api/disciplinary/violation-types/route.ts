@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -29,5 +30,11 @@ export async function POST(req: NextRequest) {
   const existing = await prisma.violationType.findFirst({ where: { name: { equals: name.trim(), mode: "insensitive" } } })
   if (existing) return NextResponse.json({ error: "A violation type with this name already exists" }, { status: 409 })
   const type = await prisma.violationType.create({ data: { name: name.trim() } })
+
+  await logAudit({
+    req, actor: u2, action: "VIOLATION_TYPE_CREATE", entity: "ViolationType", entityId: type.id,
+    newValues: { name: type.name },
+  })
+
   return NextResponse.json({ type }, { status: 201 })
 }

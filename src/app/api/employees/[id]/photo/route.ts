@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -27,7 +28,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await writeFile(path.join(uploadDir, filename), buffer)
 
   const photoUrl = `/uploads/profile-photos/${filename}`
-  await prisma.employee.update({ where: { id }, data: { profilePhoto: photoUrl } })
+  const updated = await prisma.employee.update({ where: { id }, data: { profilePhoto: photoUrl }, select: { userId: true } })
+
+  await logAudit({
+    req, actor: user, action: "EMPLOYEE_PHOTO_UPDATE", entity: "Employee", entityId: id,
+    targetUserId: updated.userId,
+    newValues: { profilePhoto: photoUrl },
+  })
 
   return NextResponse.json({ photoUrl })
 }

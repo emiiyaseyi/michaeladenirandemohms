@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -22,6 +23,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (targetUser.role === "SUPER_ADMIN") return forbidden("Cannot change role of a Super Admin")
 
   await prisma.user.update({ where: { id: employee.userId }, data: { role: role as any } })
+
+  await logAudit({
+    req, actor: user, action: "EMPLOYEE_ROLE_CHANGE", entity: "User", entityId: employee.userId,
+    targetUserId: employee.userId,
+    oldValues: { role: targetUser.role }, newValues: { role },
+  })
 
   return NextResponse.json({ ok: true, role })
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth()
@@ -57,5 +58,13 @@ export async function POST(req: NextRequest) {
     VALUES (gen_random_uuid(), ${employeeId}, ${documentType}, ${purpose ?? null}, ${notes ?? null}, 'PENDING', NOW(), NOW())
     RETURNING id, "employeeId", "documentType", purpose, status, "createdAt"
   `
+
+  const ownerEmp = await prisma.employee.findUnique({ where: { id: employeeId }, select: { userId: true } })
+  await logAudit({
+    req: req as any, actor: user, action: "DOC_REQUEST_CREATE", entity: "DocumentRequest", entityId: request.id,
+    targetUserId: ownerEmp?.userId ?? null,
+    newValues: { employeeId, documentType, purpose, notes },
+  })
+
   return NextResponse.json({ request }, { status: 201 })
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth()
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
   if (!name || !date) return NextResponse.json({ error: "Name and date required" }, { status: 400 })
   const d = new Date(date)
   const h = await (prisma as any).publicHoliday.create({ data: { name, date: d, year: d.getFullYear(), isCustom: true } })
+  await logAudit({ req, actor: user, action: "HOLIDAY_CREATE", entity: "PublicHoliday", entityId: h.id, newValues: { name, date: d } })
   return NextResponse.json({ h }, { status: 201 })
 }
 
@@ -44,6 +46,11 @@ export async function PATCH(req: NextRequest) {
     where: { id },
     data: { name, date: d, year: d.getFullYear() },
   })
+  await logAudit({
+    req, actor: user, action: "HOLIDAY_EDIT", entity: "PublicHoliday", entityId: id,
+    oldValues: { name: existing.name, date: existing.date },
+    newValues: { name, date: d },
+  })
   return NextResponse.json({ h })
 }
 
@@ -61,5 +68,9 @@ export async function DELETE(req: NextRequest) {
   if (!existing.isCustom) return NextResponse.json({ error: "Cannot delete system holidays" }, { status: 403 })
 
   await (prisma as any).publicHoliday.delete({ where: { id } })
+  await logAudit({
+    req, actor: user, action: "HOLIDAY_DELETE", entity: "PublicHoliday", entityId: id,
+    oldValues: { name: existing.name, date: existing.date },
+  })
   return NextResponse.json({ ok: true })
 }

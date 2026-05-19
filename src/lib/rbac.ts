@@ -104,7 +104,6 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Feedback",      href: "/performance/feedback" },
     ],
   },
-  { label: "Projects",  href: "/projects",  icon: "Layers",  roles: ["ADMIN"], permission: "canViewProjects" },
   { label: "Assets",    href: "/assets",    icon: "Package", roles: ["STAFF"] },
   {
     label: "Time Tracking", icon: "Clock", roles: ["ADMIN"], permission: "canViewAbsences",

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import bcrypt from "bcryptjs"
 
 const REQUIRED_COLS = ["firstName", "lastName", "email"]
@@ -155,7 +156,7 @@ export async function POST(req: NextRequest) {
         data: { name: fullName, email, password: hashedPwd, role: "STAFF" },
       })
 
-      await prisma.employee.create({
+      const created = await prisma.employee.create({
         data: {
           userId: newUser.id,
           employeeId: empId,
@@ -171,6 +172,12 @@ export async function POST(req: NextRequest) {
           departmentId,
           projectLeadId,
         },
+      })
+
+      await logAudit({
+        req, actor: user, action: "EMPLOYEE_BULK_CREATE", entity: "Employee", entityId: created.id,
+        targetUserId: newUser.id,
+        newValues: { employeeId: empId, firstName, lastName, email, jobTitle: row.jobTitle?.trim() || null, departmentId },
       })
 
       results.push({ row: rowNum, status: "created", email })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   const { user, error } = await requireAuth()
@@ -43,6 +44,12 @@ export async function POST(req: NextRequest) {
       mustChangePassword: true,
     },
     select: { id: true, name: true, email: true, isActive: true, createdAt: true, employee: { select: { id: true, phone: true, profilePhoto: true } } },
+  })
+
+  await logAudit({
+    req, actor: user, action: "EXTERNAL_ADMIN_CREATE", entity: "User", entityId: admin.id,
+    targetUserId: admin.id,
+    newValues: { name: admin.name, email: admin.email },
   })
 
   return NextResponse.json({ admin }, { status: 201 })

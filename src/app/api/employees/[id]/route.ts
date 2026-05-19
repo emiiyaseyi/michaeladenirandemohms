@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -28,10 +29,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       department: true,
       manager: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
       projectLead: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
-      projectAssignments: {
-        include: { project: { select: { id: true, name: true, status: true } } },
-        where: { project: { status: "ACTIVE" } },
-      },
       user: { select: { role: true, email: true, projectLeadDepartments: { include: { department: { select: { id: true, name: true } } } } } },
     },
   })
@@ -84,6 +81,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  const before = await prisma.employee.findUnique({ where: { id } })
+
   // Update employee record
   const employee = await prisma.employee.update({
     where: { id },
@@ -132,12 +131,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       },
     })
     sendEmail({ eventKey: "role_changed", toUserId: employee.userId, variables: { employeeName: `${employee.firstName} ${employee.lastName}`, previousRole: ROLE_LABEL[previousRole] ?? previousRole, newRole: ROLE_LABEL[body.role] ?? body.role } }).catch(() => {})
+
+    await logAudit({
+      req, actor: user, action: "EMPLOYEE_ROLE_CHANGE", entity: "User", entityId: employee.userId,
+      targetUserId: employee.userId,
+      oldValues: { role: previousRole }, newValues: { role: body.role },
+    })
+  }
+
+  const editDiff = before ? diffFields(before as any, employee as any, ALLOWED_FIELDS as any) : null
+  if (editDiff) {
+    await logAudit({
+      req, actor: user, action: "EMPLOYEE_EDIT", entity: "Employee", entityId: id,
+      targetUserId: employee.userId,
+      oldValues: editDiff.old, newValues: editDiff.new,
+    })
   }
 
   return NextResponse.json({ employee })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (user.role !== "SUPER_ADMIN" && !user.permissions["canDeleteEmployee"]) return forbidden()
@@ -145,7 +159,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   if (id === user.employeeId) return forbidden("You cannot delete your own employee record")
 
-  const employee = await prisma.employee.findUnique({ where: { id }, select: { id: true, userId: true } })
+  const employee = await prisma.employee.findUnique({
+    where: { id },
+    select: { id: true, userId: true, employeeId: true, firstName: true, lastName: true, jobTitle: true, departmentId: true, user: { select: { email: true } } },
+  })
   if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
 
   try {
@@ -164,6 +181,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
       await tx.employee.delete({ where: { id } })
       // Delete user account
       await tx.user.delete({ where: { id: employee.userId } })
+    })
+    await logAudit({
+      req, actor: user, action: "EMPLOYEE_DELETE", entity: "Employee", entityId: id,
+      targetUserId: employee.userId,
+      oldValues: { employeeId: employee.employeeId, firstName: employee.firstName, lastName: employee.lastName, jobTitle: employee.jobTitle, email: employee.user?.email },
     })
     return NextResponse.json({ success: true })
   } catch (e: any) {

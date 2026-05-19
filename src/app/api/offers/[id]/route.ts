@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -37,6 +38,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   }
 
+  const before = await prisma.offerLetter.findUnique({ where: { id } })
   const offer = await prisma.offerLetter.update({
     where: { id },
     data,
@@ -46,15 +48,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
   })
 
+  const diff = before ? diffFields(before as any, offer as any, allowed as any) : null
+  if (diff) {
+    await logAudit({
+      req, actor: user, action: "OFFER_EDIT", entity: "OfferLetter", entityId: id,
+      oldValues: diff.old, newValues: diff.new,
+    })
+  }
+
   return NextResponse.json({ offer })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canViewAllEmployees) return forbidden()
 
   const { id } = await params
+  const before = await prisma.offerLetter.findUnique({ where: { id }, select: { candidateName: true, candidateEmail: true, jobTitle: true } })
   await prisma.offerLetter.delete({ where: { id } })
+
+  await logAudit({
+    req, actor: user, action: "OFFER_DELETE", entity: "OfferLetter", entityId: id,
+    oldValues: before ?? undefined,
+  })
+
   return NextResponse.json({ ok: true })
 }

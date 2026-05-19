@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAuth()
@@ -16,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
 
   const { id } = await params
@@ -29,6 +30,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       bank: body.bank || null,
       status: body.status || "PENDING",
     },
+  })
+
+  await logAudit({
+    req, actor: user, action: "CONTRACTOR_PAYMENT", entity: "Contractor", entityId: id,
+    newValues: { paymentId: payment.id, amount: payment.amount, description: payment.description, status: payment.status },
   })
 
   return NextResponse.json({ payment }, { status: 201 })

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 // GET /api/auth/forgot-password — admin: list all reset requests
 export async function GET() {
@@ -31,9 +32,26 @@ export async function POST(req: NextRequest) {
       where: { email, status: "PENDING" },
     })
     if (!existing) {
-      await prisma.passwordResetRequest.create({
+      const resetReq = await prisma.passwordResetRequest.create({
         data: { email, userId: dbUser.id },
       })
+
+      // Anonymous endpoint — log directly. Actor and target are both the requesting user.
+      try {
+        const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? null
+        const userAgent = req.headers.get("user-agent") ?? null
+        await prisma.auditLog.create({
+          data: {
+            userId: dbUser.id, targetUserId: dbUser.id,
+            action: "PASSWORD_RESET_REQUEST",
+            entity: "PasswordResetRequest", entityId: resetReq.id,
+            newValues: { email },
+            ipAddress, userAgent,
+          },
+        })
+      } catch (err) {
+        console.error("[audit] password reset request log failed:", err)
+      }
 
       // Notify all admins
       const admins = await prisma.user.findMany({

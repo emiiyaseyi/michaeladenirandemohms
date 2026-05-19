@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 const KEY = "approval_workflow"
 
@@ -50,11 +51,18 @@ export async function PUT(req: NextRequest) {
   if (denied) return denied
 
   const body = await req.json()
+  const before = await prisma.systemSetting.findUnique({ where: { key: KEY } })
 
   const setting = await prisma.systemSetting.upsert({
     where: { key: KEY },
     update: { value: body },
     create: { key: KEY, value: body },
+  })
+
+  await logAudit({
+    req, actor: user, action: "WORKFLOW_UPDATE", entity: "SystemSetting", entityId: KEY,
+    oldValues: before?.value as any,
+    newValues: body,
   })
 
   return NextResponse.json({ workflow: setting.value })

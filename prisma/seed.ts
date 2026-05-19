@@ -54,13 +54,12 @@ async function main() {
   // ── Leave Types (DSN policy) ────────────────────────────────────────────────
   // All re-seeds also refresh the policy fields so existing rows can't drift.
   const leavePolicy = {
-    annual:        { name: "Annual Leave",        description: "Standard annual leave",                                          defaultDays: 10, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
-    sick:          { name: "Sick Leave",          description: "Medical leave — align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
-    compassionate: { name: "Compassionate Leave", description: "Bereavement / family emergency — align with your Project Lead.", defaultDays: 5,  minNoticeDays: 0,  requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
-    maternity:     { name: "Maternity Leave",     description: "Maternity leave for expectant mothers.",                         defaultDays: 90, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: "FEMALE" as const, excludeWeekends: true,  isActive: true },
-    paternity:     { name: "Paternity Leave",     description: "Paternity leave for new fathers.",                               defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: "MALE" as const,   excludeWeekends: true,  isActive: true },
-    casual:        { name: "Casual Leave",        description: "Casual leave (interns only).",                                   defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: true,  deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
-    study:         { name: "Study Leave",         description: "Educational leave — deducted from your Annual Leave allocation.", defaultDays: 0,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: true,  genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    annual:        { name: "Annual Leave",        description: "Standard annual leave",                                          defaultDays: 10, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
+    sick:          { name: "Sick Leave",          description: "Medical leave — align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
+    compassionate: { name: "Compassionate Leave", description: "Bereavement / family emergency — align with your Project Lead.", defaultDays: 5,  minNoticeDays: 0,  requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
+    maternity:     { name: "Maternity Leave",     description: "Maternity leave for expectant mothers.",                         defaultDays: 90, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: "FEMALE" as const, excludeWeekends: true,  isActive: true },
+    paternity:     { name: "Paternity Leave",     description: "Paternity leave for new fathers.",                               defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: "MALE" as const,   excludeWeekends: true,  isActive: true },
+    casual:        { name: "Casual Leave",        description: "Casual leave (interns only).",                                   defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: true,  genderSpecific: null,              excludeWeekends: true,  isActive: true },
   }
 
   await Promise.all(Object.values(leavePolicy).map(p =>
@@ -71,13 +70,28 @@ async function main() {
     })
   ))
 
-  // Soft-disable any legacy types that DSN no longer offers
-  await prisma.leaveType.updateMany({
-    where: { name: { in: ["Work From Home"] } },
-    data:  { isActive: false },
-  })
+  // One-time cleanup of legacy leave types no longer offered by DSN.
+  // "Study Leave" is hard-deleted along with any historical requests/balances (org decision).
+  // Other legacy types: hard-delete if no leave requests still reference them, else soft-disable as a fallback.
+  for (const legacyName of ["Study Leave", "Work From Home"]) {
+    const lt = await prisma.leaveType.findUnique({ where: { name: legacyName } })
+    if (!lt) continue
+    if (legacyName === "Study Leave") {
+      await prisma.leaveRequest.deleteMany({ where: { leaveTypeId: lt.id } })
+      await prisma.leaveBalance.deleteMany({ where: { leaveTypeId: lt.id } })
+      await prisma.leaveType.delete({ where: { id: lt.id } })
+      continue
+    }
+    const refs = await prisma.leaveRequest.count({ where: { leaveTypeId: lt.id } })
+    if (refs === 0) {
+      await prisma.leaveBalance.deleteMany({ where: { leaveTypeId: lt.id } })
+      await prisma.leaveType.delete({ where: { id: lt.id } })
+    } else {
+      await prisma.leaveType.update({ where: { id: lt.id }, data: { isActive: false } })
+    }
+  }
 
-  console.log("  ✓ Leave Types (7 active per DSN policy; Work From Home soft-disabled)")
+  console.log("  ✓ Leave Types (6 active per DSN policy)")
 
   // ── Request Document Types (starter set; admins can add more from the UI) ────
   await Promise.all([
@@ -152,7 +166,6 @@ async function main() {
         canViewDocuments: true, canManageDocuments: true, canRecallDocuments: true, canDeleteDocuments: true, canMakeOffers: true, canManageOfferTemplates: true,
         canViewBenefits: true, canManageBenefits: true,
         canViewPerformance: true, canManagePerformancePeriods: true, canManageObjectives: true, canManageGroups: true, canManageReviews: true, canViewFeedback: true, canManageConversations: true,
-        canViewProjects: true, canCreateProject: true, canManageProjectAssignments: true, canCloseProject: true,
         canViewAbsences: true, canCreateAbsence: true, canEditAbsence: true, canDeleteAbsence: true, canReviewAbsence: true,
         canViewDisciplinary: true, canManageViolations: true, canManagePolicies: true, canManageViolationTypes: true, canManageTriggers: true, canViewSuspensions: true, canManageSuspensions: true,
         canViewAnnouncements: true, canCreateAnnouncement: true, canEditAnnouncement: true, canDeleteAnnouncement: true, canManageAnnouncementGroups: true,
@@ -525,28 +538,6 @@ async function main() {
   if (adminFacility && lead2Emp)    await prisma.department.update({ where: { id: adminFacility.id },    data: { leadEmployeeId: lead2Emp } })
   if (finance && lead2Emp)          await prisma.department.update({ where: { id: finance.id },          data: { leadEmployeeId: lead2Emp } })
   console.log("  ✓ Department leads assigned")
-
-  // Projects
-  const projectDefs = [
-    { id: "proj-001", name: "AI Talent Analytics Platform", status: "ACTIVE",  members: ["emeka.okonkwo@datasciencenigeria.ai", "fatima.musa@datasciencenigeria.ai", "aisha.garba@datasciencenigeria.ai"] },
-    { id: "proj-002", name: "DSN Data Labelling Pipeline",  status: "ACTIVE",  members: ["emeka.okonkwo@datasciencenigeria.ai", "zainab.hassan@datasciencenigeria.ai"] },
-    { id: "proj-003", name: "HRMS v2.0 Development",        status: "ACTIVE",  members: ["chidi.nwosu@datasciencenigeria.ai", "kelechi.ibe@datasciencenigeria.ai", "olumide.adewale@datasciencenigeria.ai"] },
-    { id: "proj-004", name: "Mobile App Revamp",            status: "ACTIVE",  members: ["kelechi.ibe@datasciencenigeria.ai", "olumide.adewale@datasciencenigeria.ai", "chidi.nwosu@datasciencenigeria.ai"] },
-    { id: "proj-005", name: "Q2 2026 Cohort Launch",        status: "ACTIVE",  members: ["tunde.adeyemi@datasciencenigeria.ai", "fatima.musa@datasciencenigeria.ai"] },
-    { id: "proj-006", name: "Brand Identity Refresh",       status: "ACTIVE",  members: ["blessing.okafor@datasciencenigeria.ai", "grace.okeke@datasciencenigeria.ai"] },
-    { id: "proj-007", name: "Partner Onboarding Automation",status: "ON_HOLD", members: ["grace.okeke@datasciencenigeria.ai", "blessing.okafor@datasciencenigeria.ai"] },
-    { id: "proj-008", name: "Financial Reporting Dashboard", status: "ACTIVE",  members: ["ibrahim.sule@datasciencenigeria.ai", "fatima.musa@datasciencenigeria.ai"] },
-  ]
-  for (const p of projectDefs) {
-    const existing = await prisma.project.findUnique({ where: { id: p.id } })
-    if (!existing) await prisma.project.create({ data: { id: p.id, name: p.name, status: p.status as any, startDate: new Date("2026-01-01") } })
-    for (const email of p.members) {
-      const emp = empRecords[email]; if (!emp) continue
-      const exists = await prisma.projectAssignment.findUnique({ where: { projectId_employeeId: { projectId: p.id, employeeId: emp.id } } })
-      if (!exists) await prisma.projectAssignment.create({ data: { projectId: p.id, employeeId: emp.id, role: email === p.members[0] ? "LEAD" : "MEMBER" } })
-    }
-  }
-  console.log("  ✓ Projects")
 
   // Job postings
   await Promise.all([

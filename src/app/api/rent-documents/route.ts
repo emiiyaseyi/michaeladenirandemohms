@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
@@ -51,6 +52,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+
   const form = await req.formData()
   const employeeId = form.get("employeeId") as string
   const amount = parseFloat(form.get("amount") as string)
@@ -83,5 +87,13 @@ export async function POST(req: NextRequest) {
   const doc = await prisma.rentDocument.create({
     data: { employeeId, amount, rentStart, rentEnd, propertyAddress, landlordName, landlordPhone, landlordEmail, rentReceiptUrl, tenancyAgreementUrl },
   })
+
+  const targetEmp = await prisma.employee.findUnique({ where: { id: employeeId }, select: { userId: true } })
+  await logAudit({
+    req, actor: user, action: "RENT_DOC_CREATE", entity: "RentDocument", entityId: doc.id,
+    targetUserId: targetEmp?.userId ?? null,
+    newValues: { employeeId, amount, propertyAddress, rentStart, rentEnd },
+  })
+
   return NextResponse.json({ doc }, { status: 201 })
 }

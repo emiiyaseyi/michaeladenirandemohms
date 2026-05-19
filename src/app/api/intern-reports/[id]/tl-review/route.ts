@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { format } from "date-fns"
 import { sendEmail } from "@/lib/email"
 
@@ -64,6 +65,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       },
     })
   }
+
+  await logAudit({
+    req, actor: user, action: "INTERN_REPORT_REVIEW", entity: "InternWeeklyReport", entityId: id,
+    targetUserId: report.employee.userId,
+    newValues: { isPrimary, productivityRating, ldRating, reflectionsRating },
+    reason: tlComment ?? comment ?? null,
+  })
 
   // If primary: also update the main report fields
   let updated: any

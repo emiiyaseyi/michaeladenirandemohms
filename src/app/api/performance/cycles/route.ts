@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   const { user, error } = await requireAuth()
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
     }
   })
 
-  await prisma.auditLog.create({ data: { userId: user.id, action: "CREATED", entity: "PerformanceCycle", entityId: cycle.id, newValues: { name, year, half } } }).catch(() => {})
+  await logAudit({ req, actor: user, action: "PERFORMANCE_CYCLE_CREATE", entity: "PerformanceCycle", entityId: cycle.id, newValues: { name, year, half } })
 
   return NextResponse.json({ cycle }, { status: 201 })
 }

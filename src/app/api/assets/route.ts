@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -30,6 +32,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+
   const body = await req.json()
   const { name, assetTypeId, description, identifier, commissionDate, isMultiAssignable, maxAssignees, assignments } = body
 
@@ -61,6 +66,11 @@ export async function POST(req: NextRequest) {
       })),
     })
   }
+
+  await logAudit({
+    req, actor: user, action: "ASSET_CREATE", entity: "Asset", entityId: asset.id,
+    newValues: { name, identifier, assetTypeId, isMultiAssignable, initialAssignments: assignments?.length ?? 0 },
+  })
 
   return NextResponse.json({ asset }, { status: 201 })
 }

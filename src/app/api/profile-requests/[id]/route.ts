@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, caps, forbidden, roleBasePath } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -67,5 +68,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       reviewer: { select: { name: true } },
     },
   })
+
+  await logAudit({
+    req, actor: user,
+    action: action === "approve" ? "PROFILE_REQUEST_APPROVE" : "PROFILE_REQUEST_REJECT",
+    entity: "ProfileUpdateRequest", entityId: id,
+    targetUserId: req_.employee.userId,
+    newValues: { changes: req_.changes },
+    reason: reviewNote ?? null,
+  })
+
   return NextResponse.json({ request: updated })
 }

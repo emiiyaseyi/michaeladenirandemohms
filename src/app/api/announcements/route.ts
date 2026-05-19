@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -58,6 +59,11 @@ export async function POST(req: NextRequest) {
       createdById: user.id,
     },
     include: { createdBy: { select: { name: true } } },
+  })
+
+  await logAudit({
+    req, actor: user, action: "ANNOUNCEMENT_CREATE", entity: "Announcement", entityId: ann.id,
+    newValues: { title, type, behavior, targetRoles, sendEmail, status },
   })
 
   // Send email if publishing with sendEmail flag

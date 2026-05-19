@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { format } from "date-fns"
 import { sendEmail } from "@/lib/email"
 import { generateInternReportXlsx } from "@/lib/intern-report-xlsx"
@@ -117,40 +118,7 @@ export async function POST(req: NextRequest) {
   const isIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern")
   if (!isIntern) return forbidden("Only interns can submit weekly reports")
 
-  // Load configurable submission window
-  const cfg = await prisma.internReportSettings.findUnique({ where: { id: "singleton" } })
-  const submissionDay = cfg?.submissionDay ?? 5
-  const openHour     = cfg?.openHour     ?? 16
-  const lateHour     = cfg?.lateHour     ?? 20
-  const closeHour    = cfg?.closeHour    ?? 24
-  const lateDeduction = cfg?.lateDeduction ?? 2
-
-  const nowWAT = toWAT(new Date())
-  const dayWAT = nowWAT.getDay()
-  if (dayWAT !== submissionDay) {
-    return NextResponse.json({ error: `Reports can only be submitted on ${["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][submissionDay]}s.` }, { status: 400 })
-  }
-
-  const hoursWAT = nowWAT.getHours()
-  if (hoursWAT < openHour) {
-    return NextResponse.json({ error: `Submission opens at ${openHour}:00 WAT.` }, { status: 400 })
-  }
-  if (closeHour < 24 && hoursWAT >= closeHour) {
-    return NextResponse.json({ error: `Submission window has closed.` }, { status: 400 })
-  }
-
-  const lateFlag = hoursWAT >= lateHour
-
-  const { weekStart: ws, weekEnd: we } = getWeekBounds(new Date())
-
-  // Prevent duplicate
-  const existing = await prisma.internWeeklyReport.findFirst({
-    where: { employeeId: emp.id, weekStart: ws },
-  })
-  if (existing && existing.status !== "DRAFT") {
-    return NextResponse.json({ error: "You have already submitted a report for this week." }, { status: 409 })
-  }
-
+  // Parse body up front so content validation (reflections) fires before time-window checks.
   const body = await req.json()
   const {
     mainProjectHours = 0, consultingHours = 0, specialProjectHours = 0,
@@ -163,12 +131,76 @@ export async function POST(req: NextRequest) {
     extraReviewerIds = [] as string[],
   } = body
 
+  // Compulsory: every Mon-Fri reflection must be non-empty after trim.
+  // We check content FIRST so the intern always learns about missing fields even if outside the window.
+  const REFLECTION_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
+  for (const key of REFLECTION_KEYS) {
+    if (!dailyReflections?.[key] || dailyReflections[key].trim().length === 0) {
+      return NextResponse.json({ error: `Daily reflection for ${key} is required.` }, { status: 400 })
+    }
+  }
+
+  // Load configurable submission window
+  const cfg = await prisma.internReportSettings.findUnique({ where: { id: "singleton" } })
+  const submissionDay      = cfg?.submissionDay        ?? 5
+  const openHour           = cfg?.openHour             ?? 16
+  const lateHour           = cfg?.lateHour             ?? 20
+  const lateDeductionSat   = cfg?.lateDeduction        ?? 2
+  const lateDeductionSun   = cfg?.lateDeductionSunday  ?? 3
+
+  // Window is: submissionDay (Fri) openHour → Sunday 23:59 WAT.
+  // Deductions: Fri before lateHour = 0, Fri after lateHour = 0 (LATE flag),
+  // Saturday = lateDeductionSat, Sunday = lateDeductionSun.
+  const nowWAT = toWAT(new Date())
+  const dayWAT = nowWAT.getDay() // 0=Sun … 5=Fri … 6=Sat
+  const hoursWAT = nowWAT.getHours()
+
+  const FRI = submissionDay   // 5
+  const SAT = (submissionDay + 1) % 7  // 6
+  const SUN = (submissionDay + 2) % 7  // 0
+  const isFri = dayWAT === FRI
+  const isSat = dayWAT === SAT
+  const isSun = dayWAT === SUN
+
+  if (!isFri && !isSat && !isSun) {
+    return NextResponse.json({ error: `Submission window opens Friday at ${openHour}:00 WAT and closes Sunday at 11:59 PM WAT.` }, { status: 400 })
+  }
+  if (isFri && hoursWAT < openHour) {
+    return NextResponse.json({ error: `Submission opens at ${openHour}:00 WAT today.` }, { status: 400 })
+  }
+
+  // Compute status + deduction by day
+  let lateFlag = false
+  let pointDeduction = 0
+  let computedStatus: "SUBMITTED" | "LATE" = "SUBMITTED"
+  if (isFri && hoursWAT >= lateHour) {
+    lateFlag = true; computedStatus = "LATE"; pointDeduction = 0
+  } else if (isSat) {
+    lateFlag = true; computedStatus = "LATE"; pointDeduction = lateDeductionSat
+  } else if (isSun) {
+    lateFlag = true; computedStatus = "LATE"; pointDeduction = lateDeductionSun
+  }
+
+  const { weekStart: ws, weekEnd: we } = getWeekBounds(new Date())
+
+  // Prevent duplicate / block on MISSING placeholder
+  const existing = await prisma.internWeeklyReport.findFirst({
+    where: { employeeId: emp.id, weekStart: ws },
+  })
+  if (existing && existing.status === "MISSING") {
+    return NextResponse.json({ error: "A missing-report record exists for this week. Ask an admin to clear it before submitting." }, { status: 409 })
+  }
+  if (existing && existing.status !== "DRAFT") {
+    return NextResponse.json({ error: "You have already submitted a report for this week." }, { status: 409 })
+  }
+
   const totalHours = [
     mainProjectHours, consultingHours, specialProjectHours, trainingHours,
     newBusinessHours, reportingDocHours, operationalHours, researchHours,
     meetingsHours, communityHours, representationHours, selfDevHours,
   ].reduce((a, b) => a + Number(b), 0)
 
+  const isNew = !existing
   const report = await prisma.internWeeklyReport.upsert({
     where: { employeeId_weekStart: { employeeId: emp.id, weekStart: ws } },
     create: {
@@ -178,8 +210,8 @@ export async function POST(req: NextRequest) {
       meetingsHours, communityHours, representationHours, selfDevHours,
       totalHours, personalReflection, taskDescriptions, dailyReflections,
       submittedAt: new Date(), lateFlag,
-      pointDeduction: lateFlag ? lateDeduction : 0,
-      status: lateFlag ? "LATE" : "SUBMITTED",
+      pointDeduction,
+      status: computedStatus,
     },
     update: {
       mainProjectHours, consultingHours, specialProjectHours, trainingHours,
@@ -187,9 +219,17 @@ export async function POST(req: NextRequest) {
       meetingsHours, communityHours, representationHours, selfDevHours,
       totalHours, personalReflection, taskDescriptions, dailyReflections,
       submittedAt: new Date(), lateFlag,
-      pointDeduction: lateFlag ? lateDeduction : 0,
-      status: lateFlag ? "LATE" : "SUBMITTED",
+      pointDeduction,
+      status: computedStatus,
     },
+  })
+
+  await logAudit({
+    req, actor: user,
+    action: isNew ? "INTERN_REPORT_SUBMIT" : "INTERN_REPORT_RESUBMIT",
+    entity: "InternWeeklyReport", entityId: report.id,
+    targetUserId: user.id,
+    newValues: { weekStart: ws, weekEnd: we, totalHours, status: report.status, lateFlag },
   })
 
   // Create InternReportReviewer records

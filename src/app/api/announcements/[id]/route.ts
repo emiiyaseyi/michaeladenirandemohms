@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, caps, requirePermission } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -30,11 +31,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (status === "RETIRED") data.retiredAt = new Date()
   }
 
+  const before = await prisma.announcement.findUnique({ where: { id } })
   const ann = await prisma.announcement.update({
     where: { id },
     data,
     include: { createdBy: { select: { name: true } } },
   })
+
+  const diff = before ? diffFields(before as any, ann as any, ["title", "body", "type", "behavior", "targetRoles", "sendEmail", "status"] as any) : null
+  if (diff) {
+    await logAudit({
+      req, actor: user, action: "ANNOUNCEMENT_EDIT", entity: "Announcement", entityId: id,
+      oldValues: diff.old, newValues: diff.new,
+    })
+  }
 
   // Send email if newly published with sendEmail flag
   if (ann.status === "PUBLISHED" && ann.sendEmail) {
@@ -57,7 +67,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ announcement: ann })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
 
@@ -66,10 +76,17 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (delPerm) return delPerm
 
   const { id } = await params
+  const before = await prisma.announcement.findUnique({ where: { id }, select: { title: true } })
   // Soft delete — set to RETIRED so it can be restored from trash
   await prisma.announcement.update({
     where: { id },
     data: { status: "RETIRED", retiredAt: new Date() },
   })
+
+  await logAudit({
+    req, actor: user, action: "ANNOUNCEMENT_ARCHIVE", entity: "Announcement", entityId: id,
+    oldValues: before ?? undefined,
+  })
+
   return NextResponse.json({ ok: true })
 }

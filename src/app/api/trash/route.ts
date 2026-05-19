@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(_req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canManageSettings) return forbidden()
 
-  const [announcements, documents, projects] = await Promise.all([
+  const [announcements, documents] = await Promise.all([
     prisma.announcement.findMany({
       where: { status: "RETIRED" },
       include: { createdBy: { select: { name: true } } },
@@ -18,13 +19,9 @@ export async function GET(_req: NextRequest) {
       include: { uploadedBy: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
     }),
-    prisma.project.findMany({
-      where: { status: "CANCELLED" },
-      orderBy: { updatedAt: "desc" },
-    }),
   ])
 
-  return NextResponse.json({ announcements, documents, projects })
+  return NextResponse.json({ announcements, documents })
 }
 
 // Restore: PATCH /api/trash with { type, id }
@@ -45,14 +42,15 @@ export async function PATCH(req: NextRequest) {
       where: { id },
       data: { isActive: true },
     })
-  } else if (type === "project") {
-    await prisma.project.update({
-      where: { id },
-      data: { status: "ON_HOLD" },
-    })
   } else {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 })
   }
+
+  await logAudit({
+    req, actor: user, action: "TRASH_RESTORE",
+    entity: type === "announcement" ? "Announcement" : "OrgDocument",
+    entityId: id,
+  })
 
   return NextResponse.json({ ok: true })
 }
@@ -68,16 +66,23 @@ export async function DELETE(req: NextRequest) {
   const id = searchParams.get("id")
   if (!type || !id) return NextResponse.json({ error: "type and id required" }, { status: 400 })
 
+  let snapshot: any = null
   if (type === "announcement") {
+    snapshot = await prisma.announcement.findUnique({ where: { id }, select: { title: true, status: true } })
     await prisma.announcement.delete({ where: { id } })
   } else if (type === "document") {
+    snapshot = await prisma.orgDocument.findUnique({ where: { id }, select: { title: true, fileUrl: true } })
     await prisma.orgDocument.delete({ where: { id } })
-  } else if (type === "project") {
-    await prisma.projectAssignment.deleteMany({ where: { projectId: id } })
-    await prisma.project.delete({ where: { id } })
   } else {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 })
   }
+
+  await logAudit({
+    req, actor: user, action: "TRASH_PURGE",
+    entity: type === "announcement" ? "Announcement" : "OrgDocument",
+    entityId: id,
+    oldValues: snapshot ?? undefined,
+  })
 
   return NextResponse.json({ ok: true })
 }

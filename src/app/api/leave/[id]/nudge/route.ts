@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, roleBasePath } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 async function getHRAdminRecipients(): Promise<{ userId: string; employeeId?: string }[]> {
   const [superAdmins, assignments] = await Promise.all([
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const leaveRequest = await prisma.leaveRequest.findUnique({
     where: { id },
     include: {
-      employee: { select: { firstName: true, lastName: true } },
+      employee: { select: { firstName: true, lastName: true, userId: true } },
       leaveType: { select: { name: true } },
     },
   })
@@ -69,6 +70,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     for (const r of hrRecipients) {
       sendEmail({ eventKey: "leave_nudge_hr", toUserId: r.userId, variables: { requesterName, leaveType: leaveName } }).catch(() => {})
     }
+    await logAudit({ req, actor: user, action: "LEAVE_NUDGE", entity: "LeaveRequest", entityId: id, targetUserId: leaveRequest.employee.userId, newValues: { stage: "HR_ADMIN", nudged: hrRecipients.length } })
     return NextResponse.json({ ok: true, nudged: hrRecipients.length })
   }
 
@@ -103,6 +105,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   for (const approval of pendingApprovals) {
     sendEmail({ eventKey: "leave_nudge_pl", toUserId: approval.employee.userId, variables: { requesterName, leaveType: leaveName } }).catch(() => {})
   }
+
+  await logAudit({ req, actor: user, action: "LEAVE_NUDGE", entity: "LeaveRequest", entityId: id, targetUserId: leaveRequest.employee.userId, newValues: { stage, nudged: pendingApprovals.length } })
 
   return NextResponse.json({ ok: true, nudged: pendingApprovals.length })
 }

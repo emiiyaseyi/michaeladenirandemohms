@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 // POST /api/auth/change-password
 // Body: { newPassword, currentPassword?, mode?: "first-login" | "change" }
@@ -42,6 +43,12 @@ export async function POST(req: NextRequest) {
     }))
   }
   await prisma.$transaction(ops)
+
+  await logAudit({
+    req, actor: user, action: "PASSWORD_CHANGE", entity: "User", entityId: user.id,
+    targetUserId: user.id,
+    newValues: { mode: mode === "first-login" ? "first-login" : "self-change" },
+  })
 
   return NextResponse.json({ success: true })
 }

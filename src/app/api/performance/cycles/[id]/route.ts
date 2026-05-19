@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -17,13 +18,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (body.action === "activate") {
     await prisma.performanceCycle.updateMany({ where: { isActive: true }, data: { isActive: false } })
     const updated = await prisma.performanceCycle.update({ where: { id }, data: { isActive: true } })
-    await prisma.auditLog.create({ data: { userId: user.id, action: "ACTIVATED", entity: "PerformanceCycle", entityId: id } }).catch(() => {})
+    await logAudit({ req, actor: user, action: "PERFORMANCE_CYCLE_ACTIVATE", entity: "PerformanceCycle", entityId: id })
     return NextResponse.json({ cycle: updated })
   }
 
   if (body.action === "close") {
     const updated = await prisma.performanceCycle.update({ where: { id }, data: { isActive: false } })
-    await prisma.auditLog.create({ data: { userId: user.id, action: "CLOSED", entity: "PerformanceCycle", entityId: id } }).catch(() => {})
+    await logAudit({ req, actor: user, action: "PERFORMANCE_CYCLE_CLOSE", entity: "PerformanceCycle", entityId: id })
     return NextResponse.json({ cycle: updated })
   }
 
@@ -42,10 +43,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       kpiDeadline: kpiDeadline !== undefined ? (kpiDeadline ? new Date(kpiDeadline) : null) : cycle.kpiDeadline,
     },
   })
+  const diff = diffFields(cycle as any, updated as any, ["name", "startDate", "endDate", "kpiDeadline"])
+  if (diff) await logAudit({ req, actor: user, action: "PERFORMANCE_CYCLE_EDIT", entity: "PerformanceCycle", entityId: id, oldValues: diff.old, newValues: diff.new })
   return NextResponse.json({ cycle: updated })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   const perm = requirePermission(user, "canManagePerformancePeriods")
@@ -57,6 +60,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Cannot delete a cycle that has KPIs" }, { status: 400 })
   }
 
+  const before = await prisma.performanceCycle.findUnique({ where: { id } })
   await prisma.performanceCycle.delete({ where: { id } })
+  await logAudit({ req, actor: user, action: "PERFORMANCE_CYCLE_DELETE", entity: "PerformanceCycle", entityId: id, oldValues: before ?? undefined })
   return NextResponse.json({ ok: true })
 }
