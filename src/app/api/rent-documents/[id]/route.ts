@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
@@ -30,6 +32,9 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+
   const { id } = await params
   const ct = req.headers.get("content-type") ?? ""
 
@@ -60,16 +65,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       data.tenancyAgreementUrl = await saveFile(tenancy, "rent-documents")
     }
     const doc = await prisma.rentDocument.update({ where: { id }, data })
+    await logAudit({ req, actor: user, action: "RENT_DOC_EDIT", entity: "RentDocument", entityId: id, newValues: data })
     return NextResponse.json({ doc })
   }
 
   const body = await req.json()
   const doc = await prisma.rentDocument.update({ where: { id }, data: body })
+  await logAudit({ req, actor: user, action: "RENT_DOC_EDIT", entity: "RentDocument", entityId: id, newValues: body })
   return NextResponse.json({ doc })
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+
   const { id } = await params
+  const before = await prisma.rentDocument.findUnique({ where: { id }, select: { employeeId: true, amount: true, propertyAddress: true } })
   await prisma.rentDocument.delete({ where: { id } })
+  await logAudit({
+    req, actor: user, action: "RENT_DOC_DELETE", entity: "RentDocument", entityId: id,
+    oldValues: before ?? undefined,
+  })
   return NextResponse.json({ ok: true })
 }

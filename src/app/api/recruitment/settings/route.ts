@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 const RECRUITMENT_KEYS = [
   "recruitment_notify_new_application",
@@ -55,6 +56,11 @@ export async function PATCH(req: NextRequest) {
       })
     )
   )
+
+  await logAudit({
+    req, actor: user, action: "RECRUITMENT_SETTINGS_UPDATE", entity: "SystemSetting", entityId: "recruitment",
+    newValues: body,
+  })
 
   return NextResponse.json({ ok: true })
 }

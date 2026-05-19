@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(_req: NextRequest) {
   const { error } = await requireAuth()
@@ -49,5 +50,11 @@ export async function POST(req: NextRequest) {
     )
     RETURNING id, title, category, "fileUrl", "isActive"
   ` as any[]
+
+  await logAudit({
+    req, actor: user, action: "ORG_DOC_CREATE", entity: "OrgDocument", entityId: doc.id,
+    newValues: { title, category, canView, canDownload, canCopy, requiresAck },
+  })
+
   return NextResponse.json({ document: doc }, { status: 201 })
 }

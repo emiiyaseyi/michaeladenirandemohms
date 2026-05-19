@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth()
@@ -37,6 +38,11 @@ export async function POST(req: NextRequest) {
 
   const survey = await prisma.survey.create({
     data: { title, type, isAnonymous: isAnonymous ?? false, status: "DRAFT" },
+  })
+
+  await logAudit({
+    req, actor: user, action: "SURVEY_CREATE", entity: "Survey", entityId: survey.id,
+    newValues: { title, type, isAnonymous },
   })
 
   return NextResponse.json({ survey }, { status: 201 })

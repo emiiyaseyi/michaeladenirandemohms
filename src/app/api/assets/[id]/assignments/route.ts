@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+
   const { id } = await params
   const body = await req.json()
   const { assignments, useSameSettings } = body
@@ -39,8 +44,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         data,
       })
     } else if (!existingIds.has(a.employeeId)) {
-      await prisma.assetAssignment.create({
+      const created = await prisma.assetAssignment.create({
         data: { assetId: id, employeeId: a.employeeId, status: "ASSIGNED", ...data },
+      })
+      const targetEmp = await prisma.employee.findUnique({ where: { id: a.employeeId }, select: { userId: true } })
+      await logAudit({
+        req, actor: user, action: "ASSET_ASSIGN", entity: "Asset", entityId: id,
+        targetUserId: targetEmp?.userId ?? null,
+        newValues: { assignmentId: created.id, employeeId: a.employeeId, period: data.period, periodUnit: data.periodUnit },
       })
     }
   }

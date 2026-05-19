@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(_req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -77,6 +78,14 @@ export async function POST(req: Request) {
         },
       },
     })
+
+    const targetEmp = await prisma.employee.findUnique({ where: { id: employeeId }, select: { userId: true } })
+    await logAudit({
+      req: req as any, actor: user, action: "CONVERSATION_SETUP_CREATE", entity: "ConversationSetup", entityId: setup.id,
+      targetUserId: targetEmp?.userId ?? null,
+      newValues: { employeeId, conversationWith, conversationType, frequency, scheduledDate },
+    })
+
     return NextResponse.json({ setup }, { status: 201 })
   } catch {
     return NextResponse.json({ error: "Failed to create setup" }, { status: 500 })

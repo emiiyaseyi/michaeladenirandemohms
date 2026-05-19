@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -43,6 +44,11 @@ export async function POST(req: NextRequest) {
 
   const template = await prisma.surveyTemplate.create({
     data: { name, type, description: description ?? null, isDefault: false, status: "DRAFT" },
+  })
+
+  await logAudit({
+    req, actor: user, action: "SURVEY_TEMPLATE_CREATE", entity: "SurveyTemplate", entityId: template.id,
+    newValues: { name, type },
   })
 
   return NextResponse.json({ template }, { status: 201 })

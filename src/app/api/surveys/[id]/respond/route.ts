@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -29,6 +30,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         })),
       },
     },
+  })
+
+  await logAudit({
+    req, actor: user, action: "SURVEY_RESPOND", entity: "Survey", entityId: id,
+    targetUserId: survey.isAnonymous ? null : user.id,
+    newValues: { isAnonymous: survey.isAnonymous, questionCount: Object.keys(answers).length },
   })
 
   return NextResponse.json({ response }, { status: 201 })
