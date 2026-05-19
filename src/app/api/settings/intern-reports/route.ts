@@ -35,15 +35,14 @@ export async function PATCH(req: NextRequest) {
   if (user.role !== "SUPER_ADMIN" && !user.permissions?.canViewInternReports) return forbidden()
 
   const body = await req.json()
-  const { submissionDay, openHour, lateHour, closeHour, lateDeduction, lateDeductionSunday, warningThresholdMinutes, attendanceCriteria } = body
+  // submissionDay (Friday) and closeHour (Sunday midnight) are locked policy — silently ignore any attempt to change.
+  const { openHour, lateHour, lateDeduction, lateDeductionSunday, warningThresholdMinutes, attendanceCriteria } = body
 
   const settings = await prisma.internReportSettings.upsert({
     where: { id: "singleton" },
     update: {
-      ...(submissionDay !== undefined && { submissionDay: Number(submissionDay) }),
       ...(openHour !== undefined && { openHour: Number(openHour) }),
       ...(lateHour !== undefined && { lateHour: Number(lateHour) }),
-      ...(closeHour !== undefined && { closeHour: Number(closeHour) }),
       ...(lateDeduction !== undefined && { lateDeduction: Number(lateDeduction) }),
       ...(lateDeductionSunday !== undefined && { lateDeductionSunday: Number(lateDeductionSunday) }),
       ...(warningThresholdMinutes !== undefined && { warningThresholdMinutes: Number(warningThresholdMinutes) }),
@@ -51,10 +50,10 @@ export async function PATCH(req: NextRequest) {
     },
     create: {
       id: "singleton",
-      submissionDay: Number(submissionDay ?? DEFAULTS.submissionDay),
+      submissionDay: DEFAULTS.submissionDay,   // locked to Friday
       openHour: Number(openHour ?? DEFAULTS.openHour),
       lateHour: Number(lateHour ?? DEFAULTS.lateHour),
-      closeHour: Number(closeHour ?? DEFAULTS.closeHour),
+      closeHour: DEFAULTS.closeHour,           // locked to midnight (window stays open Sat+Sun)
       lateDeduction: Number(lateDeduction ?? DEFAULTS.lateDeduction),
       lateDeductionSunday: Number(lateDeductionSunday ?? DEFAULTS.lateDeductionSunday),
       warningThresholdMinutes: Number(warningThresholdMinutes ?? DEFAULTS.warningThresholdMinutes),

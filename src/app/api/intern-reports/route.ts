@@ -118,6 +118,28 @@ export async function POST(req: NextRequest) {
   const isIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern")
   if (!isIntern) return forbidden("Only interns can submit weekly reports")
 
+  // Parse body up front so content validation (reflections) fires before time-window checks.
+  const body = await req.json()
+  const {
+    mainProjectHours = 0, consultingHours = 0, specialProjectHours = 0,
+    trainingHours = 0, newBusinessHours = 0, reportingDocHours = 0,
+    operationalHours = 0, researchHours = 0, meetingsHours = 0,
+    communityHours = 0, representationHours = 0, selfDevHours = 0,
+    personalReflection = "",
+    taskDescriptions = {},
+    dailyReflections = {} as Record<string, string>,
+    extraReviewerIds = [] as string[],
+  } = body
+
+  // Compulsory: every Mon-Fri reflection must be non-empty after trim.
+  // We check content FIRST so the intern always learns about missing fields even if outside the window.
+  const REFLECTION_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
+  for (const key of REFLECTION_KEYS) {
+    if (!dailyReflections?.[key] || dailyReflections[key].trim().length === 0) {
+      return NextResponse.json({ error: `Daily reflection for ${key} is required.` }, { status: 400 })
+    }
+  }
+
   // Load configurable submission window
   const cfg = await prisma.internReportSettings.findUnique({ where: { id: "singleton" } })
   const submissionDay      = cfg?.submissionDay        ?? 5
@@ -170,26 +192,6 @@ export async function POST(req: NextRequest) {
   }
   if (existing && existing.status !== "DRAFT") {
     return NextResponse.json({ error: "You have already submitted a report for this week." }, { status: 409 })
-  }
-
-  const body = await req.json()
-  const {
-    mainProjectHours = 0, consultingHours = 0, specialProjectHours = 0,
-    trainingHours = 0, newBusinessHours = 0, reportingDocHours = 0,
-    operationalHours = 0, researchHours = 0, meetingsHours = 0,
-    communityHours = 0, representationHours = 0, selfDevHours = 0,
-    personalReflection = "",
-    taskDescriptions = {},
-    dailyReflections = {} as Record<string, string>,
-    extraReviewerIds = [] as string[],
-  } = body
-
-  // Compulsory: every Mon-Fri reflection must be non-empty after trim
-  const REFLECTION_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
-  for (const key of REFLECTION_KEYS) {
-    if (!dailyReflections?.[key] || dailyReflections[key].trim().length === 0) {
-      return NextResponse.json({ error: `Daily reflection for ${key} is required.` }, { status: 400 })
-    }
   }
 
   const totalHours = [

@@ -112,10 +112,12 @@ export default function InternReportSettingsPage() {
         </div>
       ) : (
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: "8px 24px 20px" }}>
-          {row("Submission Day", "submissionDay", DAYS.map((d, i) => ({ value: i, label: d })))}
-          {row("Window Opens (exact start time)", "openHour", HOUR_OPTIONS.slice(0, 24))}
-          {row("Late Threshold (submissions after this time are late)", "lateHour", HOUR_OPTIONS.slice(0, 24))}
-          {row("Window Closes (no submissions after this time)", "closeHour", HOUR_OPTIONS.slice(1))}
+          {/* Locked policy: submission day is Friday; window closes Sunday 11:59 PM WAT. Only the on-Friday hours are configurable. */}
+          <div style={{ padding: "12px 14px", background: "#F3F4F6", borderRadius: 8, fontSize: 12, color: "var(--muted-foreground)", marginBottom: 12, lineHeight: 1.6 }}>
+            <strong style={{ color: "var(--foreground)" }}>Fixed policy:</strong> submissions open on <strong>Friday</strong> and the full window stays open through <strong>Sunday 11:59 PM WAT</strong>. Saturday submissions incur the Saturday deduction; Sunday submissions incur the Sunday deduction; non-submission by Monday becomes a MISSING record. Only the Friday hours and the deduction amounts below are admin-configurable.
+          </div>
+          {row("Window Opens (Friday start time)", "openHour", HOUR_OPTIONS.slice(0, 24))}
+          {row("Late Threshold (Friday — submissions after this time are LATE)", "lateHour", HOUR_OPTIONS.slice(0, 24))}
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
             <div>
