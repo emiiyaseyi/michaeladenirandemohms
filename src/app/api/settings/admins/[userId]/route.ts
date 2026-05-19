@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 const MEMBER_SELECT = {
   id: true, name: true, email: true, role: true, isActive: true, createdAt: true,
@@ -22,6 +23,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 })
   if (target.role === "SUPER_ADMIN") return forbidden("Cannot modify SUPER_ADMIN roles")
 
+  const before = await prisma.userAdminRole.findMany({ where: { userId }, select: { adminRoleId: true } })
+
   await prisma.$transaction([
     prisma.userAdminRole.deleteMany({ where: { userId } }),
     ...(roleIds.length > 0
@@ -30,6 +33,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
         })]
       : []),
   ])
+
+  await logAudit({
+    req, actor: user,
+    action: roleIds.length > 0 ? "ADMIN_ROLE_UPDATE" : "ADMIN_ROLE_REVOKE",
+    entity: "User", entityId: userId, targetUserId: userId,
+    oldValues: { roleIds: before.map(b => b.adminRoleId) },
+    newValues: { roleIds: roleIds as string[] },
+  })
 
   await prisma.notification.create({
     data: {
@@ -49,7 +60,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
 }
 
 // DELETE /api/settings/admins/[userId] — remove all admin roles (de-elevate)
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (user.role !== "SUPER_ADMIN") return forbidden()
@@ -60,6 +71,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 })
   if (target.role === "SUPER_ADMIN") return forbidden("Cannot remove SUPER_ADMIN")
 
+  const before = await prisma.userAdminRole.findMany({ where: { userId }, select: { adminRoleId: true } })
   await prisma.userAdminRole.deleteMany({ where: { userId } })
 
   await prisma.notification.create({
@@ -72,6 +84,11 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     },
   })
   sendEmail({ eventKey: "admin_access_removed", toUserId: userId, variables: { employeeName: "" } }).catch(() => {})
+
+  await logAudit({
+    req, actor: user, action: "ADMIN_ROLE_REVOKE", entity: "User", entityId: userId, targetUserId: userId,
+    oldValues: { roleIds: before.map(b => b.adminRoleId) },
+  })
 
   return NextResponse.json({ success: true })
 }

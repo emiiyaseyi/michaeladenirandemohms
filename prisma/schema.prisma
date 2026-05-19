@@ -56,7 +56,8 @@ model User {
   lastLoginAt     DateTime?
   adminRoles             UserAdminRole[]
   accounts               Account[]
-  auditLogs              AuditLog[]
+  auditActorLogs         AuditLog[]            @relation("AuditActor")
+  auditTargetLogs        AuditLog[]            @relation("AuditTarget")
   employee               Employee?
   notifications          Notification[]
   announcements          Announcement[]        @relation("AnnouncementCreator")
@@ -419,7 +420,6 @@ model LeaveType {
   minDocDays       Int            @default(2)
   minNoticeDays    Int            @default(10)
   internOnly       Boolean        @default(false)
-  deductFromAnnual Boolean        @default(false)
   isActive         Boolean        @default(true)
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
@@ -776,16 +776,26 @@ model Notification {
 }
 
 model AuditLog {
-  id        String   @id @default(cuid())
-  userId    String?
-  action    String
-  entity    String
-  entityId  String?
-  oldValues Json?
-  newValues Json?
-  ipAddress String?
-  createdAt DateTime @default(now())
-  user      User?    @relation(fields: [userId], references: [id])
+  id           String   @id @default(cuid())
+  userId       String?
+  targetUserId String?
+  action       String
+  entity       String
+  entityId     String?
+  oldValues    Json?
+  newValues    Json?
+  reason       String?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  user         User?    @relation("AuditActor",  fields: [userId],       references: [id], onDelete: SetNull)
+  targetUser   User?    @relation("AuditTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([entityId])
+  @@index([userId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@index([entity, action])
 }
 
 enum OrgDocCategory {

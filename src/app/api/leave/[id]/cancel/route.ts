@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
 
@@ -11,7 +12,10 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   const request = await prisma.leaveRequest.findUnique({
     where: { id },
-    include: { approvals: { select: { action: true } } },
+    include: {
+      approvals: { select: { action: true } },
+      employee: { select: { userId: true } },
+    },
   })
   if (!request) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
@@ -47,6 +51,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
       data: { employeeStatus: "ACTIVE" },
     })
   }
+
+  await logAudit({
+    req, actor: user, action: "LEAVE_CANCEL", entity: "LeaveRequest", entityId: id,
+    targetUserId: request.employee?.userId ?? null,
+    oldValues: { status: request.status },
+    newValues: { status: updated.status },
+  })
 
   return NextResponse.json({ request: updated })
 }

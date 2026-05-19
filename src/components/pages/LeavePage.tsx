@@ -100,10 +100,7 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
   const [form, setForm] = useState({ employeeId: "", leaveTypeId: "", startDate: "", endDate: "", reason: "", documentUrl: "", projectLeads: [] as PLEntry[] })
 
   const selType = leaveTypes.find(t => t.id === form.leaveTypeId)
-  // If the selected type deducts from Annual Leave, surface the Annual Leave balance instead
-  const annualLeaveType = leaveTypes.find(t => t.name === "Annual Leave")
-  const balanceSourceTypeId = selType?.deductFromAnnual && annualLeaveType ? annualLeaveType.id : form.leaveTypeId
-  const selBal = balances.find(b => b.leaveTypeId === balanceSourceTypeId)
+  const selBal = balances.find(b => b.leaveTypeId === form.leaveTypeId)
 
   const applicantIdForFilter = form.employeeId || currentUserEmployeeId
   const applicantEmp: any = applicantIdForFilter ? employees.find((e: any) => e.id === applicantIdForFilter) : null
@@ -260,7 +257,6 @@ function ApplyLeaveModal({ open, onClose, leaveTypes, employees, projectLeadEmpl
                       {lt.minNoticeDays > 0 && !isAdmin && !exhausted && <div style={{ fontSize: 10, color: "var(--warning)", marginTop: 3 }}>⚠ {lt.minNoticeDays} working days notice required</div>}
                       {lt.genderSpecific && !exhausted && <div style={{ fontSize: 10, color: "var(--info)", marginTop: 2 }}>{lt.genderSpecific === "FEMALE" ? "Female staff only" : "Male staff only"}</div>}
                       {lt.internOnly && !exhausted && <div style={{ fontSize: 10, color: "var(--info)", marginTop: 2 }}>Interns only</div>}
-                      {lt.deductFromAnnual && !exhausted && <div style={{ fontSize: 10, color: "var(--muted-foreground)", marginTop: 2 }}>Deducted from Annual Leave</div>}
                     </button>
                   )
                 })}
@@ -879,19 +875,14 @@ function PLApproveModal({ req, employees, currentUserEmployeeId, onClose, onDone
 
 // ── Edit Leave Modal ──────────────────────────────────────────────────────────
 
-function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, employees = [], currentUserEmployeeId }: {
-  req: any; onClose: () => void; onDone: () => void; isAdmin: boolean; isPLEdit?: boolean; employees?: any[]; currentUserEmployeeId?: string;
+function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false }: {
+  req: any; onClose: () => void; onDone: () => void; isAdmin: boolean; isPLEdit?: boolean;
 }) {
   const [form, setForm] = useState({
     startDate: req.startDate ? req.startDate.split("T")[0] : "",
     endDate: req.endDate ? req.endDate.split("T")[0] : "",
     reason: req.reason ?? "",
   })
-  const [handover, setHandover] = useState<any[]>(() => {
-    try { return JSON.parse(req.handoverNotes ?? "[]") } catch { return [] }
-  })
-  const [reliefSearch, setReliefSearch] = useState("")
-  const [reliefDropOpen, setReliefDropOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [calcDays, setCalcDays] = useState(req.days ?? 0)
@@ -904,50 +895,19 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, emplo
       .catch(() => {})
   }, [form.startDate, form.endDate, req.leaveTypeId])
 
-  const locked = false  // Relief officers don't accept/decline — form is never locked by that
-
-  // PL's own handover entry
-  const myEntryIdx = isPLEdit ? handover.findIndex((e: any) => e.projectLeadId === currentUserEmployeeId) : -1
-  const myEntry = myEntryIdx >= 0 ? handover[myEntryIdx] : null
-
-  const setReliever = (employeeId: string) => {
-    if (myEntryIdx < 0) return
-    setHandover(prev => {
-      const next = [...prev]
-      next[myEntryIdx] = { ...next[myEntryIdx], relieverId: employeeId }
-      return next
-    })
-    setReliefSearch(""); setReliefDropOpen(false)
-  }
-  const clearReliever = () => {
-    if (myEntryIdx < 0) return
-    setHandover(prev => { const next = [...prev]; next[myEntryIdx] = { ...next[myEntryIdx], relieverId: "" }; return next })
-  }
-
-  const currentRelieverId = myEntry?.relieverId ?? ""
-  const currentReliever = currentRelieverId ? employees.find((e: any) => e.id === currentRelieverId) : null
-  const currentRelieverIsMe = currentRelieverId === currentUserEmployeeId
-
-  const meEmployee = currentUserEmployeeId ? employees.find((e: any) => e.id === currentUserEmployeeId) : null
-  const meMatchesSearch = !reliefSearch || "me".includes(reliefSearch.toLowerCase()) ||
-    (meEmployee && `${meEmployee.firstName} ${meEmployee.lastName}`.toLowerCase().includes(reliefSearch.toLowerCase()))
-
-  const othersFiltered = employees.filter((e: any) =>
-    e.id !== req.employeeId && e.id !== currentUserEmployeeId &&
-    `${e.firstName} ${e.lastName}`.toLowerCase().includes(reliefSearch.toLowerCase())
-  )
-  const filteredRelief: Array<any & { __isMe?: boolean }> = [
-    ...(meEmployee && meMatchesSearch ? [{ ...meEmployee, __isMe: true }] : []),
-    ...othersFiltered,
-  ]
+  // Available balance for this employee + leave type. req.employeeLeaveBalance.remaining
+  // already excludes this request's own pending days, so the cap is remaining + req.days.
+  const cap = (req.employeeLeaveBalance?.remaining ?? 0) + (req.days ?? 0)
+  const tooFew = calcDays < 1
+  const tooMany = cap > 0 && calcDays > cap
+  const blocked = tooFew || tooMany
 
   const save = async () => {
-    if (isPLEdit && myEntry && !currentRelieverId) {
-      setError("You must assign a relief officer before saving."); return
-    }
+    if (blocked) return
     setLoading(true); setError("")
-    const body: any = { ...form }
-    if (isPLEdit || isAdmin) body.handoverNotes = handover.length > 0 ? JSON.stringify(handover) : null
+    // PL edits: dates only. Admin: dates + reason (handoverNotes admins use other modals).
+    const body: any = { startDate: form.startDate, endDate: form.endDate }
+    if (isAdmin && !isPLEdit) body.reason = form.reason
     const r = await fetch(`/api/leave/${req.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -961,96 +921,35 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, emplo
   const fi = { width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)" } as const
 
   return (
-    <Modal open onClose={onClose} title={isPLEdit ? "Review Leave Request" : "Edit Leave Request"} width={560}>
+    <Modal open onClose={onClose} title={isPLEdit ? "Edit Dates" : "Edit Leave Request"} width={560}>
       <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
         {isPLEdit && (
           <div style={{ background: "var(--info-bg)", border: "1px solid var(--info)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--info)", display: "flex", gap: 8 }}>
             <Info size={14} style={{ flexShrink: 0 }} />
-            Review the leave dates and confirm or change who will cover your tasks. Relief officers are only notified after you approve.
+            Adjust the leave dates only. Relief officer changes happen at the Approve step.
           </div>
         )}
         {/* Dates */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: 12 }}>
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Start Date</label>
-            <input type="date" disabled={locked} value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} style={{ ...fi, opacity: locked ? 0.6 : 1 }} />
+            <input type="date" value={form.startDate} onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} style={fi} />
           </div>
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>End Date</label>
-            <input type="date" disabled={locked} value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} style={{ ...fi, opacity: locked ? 0.6 : 1 }} />
+            <input type="date" value={form.endDate} onChange={e => setForm(f => ({ ...f, endDate: e.target.value }))} style={fi} />
           </div>
         </div>
         {calcDays > 0 && (
-          <div style={{ background: "var(--muted)", borderRadius: 8, padding: "8px 14px", fontSize: 13, display: "flex", justifyContent: "space-between" }}>
-            <span style={{ color: "var(--muted-foreground)" }}>Working days</span>
-            <strong>{calcDays} days</strong>
+          <div style={{ background: tooMany ? "var(--danger-bg)" : "var(--muted)", borderRadius: 8, padding: "8px 14px", fontSize: 13, display: "flex", justifyContent: "space-between", color: tooMany ? "var(--accent)" : undefined }}>
+            <span style={{ color: tooMany ? "var(--accent)" : "var(--muted-foreground)" }}>Working days</span>
+            <strong>{calcDays} {cap > 0 ? `/ ${cap} available` : "days"}</strong>
           </div>
         )}
-
-        {/* PL: relief officer section */}
-        {isPLEdit && myEntry && (
-          <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)" }}>Your Task Coverage</div>
-            <div style={{ background: "var(--muted)", borderRadius: 8, padding: "8px 12px" }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}>{myEntry.taskName}</div>
-              {myEntry.taskDescription && <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{myEntry.taskDescription}</div>}
-            </div>
-            <div>
-              <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }}>Relief Officer <span style={{ fontWeight: 400, color: "var(--muted-foreground)" }}>(who will cover this task)</span></label>
-              {currentReliever ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 10, background: "var(--primary-50)", border: "1px solid var(--primary)", borderRadius: 8, padding: "8px 12px" }}>
-                  <Avatar name={`${currentReliever.firstName} ${currentReliever.lastName}`} photo={currentReliever.profilePhoto ?? undefined} size={28} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>
-                      {currentRelieverIsMe ? "Me" : `${currentReliever.firstName} ${currentReliever.lastName}`}
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                      {currentRelieverIsMe ? `${currentReliever.firstName} ${currentReliever.lastName} · You` : (currentReliever.jobTitle ?? "—")}
-                    </div>
-                  </div>
-                  <button onClick={clearReliever} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", padding: 4, display: "flex", borderRadius: 4 }} title="Remove">
-                    <X size={14} />
-                  </button>
-                </div>
-              ) : (
-                <div style={{ position: "relative" }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px dashed var(--border)", borderRadius: 8, padding: "9px 12px", background: "var(--background)" }}>
-                    <Search size={13} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
-                    <input
-                      value={reliefSearch}
-                      onChange={e => { setReliefSearch(e.target.value); setReliefDropOpen(true) }}
-                      onFocus={() => setReliefDropOpen(true)}
-                      placeholder="Search for a relief officer…"
-                      style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, flex: 1, color: "var(--foreground)" }}
-                    />
-                  </div>
-                  {reliefDropOpen && filteredRelief.length > 0 && (
-                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: 180, overflowY: "auto", marginTop: 4 }}>
-                      {filteredRelief.slice(0, 8).map((e: any) => (
-                        <div key={e.id} onClick={() => setReliever(e.id)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", cursor: "pointer", borderBottom: "1px solid var(--border-light, #f5f7fa)" }}
-                          onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
-                          onMouseLeave={ev => (ev.currentTarget as HTMLElement).style.background = ""}>
-                          <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto ?? undefined} size={26} />
-                          <div>
-                            <div style={{ fontSize: 12, fontWeight: 600 }}>{e.__isMe ? "Me" : `${e.firstName} ${e.lastName}`}</div>
-                            <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                              {e.__isMe ? `${e.firstName} ${e.lastName}` : (e.jobTitle ?? "—")}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 5 }}>
-                {currentReliever
-                  ? currentRelieverIsMe
-                    ? "You will cover this task yourself. You'll be notified once you approve."
-                    : "This person will be notified once you approve the leave."
-                  : "A relief officer is required — search above to assign someone."}
-              </div>
-            </div>
+        {(tooFew || tooMany) && (
+          <div style={{ background: "var(--danger-bg)", color: "var(--accent)", padding: "10px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600 }}>
+            {tooFew && "Pick a valid range (at least 1 day)."}
+            {tooMany && `This range exceeds the employee's remaining balance (${cap} days available).`}
           </div>
         )}
 
@@ -1058,8 +957,8 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, emplo
         {!isPLEdit && (
           <div>
             <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Reason</label>
-            <textarea disabled={locked} value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={3}
-              style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical", opacity: locked ? 0.6 : 1 }} />
+            <textarea value={form.reason} onChange={e => setForm(f => ({ ...f, reason: e.target.value }))} rows={3}
+              style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", resize: "vertical" }} />
           </div>
         )}
 
@@ -1071,11 +970,9 @@ function EditLeaveModal({ req, onClose, onDone, isAdmin, isPLEdit = false, emplo
       </div>
       <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        {!locked && (
-          <Button onClick={save} disabled={loading}>
-            {loading ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : "Save Changes"}
-          </Button>
-        )}
+        <Button onClick={save} disabled={loading || blocked}>
+          {loading ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : "Save Changes"}
+        </Button>
       </div>
     </Modal>
   )
@@ -1686,14 +1583,22 @@ export default function LeavePage() {
                   <Bell size={14} /> {sentNudges.has(`${reviewReq.id}:HR_ADMIN`) ? "Sent" : "Remind HR Admin"}
                 </button>
               )}
-              {canEditLeave && reviewReq.status === "PENDING" && (
-                reviewReq.employeeId === user?.employeeId || isAdmin
-              ) && (
-                <button onClick={() => { setEditLeave(reviewReq); setReviewReq(null) }}
-                  style={{ width: "100%", padding: "10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-                  <Edit3 size={14} /> Edit Request
-                </button>
-              )}
+              {(() => {
+                if (reviewReq.status !== "PENDING") return null
+                // Owner is NEVER allowed to edit their own request.
+                if (reviewReq.employeeId === user?.employeeId) return null
+                const isPLApprover = (reviewReq.approvals ?? []).some(
+                  (a: any) => a.stage === "PROJECT_LEAD" && a.employeeId === user?.employeeId && !a.action
+                )
+                // Show Edit for admin with canEditLeave OR PL whose approval is pending.
+                if (!(canEditLeave && isAdmin) && !isPLApprover) return null
+                return (
+                  <button onClick={() => { setEditLeave(reviewReq); setReviewReq(null) }}
+                    style={{ width: "100%", padding: "10px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                    <Edit3 size={14} /> Edit {isPLApprover && !isAdmin ? "Dates" : "Request"}
+                  </button>
+                )
+              })()}
               {(() => {
                 if (reviewReq.status !== "PENDING") return null
                 const isOwner = reviewReq.employeeId === user?.employeeId
@@ -1717,7 +1622,7 @@ export default function LeavePage() {
 
       <ApplyLeaveModal open={applyOpen} onClose={() => setApplyOpen(false)} leaveTypes={leaveTypes} employees={employees} projectLeadEmployees={projectLeadEmployees} balances={balances} employeeGender={employeeGender} onSuccess={load} userCaps={user?.caps} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} currentUserId={user?.id} />
       {rejectId && <RejectModal id={rejectId} onClose={() => setRejectId("")} onDone={load} />}
-      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={editLeave?.currentStage === "PENDING_PROJECT_LEAD" && editLeave?.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action)} onClose={() => setEditLeave(null)} onDone={load} employees={employees} currentUserEmployeeId={user?.employeeId} />}
+      {editLeave && <EditLeaveModal req={editLeave} isAdmin={!!isAdmin} isPLEdit={editLeave?.approvals?.some((a: any) => a.employeeId === user?.employeeId && a.stage === "PROJECT_LEAD" && !a.action)} onClose={() => setEditLeave(null)} onDone={load} />}
       {plApproveTarget && <PLApproveModal req={plApproveTarget} employees={employees} currentUserEmployeeId={user?.employeeId} onClose={() => setPLApproveTarget(null)} onDone={load} />}
       {viewLeave && <LeaveDetailModal req={viewLeave} onClose={() => setViewLeave(null)} isAdmin={!!isAdmin} currentUserEmployeeId={user?.employeeId} />}
 

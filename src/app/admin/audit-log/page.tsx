@@ -8,8 +8,16 @@ const ENTITY_COLORS: Record<string, { bg: string; color: string }> = {
   PerformanceCycle:  { bg: "#DCFCE7", color: "#15803D" },
   Employee:          { bg: "#FEF9C3", color: "#92400E" },
   User:              { bg: "#FEE2E2", color: "#DC2626" },
-  Leave:             { bg: "#E0F2FE", color: "#0369A1" },
+  LeaveRequest:      { bg: "#E0F2FE", color: "#0369A1" },
   ExternalAdmin:     { bg: "#F3E8FF", color: "#7E22CE" },
+  OrgDocument:       { bg: "#FCE7F3", color: "#BE185D" },
+  PersonalDocument:  { bg: "#FCE7F3", color: "#BE185D" },
+  Contractor:        { bg: "#FFEDD5", color: "#C2410C" },
+  Role:              { bg: "#E0E7FF", color: "#3730A3" },
+  AdminRole:         { bg: "#E0E7FF", color: "#3730A3" },
+  Violation:         { bg: "#FEE2E2", color: "#DC2626" },
+  Suspension:        { bg: "#FEE2E2", color: "#DC2626" },
+  DisciplinaryPolicy:{ bg: "#FEE2E2", color: "#DC2626" },
 }
 
 function EntityBadge({ entity }: { entity: string }) {
@@ -87,19 +95,19 @@ export default function AuditLogPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--muted)" }}>
-                {["Timestamp", "User", "Action", "Entity", "Entity ID", "Details", ""].map(h => (
+                {["Timestamp", "Actor", "Target", "Action", "Entity", "Entity ID", "Details", ""].map(h => (
                   <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)" }}>Loading…</td></tr>
+                <tr><td colSpan={8} style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)" }}>Loading…</td></tr>
               ) : logs.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: "40px", textAlign: "center", color: "var(--muted-foreground)" }}>No audit log entries found.</td></tr>
+                <tr><td colSpan={8} style={{ padding: "40px", textAlign: "center", color: "var(--muted-foreground)" }}>No audit log entries found.</td></tr>
               ) : logs.map(log => {
                 const isOpen = expanded === log.id
-                const hasDetails = log.oldValues || log.newValues || log.ipAddress
+                const hasDetails = log.oldValues || log.newValues || log.ipAddress || log.userAgent || log.reason
                 return (
                   <>
                     <tr key={log.id} style={{ borderTop: "1px solid var(--border)" }}>
@@ -113,6 +121,14 @@ export default function AuditLogPage() {
                             <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{log.user.email}</div>
                           </div>
                         ) : <span style={{ color: "var(--muted-foreground)", fontSize: 12 }}>System</span>}
+                      </td>
+                      <td style={{ padding: "10px 14px" }}>
+                        {log.targetUser ? (
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: 12 }}>{log.targetUser.name}</div>
+                            <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{log.targetUser.email}</div>
+                          </div>
+                        ) : <span style={{ color: "var(--muted-foreground)", fontSize: 12 }}>—</span>}
                       </td>
                       <td style={{ padding: "10px 14px" }}><ActionBadge action={log.action} /></td>
                       <td style={{ padding: "10px 14px" }}><EntityBadge entity={log.entity} /></td>
@@ -131,12 +147,24 @@ export default function AuditLogPage() {
                     </tr>
                     {isOpen && hasDetails && (
                       <tr key={log.id + "_exp"} style={{ background: "rgba(0,0,0,0.015)", borderTop: "1px solid var(--border)" }}>
-                        <td colSpan={7} style={{ padding: "12px 14px 12px 32px" }}>
+                        <td colSpan={8} style={{ padding: "12px 14px 12px 32px" }}>
                           <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+                            {log.reason && (
+                              <div>
+                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>Reason</div>
+                                <div style={{ fontSize: 12, maxWidth: 360 }}>{log.reason}</div>
+                              </div>
+                            )}
                             {log.ipAddress && (
                               <div>
                                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>IP Address</div>
                                 <code style={{ fontSize: 12 }}>{log.ipAddress}</code>
+                              </div>
+                            )}
+                            {log.userAgent && (
+                              <div>
+                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", color: "var(--muted-foreground)", marginBottom: 4 }}>User Agent</div>
+                                <code style={{ fontSize: 11, maxWidth: 360, display: "inline-block", wordBreak: "break-all" }} title={log.userAgent}>{log.userAgent.length > 80 ? log.userAgent.slice(0, 80) + "…" : log.userAgent}</code>
                               </div>
                             )}
                             {log.oldValues && (

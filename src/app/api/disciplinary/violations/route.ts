@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
@@ -102,5 +103,13 @@ export async function POST(req: NextRequest) {
       supportingDocUrl,
     },
   })
+
+  const targetEmp = await prisma.employee.findUnique({ where: { id: employeeId }, select: { userId: true } })
+  await logAudit({
+    req, actor: user, action: "VIOLATION_CREATE", entity: "Violation", entityId: violation.id,
+    targetUserId: targetEmp?.userId ?? null,
+    newValues: { violationTypeId, incidentDate, details, expectingResponse },
+  })
+
   return NextResponse.json({ violation }, { status: 201 })
 }

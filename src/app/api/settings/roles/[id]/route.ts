@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 
 const ROLE_SELECT = {
   id: true, name: true, slug: true, description: true, isSystem: true, permissions: true, createdAt: true, updatedAt: true,
@@ -56,21 +57,35 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.description !== undefined) updateData.description = body.description?.trim() || null
   }
 
+  const beforeFull = await prisma.adminRole.findUnique({ where: { id }, select: { name: true, description: true, permissions: true } })
   const updated = await prisma.adminRole.update({ where: { id }, data: updateData, select: ROLE_SELECT })
+
+  const diff = beforeFull ? diffFields(beforeFull as any, updated as any, ["name", "description", "permissions"] as any) : null
+  if (diff) {
+    await logAudit({
+      req, actor: user, action: "ROLE_EDIT", entity: "AdminRole", entityId: id,
+      oldValues: diff.old, newValues: diff.new,
+    })
+  }
   return NextResponse.json({ role: updated })
 }
 
 // DELETE /api/settings/roles/[id] — custom roles only
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
   if (user.role !== "SUPER_ADMIN") return forbidden()
 
   const { id } = await params
-  const role = await prisma.adminRole.findUnique({ where: { id }, select: { id: true, isSystem: true } })
+  const role = await prisma.adminRole.findUnique({ where: { id }, select: { id: true, name: true, slug: true, isSystem: true } })
   if (!role) return NextResponse.json({ error: "Role not found" }, { status: 404 })
   if (role.isSystem) return forbidden("System roles cannot be deleted")
 
   await prisma.adminRole.delete({ where: { id } })
+
+  await logAudit({
+    req, actor: user, action: "ROLE_DELETE", entity: "AdminRole", entityId: id,
+    oldValues: { name: role.name, slug: role.slug },
+  })
   return NextResponse.json({ success: true })
 }

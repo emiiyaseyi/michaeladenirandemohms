@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 // GET /api/settings/roles — all AdminRoles with member count
 export async function GET() {
@@ -35,6 +36,11 @@ export async function POST(req: NextRequest) {
   const role = await prisma.adminRole.create({
     data: { name: name.trim(), slug, description: description?.trim() || null, isSystem: false, permissions },
     include: { _count: { select: { members: true } } },
+  })
+
+  await logAudit({
+    req, actor: user, action: "ROLE_CREATE", entity: "AdminRole", entityId: role.id,
+    newValues: { name: role.name, slug: role.slug, permissions },
   })
 
   return NextResponse.json({ role }, { status: 201 })

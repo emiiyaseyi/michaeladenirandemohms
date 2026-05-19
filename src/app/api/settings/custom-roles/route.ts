@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 const KEY = "custom_roles"
 
@@ -47,6 +48,11 @@ export async function POST(req: NextRequest) {
     create: { key: KEY, value: { roles: updated } },
   })
 
+  await logAudit({
+    req, actor: user, action: "CUSTOM_ROLE_CREATE", entity: "CustomRole", entityId: newRole.id,
+    newValues: { name: newRole.name, duties: newRole.duties },
+  })
+
   return NextResponse.json({ customRole: newRole }, { status: 201 })
 }
 
@@ -64,11 +70,17 @@ export async function DELETE(req: NextRequest) {
   if (!setting) return NextResponse.json({ ok: true })
 
   const existing = (setting.value as any).roles ?? []
+  const removed = existing.find((r: any) => r.id === id)
   const updated = existing.filter((r: any) => r.id !== id)
 
   await prisma.systemSetting.update({
     where: { key: KEY },
     data: { value: { roles: updated } },
+  })
+
+  await logAudit({
+    req, actor: user, action: "CUSTOM_ROLE_DELETE", entity: "CustomRole", entityId: id,
+    oldValues: removed ?? undefined,
   })
 
   return NextResponse.json({ ok: true })

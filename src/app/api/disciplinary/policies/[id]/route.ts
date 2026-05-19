@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -26,7 +28,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+
   const { id } = await params
+  const before = await prisma.disciplinaryPolicy.findUnique({ where: { id } })
   const { name, violationTypeId, systemAction, hasThreshold, violationCount, description, isActive } = await req.json()
   const policy = await prisma.disciplinaryPolicy.update({
     where: { id },
@@ -41,11 +47,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
     include: { violationType: true },
   })
+
+  const diff = before ? diffFields(before as any, policy as any, ["name", "violationTypeId", "systemAction", "hasThreshold", "violationCount", "description", "isActive"] as any) : null
+  if (diff) {
+    await logAudit({
+      req, actor: user, action: "POLICY_EDIT", entity: "DisciplinaryPolicy", entityId: id,
+      oldValues: diff.old, newValues: diff.new,
+    })
+  }
+
   return NextResponse.json({ policy })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+
   const { id } = await params
+  const before = await prisma.disciplinaryPolicy.findUnique({ where: { id }, select: { name: true } })
   await prisma.disciplinaryPolicy.delete({ where: { id } })
+
+  await logAudit({
+    req, actor: user, action: "POLICY_DELETE", entity: "DisciplinaryPolicy", entityId: id,
+    oldValues: before ?? undefined,
+  })
+
   return NextResponse.json({ ok: true })
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   const { user, error } = await requireAuth()
@@ -29,6 +30,10 @@ export async function POST(req: NextRequest) {
       description: description?.trim() || null,
       members: { create: (memberIds ?? []).map((employeeId: string) => ({ employeeId })) },
     },
+  })
+  await logAudit({
+    req, actor: u2, action: "PERFORMANCE_GROUP_CREATE", entity: "PerformanceGroup", entityId: group.id,
+    newValues: { name: group.name, memberCount: (memberIds ?? []).length },
   })
   return NextResponse.json({ group }, { status: 201 })
 }

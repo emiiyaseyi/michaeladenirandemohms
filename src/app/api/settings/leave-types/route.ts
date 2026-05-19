@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   if (error) return error
   const denied = requirePermission(user, "canManageSettings")
   if (denied) return denied
-  const { name, description, defaultDays, minNoticeDays, genderSpecific, requiresDoc, minDocDays, internOnly, deductFromAnnual } = await req.json()
+  const { name, description, defaultDays, minNoticeDays, genderSpecific, requiresDoc, minDocDays, internOnly } = await req.json()
   if (!name) return NextResponse.json({ error: "Name required" }, { status: 400 })
   const lt = await prisma.leaveType.create({
     data: {
@@ -19,7 +19,6 @@ export async function POST(req: NextRequest) {
       requiresDoc: requiresDoc ?? false,
       minDocDays: Number(minDocDays ?? 2),
       internOnly: !!internOnly,
-      deductFromAnnual: !!deductFromAnnual,
     },
   })
   return NextResponse.json({ lt }, { status: 201 })
@@ -30,7 +29,7 @@ export async function PATCH(req: NextRequest) {
   if (error) return error
   const denied = requirePermission(user, "canManageSettings")
   if (denied) return denied
-  const { id, name, description, defaultDays, minNoticeDays, genderSpecific, requiresDoc, minDocDays, internOnly, deductFromAnnual, isActive } = await req.json()
+  const { id, name, description, defaultDays, minNoticeDays, genderSpecific, requiresDoc, minDocDays, internOnly, isActive } = await req.json()
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 })
   const lt = await prisma.leaveType.update({
     where: { id },
@@ -43,7 +42,6 @@ export async function PATCH(req: NextRequest) {
       requiresDoc: requiresDoc ?? false,
       minDocDays: Number(minDocDays ?? 2),
       internOnly: !!internOnly,
-      deductFromAnnual: !!deductFromAnnual,
       isActive: isActive ?? true,
     },
   })

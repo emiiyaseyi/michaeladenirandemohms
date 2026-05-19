@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { format } from "date-fns"
 import { sendEmail } from "@/lib/email"
 import { generateInternReportXlsx } from "@/lib/intern-report-xlsx"
@@ -169,6 +170,7 @@ export async function POST(req: NextRequest) {
     meetingsHours, communityHours, representationHours, selfDevHours,
   ].reduce((a, b) => a + Number(b), 0)
 
+  const isNew = !existing
   const report = await prisma.internWeeklyReport.upsert({
     where: { employeeId_weekStart: { employeeId: emp.id, weekStart: ws } },
     create: {
@@ -190,6 +192,14 @@ export async function POST(req: NextRequest) {
       pointDeduction: lateFlag ? lateDeduction : 0,
       status: lateFlag ? "LATE" : "SUBMITTED",
     },
+  })
+
+  await logAudit({
+    req, actor: user,
+    action: isNew ? "INTERN_REPORT_SUBMIT" : "INTERN_REPORT_RESUBMIT",
+    entity: "InternWeeklyReport", entityId: report.id,
+    targetUserId: user.id,
+    newValues: { weekStart: ws, weekEnd: we, totalHours, status: report.status, lateFlag },
   })
 
   // Create InternReportReviewer records

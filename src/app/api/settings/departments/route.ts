@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission, forbidden } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -52,6 +53,11 @@ export async function POST(req: NextRequest) {
     update: {},
   })
 
+  await logAudit({
+    req, actor: user, action: "DEPARTMENT_CREATE", entity: "Department", entityId: dept.id,
+    newValues: { name, divisionId, leadEmployeeId },
+  })
+
   return NextResponse.json({ dept }, { status: 201 })
 }
 
@@ -85,6 +91,7 @@ export async function PATCH(req: NextRequest) {
   if (divisionId !== undefined) updateData.divisionId = divisionId || null
   if (leadEmployeeId !== undefined) updateData.leadEmployeeId = leadEmployeeId
 
+  const before = await prisma.department.findUnique({ where: { id } })
   const dept = await prisma.department.update({ where: { id }, data: updateData })
 
   // Ensure the new lead has a membership row
@@ -93,6 +100,14 @@ export async function PATCH(req: NextRequest) {
       where: { employeeId_departmentId: { employeeId: leadEmployeeId, departmentId: id } },
       create: { employeeId: leadEmployeeId, departmentId: id, isPrimary: false },
       update: {},
+    })
+  }
+
+  const diff = before ? diffFields(before as any, dept as any, ["name", "description", "divisionId", "leadEmployeeId"] as any) : null
+  if (diff) {
+    await logAudit({
+      req, actor: user, action: "DEPARTMENT_EDIT", entity: "Department", entityId: id,
+      oldValues: diff.old, newValues: diff.new,
     })
   }
 
@@ -116,6 +131,13 @@ export async function DELETE(req: NextRequest) {
   if (total > 0) {
     return NextResponse.json({ error: `Cannot delete — ${total} employee(s) are still in this department. Remove them first.` }, { status: 409 })
   }
+  const before = await prisma.department.findUnique({ where: { id }, select: { name: true } })
   await prisma.department.delete({ where: { id } })
+
+  await logAudit({
+    req, actor: user, action: "DEPARTMENT_DELETE", entity: "Department", entityId: id,
+    oldValues: before ?? undefined,
+  })
+
   return NextResponse.json({ ok: true })
 }

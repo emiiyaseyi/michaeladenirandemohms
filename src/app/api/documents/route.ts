@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 
@@ -103,6 +104,11 @@ export async function POST(req: NextRequest) {
       uploadedById: user.id,
     },
     include: { uploadedBy: { select: { name: true } } },
+  })
+
+  await logAudit({
+    req, actor: user, action: "DOC_CREATE", entity: "OrgDocument", entityId: doc.id,
+    newValues: { title, category, canView, canDownload, requiresAck, requiresSignature, sentToCurrentEmployees },
   })
 
   return NextResponse.json({ doc }, { status: 201 })

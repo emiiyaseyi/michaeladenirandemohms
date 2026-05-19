@@ -4,6 +4,7 @@ import path from "path"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, caps } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 const VALID_TYPES = ["SSCE", "FIRST_DEGREE", "NYSC", "PROFESSIONAL_CERT", "UTILITY_BILL", "NIN_SLIP", "OTHER"]
 
@@ -93,6 +94,13 @@ export async function POST(req: NextRequest) {
       status: "PENDING",
     },
     include: { reviewer: { select: { name: true } } },
+  })
+
+  const ownerEmp = await prisma.employee.findUnique({ where: { id: empId }, select: { userId: true } })
+  await logAudit({
+    req, actor: user, action: "PERSONAL_DOC_UPLOAD", entity: "PersonalDocument", entityId: doc.id,
+    targetUserId: ownerEmp?.userId ?? null,
+    newValues: { type, fileName: file.name },
   })
 
   // Notify admins

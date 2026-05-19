@@ -9,22 +9,26 @@ export async function GET(req: NextRequest) {
   if (permError) return permError
 
   const { searchParams } = new URL(req.url)
-  const entity    = searchParams.get("entity") ?? undefined
-  const action    = searchParams.get("action") ?? undefined
-  const userId    = searchParams.get("userId") ?? undefined
-  const search    = searchParams.get("search") ?? undefined
-  const take      = Math.min(Number(searchParams.get("take") ?? "100"), 500)
-  const skip      = Number(searchParams.get("skip") ?? "0")
+  const entity       = searchParams.get("entity") ?? undefined
+  const action       = searchParams.get("action") ?? undefined
+  const userId       = searchParams.get("userId") ?? undefined
+  const targetUserId = searchParams.get("targetUserId") ?? undefined
+  const search       = searchParams.get("search") ?? undefined
+  const take         = Math.min(Number(searchParams.get("take") ?? "100"), 500)
+  const skip         = Number(searchParams.get("skip") ?? "0")
 
   const where: any = {}
-  if (entity)  where.entity  = { contains: entity,  mode: "insensitive" }
-  if (action)  where.action  = { contains: action,  mode: "insensitive" }
-  if (userId)  where.userId  = userId
+  if (entity)       where.entity       = { contains: entity,  mode: "insensitive" }
+  if (action)       where.action       = { contains: action,  mode: "insensitive" }
+  if (userId)       where.userId       = userId
+  if (targetUserId) where.targetUserId = targetUserId
   if (search)  where.OR = [
-    { entity:   { contains: search, mode: "insensitive" } },
-    { action:   { contains: search, mode: "insensitive" } },
-    { entityId: { contains: search, mode: "insensitive" } },
-    { user: { name: { contains: search, mode: "insensitive" } } },
+    { entity:     { contains: search, mode: "insensitive" } },
+    { action:     { contains: search, mode: "insensitive" } },
+    { entityId:   { contains: search, mode: "insensitive" } },
+    { reason:     { contains: search, mode: "insensitive" } },
+    { user:       { name: { contains: search, mode: "insensitive" } } },
+    { targetUser: { name: { contains: search, mode: "insensitive" } } },
   ]
 
   const [logs, total] = await Promise.all([
@@ -33,7 +37,10 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "desc" },
       take,
       skip,
-      include: { user: { select: { name: true, email: true } } },
+      include: {
+        user:       { select: { name: true, email: true } },
+        targetUser: { select: { name: true, email: true } },
+      },
     }),
     prisma.auditLog.count({ where }),
   ])

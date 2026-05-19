@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { format } from "date-fns"
 
 function parseCSV(text: string): Record<string, string>[] {
@@ -109,7 +110,13 @@ export async function POST(req: NextRequest) {
       if (hireDate?.trim()) updateData.hireDate = new Date(hireDate.trim())
 
       if (Object.keys(updateData).length > 0) {
-        await prisma.employee.update({ where: { employeeId: employeeId.trim() }, data: updateData })
+        const updated = await prisma.employee.update({ where: { employeeId: employeeId.trim() }, data: updateData, select: { id: true, userId: true } })
+        await logAudit({
+          req, actor: user, action: "EMPLOYEE_BULK_UPDATE", entity: "Employee", entityId: updated.id,
+          targetUserId: updated.userId,
+          oldValues: { jobTitle: emp.jobTitle, departmentId: emp.departmentId, employmentType: emp.employmentType, hireDate: emp.hireDate },
+          newValues: updateData,
+        })
       }
       results.push({ row: i + 2, status: "updated", employeeId })
     } catch (e: any) {

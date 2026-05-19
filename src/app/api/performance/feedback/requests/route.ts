@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -47,5 +48,13 @@ export async function POST(req: NextRequest) {
       target: { select: { id: true, firstName: true, lastName: true } },
     },
   })
+
+  const tgtUser = await prisma.employee.findUnique({ where: { id: targetId }, select: { userId: true } })
+  await logAudit({
+    req: req as any, actor: user, action: "FEEDBACK_REQUEST", entity: "FeedbackRequest", entityId: request.id,
+    targetUserId: tgtUser?.userId ?? null,
+    newValues: { message },
+  })
+
   return NextResponse.json({ request }, { status: 201 })
 }

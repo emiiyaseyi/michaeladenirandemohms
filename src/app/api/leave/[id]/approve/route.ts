@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { format } from "date-fns"
 import { requireAuth, forbidden, roleBasePath } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 async function getHRAdminRecipients(): Promise<{ userId: string; employeeId?: string }[]> {
   const [superAdmins, assignments] = await Promise.all([
@@ -102,6 +103,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (newStatus) {
     await prisma.leaveRequest.update({ where: { id }, data: { status: newStatus as any, updatedAt: new Date() } })
   }
+
+  await logAudit({
+    req, actor: user,
+    action: isRejected ? "LEAVE_REJECT" : "LEAVE_APPROVE",
+    entity: "LeaveRequest", entityId: id,
+    targetUserId: request.employee?.userId ?? null,
+    newValues: { stage, status: newStatus ?? request.status },
+    reason: comment || null,
+  })
 
   if (request.employee) {
     const empRole = (request.employee as any).user?.role ?? "STAFF"

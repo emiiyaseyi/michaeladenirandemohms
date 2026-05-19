@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 // Page-view access: SUPER_ADMIN OR anyone with at least one admin role.
 async function hasAdminPanelAccess(userId: string, role: string): Promise<boolean> {
@@ -52,6 +53,13 @@ export async function POST(req: NextRequest) {
 
   const manager = await prisma.manager.create({
     data: { employeeId, isSystem: false },
+  })
+
+  const empUser = await prisma.employee.findUnique({ where: { id: employeeId }, select: { userId: true } })
+  await logAudit({
+    req, actor: user, action: "MANAGER_ASSIGN", entity: "Manager", entityId: manager.id,
+    targetUserId: empUser?.userId ?? null,
+    newValues: { employeeId },
   })
 
   return NextResponse.json({ manager }, { status: 201 })

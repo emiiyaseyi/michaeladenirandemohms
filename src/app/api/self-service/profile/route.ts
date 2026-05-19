@@ -97,16 +97,12 @@ export async function GET() {
   ])
 
   // Build leave balance summary
-  // Types with deductFromAnnual=true are hidden from the summary — their usage
-  // is rolled into Annual Leave's balance instead (see Annual Leave row below).
-  const annualLeaveTypeId = leaveTypes.find(lt => lt.name === "Annual Leave")?.id ?? null
 
   // Intern entitlement — must match the apply-form filter and API enforcement.
   const isIntern = (employee.jobTitle ?? "").toLowerCase().includes("intern")
   const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
 
   const leaveBalanceSummary = leaveTypes
-    .filter(lt => !lt.deductFromAnnual)
     .filter(lt => {
       // Hide types the user is not entitled to apply for.
       if (lt.internOnly && !isIntern) return false
@@ -115,19 +111,14 @@ export async function GET() {
     })
     .map(lt => {
       const balance = employee.leaveBalances.find(b => b.leaveTypeId === lt.id)
-      // Types that deduct from this one (e.g. Study Leave deducts from Annual)
-      const deductingTypeIds = lt.id === annualLeaveTypeId
-        ? leaveTypes.filter(t => t.deductFromAnnual).map(t => t.id)
-        : []
-      const idsToCount = [lt.id, ...deductingTypeIds]
 
       // Approved leave is deducted IMMEDIATELY on approval (regardless of start date),
       // so the employee can't double-book against an already-approved future leave.
       const usedDays = leaveRequests
-        .filter(r => idsToCount.includes(r.leaveTypeId) && r.status === "APPROVED")
+        .filter(r => r.leaveTypeId === lt.id && r.status === "APPROVED")
         .reduce((s, r) => s + r.days, 0)
       const pendingDays = leaveRequests
-        .filter(r => idsToCount.includes(r.leaveTypeId) && r.status === "PENDING")
+        .filter(r => r.leaveTypeId === lt.id && r.status === "PENDING")
         .reduce((s, r) => s + r.days, 0)
 
       const allocated = balance?.allocated ?? lt.defaultDays

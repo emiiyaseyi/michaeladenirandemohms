@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 const MEMBER_SELECT = {
   id: true, name: true, email: true, role: true, isActive: true, createdAt: true,
@@ -67,6 +68,12 @@ export async function POST(req: NextRequest) {
     })
     sendEmail({ eventKey: "admin_access_granted", toUserId: emp.userId!, variables: { employeeName: "" } }).catch(() => {})
 
+    await logAudit({
+      req, actor: user, action: "ADMIN_ROLE_GRANT", entity: "User", entityId: emp.userId!,
+      targetUserId: emp.userId!,
+      newValues: { roleIds: allRoleIds },
+    })
+
     const updated = await prisma.user.findUnique({ where: { id: emp.userId }, select: MEMBER_SELECT })
     return NextResponse.json({ admin: updated }, { status: 201 })
   }
@@ -90,6 +97,11 @@ export async function POST(req: NextRequest) {
         }),
       },
       select: MEMBER_SELECT,
+    })
+    await logAudit({
+      req, actor: user, action: "EXTERNAL_ADMIN_CREATE", entity: "User", entityId: newUser.id,
+      targetUserId: newUser.id,
+      newValues: { name: newUser.name, email: newUser.email, roleIds: allRoleIds },
     })
     return NextResponse.json({ admin: newUser, tempPassword }, { status: 201 })
   }

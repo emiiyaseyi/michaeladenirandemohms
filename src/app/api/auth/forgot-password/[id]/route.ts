@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 // PATCH /api/auth/forgot-password/[id] — admin resolves a reset request
 export async function PATCH(
@@ -37,6 +38,12 @@ export async function PATCH(
       data: { status: "RESOLVED", resolvedBy: user.id, resolvedAt: new Date() },
     }),
   ])
+
+  await logAudit({
+    req, actor: user, action: "PASSWORD_RESET_RESOLVE", entity: "PasswordResetRequest", entityId: id,
+    targetUserId: request.userId ?? null,
+    newValues: { email: request.email, status: "RESOLVED" },
+  })
 
   return NextResponse.json({ success: true })
 }

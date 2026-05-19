@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 import { eachDayOfInterval, isWeekend, format, parseISO, addHours, addDays } from "date-fns"
 
 async function calcDays(startDate: Date, endDate: Date, leaveTypeId: string) {
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
       where: scopeFilter,
       include: {
         employee: { include: { department: true } },
-        leaveType: { select: { id: true, name: true, defaultDays: true, requiresDoc: true, minDocDays: true, genderSpecific: true, waitingDays: true, minNoticeDays: true, internOnly: true, deductFromAnnual: true, excludeWeekends: true, rolloverPolicy: true, isActive: true, description: true } },
+        leaveType: { select: { id: true, name: true, defaultDays: true, requiresDoc: true, minDocDays: true, genderSpecific: true, waitingDays: true, minNoticeDays: true, internOnly: true, excludeWeekends: true, rolloverPolicy: true, isActive: true, description: true } },
         approvals: { include: { employee: { select: { id: true, firstName: true, lastName: true } } }, orderBy: { createdAt: "asc" } },
         reliefOfficersList: { include: { employee: { select: { id: true, firstName: true, lastName: true } } } },
       },
@@ -263,7 +264,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `${leaveType.name} is only available to interns.` }, { status: 400 })
   }
   // Interns are entitled only to intern-only types + a whitelist (Maternity / Paternity).
-  // Annual + Sick + Compassionate + Study + other full-employee types are blocked.
+  // Annual + Sick + Compassionate + other full-employee types are blocked.
   const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
   if (applicantIsIntern && !leaveType.internOnly && !INTERN_ALLOWED_NON_INTERN_TYPES.includes(leaveType.name)) {
     return NextResponse.json({ error: `Interns aren't entitled to ${leaveType.name}. Use Casual Leave instead.` }, { status: 400 })
@@ -338,6 +339,12 @@ export async function POST(req: NextRequest) {
       approvals: { create: approvalRecords },
     },
     include: { employee: true, leaveType: true },
+  })
+
+  await logAudit({
+    req, actor: user, action: "LEAVE_CREATE", entity: "LeaveRequest", entityId: request.id,
+    targetUserId: employee.userId,
+    newValues: { leaveTypeId, leaveTypeName: request.leaveType.name, startDate: start, endDate: end, days, reason, status: "PENDING" },
   })
 
   // Notify all project leads

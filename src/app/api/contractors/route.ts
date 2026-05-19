@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
 
   const body = await req.json()
@@ -52,6 +53,11 @@ export async function POST(req: NextRequest) {
       accountNumber: body.accountNumber || null,
       startDate: body.startDate ? new Date(body.startDate) : null,
     },
+  })
+
+  await logAudit({
+    req, actor: user, action: "CONTRACTOR_CREATE", entity: "Contractor", entityId: contractor.id,
+    newValues: { name: contractor.name, email: contractor.email, businessType: contractor.businessType, currency: contractor.currency },
   })
 
   return NextResponse.json({ contractor }, { status: 201 })

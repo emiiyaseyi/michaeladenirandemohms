@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
+import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { error } = await requireAuth()
@@ -17,11 +18,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
 
   const { id } = await params
   const body = await req.json()
+  const before = await prisma.contractor.findUnique({ where: { id } })
+
   const contractor = await prisma.contractor.update({
     where: { id },
     data: {
@@ -43,14 +46,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
   })
 
+  const CONTRACTOR_FIELDS = ["name", "email", "phone", "country", "state", "address", "businessType", "companyRegNumber", "industry", "currency", "paymentRoute", "bankName", "accountNumber", "startDate", "isActive"]
+  const diff = before ? diffFields(before as any, contractor as any, CONTRACTOR_FIELDS as any) : null
+  if (diff) {
+    await logAudit({
+      req, actor: user, action: "CONTRACTOR_EDIT", entity: "Contractor", entityId: id,
+      oldValues: diff.old, newValues: diff.new,
+    })
+  }
+
   return NextResponse.json({ contractor })
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth()
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
   if (error) return error
 
   const { id } = await params
+  const before = await prisma.contractor.findUnique({ where: { id }, select: { name: true, email: true, businessType: true } })
   await prisma.contractor.delete({ where: { id } })
+
+  await logAudit({
+    req, actor: user, action: "CONTRACTOR_DELETE", entity: "Contractor", entityId: id,
+    oldValues: before ?? undefined,
+  })
+
   return NextResponse.json({ ok: true })
 }

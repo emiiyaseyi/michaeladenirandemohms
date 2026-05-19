@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -37,6 +38,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       acknowledged: true,
       acknowledgedAt: new Date(),
     },
+  })
+
+  await logAudit({
+    req, actor: user, action: "DOC_ACK", entity: "OrgDocument", entityId: id,
+    targetUserId: user.id,
+    newValues: { typedName, acknowledgedAt: ack.acknowledgedAt },
   })
 
   return NextResponse.json({ ack })

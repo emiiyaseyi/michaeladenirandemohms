@@ -62,5 +62,22 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ to
     prisma.employeeInvite.update({ where: { token }, data: { usedAt: new Date() } }),
   ])
 
+  // Anonymous endpoint (pre-auth) — write audit log directly. Actor is the new user themselves.
+  try {
+    const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? null
+    const userAgent = req.headers.get("user-agent") ?? null
+    await prisma.auditLog.create({
+      data: {
+        userId, targetUserId: userId,
+        action: "ONBOARDING_COMPLETE",
+        entity: "Employee", entityId: invite.employeeId,
+        newValues: { employeeStatus: "ACTIVE" },
+        ipAddress, userAgent,
+      },
+    })
+  } catch (err) {
+    console.error("[audit] onboarding log failed:", err)
+  }
+
   return NextResponse.json({ ok: true })
 }

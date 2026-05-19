@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -10,12 +11,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   const kpi = await prisma.kPI.findUnique({
     where: { id },
-    include: { employee: { select: { projectLeadId: true } } },
+    include: { employee: { select: { projectLeadId: true, userId: true } } },
   })
   if (!kpi) return NextResponse.json({ error: "KPI not found" }, { status: 404 })
 
   const body = await req.json()
   const { action } = body
+  const ownerUserId = (kpi.employee as any)?.userId ?? null
 
   const isOwner = kpi.employeeId === user.employeeId
   const isAdmin = user.role === "SUPER_ADMIN" || user.permissions["canManagePerformancePeriods"] || user.permissions["canViewPerformance"]
@@ -24,28 +26,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (action === "approve") {
     if (!isAdmin && !isPL) return forbidden()
     const updated = await prisma.kPI.update({ where: { id }, data: { status: "APPROVED" } })
-    await prisma.auditLog.create({ data: { userId: user.id, action: "KPI_APPROVED", entity: "KPI", entityId: id } }).catch(() => {})
+    await logAudit({ req, actor: user, action: "KPI_APPROVE", entity: "KPI", entityId: id, targetUserId: ownerUserId })
     return NextResponse.json({ kpi: updated })
   }
 
   if (action === "approve_with_correction") {
     if (!isAdmin && !isPL) return forbidden()
     const updated = await prisma.kPI.update({ where: { id }, data: { status: "APPROVED_WITH_CORRECTION", comments: body.comments ?? kpi.comments } })
-    await prisma.auditLog.create({ data: { userId: user.id, action: "KPI_APPROVED_WITH_CORRECTION", entity: "KPI", entityId: id } }).catch(() => {})
+    await logAudit({ req, actor: user, action: "KPI_APPROVE_WITH_CORRECTION", entity: "KPI", entityId: id, targetUserId: ownerUserId, reason: body.comments ?? null })
     return NextResponse.json({ kpi: updated })
   }
 
   if (action === "reject") {
     if (!isAdmin && !isPL) return forbidden()
     const updated = await prisma.kPI.update({ where: { id }, data: { status: "REJECTED", comments: body.comments ?? kpi.comments } })
-    await prisma.auditLog.create({ data: { userId: user.id, action: "KPI_REJECTED", entity: "KPI", entityId: id } }).catch(() => {})
+    await logAudit({ req, actor: user, action: "KPI_REJECT", entity: "KPI", entityId: id, targetUserId: ownerUserId, reason: body.comments ?? null })
     return NextResponse.json({ kpi: updated })
   }
 
   if (action === "needs_clarification") {
     if (!isAdmin && !isPL) return forbidden()
     const updated = await prisma.kPI.update({ where: { id }, data: { status: "NEEDS_CLARIFICATION", comments: body.comments ?? kpi.comments } })
-    await prisma.auditLog.create({ data: { userId: user.id, action: "KPI_NEEDS_CLARIFICATION", entity: "KPI", entityId: id } }).catch(() => {})
+    await logAudit({ req, actor: user, action: "KPI_NEEDS_CLARIFICATION", entity: "KPI", entityId: id, targetUserId: ownerUserId, reason: body.comments ?? null })
     return NextResponse.json({ kpi: updated })
   }
 
@@ -59,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         kpiStatus: body.kpiStatus ?? kpi.kpiStatus,
       },
     })
-    await prisma.auditLog.create({ data: { userId: user.id, action: "KPI_SELF_SCORED", entity: "KPI", entityId: id } }).catch(() => {})
+    await logAudit({ req, actor: user, action: "KPI_SELF_SCORE", entity: "KPI", entityId: id, targetUserId: ownerUserId, newValues: { selfScore: updated.selfScore, progress: updated.progress, kpiStatus: updated.kpiStatus } })
     return NextResponse.json({ kpi: updated })
   }
 
@@ -69,7 +71,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id },
       data: { managerScore: body.managerScore !== undefined ? Number(body.managerScore) : kpi.managerScore, comments: body.comments ?? kpi.comments },
     })
-    await prisma.auditLog.create({ data: { userId: user.id, action: "KPI_MANAGER_SCORED", entity: "KPI", entityId: id } }).catch(() => {})
+    await logAudit({ req, actor: user, action: "KPI_MANAGER_SCORE", entity: "KPI", entityId: id, targetUserId: ownerUserId, newValues: { managerScore: updated.managerScore }, reason: body.comments ?? null })
     return NextResponse.json({ kpi: updated })
   }
 
@@ -79,7 +81,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { id },
       data: { finalScore: body.finalScore !== undefined ? Number(body.finalScore) : kpi.finalScore, comments: body.comments ?? kpi.comments },
     })
-    await prisma.auditLog.create({ data: { userId: user.id, action: "KPI_FINAL_SCORED", entity: "KPI", entityId: id } }).catch(() => {})
+    await logAudit({ req, actor: user, action: "KPI_FINAL_SCORE", entity: "KPI", entityId: id, targetUserId: ownerUserId, newValues: { finalScore: updated.finalScore }, reason: body.comments ?? null })
     return NextResponse.json({ kpi: updated })
   }
 

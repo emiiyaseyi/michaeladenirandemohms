@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -13,6 +14,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const employee = await prisma.employee.findUnique({ where: { id }, select: { userId: true } })
   if (!employee?.userId) return NextResponse.json({ error: "Employee has no user account" }, { status: 404 })
 
+  const before = await prisma.projectLeadDepartment.findMany({ where: { userId: employee.userId }, select: { departmentId: true } })
+
   // Delete all existing assignments then recreate
   await prisma.projectLeadDepartment.deleteMany({ where: { userId: employee.userId } })
 
@@ -22,6 +25,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       skipDuplicates: true,
     })
   }
+
+  await logAudit({
+    req, actor: user, action: "EMPLOYEE_PL_DEPARTMENTS_UPDATE", entity: "Employee", entityId: id,
+    targetUserId: employee.userId,
+    oldValues: { departmentIds: before.map(b => b.departmentId) },
+    newValues: { departmentIds: Array.isArray(departmentIds) ? departmentIds : [] },
+  })
 
   return NextResponse.json({ ok: true })
 }

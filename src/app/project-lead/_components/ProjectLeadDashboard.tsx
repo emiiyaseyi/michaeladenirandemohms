@@ -151,10 +151,9 @@ export default async function ProjectLeadDashboard() {
     else if (r.status === "PENDING") cur.pending += r.days
     ownStats.set(r.leaveTypeId, cur)
   }
-  // PLs aren't interns, so hide intern-only types and types that deduct from Annual
-  // (those roll into Annual's balance).
+  // PLs aren't interns, so hide intern-only types.
   const leaveBalanceSummary = leaveTypes
-    .filter(lt => !lt.deductFromAnnual && !lt.internOnly)
+    .filter(lt => !lt.internOnly)
     .filter(lt => !lt.genderSpecific || !employee?.gender || lt.genderSpecific === employee.gender)
     .map(lt => {
       const bal = employee?.leaveBalances.find(b => b.leaveTypeId === lt.id)

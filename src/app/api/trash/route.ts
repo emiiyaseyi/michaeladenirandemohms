@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(_req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -45,6 +46,12 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 })
   }
 
+  await logAudit({
+    req, actor: user, action: "TRASH_RESTORE",
+    entity: type === "announcement" ? "Announcement" : "OrgDocument",
+    entityId: id,
+  })
+
   return NextResponse.json({ ok: true })
 }
 
@@ -59,13 +66,23 @@ export async function DELETE(req: NextRequest) {
   const id = searchParams.get("id")
   if (!type || !id) return NextResponse.json({ error: "type and id required" }, { status: 400 })
 
+  let snapshot: any = null
   if (type === "announcement") {
+    snapshot = await prisma.announcement.findUnique({ where: { id }, select: { title: true, status: true } })
     await prisma.announcement.delete({ where: { id } })
   } else if (type === "document") {
+    snapshot = await prisma.orgDocument.findUnique({ where: { id }, select: { title: true, fileUrl: true } })
     await prisma.orgDocument.delete({ where: { id } })
   } else {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 })
   }
+
+  await logAudit({
+    req, actor: user, action: "TRASH_PURGE",
+    entity: type === "announcement" ? "Announcement" : "OrgDocument",
+    entityId: id,
+    oldValues: snapshot ?? undefined,
+  })
 
   return NextResponse.json({ ok: true })
 }

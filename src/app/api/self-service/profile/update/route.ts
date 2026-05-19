@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 const UPDATABLE_FIELDS = [
   "phone", "alternatePhone", "personalEmail",
@@ -40,6 +41,11 @@ export async function PATCH(req: NextRequest) {
   // Apply direct fields immediately (no approval workflow)
   if (Object.keys(directChanges).length > 0) {
     await prisma.employee.update({ where: { id: empId }, data: directChanges })
+    await logAudit({
+      req, actor: user, action: "PROFILE_SELF_UPDATE", entity: "Employee", entityId: empId,
+      targetUserId: user.id,
+      newValues: directChanges,
+    })
   }
 
   if (Object.keys(changes).length === 0) {
@@ -49,6 +55,11 @@ export async function PATCH(req: NextRequest) {
   // SUPER_ADMIN: apply directly, no approval needed
   if (user.role === "SUPER_ADMIN") {
     await prisma.employee.update({ where: { id: empId }, data: changes })
+    await logAudit({
+      req, actor: user, action: "PROFILE_SELF_UPDATE", entity: "Employee", entityId: empId,
+      targetUserId: user.id,
+      newValues: changes,
+    })
     return NextResponse.json({ direct: true, message: "Profile updated" })
   }
 
@@ -59,6 +70,12 @@ export async function PATCH(req: NextRequest) {
 
   const request = await prisma.profileUpdateRequest.create({
     data: { employeeId: empId, changes },
+  })
+
+  await logAudit({
+    req, actor: user, action: "PROFILE_REQUEST_SUBMIT", entity: "ProfileUpdateRequest", entityId: request.id,
+    targetUserId: user.id,
+    newValues: { changes },
   })
 
   // ADMIN requests → notify only SUPER_ADMIN

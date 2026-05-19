@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 // GET /api/settings/users — list all users with employee snapshot
 export async function GET() {
@@ -92,6 +93,12 @@ export async function POST(req: NextRequest) {
         },
       },
     },
+  })
+
+  await logAudit({
+    req, actor: user, action: "USER_CREATE", entity: "User", entityId: newUser.id,
+    targetUserId: newUser.id,
+    newValues: { email, name: newUser.name, role: newUser.role, employeeId: generatedEmpId },
   })
 
   return NextResponse.json({ user: newUser }, { status: 201 })

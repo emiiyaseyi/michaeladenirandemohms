@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
+import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { error } = await requireAuth()
@@ -36,6 +37,11 @@ export async function POST(req: NextRequest) {
       category: category || "Other (taxable)",
       enrollType: enrollType || "EMPLOYEES",
     },
+  })
+
+  await logAudit({
+    req, actor: user, action: "BENEFIT_CREATE", entity: "Benefit", entityId: benefit.id,
+    newValues: { name, category, enrollType, effectiveDate },
   })
 
   return NextResponse.json({ benefit }, { status: 201 })

@@ -54,13 +54,12 @@ async function main() {
   // ── Leave Types (DSN policy) ────────────────────────────────────────────────
   // All re-seeds also refresh the policy fields so existing rows can't drift.
   const leavePolicy = {
-    annual:        { name: "Annual Leave",        description: "Standard annual leave",                                          defaultDays: 10, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
-    sick:          { name: "Sick Leave",          description: "Medical leave — align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
-    compassionate: { name: "Compassionate Leave", description: "Bereavement / family emergency — align with your Project Lead.", defaultDays: 5,  minNoticeDays: 0,  requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
-    maternity:     { name: "Maternity Leave",     description: "Maternity leave for expectant mothers.",                         defaultDays: 90, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: "FEMALE" as const, excludeWeekends: true,  isActive: true },
-    paternity:     { name: "Paternity Leave",     description: "Paternity leave for new fathers.",                               defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: false, genderSpecific: "MALE" as const,   excludeWeekends: true,  isActive: true },
-    casual:        { name: "Casual Leave",        description: "Casual leave (interns only).",                                   defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: true,  deductFromAnnual: false, genderSpecific: null,     excludeWeekends: true,  isActive: true },
-    study:         { name: "Study Leave",         description: "Educational leave — deducted from your Annual Leave allocation.", defaultDays: 0,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, deductFromAnnual: true,  genderSpecific: null,     excludeWeekends: true,  isActive: true },
+    annual:        { name: "Annual Leave",        description: "Standard annual leave",                                          defaultDays: 10, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
+    sick:          { name: "Sick Leave",          description: "Medical leave — align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
+    compassionate: { name: "Compassionate Leave", description: "Bereavement / family emergency — align with your Project Lead.", defaultDays: 5,  minNoticeDays: 0,  requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
+    maternity:     { name: "Maternity Leave",     description: "Maternity leave for expectant mothers.",                         defaultDays: 90, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: "FEMALE" as const, excludeWeekends: true,  isActive: true },
+    paternity:     { name: "Paternity Leave",     description: "Paternity leave for new fathers.",                               defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: "MALE" as const,   excludeWeekends: true,  isActive: true },
+    casual:        { name: "Casual Leave",        description: "Casual leave (interns only).",                                   defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: true,  genderSpecific: null,              excludeWeekends: true,  isActive: true },
   }
 
   await Promise.all(Object.values(leavePolicy).map(p =>
@@ -72,10 +71,17 @@ async function main() {
   ))
 
   // One-time cleanup of legacy leave types no longer offered by DSN.
-  // Hard-delete if no leave requests still reference them, else soft-disable as a fallback.
-  for (const legacyName of ["Work From Home"]) {
+  // "Study Leave" is hard-deleted along with any historical requests/balances (org decision).
+  // Other legacy types: hard-delete if no leave requests still reference them, else soft-disable as a fallback.
+  for (const legacyName of ["Study Leave", "Work From Home"]) {
     const lt = await prisma.leaveType.findUnique({ where: { name: legacyName } })
     if (!lt) continue
+    if (legacyName === "Study Leave") {
+      await prisma.leaveRequest.deleteMany({ where: { leaveTypeId: lt.id } })
+      await prisma.leaveBalance.deleteMany({ where: { leaveTypeId: lt.id } })
+      await prisma.leaveType.delete({ where: { id: lt.id } })
+      continue
+    }
     const refs = await prisma.leaveRequest.count({ where: { leaveTypeId: lt.id } })
     if (refs === 0) {
       await prisma.leaveBalance.deleteMany({ where: { leaveTypeId: lt.id } })
@@ -85,7 +91,7 @@ async function main() {
     }
   }
 
-  console.log("  ✓ Leave Types (7 active per DSN policy)")
+  console.log("  ✓ Leave Types (6 active per DSN policy)")
 
   // ── Request Document Types (starter set; admins can add more from the UI) ────
   await Promise.all([
