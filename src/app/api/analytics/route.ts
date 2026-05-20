@@ -7,7 +7,11 @@ export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
   const c = caps(user.role)
-  if (!c.canViewAnalytics && !c.canViewTeamAnalytics) {
+  // R6: also accept users who have canViewAnalytics granted via an admin role bundle
+  // (e.g. secondary-admin) — previously only role-based caps were honoured, which
+  // wrongly blocked elevated STAFF from analytics.
+  const hasAnalyticsGrant = user.permissions?.canViewAnalytics === true
+  if (!c.canViewAnalytics && !c.canViewTeamAnalytics && !hasAnalyticsGrant) {
     return forbidden("No access to analytics")
   }
 
