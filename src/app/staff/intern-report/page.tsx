@@ -47,18 +47,19 @@ const DEFAULTS: Settings = {
 
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
 function hourLabel(h: number) {
-  if (h === 0 || h === 24) return "12:00 AM"
-  if (h === 12) return "12:00 PM"
-  return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`
+  const n = h === 24 ? 0 : h
+  return `${String(n).padStart(2, "0")}:00`
 }
 
 function pad(n: number) { return String(n).padStart(2, "0") }
 function fmtRemaining(ms: number): string {
   if (ms < 0) ms = 0
   const totalSec = Math.floor(ms / 1000)
-  const h = Math.floor(totalSec / 3600)
+  const days = Math.floor(totalSec / 86400)
+  const h = Math.floor((totalSec % 86400) / 3600)
   const m = Math.floor((totalSec % 3600) / 60)
   const s = totalSec % 60
+  if (days > 0) return `${days}d ${pad(h)}:${pad(m)}:${pad(s)}`
   return `${pad(h)}:${pad(m)}:${pad(s)}`
 }
 
@@ -72,18 +73,18 @@ type Phase =
   | { kind: "closed_after" }
 
 function computePhase(cfg: Settings, nowWat: Date): Phase {
-  const day = nowWat.getDay() // 0=Sun … 5=Fri … 6=Sat
+  // nowWat is a Date shifted by +1hr from UTC so that getUTC* methods return WAT values
+  const day = nowWat.getUTCDay() // 0=Sun … 5=Fri … 6=Sat
   const FRI = cfg.submissionDay
   const SAT = (FRI + 1) % 7
   const SUN = (FRI + 2) % 7
 
-  // Helper: build a Date in WAT for today at HH:00
+  // Build a Date in WAT-shifted space for today at HH:00 WAT
   const todayAt = (h: number) => {
     const d = new Date(nowWat)
-    d.setHours(h, 0, 0, 0)
+    d.setUTCHours(h, 0, 0, 0)
     return d
   }
-  // ms until target WAT moment relative to nowWat
   const msTo = (target: Date) => target.getTime() - nowWat.getTime()
 
   if (day === FRI) {
@@ -112,8 +113,8 @@ function computePhase(cfg: Settings, nowWat: Date): Phase {
   // Mon-Thu — next Friday at openHour
   const daysUntilFri = ((FRI - day + 7) % 7) || 7
   const next = new Date(nowWat)
-  next.setDate(nowWat.getDate() + daysUntilFri)
-  next.setHours(cfg.openHour, 0, 0, 0)
+  next.setUTCDate(nowWat.getUTCDate() + daysUntilFri)
+  next.setUTCHours(cfg.openHour, 0, 0, 0)
   return { kind: "closed_before", ms: msTo(next), label: `Next window: ${DAYS[FRI]} ${hourLabel(cfg.openHour)} WAT` }
 }
 
@@ -174,7 +175,7 @@ function CountdownBanner({ cfg }: { cfg: Settings }) {
     case "closed_after":
       bg = "#F3F4F6"; color = "#374151"; icon = "🕒"
       title = "Window closed"
-      subtitle = "Next: Friday 4:00 PM WAT"
+      subtitle = `Next: Friday ${hourLabel(cfg.openHour)} WAT`
       break
   }
 
@@ -330,7 +331,7 @@ export default function InternReportPage() {
   const hasMissingPlaceholder = thisWeekReport?.status === "MISSING"
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
+    <div className="intern-report-page" style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
       {/* Header */}
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
@@ -440,7 +441,7 @@ export default function InternReportPage() {
                   <span>Daily Reflections</span>
                   <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em" }}>Required — all 5 days</span>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
+                <div className="reflections-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
                   {REFLECTION_DAYS.map(({ key, label }) => {
                     const empty = !dailyReflections[key] || dailyReflections[key].trim().length === 0
                     return (
@@ -671,7 +672,7 @@ export default function InternReportPage() {
               {viewReport.dailyReflections && Object.values(viewReport.dailyReflections as Record<string, string>).some(v => v) && (
                 <div style={{ marginBottom: 20 }}>
                   <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Daily Reflections</p>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+                  <div className="reflections-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
                     {REFLECTION_DAYS.map(({ key, label }) => {
                       const text = (viewReport.dailyReflections as Record<string, string>)[key]
                       return (
@@ -696,6 +697,21 @@ export default function InternReportPage() {
           </div>
         </div>
       )}
+
+      {/* Mobile responsiveness for the intern-report page only */}
+      <style>{`
+        @media (max-width: 899px) {
+          .intern-report-page { padding: 16px !important; }
+          .intern-report-page .reflections-grid {
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+          }
+        }
+        @media (max-width: 540px) {
+          .intern-report-page .reflections-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }

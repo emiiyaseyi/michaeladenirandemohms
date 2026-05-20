@@ -445,13 +445,17 @@ function LeaveBalancesCard({ leaveBalances }: { leaveBalances: any[] }) {
 
 // ─── Profile Info Card ────────────────────────────────────────────────────────
 function ProfileInfoCard({ profile }: { profile: any }) {
+  const secondaryDepts = Array.isArray(profile.secondaryDepartments) && profile.secondaryDepartments.length > 0
+    ? profile.secondaryDepartments.join(", ")
+    : "None"
   const items = [
-    { icon:Building2,    label:"Department",      value:profile.department },
-    { icon:UserCheck,    label:"Manager",         value:profile.supervisor?.name },
-    { icon:Users,        label:"Dept. Lead",      value:profile.projectLead?.name },
-    { icon:CalendarDays, label:"Work Anniversary", value:profile.workAnniversary },
-    { icon:Clock,        label:"Time in Company", value:profile.timeInCompany },
-    { icon:Briefcase,    label:"Role",            value:roleLabel(profile.role) },
+    { icon:Building2,    label:"Primary Department",   value:profile.department },
+    { icon:Users,        label:"Project Lead",         value:profile.projectLead?.name },
+    { icon:Building2,    label:"Secondary Departments", value: secondaryDepts },
+    { icon:UserCheck,    label:"Manager",              value:profile.supervisor?.name },
+    { icon:CalendarDays, label:"Work Anniversary",     value:profile.workAnniversary },
+    { icon:Clock,        label:"Time in Company",      value:profile.timeInCompany },
+    { icon:Briefcase,    label:"Role",                 value:roleLabel(profile.role) },
   ].filter(i => i.value)
 
   return (

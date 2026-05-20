@@ -67,23 +67,6 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       NOTE(),
   },
 
-  leave_progressing: {
-    name: "Leave Progressing — PL Approved",
-    category: "Leave",
-    description: "Sent to the employee when their project lead approves, moving the request to HR.",
-    variables: ["employeeName", "leaveType", "startDate", "endDate", "days"],
-    defaultSubject: "Your {{leaveType}} request is progressing to HR",
-    defaultBody:
-      LOGO +
-      H("Leave Request Update") +
-      P("Good news! Your <strong>{{leaveType}}</strong> leave request has been approved by your Project Lead and is now with HR Admin for final review.") +
-      TABLE(
-        ROW("Period", "{{startDate}} – {{endDate}}"),
-        ROW("Duration", "{{days}} day(s)"),
-      ) +
-      NOTE("You will receive another notification once HR has made a final decision."),
-  },
-
   leave_approved: {
     name: "Leave Fully Approved",
     category: "Leave",
@@ -156,23 +139,6 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       NOTE("Log in to your HRMS portal to take action."),
   },
 
-  relief_assigned: {
-    name: "Relief Duty Confirmed",
-    category: "Leave",
-    description: "Sent to a relief officer after the leave is fully approved confirming their duty.",
-    variables: ["employeeName", "leaveType", "startDate", "endDate", "tasks"],
-    defaultSubject: "You're confirmed as relief for {{employeeName}}'s {{leaveType}}",
-    defaultBody:
-      LOGO +
-      H("Relief Duty Confirmed") +
-      P("You have been confirmed as a relief officer for <strong>{{employeeName}}</strong>'s <strong>{{leaveType}}</strong> leave.") +
-      TABLE(
-        ROW("Period", "{{startDate}} – {{endDate}}"),
-        ROW("Tasks", "{{tasks}}"),
-      ) +
-      NOTE("Log in to your HRMS portal to view your handover notes."),
-  },
-
   leave_edited_by_other: {
     name: "Your Leave Request Was Edited",
     category: "Leave",
@@ -203,47 +169,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       NOTE("Log in to your portal to catch up."),
   },
 
-  leave_started_stakeholder: {
-    name: "Team Member on Leave Today",
-    category: "Leave",
-    description: "Sent to PLs, relief officers, and admins when a team member's leave starts.",
-    variables: ["employeeName", "leaveType", "startDate", "endDate", "reliefs"],
-    defaultSubject: "{{employeeName}} is on {{leaveType}} from today",
-    defaultBody:
-      LOGO +
-      H("Team Member on Leave") +
-      P("<strong>{{employeeName}}</strong> is on <strong>{{leaveType}}</strong> from {{startDate}} until {{endDate}}.") +
-      P("Relief officers: {{reliefs}}") +
-      NOTE(),
-  },
-
-  employee_back_hr: {
-    name: "Employee Returned from Leave — HR Notified",
-    category: "Leave",
-    description: "Sent to HR and managers when an employee returns from approved leave.",
-    variables: ["employeeName", "leaveType", "returnDate"],
-    defaultSubject: "{{employeeName}} has returned from {{leaveType}}",
-    defaultBody:
-      LOGO +
-      H("Employee Returned from Leave") +
-      P("<strong>{{employeeName}}</strong> has returned from their <strong>{{leaveType}}</strong> leave today ({{returnDate}}).") +
-      NOTE(),
-  },
-
   // ── Documents ─────────────────────────────────────────────────────────────
-
-  personal_doc_uploaded: {
-    name: "Personal Document Uploaded — HR Notified",
-    category: "Documents",
-    description: "Sent to HR when an employee uploads a personal document for review.",
-    variables: ["employeeName", "documentType"],
-    defaultSubject: "{{employeeName}} uploaded a {{documentType}} for review",
-    defaultBody:
-      LOGO +
-      H("Document Awaiting Review") +
-      P("<strong>{{employeeName}}</strong> has uploaded a <strong>{{documentType}}</strong> for review.") +
-      NOTE("Log in to the admin panel to review and approve or reject."),
-  },
 
   personal_doc_approved: {
     name: "Personal Document Approved",
@@ -287,19 +213,6 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       P("Your account role has been updated from <strong>{{previousRole}}</strong> to <strong>{{newRole}}</strong>.") +
       P("Please sign out and back in for the change to take full effect.") +
       NOTE(),
-  },
-
-  profile_update_request: {
-    name: "Profile Update Request — HR Notified",
-    category: "People",
-    description: "Sent to HR admins when an employee submits a profile update request.",
-    variables: ["employeeName"],
-    defaultSubject: "Profile update request from {{employeeName}}",
-    defaultBody:
-      LOGO +
-      H("Profile Update Request") +
-      P("<strong>{{employeeName}}</strong> has submitted a profile update request for review.") +
-      NOTE("Log in to the admin panel to review."),
   },
 
   profile_update_approved: {
@@ -445,43 +358,6 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   },
 
   // ── Intern Reports ──────────────────────────────────────────────────────────
-  intern_report_submitted: {
-    name: "Intern Report Submitted",
-    description: "Sent to the Project Lead (and CC'd extra reviewers) when an intern submits their weekly report.",
-    category: "People",
-    variables: ["internName", "weekEnd", "totalHours", "lateFlag", "reviewLink"],
-    defaultSubject: "Weekly Report Submitted: {{internName}} ({{weekEnd}})",
-    defaultBody:
-      LOGO +
-      H("Intern Weekly Report Submitted") +
-      P("<strong>{{internName}}</strong> has submitted their weekly report for the week ending <strong>{{weekEnd}}</strong>.") +
-      TABLE(
-        ROW("Total Hours", "{{totalHours}}"),
-        ROW("Late Submission", "{{lateFlag}}"),
-      ) +
-      P("Please log in to review the report and provide your feedback.") +
-      `<div style="text-align:center;margin:24px 0;"><a href="{{reviewLink}}" style="display:inline-block;padding:12px 32px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Review Report</a></div>` +
-      NOTE("An Excel copy of the report is attached to this email."),
-  },
-
-  intern_report_reviewer_assigned: {
-    name: "Intern Report — Reviewer Assigned",
-    description: "Sent to extra reviewers when an intern includes them on their weekly report submission.",
-    category: "People",
-    variables: ["internName", "weekEnd", "totalHours", "lateFlag", "reviewLink"],
-    defaultSubject: "You've been asked to review {{internName}}'s weekly report",
-    defaultBody:
-      LOGO +
-      H("Intern Report Review Request") +
-      P("<strong>{{internName}}</strong> has asked you to review their weekly report for the week ending <strong>{{weekEnd}}</strong>.") +
-      TABLE(
-        ROW("Total Hours", "{{totalHours}}"),
-        ROW("Late Submission", "{{lateFlag}}"),
-      ) +
-      P("Please log in and provide your comments on this report.") +
-      `<div style="text-align:center;margin:24px 0;"><a href="{{reviewLink}}" style="display:inline-block;padding:12px 32px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Review Report</a></div>` +
-      NOTE("An Excel copy of the report is attached to this email."),
-  },
 
   intern_report_missing: {
     name: "Intern Report — Missing (auto-flagged)",
@@ -498,22 +374,6 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       NOTE("This is an automated notification."),
   },
 
-  intern_report_reviewed: {
-    name: "Weekly Report — All Reviews Complete",
-    description: "Sent to an intern when all reviewers have completed feedback on their weekly report.",
-    category: "People",
-    variables: ["internName", "weekEnd", "totalScore"],
-    defaultSubject: "Your Weekly Report Has Been Reviewed — {{weekEnd}}",
-    defaultBody:
-      LOGO +
-      H("Your Report Has Been Reviewed") +
-      P("Hi <strong>{{internName}}</strong>,") +
-      P("Your weekly report for the week ending <strong>{{weekEnd}}</strong> has been reviewed by all assigned reviewers.") +
-      P("Your current TL score is <strong>{{totalScore}} / 9</strong>.") +
-      P("Log in to your dashboard to view the full feedback.") +
-      NOTE(),
-  },
-
   announcement_published: {
     name: "Announcement Published",
     category: "Admin",
@@ -527,6 +387,24 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       P("{{announcementBody}}") +
       `<p style="font-size:12px;color:#9ca3af;margin-top:16px;">— {{publishedBy}}</p>` +
       NOTE("Log in to your HRMS portal for more information."),
+  },
+
+  external_admin_welcome: {
+    name: "External Admin Welcome",
+    category: "Admin",
+    description: "Sent to a newly-created external admin user with their temporary password.",
+    variables: ["name", "tempPassword", "loginUrl"],
+    defaultSubject: "Your DSN Admin Account",
+    defaultBody:
+      LOGO +
+      H("Welcome to the DSN HRMS Admin Panel") +
+      P("Hi {{name}},") +
+      P("An admin account has been created for you. Use the credentials below to sign in. You will be prompted to change the password on first login.") +
+      TABLE(
+        ROW("Login URL", `<a href="{{loginUrl}}" style="color:#2563eb;text-decoration:none;">{{loginUrl}}</a>`),
+        ROW("Temporary Password", `<span style="font-family:monospace;">{{tempPassword}}</span>`),
+      ) +
+      NOTE("Keep this email safe — anyone with the temporary password can log in until you change it."),
   },
 }
 

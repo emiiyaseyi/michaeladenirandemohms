@@ -43,6 +43,10 @@ export async function GET() {
       department: true,
       projectLead: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
       manager: { select: { id: true, firstName: true, lastName: true, jobTitle: true } },
+      departmentMemberships: {
+        include: { department: { select: { id: true, name: true } } },
+        orderBy: { isPrimary: "desc" },
+      },
       leaveBalances: {
         where: { year: currentYear },
         include: { leaveType: true },
@@ -178,6 +182,10 @@ export async function GET() {
       fullName: `${employee.firstName} ${employee.lastName}`,
       jobTitle: employee.jobTitle,
       department: employee.department?.name ?? null,
+      secondaryDepartments: employee.departmentMemberships
+        .filter(m => !m.isPrimary && m.department?.name !== employee.department?.name)
+        .map(m => m.department?.name)
+        .filter(Boolean) as string[],
       projectLead: employee.projectLead
         ? { id: employee.projectLead.id, name: `${employee.projectLead.firstName} ${employee.projectLead.lastName}`, jobTitle: employee.projectLead.jobTitle }
         : null,

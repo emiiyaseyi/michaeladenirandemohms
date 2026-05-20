@@ -98,6 +98,19 @@ export async function POST(req: NextRequest) {
       },
       select: MEMBER_SELECT,
     })
+
+    // Send welcome email with the temp password so the new admin can actually log in.
+    // (Previously this value was generated but never delivered anywhere.)
+    sendEmail({
+      eventKey: "external_admin_welcome",
+      to: email,
+      variables: {
+        name: newUser.name ?? "",
+        tempPassword,
+        loginUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`,
+      },
+    }).catch(() => {})
+
     await logAudit({
       req, actor: user, action: "EXTERNAL_ADMIN_CREATE", entity: "User", entityId: newUser.id,
       targetUserId: newUser.id,

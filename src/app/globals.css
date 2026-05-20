@@ -242,3 +242,66 @@ main { min-width: 0; }
   from { transform: translateY(24px); opacity: 0 }
   to   { transform: translateY(0);    opacity: 1 }
 }
+
+/* ─── Mobile responsiveness — global polish ───────────────────── */
+
+/* Hide scrollbars on horizontal scroll strips (settings tabs, etc.) while keeping touch scroll smooth */
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+}
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+
+/* Stack flex rows with wrap on mobile so dense button rows / filter bars don't overflow */
+@media (max-width: 899px) {
+  .row-wrap-mobile { flex-wrap: wrap !important; }
+}
+
+/* Page content padding: shrink generous desktop padding on small screens */
+@media (max-width: 899px) {
+  main { padding-left: 16px !important; padding-right: 16px !important; padding-top: 16px !important; padding-bottom: 16px !important; }
+  /* Reduce the inner card padding on mobile too — most pages use 28px 32px */
+  main > div[style*="padding: \"28px 32px\""],
+  main > div[style*="padding:\"28px 32px\""] { padding: 16px !important; }
+}
+
+/* Generic modal helpers — use with createPortal where the modal is nested inside a transformed parent */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0,0,0,0.5);
+}
+.modal-box {
+  width: 100%;
+  max-width: 480px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 24px 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+@media (max-width: 640px) {
+  .modal-box { padding: 20px 16px; }
+}
+
+/* Auto-fit grid that collapses gracefully on narrow screens —
+   prefer this over inline `repeat(N, 1fr)` when authoring new pages */
+.grid-auto-fill {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  gap: 16px;
+}
+
+/* Stat tile grid (used on dashboards) — 4 / 2 / 1 columns */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 1100px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 540px)  { .stat-grid { grid-template-columns: 1fr; } }

@@ -17,6 +17,7 @@ export default function BulkUpdateEmployeesPage() {
   const router = useRouter()
   const [file, setFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [role, setRole] = useState<"STAFF" | "PROJECT_LEAD">("STAFF")
   const [employeeScope, setEmployeeScope] = useState("")
   const [scopeOpen, setScopeOpen] = useState(false)
   const [includeExited, setIncludeExited] = useState(false)
@@ -71,6 +72,7 @@ export default function BulkUpdateEmployeesPage() {
     setDownloading(true)
     try {
       const params = new URLSearchParams()
+      params.set("role", role)
       if (employeeScope === "Specific Employees") {
         params.set("scope", "specific")
         params.set("ids", specificEmployees.join(","))
@@ -151,6 +153,30 @@ export default function BulkUpdateEmployeesPage() {
                   </div>
                   <span style={{ fontSize: 14, color: "var(--muted-foreground)" }}>{item}</span>
                 </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Step 0: Role */}
+          <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Which role are you updating?</h3>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 16 }}>
+              The download includes only employees of the chosen role with role-appropriate columns. You cannot change someone's role via bulk update.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              {([
+                { val: "STAFF" as const, label: "Staff", desc: "Reports to a Project Lead" },
+                { val: "PROJECT_LEAD" as const, label: "Project Lead", desc: "Leads departments, reports to a Manager" },
+              ]).map(opt => (
+                <button key={opt.val} type="button" onClick={() => { setRole(opt.val); setFile(null); setSpecificEmployees([]) }}
+                  style={{
+                    flex: 1, padding: "12px 14px", borderRadius: 10, cursor: "pointer", textAlign: "left",
+                    background: role === opt.val ? "var(--muted)" : "var(--background)",
+                    border: `2px solid ${role === opt.val ? "var(--primary)" : "var(--border)"}`,
+                  }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{opt.label}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{opt.desc}</div>
+                </button>
               ))}
             </div>
           </div>

@@ -3,8 +3,6 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { format } from "date-fns"
-import { sendEmail } from "@/lib/email"
-import { generateInternReportXlsx } from "@/lib/intern-report-xlsx"
 
 // WAT = UTC+1
 const WAT_OFFSET = 1 * 60 * 60 * 1000
@@ -250,28 +248,10 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Fetch full report with employee for Excel + email
-  const fullReport = await prisma.internWeeklyReport.findUnique({
-    where: { id: report.id },
-    include: { employee: { select: { firstName: true, lastName: true, jobTitle: true, department: { select: { name: true } } } } },
-  })
-
-  // Build email data
+  // Notification copy
   const internName = `${emp.firstName} ${emp.lastName}`
-  const weekEndStr = format(we, "MMM d, yyyy")
-  const totalHoursStr = (report.totalHours ?? 0).toFixed(1)
-  const lateFlagStr = lateFlag ? "Yes (submitted after 8PM WAT)" : "No"
-  const reviewLink = `${process.env.NEXTAUTH_URL ?? ""}/project-lead/intern-reports`
-  const xlsxFilename = `intern_report_${format(we, "yyyy-MM-dd")}.xlsx`
 
-  let xlsxBuf: Buffer | undefined
-  try {
-    if (fullReport) xlsxBuf = generateInternReportXlsx(fullReport as any)
-  } catch { /* non-fatal */ }
-
-  const attachments = xlsxBuf ? [{ filename: xlsxFilename, content: xlsxBuf }] : undefined
-
-  // Notify + email project lead
+  // Notify project lead (email dropped in R6 — PL checks reports as part of normal flow)
   if (emp.projectLeadId) {
     const lead = await prisma.employee.findUnique({ where: { id: emp.projectLeadId }, select: { userId: true } })
     if (lead?.userId) {
@@ -285,25 +265,12 @@ export async function POST(req: NextRequest) {
         },
       }).catch(() => {})
 
-      // Gather CC emails from extra reviewers
-      const ccEmails: string[] = []
-      for (const revId of (extraReviewerIds as string[])) {
-        if (!revId || revId === emp.projectLeadId) continue
-        const revEmp = await prisma.employee.findUnique({ where: { id: revId }, select: { user: { select: { email: true } } } })
-        if (revEmp?.user?.email) ccEmails.push(revEmp.user.email)
-      }
-
-      sendEmail({
-        eventKey: "intern_report_submitted",
-        toUserId: lead.userId,
-        cc: ccEmails.length ? ccEmails : undefined,
-        attachments,
-        variables: { internName, weekEnd: weekEndStr, totalHours: totalHoursStr, lateFlag: lateFlagStr, reviewLink },
-      }).catch(() => {})
+      // intern_report_submitted email dropped (R6) — PL reviews intern reports as part of
+      // their normal workflow; in-app notification + bell icon is enough.
     }
   }
 
-  // Notify + email each extra reviewer individually
+  // Notify each extra reviewer individually (email dropped — they're colleagues in the app)
   for (const revId of (extraReviewerIds as string[])) {
     if (!revId || revId === emp.projectLeadId) continue
     const revEmp = await prisma.employee.findUnique({ where: { id: revId }, select: { userId: true } })
@@ -317,12 +284,7 @@ export async function POST(req: NextRequest) {
         link: "/staff/intern-reviews",
       },
     }).catch(() => {})
-    sendEmail({
-      eventKey: "intern_report_reviewer_assigned",
-      toUserId: revEmp.userId,
-      attachments,
-      variables: { internName, weekEnd: weekEndStr, totalHours: totalHoursStr, lateFlag: lateFlagStr, reviewLink },
-    }).catch(() => {})
+    // intern_report_reviewer_assigned email dropped (R6) — extra reviewers are in-app colleagues.
   }
 
   return NextResponse.json({ report }, { status: 201 })

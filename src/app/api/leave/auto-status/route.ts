@@ -87,17 +87,8 @@ export async function GET(req: NextRequest) {
           link: "/admin/requests/leave",
         },
       }).catch(() => {})
-      sendEmail({
-        eventKey: "leave_started_stakeholder",
-        toUserId: userId,
-        variables: {
-          employeeName: empName,
-          leaveType: lr.leaveType.name,
-          startDate: format(lr.startDate, "MMM d, yyyy"),
-          endDate: format(lr.endDate, "MMM d, yyyy"),
-          reliefs: reliefNames.join(", "),
-        },
-      }).catch(() => {})
+      // leave_started_stakeholder email dropped (R6) — purely informational broadcast,
+      // in-app notification suffices. See work.md Round 6.
     }
   }
 

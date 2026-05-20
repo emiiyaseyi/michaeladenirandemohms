@@ -25,6 +25,9 @@ export async function GET() {
   const cfg = await prisma.internReportSettings.findUnique({ where: { id: "singleton" } })
   return NextResponse.json({
     ...(cfg ?? DEFAULTS),
+    // These two are locked policy — always return the canonical values regardless of DB state
+    submissionDay: DEFAULTS.submissionDay,
+    closeHour: DEFAULTS.closeHour,
     attendanceCriteria: cfg?.attendanceCriteria ?? DEFAULT_CRITERIA,
   })
 }
@@ -41,6 +44,8 @@ export async function PATCH(req: NextRequest) {
   const settings = await prisma.internReportSettings.upsert({
     where: { id: "singleton" },
     update: {
+      submissionDay: DEFAULTS.submissionDay, // normalize any stale DB value back to Friday
+      closeHour: DEFAULTS.closeHour,         // normalize any stale DB value back to midnight
       ...(openHour !== undefined && { openHour: Number(openHour) }),
       ...(lateHour !== undefined && { lateHour: Number(lateHour) }),
       ...(lateDeduction !== undefined && { lateDeduction: Number(lateDeduction) }),

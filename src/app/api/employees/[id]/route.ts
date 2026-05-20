@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
+import { notifyDepartmentPLs } from "@/lib/notifications"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -148,6 +149,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     })
   }
 
+  // Notify PLs when departmentId changes — old dept gets a "removed" notice, new dept gets "added"
+  if (before && before.departmentId !== employee.departmentId) {
+    const empName = `${employee.firstName} ${employee.lastName}`
+    if (before.departmentId) {
+      notifyDepartmentPLs({
+        departmentId: before.departmentId,
+        excludeUserId: employee.userId,
+        title: "Team member removed",
+        message: `${empName} has been removed from your department.`,
+        link: `/admin/people/employees/${employee.id}`,
+      }).catch(() => {})
+    }
+    if (employee.departmentId) {
+      notifyDepartmentPLs({
+        departmentId: employee.departmentId,
+        excludeUserId: employee.userId,
+        title: "New team member added",
+        message: `${empName} has been added to your department as a primary member.`,
+        link: `/admin/people/employees/${employee.id}`,
+      }).catch(() => {})
+    }
+  }
+
   return NextResponse.json({ employee })
 }
 
@@ -161,9 +185,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const employee = await prisma.employee.findUnique({
     where: { id },
-    select: { id: true, userId: true, employeeId: true, firstName: true, lastName: true, jobTitle: true, departmentId: true, user: { select: { email: true } } },
+    select: {
+      id: true, userId: true, employeeId: true, firstName: true, lastName: true, jobTitle: true, departmentId: true,
+      user: { select: { email: true } },
+      departmentMemberships: { select: { departmentId: true } },
+    },
   })
   if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
+
+  // Capture all dept IDs the employee was in (primary + secondaries) so we can notify after delete
+  const affectedDeptIds = new Set<string>()
+  if (employee.departmentId) affectedDeptIds.add(employee.departmentId)
+  for (const m of employee.departmentMemberships) affectedDeptIds.add(m.departmentId)
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -187,6 +220,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       targetUserId: employee.userId,
       oldValues: { employeeId: employee.employeeId, firstName: employee.firstName, lastName: employee.lastName, jobTitle: employee.jobTitle, email: employee.user?.email },
     })
+    // Notify PLs of every dept the deleted employee was part of
+    const empName = `${employee.firstName} ${employee.lastName}`
+    for (const deptId of affectedDeptIds) {
+      notifyDepartmentPLs({
+        departmentId: deptId,
+        title: "Team member removed",
+        message: `${empName} is no longer part of your department.`,
+      }).catch(() => {})
+    }
     return NextResponse.json({ success: true })
   } catch (e: any) {
     console.error("[DELETE /api/employees/:id]", e)

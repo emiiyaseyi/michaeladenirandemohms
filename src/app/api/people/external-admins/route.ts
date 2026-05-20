@@ -1,15 +1,16 @@
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, caps, forbidden } from "@/lib/api-auth"
-import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
   if (!caps(user.role).canManageSettings) return forbidden()
 
+  // Only show users who have admin role grants AND no Employee record.
+  // Once hired, they get an Employee record and disappear from this list — they're now in /admin/people/employees.
   const admins = await prisma.user.findMany({
-    where: { adminRoles: { some: {} } },
+    where: { adminRoles: { some: {} }, employee: null, role: { not: "SUPER_ADMIN" } },
     select: {
       id: true, name: true, email: true, isActive: true, createdAt: true,
       employee: { select: { id: true, phone: true, profilePhoto: true } },
@@ -20,37 +21,6 @@ export async function GET() {
   return NextResponse.json({ admins })
 }
 
-export async function POST(req: NextRequest) {
-  const { user, error } = await requireAuth()
-  if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
-
-  const body = await req.json()
-  const { firstName, lastName, email } = body
-  if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 })
-
-  const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing) return NextResponse.json({ error: "A user with this email already exists" }, { status: 409 })
-
-  const bcrypt = await import("bcryptjs")
-  const hashed = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 10)
-
-  const admin = await prisma.user.create({
-    data: {
-      name: `${firstName} ${lastName}`.trim(),
-      email,
-      password: hashed,
-      role: "STAFF",
-      mustChangePassword: true,
-    },
-    select: { id: true, name: true, email: true, isActive: true, createdAt: true, employee: { select: { id: true, phone: true, profilePhoto: true } } },
-  })
-
-  await logAudit({
-    req, actor: user, action: "EXTERNAL_ADMIN_CREATE", entity: "User", entityId: admin.id,
-    targetUserId: admin.id,
-    newValues: { name: admin.name, email: admin.email },
-  })
-
-  return NextResponse.json({ admin }, { status: 201 })
-}
+// POST removed — external admin creation now happens exclusively via
+// /admin/settings/admins (single create + bulk upload) so we can attach
+// system role bundles atomically and send the welcome email.

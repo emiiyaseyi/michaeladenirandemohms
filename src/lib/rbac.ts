@@ -133,13 +133,14 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Public Holidays",     href: "/settings/public-holidays" },
       { label: "Approval Workflows",  href: "/settings/approval-workflows" },
       { label: "Customization",       href: "/settings/customization" },
+      { label: "Intern Reports",      href: "/settings/intern-reports" },
       { label: "Roles & Permissions", href: "/settings/roles-permissions" },
     ],
   },
   {
     label: "Reports", icon: "BarChart2", roles: ["ADMIN"], section: "OTHER", permission: "canViewReports",
     children: [
-      { label: "Reports", href: "/reports", exact: true },
+      { label: "General Reports", href: "/reports", exact: true },
       { label: "Interns", href: "/reports/intern-reports", permission: "canViewInternReports" },
     ],
   },

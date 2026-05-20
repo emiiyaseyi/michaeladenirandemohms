@@ -97,7 +97,8 @@ export async function GET(req: NextRequest) {
           link: `/admin/requests/leave`,
         },
       })
-      sendEmail({ eventKey: "employee_back_hr", toUserId: userId, variables: { employeeName: `${emp.firstName} ${emp.lastName}`, leaveType: lr.leaveType.name, returnDate: format(new Date(), "MMM d, yyyy") } }).catch(() => {})
+      // employee_back_hr email dropped (R6) — auto-cron already flips the employee back
+      // to ACTIVE; HR sees the change in the directory. In-app notification suffices.
     }
 
     count++

@@ -123,9 +123,8 @@ export async function POST(req: NextRequest) {
         link: `/employees/personal-docs`,
       })),
     })
-    for (const a of admins) {
-      sendEmail({ eventKey: "personal_doc_uploaded", toUserId: a.id, variables: { employeeName: `${emp?.firstName ?? ""} ${emp?.lastName ?? ""}`, documentType: typeLabel[type] ?? type } }).catch(() => {})
-    }
+    // personal_doc_uploaded email dropped (R6) — admins see new uploads in their review
+    // queue. In-app notification is sufficient.
   }
 
   return NextResponse.json({ doc }, { status: 201 })

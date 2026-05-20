@@ -69,6 +69,23 @@ export async function sendEmail(opts: SendEmailOpts): Promise<void> {
 
     if (recipients.length === 0) { console.error(`[email] SKIP ${opts.eventKey}: no recipients resolved`); return }
 
+    // ─── Seed-account protection ────────────────────────────────────────────
+    // Strip out recipients whose User row is marked isSeeded=true. These are
+    // dev/demo accounts (seed.ts + seed-test.ts) with fake addresses that would
+    // bounce in production. Real users created via the UI default to false.
+    // Flip the flag (or delete the account) when a real user takes over.
+    const knownUsers = await prisma.user.findMany({
+      where: { email: { in: recipients } },
+      select: { email: true, isSeeded: true },
+    })
+    const seededEmails = new Set(knownUsers.filter(u => u.isSeeded).map(u => u.email!.toLowerCase()))
+    if (seededEmails.size > 0) {
+      const dropped = recipients.filter(r => seededEmails.has(r.toLowerCase()))
+      recipients = recipients.filter(r => !seededEmails.has(r.toLowerCase()))
+      console.warn(`[email] BLOCKED ${opts.eventKey} for seeded recipient(s): ${dropped.join(", ")}`)
+    }
+    if (recipients.length === 0) { console.warn(`[email] SKIP ${opts.eventKey}: all recipients were seeded accounts`); return }
+
     const vars = { ...opts.variables }
 
     const subject = replaceVars(effectiveSubject, vars)
