@@ -107,7 +107,6 @@ export async function sendEmail(opts: SendEmailOpts): Promise<void> {
       })),
     } as any)
     if (result.error) console.error(`[email] RESEND ERROR ${opts.eventKey}:`, result.error)
-    else console.log(`[email] SENT ${opts.eventKey} -> ${recipients.join(", ")}`)
   } catch (e) {
     console.error(`[email] EXCEPTION ${opts.eventKey}:`, e)
   }
