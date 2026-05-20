@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
 
   // Level 2: row-by-row validation
   const results: { row: number; status: "created" | "skipped"; email?: string; error?: string }[] = []
-  const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`
+  const loginUrl = `${process.env.NEXTAUTH_URL}/login`
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]

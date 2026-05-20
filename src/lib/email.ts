@@ -94,9 +94,12 @@ export async function sendEmail(opts: SendEmailOpts): Promise<void> {
       .replace(/\{\{FROM_NAME\}\}/g, settings.fromName)
       .replace("{{CONTENT}}", content)
 
+    // Sender address: env var is the source of truth. DB fallback only kicks
+    // in if EMAIL_FROM_ADDRESS isn't set (mostly for local-dev convenience).
+    const fromAddress = process.env.EMAIL_FROM_ADDRESS ?? settings.fromEmail
     const resend = new Resend(apiKey)
     const result = await resend.emails.send({
-      from: `${settings.fromName} <${settings.fromEmail}>`,
+      from: `${settings.fromName} <${fromAddress}>`,
       to: recipients,
       cc: opts.cc?.length ? opts.cc : undefined,
       subject,

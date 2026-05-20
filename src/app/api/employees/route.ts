@@ -278,7 +278,7 @@ export async function POST(req: NextRequest) {
       variables: {
         employeeName: firstName,
         workEmail: workEmail.toLowerCase().trim(),
-        loginUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`,
+        loginUrl: `${process.env.NEXTAUTH_URL}/login`,
         defaultPassword: "(use your existing admin password)",
       },
     }).catch(() => {})
@@ -288,8 +288,8 @@ export async function POST(req: NextRequest) {
     const invite = await prisma.employeeInvite.create({
       data: { employeeId: employee.id, expiresAt },
     })
-    const inviteLink = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/onboard/${invite.token}`
-    const loginUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`
+    const inviteLink = `${process.env.NEXTAUTH_URL}/onboard/${invite.token}`
+    const loginUrl = `${process.env.NEXTAUTH_URL}/login`
     const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1"
     await sendEmail({
       eventKey: body.inviteMode ? "employee_invite" : "employee_account_created",

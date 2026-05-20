@@ -336,7 +336,9 @@ async function main() {
       id: "singleton",
       enabled: false,
       fromName: "DSN HRMS",
-      fromEmail: "noreply@hrms.dsnsandbox.com",
+      // Sender address lives in EMAIL_FROM_ADDRESS env var at runtime (src/lib/email.ts).
+      // Value here is a historical seed default — the running code reads env first.
+      fromEmail: process.env.EMAIL_FROM_ADDRESS ?? "noreply@hrms.dsnsandbox.com",
       eventToggles: {},
     },
   })

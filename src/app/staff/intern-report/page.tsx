@@ -72,7 +72,21 @@ type Phase =
   | { kind: "late_sunday"; ms: number }
   | { kind: "closed_after" }
 
+// ── TESTING (R6): window left permanently open ───────────────────────────────
+// While we're still iterating, treat every moment as "on-time" so the submit
+// button stays enabled regardless of day/hour. Matching server bypass lives in
+// src/app/api/intern-reports/route.ts (search for "TESTING_ALWAYS_OPEN").
+// Flip back to false (or delete the early return + the const) to restore the
+// real Friday-only window. Also documented in work.md Round 6.
+const TESTING_ALWAYS_OPEN = true
+
 function computePhase(cfg: Settings, nowWat: Date): Phase {
+  if (TESTING_ALWAYS_OPEN) {
+    // Fake an "ontime" phase with a far-future late marker so the countdown
+    // shows a big positive number and nothing in the UI thinks we're closed.
+    const fakeLate = new Date(nowWat.getTime() + 7 * 24 * 60 * 60 * 1000)
+    return { kind: "ontime", ms: fakeLate.getTime() - nowWat.getTime(), label: "Testing — window always open" }
+  }
   // nowWat is a Date shifted by +1hr from UTC so that getUTC* methods return WAT values
   const day = nowWat.getUTCDay() // 0=Sun … 5=Fri … 6=Sat
   const FRI = cfg.submissionDay

@@ -1405,7 +1405,7 @@ model EmailSettings {
   id           String   @id @default("singleton")
   enabled      Boolean  @default(false)
   fromName     String   @default("DSN HRMS")
-  fromEmail    String   @default("noreply@hrms.dsnsandbox.com")
+  fromEmail    String
   eventToggles Json     @default("{}")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

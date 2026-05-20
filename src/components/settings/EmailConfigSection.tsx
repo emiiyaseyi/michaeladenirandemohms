@@ -177,15 +177,9 @@ export default function EmailConfigSection() {
                 {/* ── Settings Tab ────────────────────────────────────────── */}
                 {tab === "settings" && (
                   <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                      <div>
-                        <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>From Name</label>
-                        <input style={inp} value={settings.fromName} onChange={e => { setSettings(s => ({ ...s, fromName: e.target.value })); setSettingsDirty(true) }} placeholder="DSN HRMS" />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>From Email</label>
-                        <input style={inp} type="email" value={settings.fromEmail} onChange={e => { setSettings(s => ({ ...s, fromEmail: e.target.value })); setSettingsDirty(true) }} placeholder="noreply@hrms.dsnsandbox.com" />
-                      </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>From Name</label>
+                      <input style={inp} value={settings.fromName} onChange={e => { setSettings(s => ({ ...s, fromName: e.target.value })); setSettingsDirty(true) }} placeholder="DSN HRMS" />
                     </div>
 
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>

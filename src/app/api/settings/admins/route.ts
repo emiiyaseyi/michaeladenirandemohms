@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       variables: {
         name: newUser.name ?? "",
         tempPassword,
-        loginUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"}/login`,
+        loginUrl: `${process.env.NEXTAUTH_URL}/login`,
       },
     }).catch(() => {})
 

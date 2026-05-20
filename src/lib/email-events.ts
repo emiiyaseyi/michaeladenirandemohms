@@ -10,8 +10,11 @@ export interface EmailEventDef {
 // Wrap the logo in an anchor — Gmail (and a few other clients) show a
 // "download image" icon on hover for bare <img> tags. Linking it suppresses
 // that, and gives a small navigational benefit if the recipient does click.
+// The host comes from NEXTAUTH_URL so rotating the deploy domain only needs
+// an env-var change (not a code edit). Logo image is served from /public.
+const APP_URL = process.env.NEXTAUTH_URL ?? ""
 const LOGO =
-  `<div style="text-align:center;padding:4px 0 20px;"><a href="https://hrms.dsnsandbox.com" style="display:inline-block;text-decoration:none;border:0;outline:none;"><img src="https://hrms.dsnsandbox.com/dsn-logo.svg" alt="DSN" width="150" style="max-width:150px;height:auto;border:0;outline:none;text-decoration:none;display:block;" /></a></div>`
+  `<div style="text-align:center;padding:4px 0 20px;"><a href="${APP_URL}" style="display:inline-block;text-decoration:none;border:0;outline:none;"><img src="${APP_URL}/dsn-logo.svg" alt="DSN" width="150" style="max-width:150px;height:auto;border:0;outline:none;text-decoration:none;display:block;" /></a></div>`
 
 const ROW = (label: string, val: string) =>
   `<tr><td style="padding:10px 14px;font-size:13px;color:#6b7280;border-bottom:1px solid #f3f4f6;width:130px;">${label}</td><td style="padding:10px 14px;font-size:13px;font-weight:600;color:#111827;border-bottom:1px solid #f3f4f6;">${val}</td></tr>`

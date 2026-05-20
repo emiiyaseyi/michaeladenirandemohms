@@ -160,11 +160,20 @@ export async function POST(req: NextRequest) {
   const isSat = dayWAT === SAT
   const isSun = dayWAT === SUN
 
-  if (!isFri && !isSat && !isSun) {
-    return NextResponse.json({ error: `Submission window opens Friday at ${openHour}:00 WAT and closes Sunday at 11:59 PM WAT.` }, { status: 400 })
-  }
-  if (isFri && hoursWAT < openHour) {
-    return NextResponse.json({ error: `Submission opens at ${openHour}:00 WAT today.` }, { status: 400 })
+  // ── TESTING (R6): window left permanently open ─────────────────────────────
+  // Both gates below are intentionally skipped while we're still testing.
+  // To restore production behaviour: flip TESTING_ALWAYS_OPEN to false (or
+  // delete the const + restore the `if` blocks below as `return` statements).
+  // Matching client-side override lives in src/app/staff/intern-report/page.tsx
+  // (search for "TESTING_ALWAYS_OPEN"). Also documented in work.md Round 6.
+  const TESTING_ALWAYS_OPEN = true
+  if (!TESTING_ALWAYS_OPEN) {
+    if (!isFri && !isSat && !isSun) {
+      return NextResponse.json({ error: `Submission window opens Friday at ${openHour}:00 WAT and closes Sunday at 11:59 PM WAT.` }, { status: 400 })
+    }
+    if (isFri && hoursWAT < openHour) {
+      return NextResponse.json({ error: `Submission opens at ${openHour}:00 WAT today.` }, { status: 400 })
+    }
   }
 
   // Compute status + deduction by day
