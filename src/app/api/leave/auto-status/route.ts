@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { startOfDay, endOfDay, format } from "date-fns"
-import { sendEmail } from "@/lib/email"
 import { roleBasePath } from "@/lib/api-auth"
 
 // Daily cron: flip Employee.employeeStatus ON/OFF leave on the correct calendar date,

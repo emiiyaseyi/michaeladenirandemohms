@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
+import { requireAuth, forbidden, requirePermission, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = caps(user.role).canViewAllEmployees
+  const isAdmin = hasCap(user, "canViewAllEmployees")
   const { searchParams } = req.nextUrl
   const includeAll = searchParams.get("all") === "1"
 
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = caps(user.role).canViewAllEmployees
+  const isAdmin = hasCap(user, "canViewAllEmployees")
   if (!isAdmin) return forbidden("Only admins can create announcements")
   const perm = requirePermission(user, "canCreateAnnouncement")
   if (perm) return perm

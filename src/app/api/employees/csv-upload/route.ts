@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { notifyDepartmentPLs } from "@/lib/notifications"
 import bcrypt from "bcryptjs"
@@ -44,7 +44,7 @@ function isValidDate(val: string): boolean {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canCreateEmployee) return forbidden()
+  if (!hasCap(user, "canCreateEmployee")) return forbidden()
 
   const formData = await req.formData()
   const file = formData.get("file") as File | null

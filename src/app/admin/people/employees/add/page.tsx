@@ -117,7 +117,6 @@ export default function AddNewMemberPage() {
 
   const [workplaces, setWorkplaces] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
-  const [employees, setEmployees] = useState<any[]>([])
   const [jobTitles, setJobTitles] = useState<any[]>([])
   const [orgDocs, setOrgDocs] = useState<any[]>([])
 
@@ -176,13 +175,11 @@ export default function AddNewMemberPage() {
     Promise.all([
       fetch("/api/company-details/workplaces").then(r => r.json()),
       fetch("/api/settings").then(r => r.json()),
-      fetch("/api/employees?status=ACTIVE").then(r => r.json()),
       fetch("/api/job-titles").then(r => r.json()),
       fetch("/api/people/managers").then(r => r.json()),
-    ]).then(([w, s, e, jt, m]) => {
+    ]).then(([w, s, jt, m]) => {
       setWorkplaces(w.workplaces ?? [])
       setDepartments(s.departments ?? [])
-      setEmployees(e.employees ?? [])
       setJobTitles(jt.jobTitles ?? [])
       setManagers(m.managers ?? [])
     })

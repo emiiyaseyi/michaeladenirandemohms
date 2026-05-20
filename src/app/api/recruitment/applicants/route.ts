@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canViewRecruitment) return forbidden()
+  if (!hasCap(user, "canViewRecruitment")) return forbidden()
 
   const { searchParams } = req.nextUrl
   const jobId = searchParams.get("jobId") ?? ""
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageRecruitment) return forbidden()
+  if (!hasCap(user, "canManageRecruitment")) return forbidden()
 
   const { jobPostingId, candidateName, candidateEmail, candidatePhone, resumeUrl, coverLetter, notes } = await req.json()
   if (!jobPostingId || !candidateName || !candidateEmail) {

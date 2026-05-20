@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { sendEmail } from "@/lib/email"
 import { requireAuth } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 

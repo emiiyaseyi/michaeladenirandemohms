@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { EmployeeStatus } from "@prisma/client"
-import { requireAuth, caps, forbidden, requirePermission } from "@/lib/api-auth"
+import { requireAuth, caps, forbidden, requirePermission, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import bcrypt from "bcryptjs"
 import { sendEmail } from "@/lib/email"
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canCreateEmployee) return forbidden()
+  if (!hasCap(user, "canCreateEmployee")) return forbidden()
   const perm = requirePermission(user, "canCreateEmployee")
   if (perm) return perm
 

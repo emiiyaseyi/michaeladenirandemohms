@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
-import { format, subDays, isWeekend, startOfDay, endOfDay } from "date-fns"
+import { subDays, isWeekend, startOfDay, endOfDay } from "date-fns"
 import { roleBasePath } from "@/lib/api-auth"
 
 // Returns the most recent business day (Mon-Fri) before today

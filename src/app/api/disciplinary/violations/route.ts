@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps } from "@/lib/api-auth"
+import { requireAuth, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const status = searchParams.get("status") ?? ""
   const view   = searchParams.get("view") ?? ""  // "for_me" | "by_me"
 
-  const isAdmin = caps(user.role).canViewAllEmployees
+  const isAdmin = hasCap(user, "canViewAllEmployees")
 
   // Build where clause
   const where: any = {}

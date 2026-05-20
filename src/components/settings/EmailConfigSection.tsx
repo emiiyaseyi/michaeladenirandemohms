@@ -203,9 +203,6 @@ export default function EmailConfigSection() {
                       )}
                     </div>
 
-                    <div style={{ background: "var(--muted)", borderRadius: 10, padding: "14px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>
-                      <strong style={{ color: "var(--foreground)" }}>API Key:</strong> Loaded from <code style={{ background: "var(--border)", padding: "1px 6px", borderRadius: 4 }}>RESEND_API_KEY</code> environment variable. Set it in your <code style={{ background: "var(--border)", padding: "1px 6px", borderRadius: 4 }}>.env</code> file locally and in your production environment settings.
-                    </div>
                   </div>
                 )}
 
