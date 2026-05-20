@@ -77,21 +77,19 @@ export default function InternReportSettingsPage() {
   }
 
   const lockedRow = (label: string, sublabel: string, value: string) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16 }}>
       <div>
         <div style={{ fontSize: 14, fontWeight: 600 }}>{label}</div>
         <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{sublabel}</div>
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>{value}</span>
-        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: "var(--muted)", color: "var(--muted-foreground)", fontWeight: 600 }}>Locked</span>
-      </div>
+      {/* Fixed value rendered in muted gray (no "Locked" pill — the gray tone already signals read-only) */}
+      <span style={{ fontSize: 14, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{value}</span>
     </div>
   )
 
   return (
-    <div style={{ maxWidth: 960, padding: "32px 0" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <ClipboardList size={20} style={{ color: "var(--primary)" }} />
         <div>
           <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>Intern Report Settings</h2>
