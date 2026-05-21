@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 const RECRUITMENT_KEYS = [
@@ -28,7 +28,7 @@ const DEFAULTS: Record<string, unknown> = {
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canViewRecruitment) return forbidden("No access")
+  if (!hasCap(user, "canViewRecruitment")) return forbidden("No access")
 
   const rows = await prisma.systemSetting.findMany({
     where: { key: { in: RECRUITMENT_KEYS } },
@@ -43,7 +43,7 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden("No access")
+  if (!hasCap(user, "canManageSettings")) return forbidden("No access")
 
   const body = await req.json()
 

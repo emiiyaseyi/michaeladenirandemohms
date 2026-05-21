@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canViewAllEmployees) return forbidden()
+  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
 
   const groups = await prisma.customGroup.findMany({
     orderBy: { createdAt: "desc" },
@@ -18,7 +18,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canViewAllEmployees) return forbidden()
+  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
 
   const { name, description, groupByCurrency, memberIds } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })

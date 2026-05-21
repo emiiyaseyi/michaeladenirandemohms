@@ -1,5 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
+import { createPortal } from "react-dom"
 import { signOut } from "next-auth/react"
 import { Loader2 } from "lucide-react"
 
@@ -24,7 +25,7 @@ export function useLogoutConfirm() {
     return () => { document.body.style.overflow = "" }
   }, [open])
 
-  const modal = open ? (
+  const modalJsx = open ? (
     <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ position: "absolute", inset: 0, background: "rgba(10,31,68,0.5)", backdropFilter: "blur(4px)" }} onClick={close} />
       <div style={{ position: "relative", background: "var(--card)", borderRadius: 16, width: "100%", maxWidth: 400, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", padding: "24px 24px 20px" }}>
@@ -77,6 +78,12 @@ export function useLogoutConfirm() {
       <style>{`@keyframes logout-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   ) : null
+
+  // Render through portal to document.body so the modal escapes any transformed
+  // parent (like the mobile sidebar) that would otherwise trap position:fixed.
+  const modal = modalJsx && typeof document !== "undefined"
+    ? createPortal(modalJsx, document.body)
+    : null
 
   return { confirmLogout, modal }
 }

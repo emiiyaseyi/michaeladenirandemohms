@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
-import { Search, MoreHorizontal, Loader2, Shield, X, Plus, Upload } from "lucide-react"
+import { Search, MoreHorizontal, Loader2, Shield, X } from "lucide-react"
 
 function Av({ name, photo, size = 36 }: { name: string; photo?: string | null; size?: number }) {
   if (photo) return <img src={photo} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover" }} />
@@ -79,12 +79,10 @@ export default function ExternalAdminsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [page, setPage] = useState(1)
-  const [showAdd, setShowAdd] = useState(false)
   const [editTarget, setEditTarget] = useState<any>(null)
   const [deleteTarget, setDeleteTarget] = useState<any>(null)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [addForm, setAddForm] = useState({ firstName: "", lastName: "", email: "", phone: "" })
   const [editForm, setEditForm] = useState({ firstName: "", lastName: "", email: "", phone: "" })
   const [err, setErr] = useState("")
 
@@ -110,6 +108,12 @@ export default function ExternalAdminsPage() {
   }
 
   const doEdit = async () => {
+    if (!editForm.firstName.trim() || !editForm.lastName.trim() || !editForm.email.trim()) {
+      setErr("First name, last name and email are required."); return
+    }
+    if (!editForm.phone.trim()) {
+      setErr("Phone number is required."); return
+    }
     setSaving(true); setErr("")
     const r = await fetch(`/api/people/external-admins/${editTarget.id}`, {
       method: "PATCH",
@@ -121,22 +125,6 @@ export default function ExternalAdminsPage() {
     const { admin } = await r.json()
     setAdmins(prev => prev.map(a => a.id === admin.id ? admin : a))
     setEditTarget(null)
-  }
-
-  const doAdd = async () => {
-    if (!addForm.firstName.trim() || !addForm.lastName.trim() || !addForm.email.trim()) { setErr("First name, last name and email are required."); return }
-    setSaving(true); setErr("")
-    const r = await fetch("/api/people/external-admins", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(addForm),
-    })
-    setSaving(false)
-    if (!r.ok) { const d = await r.json(); setErr(d.error ?? "Failed"); return }
-    const { admin } = await r.json()
-    setAdmins(prev => [...prev, admin])
-    setShowAdd(false)
-    setAddForm({ firstName: "", lastName: "", email: "", phone: "" })
   }
 
   const [deleteErr, setDeleteErr] = useState("")
@@ -160,15 +148,8 @@ export default function ExternalAdminsPage() {
           <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }} placeholder="Search admins…"
             style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", width: 240, outline: "none" }} />
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
-          <button onClick={() => router.push("/admin/people/external-admins/bulk-upload")}
-            style={{ padding: "9px 18px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>
-            <Upload size={14} /> Bulk Upload
-          </button>
-          <button onClick={() => { setShowAdd(true); setErr("") }}
-            style={{ padding: "9px 18px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 6 }}>
-            <Plus size={14} /> Add External Admin
-          </button>
+        <div style={{ fontSize: 12, color: "var(--muted-foreground)", maxWidth: 440, textAlign: "right" }}>
+          Create new external admins via <strong style={{ color: "var(--foreground)" }}>Settings → Admins → Add New Admin</strong>. People listed here have admin panel access but no employee record yet — use Hire to add them as a staff member or project lead.
         </div>
       </div>
 
@@ -204,7 +185,7 @@ export default function ExternalAdminsPage() {
                   <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.employee?.phone ?? "—"}</td>
                   <td style={{ ...td, textAlign: "right" }}>
                     <RowMenu
-                      onHire={() => router.push("/admin/people/employees/add")}
+                      onHire={() => router.push(`/admin/people/employees/add?fromUser=${a.id}`)}
                       onEdit={() => openEdit(a)}
                       onDelete={() => setDeleteTarget(a)} />
                   </td>
@@ -234,49 +215,6 @@ export default function ExternalAdminsPage() {
         )}
       </div>
 
-      {/* Add modal */}
-      {showAdd && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
-          <div style={{ background: "var(--card)", borderRadius: 16, width: "100%", maxWidth: 480, boxShadow: "0 24px 64px rgba(0,0,0,0.3)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
-              <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Add External Admin</h2>
-              <button onClick={() => setShowAdd(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}><X size={18} /></button>
-            </div>
-            <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>First Name <span style={{ color: "#ef4444" }}>*</span></label>
-                  <input value={addForm.firstName} onChange={e => setAddForm(f => ({ ...f, firstName: e.target.value }))} style={fi} />
-                </div>
-                <div>
-                  <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Last Name <span style={{ color: "#ef4444" }}>*</span></label>
-                  <input value={addForm.lastName} onChange={e => setAddForm(f => ({ ...f, lastName: e.target.value }))} style={fi} />
-                </div>
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Email <span style={{ color: "#ef4444" }}>*</span></label>
-                <input type="email" value={addForm.email} onChange={e => setAddForm(f => ({ ...f, email: e.target.value }))} style={fi} />
-              </div>
-              <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Phone</label>
-                <input value={addForm.phone} onChange={e => setAddForm(f => ({ ...f, phone: e.target.value }))} placeholder="e.g. 08012345678" style={fi} />
-              </div>
-              <div style={{ padding: "10px 14px", background: "var(--muted)", borderRadius: 8, fontSize: 12, color: "var(--muted-foreground)" }}>
-                Temporary password: <strong style={{ color: "var(--foreground)", fontFamily: "monospace" }}>Welcome@DSN1</strong> — the admin will be prompted to change it on first login.
-              </div>
-              {err && <div style={{ padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{err}</div>}
-            </div>
-            <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
-              <button onClick={() => setShowAdd(false)} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
-              <button onClick={doAdd} disabled={saving} style={{ padding: "9px 22px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: saving ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 6 }}>
-                {saving && <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} />}
-                {saving ? "Adding…" : "Add Admin"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit modal */}
       {editTarget && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
@@ -299,7 +237,7 @@ export default function ExternalAdminsPage() {
                 <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))} style={fi} />
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Phone</label>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Phone <span style={{ color: "#ef4444" }}>*</span></label>
                 <input value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))} placeholder="e.g. 08012345678" style={fi} />
               </div>
               {err && <div style={{ padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{err}</div>}

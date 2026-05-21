@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { sendEmail } from "@/lib/email"
 import { requireAuth } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
@@ -96,9 +95,8 @@ export async function PATCH(req: NextRequest) {
         link: "/admin/people/profile-requests",
       })),
     })
-    for (const a of reviewers) {
-      sendEmail({ eventKey: "profile_update_request", toUserId: a.id, variables: { employeeName: `${emp?.firstName ?? ""} ${emp?.lastName ?? ""}` } }).catch(() => {})
-    }
+    // profile_update_request email dropped (R6) — reviewers see new requests in their
+    // queue at /admin/people/profile-requests. In-app notification suffices.
   }
 
   return NextResponse.json({ request, message: "Profile update submitted for review" })

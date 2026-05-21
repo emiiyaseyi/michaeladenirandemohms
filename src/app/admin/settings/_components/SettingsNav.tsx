@@ -20,7 +20,7 @@ export default function SettingsNav() {
 
   return (
     <div>
-      <div style={{ borderBottom: "1px solid var(--border)", display: "flex", gap: 0, overflowX: "auto" }}>
+      <div className="scrollbar-hide" style={{ borderBottom: "1px solid var(--border)", display: "flex", gap: 0, overflowX: "auto" }}>
         {TABS.map(tab => {
           const active = pathname === tab.href || pathname.startsWith(tab.href + "/")
           return (

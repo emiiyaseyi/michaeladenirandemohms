@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { format } from "date-fns"
-import { sendEmail } from "@/lib/email"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
@@ -111,14 +110,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         },
       }).catch(() => {})
 
-      const internName = `${report.employee.firstName} ${report.employee.lastName}`
-      const weekEndStr = format(report.weekEnd, "MMM d, yyyy")
-      const tlScore = Math.max(0, (updated.productivityRating ?? 0) + (updated.ldRating ?? 0) + (updated.reflectionsRating ?? 0))
-      sendEmail({
-        eventKey: "intern_report_reviewed",
-        toUserId: report.employee.userId,
-        variables: { internName, weekEnd: weekEndStr, totalScore: String(tlScore) },
-      }).catch(() => {})
+      // intern_report_reviewed email dropped (R6) — intern sees REVIEWED status next
+      // time they open /staff/intern-report. In-app notification suffices.
     }
 
     // Notify admins with canFillAttendance

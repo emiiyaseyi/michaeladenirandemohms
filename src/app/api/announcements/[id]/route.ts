@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, caps, requirePermission } from "@/lib/api-auth"
+import { requireAuth, forbidden, requirePermission, hasCap } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = caps(user.role).canViewAllEmployees
+  const isAdmin = hasCap(user, "canViewAllEmployees")
   if (!isAdmin) return forbidden()
   const perm = requirePermission(user, "canEditAnnouncement")
   if (perm) return perm
@@ -71,7 +71,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { user, error } = await requireAuth()
   if (error) return error
 
-  if (!caps(user.role).canViewAllEmployees) return forbidden()
+  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
   const delPerm = requirePermission(user, "canDeleteAnnouncement")
   if (delPerm) return delPerm
 

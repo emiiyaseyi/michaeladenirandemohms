@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canViewAllEmployees) return forbidden()
+  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
 
   const offers = await prisma.offerLetter.findMany({
     orderBy: { createdAt: "desc" },
@@ -22,7 +22,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canViewAllEmployees) return forbidden()
+  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
 
   const body = await req.json()
   const { candidateName, candidateEmail, jobTitle, departmentId, managerId, hireDate, salary, letterText } = body

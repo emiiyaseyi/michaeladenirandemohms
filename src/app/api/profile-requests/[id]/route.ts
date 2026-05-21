@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
-import { requireAuth, caps, forbidden, roleBasePath } from "@/lib/api-auth"
+import { requireAuth, forbidden, roleBasePath, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canViewAllEmployees) return forbidden()
+  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
 
   const { id } = await params
   const { action, reviewNote } = await req.json() // action: "approve" | "reject"

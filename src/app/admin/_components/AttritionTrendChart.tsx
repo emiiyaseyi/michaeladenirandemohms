@@ -6,8 +6,9 @@ import {
 
 type DataPoint = { label: string; inCompany: number; exited: number }
 
-const BLUE  = "#1A3BAA"
-const PINK  = "#F9A8C9"
+// Green for active employees (in company), red for exited/attrition.
+const GREEN = "#0B5C2E"
+const RED   = "#DC2626"
 
 function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null
@@ -43,11 +44,11 @@ export default function AttritionTrendChart({ data }: { data: DataPoint[] }) {
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 5, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ width: 10, height: 10, background: PINK, borderRadius: 2, flexShrink: 0 }} />
+            <span style={{ width: 10, height: 10, background: RED, borderRadius: 2, flexShrink: 0 }} />
             <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No. of exited employees in the month</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ width: 10, height: 10, background: BLUE, borderRadius: 2, flexShrink: 0 }} />
+            <span style={{ width: 10, height: 10, background: GREEN, borderRadius: 2, flexShrink: 0 }} />
             <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No. of employees in the Company</span>
           </div>
         </div>
@@ -71,8 +72,8 @@ export default function AttritionTrendChart({ data }: { data: DataPoint[] }) {
             width={28}
           />
           <Tooltip content={<CustomTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
-          <Bar dataKey="inCompany" stackId="a" fill={BLUE} radius={[0, 0, 0, 0]} />
-          <Bar dataKey="exited"    stackId="a" fill={PINK} radius={[0, 0, 0, 0]} />
+          <Bar dataKey="inCompany" stackId="a" fill={GREEN} radius={[0, 0, 0, 0]} />
+          <Bar dataKey="exited"    stackId="a" fill={RED}   radius={[0, 0, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </div>

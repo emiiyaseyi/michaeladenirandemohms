@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
-import { logAudit } from "@/lib/audit"
 
 // GET /api/auth/forgot-password — admin: list all reset requests
 export async function GET() {

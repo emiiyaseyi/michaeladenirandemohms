@@ -119,9 +119,14 @@ export default function AdminsSettingsPage() {
         <div style={{ padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", borderBottom: "1px solid var(--border)" }}>
           <input placeholder="Search by name, email, ID, dept…" value={search} onChange={e => setSearch(e.target.value)} style={{ ...inp, width: 260 }} />
           {canManage && (
-            <Button size="sm" onClick={() => router.push("/admin/settings/admins/new")}>
-              <Plus size={14} /> Create new Admin
-            </Button>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Button size="sm" variant="secondary" onClick={() => router.push("/admin/settings/admins/bulk-upload")}>
+                Bulk Upload
+              </Button>
+              <Button size="sm" onClick={() => router.push("/admin/settings/admins/new")}>
+                <Plus size={14} /> Create new Admin
+              </Button>
+            </div>
           )}
         </div>
 

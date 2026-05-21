@@ -47,8 +47,8 @@ async function main() {
   // ── HR Admin (SUPER_ADMIN) — don't override role set by seed.ts ───────────────
   const hrUser = await prisma.user.upsert({
     where:  { email: "edodida@datasciencenigeria.ai" },
-    update: { mustChangePassword: false },
-    create: { name: "Amina Bello", email: "edodida@datasciencenigeria.ai", password: hash("dsn-staff"), role: "SUPER_ADMIN", mustChangePassword: false },
+    update: { mustChangePassword: false, isSeeded: true },
+    create: { name: "Amina Bello", email: "edodida@datasciencenigeria.ai", password: hash("dsn-staff"), role: "SUPER_ADMIN", mustChangePassword: false, isSeeded: true },
   })
   const hrEmp = await prisma.employee.upsert({
     where:  { userId: hrUser.id },
@@ -69,8 +69,8 @@ async function main() {
   const lead1Emp = await prisma.employee.findFirst({ where: { user: { email: "lead1@dsn-hrms.com" } } })
   const internTestUser = await prisma.user.upsert({
     where:  { email: "intern@dsn-hrms.com" },
-    update: { mustChangePassword: false, password: hash("dsn-demo") },
-    create: { name: "Intern Demo", email: "intern@dsn-hrms.com", password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false },
+    update: { mustChangePassword: false, password: hash("dsn-demo"), isSeeded: true },
+    create: { name: "Intern Demo", email: "intern@dsn-hrms.com", password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false, isSeeded: true },
   })
   await prisma.employee.upsert({
     where:  { userId: internTestUser.id },
@@ -89,8 +89,8 @@ async function main() {
   for (const s of demoStaffs) {
     const u = await prisma.user.upsert({
       where:  { email: s.email },
-      update: { mustChangePassword: false, password: hash("dsn-demo") },
-      create: { name: s.name, email: s.email, password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false },
+      update: { mustChangePassword: false, password: hash("dsn-demo"), isSeeded: true },
+      create: { name: s.name, email: s.email, password: hash("dsn-demo"), role: "STAFF", mustChangePassword: false, isSeeded: true },
     })
     await prisma.employee.upsert({
       where:  { userId: u.id },
@@ -126,8 +126,8 @@ async function main() {
     const [fn, ...ln] = s.name.split(" ")
     const u = await prisma.user.upsert({
       where:  { email: s.email },
-      update: { role: "STAFF", mustChangePassword: false },
-      create: { name: s.name, email: s.email, password: defaultPwd, role: "STAFF", mustChangePassword: false },
+      update: { role: "STAFF", mustChangePassword: false, isSeeded: true },
+      create: { name: s.name, email: s.email, password: defaultPwd, role: "STAFF", mustChangePassword: false, isSeeded: true },
     })
     const existingEmp = await prisma.employee.findFirst({ where: { userId: u.id } })
     let emp: any
@@ -219,9 +219,9 @@ async function main() {
     const [fn, ...lnParts] = acc.name.split(" ")
     let u = await prisma.user.findUnique({ where: { email: acc.email } })
     if (!u) {
-      u = await prisma.user.create({ data: { name: acc.name, email: acc.email, password: leavePwd, role: "STAFF", mustChangePassword: false } })
+      u = await prisma.user.create({ data: { name: acc.name, email: acc.email, password: leavePwd, role: "STAFF", mustChangePassword: false, isSeeded: true } })
     } else {
-      u = await prisma.user.update({ where: { id: u.id }, data: { role: "STAFF", mustChangePassword: false } })
+      u = await prisma.user.update({ where: { id: u.id }, data: { role: "STAFF", mustChangePassword: false, isSeeded: true } })
     }
     let emp = await prisma.employee.findFirst({ where: { userId: u.id } })
     if (!emp) {

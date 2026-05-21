@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
-import { ChevronLeft, Check, Loader2, Search, X, ChevronDown, Users, UserCog } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { ChevronLeft, Check, Loader2, Search, X, ChevronDown, Users, UserCog, AlertCircle, Info } from "lucide-react"
 
 const STEPS = ["Basic Information", "Personal Details", "Documents", "Welcome Options"]
 const STATUSES = ["Full-time", "Part-time", "Contract"]
@@ -106,6 +106,9 @@ function Field({ label, required, hint, children }: { label: string; required?: 
 
 export default function AddNewMemberPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const fromUserId = searchParams?.get("fromUser") ?? null
+
   const [onboardMode, setOnboardMode] = useState<"employee" | "me" | null>(null)
   const [selectedCard, setSelectedCard] = useState<"employee" | "me" | null>(null)
   const [step, setStep] = useState(0)
@@ -114,15 +117,29 @@ export default function AddNewMemberPage() {
 
   const [workplaces, setWorkplaces] = useState<any[]>([])
   const [departments, setDepartments] = useState<any[]>([])
-  const [employees, setEmployees] = useState<any[]>([])
   const [jobTitles, setJobTitles] = useState<any[]>([])
   const [orgDocs, setOrgDocs] = useState<any[]>([])
+
+  // Hire flow — pre-fill from existing external admin user
+  const [fromUserLoading, setFromUserLoading] = useState(!!fromUserId)
+  const [fromUserErr, setFromUserErr] = useState("")
+
+  // Role-aware picker state
+  const [pls, setPls] = useState<any[]>([])                  // PLs for the chosen primary department (STAFF)
+  const [plsLoading, setPlsLoading] = useState(false)
+  const [managers, setManagers] = useState<any[]>([])        // Manager-table entries (PROJECT_LEAD picker)
+  const [secondaryDeptStatus, setSecondaryDeptStatus] = useState<Record<string, "has-pl" | "no-pl">>({})
 
   // Step 0: Basic Info + Employment Details
   const [form, setForm] = useState({
     firstName: "", middleName: "", lastName: "",
-    workplaceId: "", email: "", departmentId: "",
-    hireDate: "", managerId: "", phone: "", employeeNumber: "",
+    workplaceId: "", email: "",
+    primaryDepartmentId: "",                  // STAFF — primary dept
+    primaryProjectLeadId: "",                 // STAFF — primary PL (must be PL of primary dept)
+    secondaryDepartmentIds: [] as string[],   // STAFF — optional secondary depts
+    departmentIds: [] as string[],            // PROJECT_LEAD — multi-dept they lead
+    managerEmployeeId: "",                    // PROJECT_LEAD — their manager (must be Manager-table entry)
+    hireDate: "", phone: "", employeeNumber: "",
     jobTitle: "", employmentStatus: "Full-time", role: "STAFF",
   })
 
@@ -141,7 +158,13 @@ export default function AddNewMemberPage() {
   const [emailAvailable, setEmailAvailable] = useState<boolean | null>(null)
 
   // Invite mode state
-  const [inviteForm, setInviteForm] = useState({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF" })
+  const [inviteForm, setInviteForm] = useState({
+    firstName: "", lastName: "", email: "", hireDate: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF",
+    primaryDepartmentId: "", primaryProjectLeadId: "", secondaryDepartmentIds: [] as string[],
+    departmentIds: [] as string[], managerEmployeeId: "",
+  })
+  const [invitePls, setInvitePls] = useState<any[]>([])
+  const [inviteSecDeptStatus, setInviteSecDeptStatus] = useState<Record<string, "has-pl" | "no-pl">>({})
   const [inviteSuccess, setInviteSuccess] = useState(false)
   const [inviteSaving, setInviteSaving] = useState(false)
   const [inviteErr, setInviteErr] = useState("")
@@ -152,16 +175,107 @@ export default function AddNewMemberPage() {
     Promise.all([
       fetch("/api/company-details/workplaces").then(r => r.json()),
       fetch("/api/settings").then(r => r.json()),
-      fetch("/api/employees?status=ACTIVE").then(r => r.json()),
       fetch("/api/job-titles").then(r => r.json()),
-    ]).then(([w, s, e, jt]) => {
+      fetch("/api/people/managers").then(r => r.json()),
+    ]).then(([w, s, jt, m]) => {
       setWorkplaces(w.workplaces ?? [])
       setDepartments(s.departments ?? [])
-      setEmployees(e.employees ?? [])
       setJobTitles(jt.jobTitles ?? [])
+      setManagers(m.managers ?? [])
     })
     fetch("/api/org-documents").then(r => r.json()).then(d => setOrgDocs(d.documents ?? [])).catch(() => {})
   }, [])
+
+  // Hire flow: when ?fromUser= is present, lock to "Me" mode and pre-fill name + email.
+  useEffect(() => {
+    if (!fromUserId) return
+    setOnboardMode("me")
+    fetch(`/api/settings/users`)
+      .then(r => r.json())
+      .then(d => {
+        const u = (d.users ?? []).find((x: any) => x.id === fromUserId)
+        if (!u) { setFromUserErr("User not found"); setFromUserLoading(false); return }
+        const parts = (u.name ?? "").split(" ")
+        setForm(f => ({
+          ...f,
+          firstName: parts[0] ?? "",
+          lastName: parts.slice(1).join(" "),
+          email: u.email ?? "",
+        }))
+        setFromUserLoading(false)
+      })
+      .catch(() => { setFromUserErr("Failed to load user"); setFromUserLoading(false) })
+  }, [fromUserId])
+
+  // Fetch PLs for the chosen primary department (STAFF flow).
+  useEffect(() => {
+    if (form.role !== "STAFF" || !form.primaryDepartmentId) {
+      setPls([])
+      return
+    }
+    setPlsLoading(true)
+    fetch(`/api/people/managers/pls-for-department?departmentId=${form.primaryDepartmentId}`)
+      .then(r => r.json())
+      .then(d => { setPls(d.pls ?? []); setPlsLoading(false) })
+      .catch(() => { setPls([]); setPlsLoading(false) })
+    // Clear the previously-chosen PL — they may not belong to this new dept
+    setForm(f => ({ ...f, primaryProjectLeadId: "" }))
+  }, [form.role, form.primaryDepartmentId])
+
+  // Check each secondary dept for PL coverage so we can block submit if any is empty.
+  useEffect(() => {
+    if (form.role !== "STAFF" || form.secondaryDepartmentIds.length === 0) {
+      setSecondaryDeptStatus({})
+      return
+    }
+    const todo = form.secondaryDepartmentIds
+    Promise.all(
+      todo.map(id => fetch(`/api/people/managers/pls-for-department?departmentId=${id}`).then(r => r.json()).then(d => [id, (d.pls ?? []).length > 0 ? "has-pl" : "no-pl"] as const))
+    ).then(results => {
+      const next: Record<string, "has-pl" | "no-pl"> = {}
+      for (const [id, status] of results) next[id] = status
+      setSecondaryDeptStatus(next)
+    }).catch(() => {})
+  }, [form.role, form.secondaryDepartmentIds])
+
+  // When role flips, reset role-specific fields so we don't carry stale state.
+  useEffect(() => {
+    setForm(f => ({
+      ...f,
+      primaryDepartmentId: "",
+      primaryProjectLeadId: "",
+      secondaryDepartmentIds: [],
+      departmentIds: [],
+      managerEmployeeId: "",
+    }))
+    setSecondaryDeptStatus({})
+  }, [form.role])
+
+  // Invite-mode equivalents — same logic for the simpler invite form.
+  useEffect(() => {
+    if (inviteForm.role !== "STAFF" || !inviteForm.primaryDepartmentId) { setInvitePls([]); return }
+    fetch(`/api/people/managers/pls-for-department?departmentId=${inviteForm.primaryDepartmentId}`)
+      .then(r => r.json())
+      .then(d => setInvitePls(d.pls ?? []))
+      .catch(() => setInvitePls([]))
+    setInviteForm(f => ({ ...f, primaryProjectLeadId: "" }))
+  }, [inviteForm.role, inviteForm.primaryDepartmentId])
+
+  useEffect(() => {
+    if (inviteForm.role !== "STAFF" || inviteForm.secondaryDepartmentIds.length === 0) { setInviteSecDeptStatus({}); return }
+    Promise.all(
+      inviteForm.secondaryDepartmentIds.map(id => fetch(`/api/people/managers/pls-for-department?departmentId=${id}`).then(r => r.json()).then(d => [id, (d.pls ?? []).length > 0 ? "has-pl" : "no-pl"] as const))
+    ).then(results => {
+      const next: Record<string, "has-pl" | "no-pl"> = {}
+      for (const [id, status] of results) next[id] = status
+      setInviteSecDeptStatus(next)
+    }).catch(() => {})
+  }, [inviteForm.role, inviteForm.secondaryDepartmentIds])
+
+  useEffect(() => {
+    setInviteForm(f => ({ ...f, primaryDepartmentId: "", primaryProjectLeadId: "", secondaryDepartmentIds: [], departmentIds: [], managerEmployeeId: "" }))
+    setInviteSecDeptStatus({})
+  }, [inviteForm.role])
 
   const checkEmail = async (email: string) => {
     if (!email || !email.includes("@")) { setEmailAvailable(null); return }
@@ -204,6 +318,20 @@ export default function AddNewMemberPage() {
     if (!form.email.trim()) { setErr("Work email is required"); return false }
     if (!form.hireDate) { setErr("Hire date is required"); return false }
     if (!form.jobTitle) { setErr("Job title is required"); return false }
+    if (form.role === "STAFF") {
+      if (!form.primaryDepartmentId) { setErr("Primary Department is required"); return false }
+      if (pls.length === 0) { setErr("Primary department has no Project Lead. Assign one before adding staff."); return false }
+      if (!form.primaryProjectLeadId) { setErr("Primary Project Lead is required"); return false }
+      const blockedSec = form.secondaryDepartmentIds.find(id => secondaryDeptStatus[id] === "no-pl")
+      if (blockedSec) {
+        const dept = departments.find(d => d.id === blockedSec)
+        setErr(`${dept?.name ?? "Department"} does not have a Project Lead yet`)
+        return false
+      }
+    } else if (form.role === "PROJECT_LEAD") {
+      if (form.departmentIds.length === 0) { setErr("At least one department to lead is required"); return false }
+      if (!form.managerEmployeeId) { setErr("Manager is required"); return false }
+    }
     return true
   }
 
@@ -229,6 +357,7 @@ export default function AddNewMemberPage() {
           dateOfBirth: personal.birthday || undefined,
           employmentType: statusMap[form.employmentStatus] ?? "FULL_TIME",
           selectedDocuments: selectedDocs,
+          existingUserId: fromUserId || undefined,
         }),
       })
       const d = await r.json()
@@ -243,7 +372,8 @@ export default function AddNewMemberPage() {
   const firstName = form.firstName || "the employee"
 
   // ── Choice screen ──────────────────────────────────────────────────────────
-  if (onboardMode === null) {
+  // Hire flow (?fromUser=) locks to "Me" mode — skip the picker entirely.
+  if (onboardMode === null && !fromUserId) {
     return (
       <div style={{ minHeight: "100vh", background: "var(--background)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 32px", borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
@@ -289,10 +419,23 @@ export default function AddNewMemberPage() {
 
   if (onboardMode === "employee" && !inviteSuccess) {
     const submitInvite = async () => {
-      if (!inviteForm.firstName.trim() || !inviteForm.lastName.trim() || !inviteForm.email.trim() || !inviteForm.hireDate || !inviteForm.departmentId || !inviteForm.jobTitle || !inviteForm.gender || !inviteForm.dateOfBirth) {
-        setInviteErr("All fields are required"); return
+      if (!inviteForm.firstName.trim() || !inviteForm.lastName.trim() || !inviteForm.email.trim() || !inviteForm.hireDate || !inviteForm.jobTitle || !inviteForm.gender || !inviteForm.dateOfBirth) {
+        setInviteErr("All required fields must be filled"); return
       }
       if (inviteEmailAvailable === false) { setInviteErr("This email is already in use"); return }
+      if (inviteForm.role === "STAFF") {
+        if (!inviteForm.primaryDepartmentId) { setInviteErr("Primary Department is required"); return }
+        if (invitePls.length === 0) { setInviteErr("Primary department has no Project Lead. Assign one before adding staff."); return }
+        if (!inviteForm.primaryProjectLeadId) { setInviteErr("Primary Project Lead is required"); return }
+        const blockedSec = inviteForm.secondaryDepartmentIds.find(id => inviteSecDeptStatus[id] === "no-pl")
+        if (blockedSec) {
+          const dept = departments.find(d => d.id === blockedSec)
+          setInviteErr(`${dept?.name ?? "Department"} does not have a Project Lead yet`); return
+        }
+      } else if (inviteForm.role === "PROJECT_LEAD") {
+        if (inviteForm.departmentIds.length === 0) { setInviteErr("At least one department to lead is required"); return }
+        if (!inviteForm.managerEmployeeId) { setInviteErr("Manager is required"); return }
+      }
       setInviteSaving(true); setInviteErr("")
       const genderMap: Record<string, string> = { Male: "MALE", Female: "FEMALE" }
       const r = await fetch("/api/employees", {
@@ -340,10 +483,12 @@ export default function AddNewMemberPage() {
                 {inviteEmailAvailable === true && !inviteEmailChecking && <div style={{ fontSize: 11, color: "#16a34a", marginTop: 3 }}>Email is available</div>}
               </Field>
               <Field label="Hire Date" required><input type="date" value={inviteForm.hireDate} onChange={setIF("hireDate")} style={fi} /></Field>
-              <SearchableSelect label="Department" value={inviteForm.departmentId} required
-                onChange={v => setInviteForm(f => ({ ...f, departmentId: v }))}
-                options={departments.map(d => ({ value: d.id, label: d.name }))}
-                placeholder="Select department…" />
+              <Field label="Role" required>
+                <select value={inviteForm.role} onChange={setIF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                  <option value="STAFF">Staff</option>
+                  <option value="PROJECT_LEAD">Project Lead</option>
+                </select>
+              </Field>
               <SearchableSelect label="Job Title" value={inviteForm.jobTitle} required
                 onChange={v => setInviteForm(f => ({ ...f, jobTitle: v }))}
                 options={jobTitles.map(jt => ({ value: jt.name, label: jt.name }))}
@@ -357,12 +502,77 @@ export default function AddNewMemberPage() {
               <Field label="Date of Birth" required>
                 <input type="date" value={inviteForm.dateOfBirth} onChange={setIF("dateOfBirth")} max={maxDob} style={fi} />
               </Field>
-              <Field label="Role" required>
-                <select value={inviteForm.role} onChange={setIF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
-                  <option value="STAFF">Staff</option>
-                  <option value="PROJECT_LEAD">Project Lead</option>
-                </select>
-              </Field>
+            </div>
+
+            {/* Role-aware section */}
+            <div style={{ padding: "0 32px 24px", display: "grid", gap: 16 }}>
+              {inviteForm.role === "STAFF" ? (
+                <>
+                  <SearchableSelect label="Primary Department" value={inviteForm.primaryDepartmentId} required
+                    onChange={v => setInviteForm(f => ({ ...f, primaryDepartmentId: v }))}
+                    options={departments.map(d => ({ value: d.id, label: d.name }))}
+                    placeholder="Select primary department…" />
+                  {inviteForm.primaryDepartmentId && (
+                    <div>
+                      <SearchableSelect label="Primary Project Lead" value={inviteForm.primaryProjectLeadId} required
+                        onChange={v => setInviteForm(f => ({ ...f, primaryProjectLeadId: v }))}
+                        options={invitePls.map((p: any) => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.jobTitle ? ` — ${p.jobTitle}` : ""}` }))}
+                        placeholder={invitePls.length === 0 ? "No Project Lead in this department" : "Select Project Lead…"} />
+                      {invitePls.length === 0 && (
+                        <div style={{ marginTop: 6, padding: "8px 12px", background: "#FEE2E2", borderRadius: 6, fontSize: 12, color: "#DC2626", display: "flex", alignItems: "center", gap: 6 }}>
+                          <AlertCircle size={13} /> This department has no Project Lead yet.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Secondary Departments <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 400, marginLeft: 6 }}>(optional)</span></label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {departments.filter(d => d.id !== inviteForm.primaryDepartmentId).map(d => {
+                        const selected = inviteForm.secondaryDepartmentIds.includes(d.id)
+                        const noPL = inviteSecDeptStatus[d.id] === "no-pl"
+                        return (
+                          <button key={d.id} type="button"
+                            onClick={() => setInviteForm(f => ({ ...f, secondaryDepartmentIds: selected ? f.secondaryDepartmentIds.filter(x => x !== d.id) : [...f.secondaryDepartmentIds, d.id] }))}
+                            style={{ padding: "6px 12px", fontSize: 12, fontWeight: 600, borderRadius: 999, cursor: "pointer", background: selected ? "var(--primary)" : "var(--muted)", color: selected ? "white" : "var(--foreground)", border: selected && noPL ? "1.5px solid #DC2626" : "1px solid var(--border)" }}>
+                            {d.name}{selected && noPL && " ⚠"}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {inviteForm.secondaryDepartmentIds.filter(id => inviteSecDeptStatus[id] === "no-pl").map(id => {
+                      const dept = departments.find(d => d.id === id)
+                      return (
+                        <div key={id} style={{ marginTop: 6, padding: "8px 12px", background: "#FEE2E2", borderRadius: 6, fontSize: 12, color: "#DC2626", display: "flex", alignItems: "center", gap: 6 }}>
+                          <AlertCircle size={13} /> {dept?.name ?? "Department"} does not have a Project Lead yet
+                        </div>
+                      )
+                    })}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Departments to Lead <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {departments.map(d => {
+                        const selected = inviteForm.departmentIds.includes(d.id)
+                        return (
+                          <button key={d.id} type="button"
+                            onClick={() => setInviteForm(f => ({ ...f, departmentIds: selected ? f.departmentIds.filter(x => x !== d.id) : [...f.departmentIds, d.id] }))}
+                            style={{ padding: "6px 12px", fontSize: 12, fontWeight: 600, borderRadius: 999, cursor: "pointer", background: selected ? "var(--primary)" : "var(--muted)", color: selected ? "white" : "var(--foreground)", border: "1px solid var(--border)" }}>
+                            {d.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <SearchableSelect label="Manager" value={inviteForm.managerEmployeeId} required
+                    onChange={v => setInviteForm(f => ({ ...f, managerEmployeeId: v }))}
+                    options={managers.map((m: any) => ({ value: m.employee.id, label: `${m.employee.firstName} ${m.employee.lastName}${m.employee.jobTitle ? ` — ${m.employee.jobTitle}` : ""}` }))}
+                    placeholder={managers.length === 0 ? "No managers seeded yet" : "Select Manager…"} />
+                </>
+              )}
             </div>
             {inviteErr && <div style={{ margin: "0 32px 16px", padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{inviteErr}</div>}
             <div style={{ padding: "16px 32px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 12 }}>
@@ -391,7 +601,7 @@ export default function AddNewMemberPage() {
             An invitation email has been sent to <strong>{inviteForm.email}</strong>. They&apos;ll receive a link to complete their profile.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <button onClick={() => { setInviteForm({ firstName: "", lastName: "", email: "", hireDate: "", departmentId: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF" }); setInviteSuccess(false) }}
+            <button onClick={() => { setInviteForm({ firstName: "", lastName: "", email: "", hireDate: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF", primaryDepartmentId: "", primaryProjectLeadId: "", secondaryDepartmentIds: [], departmentIds: [], managerEmployeeId: "" }); setInviteSuccess(false) }}
               style={{ padding: "10px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
               Invite Another
             </button>
@@ -417,6 +627,17 @@ export default function AddNewMemberPage() {
       </div>
 
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "40px 32px" }}>
+        {fromUserId && !fromUserLoading && !fromUserErr && (
+          <div style={{ marginBottom: 20, padding: "14px 18px", background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 10, display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <Info size={16} style={{ color: "#2563EB", flexShrink: 0, marginTop: 2 }} />
+            <div style={{ fontSize: 13, color: "#1E40AF", lineHeight: 1.6 }}>
+              <strong>Hiring an existing admin:</strong> This person already has an admin account. You are adding them as an employee. Their login credentials and admin access stay unchanged.
+            </div>
+          </div>
+        )}
+        {fromUserErr && (
+          <div style={{ marginBottom: 20, padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{fromUserErr}</div>
+        )}
         <Stepper current={step} />
 
         {/* ── Step 0: Basic Information ────────────────────────────────────── */}
@@ -427,13 +648,13 @@ export default function AddNewMemberPage() {
               <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>Enter the employee's personal and employment information.</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                 <Field label="First Name" required>
-                  <input value={form.firstName} onChange={setF("firstName")} style={fi} placeholder="e.g. Emmanuel" />
+                  <input value={form.firstName} onChange={setF("firstName")} readOnly={!!fromUserId} style={{ ...fi, ...(fromUserId && { background: "var(--muted)", cursor: "not-allowed" }) }} placeholder="e.g. Emmanuel" />
                 </Field>
                 <Field label="Middle Name">
                   <input value={form.middleName} onChange={setF("middleName")} style={fi} placeholder="Optional" />
                 </Field>
                 <Field label="Last Name" required>
-                  <input value={form.lastName} onChange={setF("lastName")} style={fi} placeholder="e.g. Okafor" />
+                  <input value={form.lastName} onChange={setF("lastName")} readOnly={!!fromUserId} style={{ ...fi, ...(fromUserId && { background: "var(--muted)", cursor: "not-allowed" }) }} placeholder="e.g. Okafor" />
                 </Field>
                 <SearchableSelect label="Work Location" value={form.workplaceId} required
                   onChange={v => setForm(f => ({ ...f, workplaceId: v }))}
@@ -441,23 +662,15 @@ export default function AddNewMemberPage() {
                   placeholder="Select workplace…" />
                 <Field label="Email" required>
                   <div style={{ position: "relative" }}>
-                    <input value={form.email} onChange={setF("email")} style={{ ...fi, borderColor: emailAvailable === false ? "#ef4444" : emailAvailable === true ? "var(--primary)" : "var(--border)", paddingRight: 36 }} placeholder="Enter Email" />
+                    <input value={form.email} onChange={setF("email")} readOnly={!!fromUserId} style={{ ...fi, borderColor: emailAvailable === false ? "#ef4444" : emailAvailable === true ? "var(--primary)" : "var(--border)", paddingRight: 36, ...(fromUserId && { background: "var(--muted)", cursor: "not-allowed" }) }} placeholder="Enter Email" />
                     {emailChecking && <Loader2 size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", animation: "spin .8s linear infinite", color: "var(--muted-foreground)" }} />}
                     {emailAvailable === true && !emailChecking && <Check size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#16a34a" }} />}
                   </div>
-                  {emailAvailable === true && !emailChecking && <div style={{ fontSize: 11, color: "#16a34a", marginTop: 3 }}>Email is available</div>}
+                  {emailAvailable === true && !emailChecking && !fromUserId && <div style={{ fontSize: 11, color: "#16a34a", marginTop: 3 }}>Email is available</div>}
                 </Field>
-                <SearchableSelect label="Add to Department" value={form.departmentId} required
-                  onChange={v => setForm(f => ({ ...f, departmentId: v }))}
-                  options={departments.map(d => ({ value: d.id, label: d.name }))}
-                  placeholder="Select department…" />
                 <Field label="Hire date" required>
                   <input type="date" value={form.hireDate} onChange={setF("hireDate")} style={fi} />
                 </Field>
-                <SearchableSelect label="Manager" value={form.managerId}
-                  onChange={v => setForm(f => ({ ...f, managerId: v }))}
-                  options={[{ value: "", label: "(None)" }, ...employees.map(e => ({ value: e.id, label: `${e.firstName} ${e.lastName}` }))]}
-                  placeholder="Choose Manager…" />
                 <Field label="Phone Number">
                   <input value={form.phone} onChange={setF("phone")} style={fi} placeholder="233 xxxxxxxx" />
                 </Field>
@@ -467,10 +680,16 @@ export default function AddNewMemberPage() {
               </div>
             </div>
 
-            <div style={{ padding: "28px 32px" }}>
+            <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
               <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>1.2 Employment Details</h2>
-              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>Set the employee's job title and employment status.</p>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>Set the employee's role first — Department, Project Lead, and Manager fields below adapt to the chosen role.</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                <Field label="Role" required>
+                  <select value={form.role} onChange={setF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                    <option value="STAFF">Staff</option>
+                    <option value="PROJECT_LEAD">Project Lead</option>
+                  </select>
+                </Field>
                 <SearchableSelect label="Job Title" value={form.jobTitle} required
                   onChange={v => setForm(f => ({ ...f, jobTitle: v }))}
                   options={jobTitles.map(jt => ({ value: jt.name, label: jt.name }))}
@@ -480,13 +699,107 @@ export default function AddNewMemberPage() {
                     {STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                 </Field>
-                <Field label="Role" required>
-                  <select value={form.role} onChange={setF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
-                    <option value="STAFF">Staff</option>
-                    <option value="PROJECT_LEAD">Project Lead</option>
-                  </select>
-                </Field>
               </div>
+            </div>
+
+            {/* ── Role-aware department / PL / manager section ─────────────────── */}
+            <div style={{ padding: "28px 32px" }}>
+              <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>
+                1.3 {form.role === "STAFF" ? "Department & Project Lead" : "Departments to Lead & Manager"}
+              </h2>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>
+                {form.role === "STAFF"
+                  ? "Pick the primary department first. The Project Lead dropdown loads PLs of that department. Secondary departments are optional — each must have a Project Lead."
+                  : "Pick the departments this Project Lead will lead, then choose the Manager they report to."}
+              </p>
+
+              {form.role === "STAFF" ? (
+                <div style={{ display: "grid", gap: 20 }}>
+                  <SearchableSelect label="Primary Department" value={form.primaryDepartmentId} required
+                    onChange={v => setForm(f => ({ ...f, primaryDepartmentId: v }))}
+                    options={departments.map(d => ({ value: d.id, label: d.name }))}
+                    placeholder="Select primary department…" />
+
+                  {form.primaryDepartmentId && (
+                    <div>
+                      <SearchableSelect label="Primary Project Lead" value={form.primaryProjectLeadId} required
+                        onChange={v => setForm(f => ({ ...f, primaryProjectLeadId: v }))}
+                        options={pls.map(p => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.jobTitle ? ` — ${p.jobTitle}` : ""}` }))}
+                        placeholder={plsLoading ? "Loading PLs…" : pls.length === 0 ? "No Project Lead in this department" : "Select Project Lead…"} />
+                      {!plsLoading && pls.length === 0 && (
+                        <div style={{ marginTop: 6, padding: "8px 12px", background: "#FEE2E2", borderRadius: 6, fontSize: 12, color: "#DC2626", display: "flex", alignItems: "center", gap: 6 }}>
+                          <AlertCircle size={13} /> This department has no Project Lead yet. Assign one before adding staff.
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Secondary Departments <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 400, marginLeft: 6 }}>(optional)</span></label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {departments.filter(d => d.id !== form.primaryDepartmentId).map(d => {
+                        const selected = form.secondaryDepartmentIds.includes(d.id)
+                        const noPL = secondaryDeptStatus[d.id] === "no-pl"
+                        return (
+                          <button key={d.id} type="button"
+                            onClick={() => setForm(f => ({
+                              ...f,
+                              secondaryDepartmentIds: selected ? f.secondaryDepartmentIds.filter(x => x !== d.id) : [...f.secondaryDepartmentIds, d.id],
+                            }))}
+                            style={{
+                              padding: "6px 12px", fontSize: 12, fontWeight: 600,
+                              borderRadius: 999, cursor: "pointer",
+                              background: selected ? "var(--primary)" : "var(--muted)",
+                              color: selected ? "white" : "var(--foreground)",
+                              border: selected && noPL ? "1.5px solid #DC2626" : "1px solid var(--border)",
+                            }}>
+                            {d.name}{selected && noPL && " ⚠"}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {form.secondaryDepartmentIds.filter(id => secondaryDeptStatus[id] === "no-pl").map(id => {
+                      const dept = departments.find(d => d.id === id)
+                      return (
+                        <div key={id} style={{ marginTop: 6, padding: "8px 12px", background: "#FEE2E2", borderRadius: 6, fontSize: 12, color: "#DC2626", display: "flex", alignItems: "center", gap: 6 }}>
+                          <AlertCircle size={13} /> {dept?.name ?? "Department"} does not have a Project Lead yet
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 20 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Departments to Lead <span style={{ color: "#ef4444", marginLeft: 2 }}>*</span></label>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {departments.map(d => {
+                        const selected = form.departmentIds.includes(d.id)
+                        return (
+                          <button key={d.id} type="button"
+                            onClick={() => setForm(f => ({
+                              ...f,
+                              departmentIds: selected ? f.departmentIds.filter(x => x !== d.id) : [...f.departmentIds, d.id],
+                            }))}
+                            style={{
+                              padding: "6px 12px", fontSize: 12, fontWeight: 600,
+                              borderRadius: 999, cursor: "pointer",
+                              background: selected ? "var(--primary)" : "var(--muted)",
+                              color: selected ? "white" : "var(--foreground)",
+                              border: "1px solid var(--border)",
+                            }}>
+                            {d.name}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <SearchableSelect label="Manager" value={form.managerEmployeeId} required
+                    onChange={v => setForm(f => ({ ...f, managerEmployeeId: v }))}
+                    options={managers.map((m: any) => ({ value: m.employee.id, label: `${m.employee.firstName} ${m.employee.lastName}${m.employee.jobTitle ? ` — ${m.employee.jobTitle}` : ""}` }))}
+                    placeholder={managers.length === 0 ? "No managers seeded yet" : "Select Manager…"} />
+                </div>
+              )}
             </div>
 
             {err && <div style={{ margin: "0 32px 16px", padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{err}</div>}

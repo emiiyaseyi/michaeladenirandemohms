@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = caps(user.role).canViewAllEmployees
+  const isAdmin = hasCap(user, "canViewAllEmployees")
 
   const all = req.nextUrl.searchParams.get("all") === "true"
   // Non-admins only see docs that are active AND have canView=true.
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  if (!caps(user.role).canViewAllEmployees) return forbidden("Only admins can upload documents")
+  if (!hasCap(user, "canViewAllEmployees")) return forbidden("Only admins can upload documents")
 
   const formData = await req.formData()
   const file = formData.get("file") as File | null

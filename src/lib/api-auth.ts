@@ -48,6 +48,18 @@ export function requirePermission(user: SessionUser, key: string): NextResponse 
   return forbidden(`Missing permission: ${key}`)
 }
 
+// Returns true if the user has the capability via their SYSTEM role defaults
+// OR via a granted admin-role permission. Use this instead of `caps(user.role).canX`
+// in permission gates so elevated STAFF/PL who hold the grant via UserAdminRole
+// also pass the check. (Without this, gates that only consult role caps wrongly
+// block elevated users — the same bug class as the R6 /api/analytics fix.)
+export function hasCap(user: SessionUser, key: string): boolean {
+  const roleCaps = getCapabilities(user.role) as unknown as Record<string, boolean>
+  if (roleCaps[key] === true) return true
+  if (user.permissions[key] === true) return true
+  return false
+}
+
 export function caps(role: SystemRole) {
   return getCapabilities(role)
 }

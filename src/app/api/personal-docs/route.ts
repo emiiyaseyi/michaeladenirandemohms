@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
 import { prisma } from "@/lib/prisma"
-import { sendEmail } from "@/lib/email"
-import { requireAuth, caps } from "@/lib/api-auth"
+import { requireAuth, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 const VALID_TYPES = ["SSCE", "FIRST_DEGREE", "NYSC", "PROFESSIONAL_CERT", "UTILITY_BILL", "NIN_SLIP", "OTHER"]
@@ -12,7 +11,7 @@ export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = caps(user.role).canViewAllEmployees
+  const isAdmin = hasCap(user, "canViewAllEmployees")
   const empIdParam = req.nextUrl.searchParams.get("employeeId")
   const statusParam = req.nextUrl.searchParams.get("status")
 
@@ -123,9 +122,8 @@ export async function POST(req: NextRequest) {
         link: `/employees/personal-docs`,
       })),
     })
-    for (const a of admins) {
-      sendEmail({ eventKey: "personal_doc_uploaded", toUserId: a.id, variables: { employeeName: `${emp?.firstName ?? ""} ${emp?.lastName ?? ""}`, documentType: typeLabel[type] ?? type } }).catch(() => {})
-    }
+    // personal_doc_uploaded email dropped (R6) — admins see new uploads in their review
+    // queue. In-app notification is sufficient.
   }
 
   return NextResponse.json({ doc }, { status: 201 })

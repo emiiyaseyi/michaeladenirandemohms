@@ -5,12 +5,9 @@ import { ClipboardList, Save, Loader2 } from "lucide-react"
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
 function hourLabel(h: number) {
-  if (h === 0 || h === 24) return "12:00 AM"
-  if (h === 12) return "12:00 PM"
-  return h < 12 ? `${h}:00 AM` : `${h - 12}:00 PM`
+  const n = h === 24 ? 0 : h
+  return `${String(n).padStart(2, "0")}:00`
 }
-
-const HOUR_OPTIONS = Array.from({ length: 25 }, (_, i) => ({ value: i, label: `${hourLabel(i)} WAT` }))
 
 const DEFAULT_CRITERIA = [
   { score: 3, description: "Present all 3 required days with NO lateness" },
@@ -79,24 +76,20 @@ export default function InternReportSettingsPage() {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  const row = (label: string, key: string, options: { value: number; label: string }[]) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+  const lockedRow = (label: string, sublabel: string, value: string) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16 }}>
       <div>
         <div style={{ fontSize: 14, fontWeight: 600 }}>{label}</div>
+        <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{sublabel}</div>
       </div>
-      <select
-        value={(settings as any)[key]}
-        onChange={e => set(key, Number(e.target.value))}
-        style={{ padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", minWidth: 180 }}
-      >
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
+      {/* Fixed value rendered in muted gray (no "Locked" pill — the gray tone already signals read-only) */}
+      <span style={{ fontSize: 14, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{value}</span>
     </div>
   )
 
   return (
-    <div style={{ maxWidth: 700, padding: "32px 0" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <ClipboardList size={20} style={{ color: "var(--primary)" }} />
         <div>
           <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>Intern Report Settings</h2>
@@ -114,10 +107,10 @@ export default function InternReportSettingsPage() {
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: "8px 24px 20px" }}>
           {/* Locked policy: submission day is Friday; window closes Sunday 11:59 PM WAT. Only the on-Friday hours are configurable. */}
           <div style={{ padding: "12px 14px", background: "#F3F4F6", borderRadius: 8, fontSize: 12, color: "var(--muted-foreground)", marginBottom: 12, lineHeight: 1.6 }}>
-            <strong style={{ color: "var(--foreground)" }}>Fixed policy:</strong> submissions open on <strong>Friday</strong> and the full window stays open through <strong>Sunday 11:59 PM WAT</strong>. Saturday submissions incur the Saturday deduction; Sunday submissions incur the Sunday deduction; non-submission by Monday becomes a MISSING record. Only the Friday hours and the deduction amounts below are admin-configurable.
+            <strong style={{ color: "var(--foreground)" }}>Fixed policy:</strong> submissions open on <strong>Friday</strong> and the full window stays open through <strong>Sunday 11:59 PM WAT</strong>. Saturday submissions incur the Saturday deduction; Sunday submissions incur the Sunday deduction; non-submission by Monday becomes a MISSING record. Only the deduction amounts and warning threshold below are admin-configurable.
           </div>
-          {row("Window Opens (Friday start time)", "openHour", HOUR_OPTIONS.slice(0, 24))}
-          {row("Late Threshold (Friday — submissions after this time are LATE)", "lateHour", HOUR_OPTIONS.slice(0, 24))}
+          {lockedRow("Window Opens (Friday start time)", "Fixed — cannot be changed", "16:00 WAT")}
+          {lockedRow("Late Threshold (Friday — submissions after this time are LATE)", "Fixed — cannot be changed", "20:00 WAT")}
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
             <div>

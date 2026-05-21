@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 
 const KEYS = ["company_tax", "company_pension", "company_nhf", "company_nsitf", "company_itf"] as const
 type ComplianceKey = typeof KEYS[number]
@@ -29,7 +29,7 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  if (!hasCap(user, "canManageSettings")) return forbidden()
 
   const body = await req.json()
   const { type, ...data } = body

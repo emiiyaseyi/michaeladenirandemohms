@@ -13,7 +13,7 @@ const DEMOS: [string, string, string, string][] = [
   ["L2", "Project Lead 2","lead2@dsn-hrms.com",                   "dsn-demo"],
   ["S1", "Staff 1",       "staff3@dsn-hrms.com",                  "dsn-demo"],
   ["S2", "Staff 2",       "staff4@dsn-hrms.com",                  "dsn-demo"],
-  ["IN", "Intern",        "intern@dsn-hrms.com",                   "dsn-demo"],
+  ["IN", "Intern",        "intern1@datasciencenigeria.ai",        "dsn-demo"],
 ]
 
 

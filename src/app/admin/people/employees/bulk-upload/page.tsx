@@ -18,6 +18,7 @@ export default function BulkUploadEmployeesPage() {
   const [file, setFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [role, setRole] = useState<"STAFF" | "PROJECT_LEAD">("STAFF")
   const [toast, setToast] = useState<{ text: string; ok: boolean } | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -42,8 +43,8 @@ export default function BulkUploadEmployeesPage() {
 
   const handleDownload = () => {
     const a = document.createElement("a")
-    a.href = "/api/employees/csv-upload"
-    a.download = "employee_upload_template.csv"
+    a.href = `/api/employees/csv-upload?role=${role}`
+    a.download = role === "STAFF" ? "staff_upload_template.csv" : "project_lead_upload_template.csv"
     a.click()
   }
 
@@ -53,6 +54,7 @@ export default function BulkUploadEmployeesPage() {
     try {
       const fd = new FormData()
       fd.append("file", file)
+      fd.append("role", role)
       const res = await fetch("/api/employees/csv-upload", { method: "POST", body: fd })
       const data = await res.json()
       if (!res.ok) { showToast(data.error ?? "Upload failed", false); return }
@@ -65,12 +67,20 @@ export default function BulkUploadEmployeesPage() {
     }
   }
 
-  const readyItems = [
-    "First name, last name, work email",
-    "Job title, department name",
-    "Hire date + date of birth (YYYY-MM-DD)",
-    "Gender (MALE or FEMALE)",
-  ]
+  const readyItems = role === "STAFF"
+    ? [
+        "First name, last name, work email",
+        "Job title, hire date, date of birth (YYYY-MM-DD), gender (MALE/FEMALE)",
+        "Primary department name (must exist and have a Project Lead)",
+        "Primary Project Lead's email (must be a PL of the primary department)",
+        "Secondary department names (optional, pipe-separated, each must have a PL)",
+      ]
+    : [
+        "First name, last name, work email",
+        "Job title, hire date, date of birth (YYYY-MM-DD), gender (MALE/FEMALE)",
+        "Departments to lead (pipe-separated, e.g. Finance|EqualyzAI)",
+        "Manager's email (must be a seeded/added Manager)",
+      ]
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--background)" }}>
@@ -90,6 +100,29 @@ export default function BulkUploadEmployeesPage() {
             <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
               Need Help? <span style={{ color: "var(--primary)", cursor: "pointer", fontWeight: 600 }}>Get started: Bulk upload employees</span>
             </p>
+          </div>
+
+          <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
+            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 8 }}>Which role are you adding?</h3>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 16 }}>
+              The template and validation rules differ between Staff and Project Lead. Choose first, then download the matching template.
+            </p>
+            <div style={{ display: "flex", gap: 10 }}>
+              {([
+                { val: "STAFF" as const, label: "Staff", desc: "Reports to a Project Lead" },
+                { val: "PROJECT_LEAD" as const, label: "Project Lead", desc: "Leads departments, reports to a Manager" },
+              ]).map(opt => (
+                <button key={opt.val} type="button" onClick={() => { setRole(opt.val); setFile(null) }}
+                  style={{
+                    flex: 1, padding: "12px 14px", borderRadius: 10, cursor: "pointer", textAlign: "left",
+                    background: role === opt.val ? "var(--muted)" : "var(--background)",
+                    border: `2px solid ${role === opt.val ? "var(--primary)" : "var(--border)"}`,
+                  }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{opt.label}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>

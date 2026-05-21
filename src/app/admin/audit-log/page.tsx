@@ -143,7 +143,7 @@ export default function AuditLogPage() {
       styles: { fontSize: 7, cellPadding: 1.5 },
       headStyles: { fillColor: [11, 92, 46], textColor: 255, fontSize: 8 },
       columnStyles: { 0: { cellWidth: 28 }, 6: { cellWidth: 42 } },
-      didDrawPage: (data: any) => {
+      didDrawPage: () => {
         doc.setFontSize(8); doc.setTextColor(150)
         doc.text(`Page ${doc.getNumberOfPages()}`, doc.internal.pageSize.width - 20, doc.internal.pageSize.height - 8)
       },

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps, forbidden } from "@/lib/api-auth"
+import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 export async function GET(_req: NextRequest) {
@@ -20,7 +20,7 @@ export async function GET(_req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!caps(user.role).canManageSettings) return forbidden()
+  if (!hasCap(user, "canManageSettings")) return forbidden()
 
   const body = await req.json()
   const { title, category = "OTHER", description, fileUrl, fileSize, mimeType, canView = true, canDownload = false, canCopy = true, requiresAck = false } = body

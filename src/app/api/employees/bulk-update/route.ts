@@ -5,7 +5,8 @@ import { logAudit } from "@/lib/audit"
 import { format } from "date-fns"
 
 function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.split(/\r?\n/).filter(l => l.trim())
+  // Strip blank lines AND comment lines (start with '#') so the header row is found correctly
+  const lines = text.split(/\r?\n/).filter(l => l.trim() && !l.trim().startsWith("#"))
   if (lines.length < 2) return []
   const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, ""))
   return lines.slice(1).map(line => {
@@ -33,19 +34,25 @@ export async function GET(req: NextRequest) {
   const scope = searchParams.get("scope") ?? "all"
   const ids = searchParams.get("ids") ?? ""
   const includeExited = searchParams.get("includeExited") === "true"
+  const roleRaw = searchParams.get("role") ?? "STAFF"
+  const role = roleRaw === "PROJECT_LEAD" ? "PROJECT_LEAD" : "STAFF"
 
   const statusFilter: any = includeExited ? {} : { employeeStatus: { in: ["ACTIVE", "ON_LEAVE", "SUSPENDED"] } }
   const idFilter: any = scope === "specific" && ids ? { id: { in: ids.split(",") } } : {}
+  // Filter by role so admin only edits employees of the chosen role at a time.
+  const roleFilter: any = { user: { role } }
 
   const employees = await prisma.employee.findMany({
-    where: { ...statusFilter, ...idFilter },
-    include: { department: true, user: { select: { email: true } } },
+    where: { ...statusFilter, ...idFilter, ...roleFilter },
+    include: { department: true, user: { select: { email: true, role: true } } },
     orderBy: { firstName: "asc" },
   })
 
-  const headers = ["employeeId", "firstName", "lastName", "email", "jobTitle", "departmentName", "employmentType", "hireDate", "employeeStatus"]
+  // role column is included so admin sees it in the file but the upload route ignores any changes to it.
+  const headers = ["employeeId", "role", "firstName", "lastName", "email", "jobTitle", "departmentName", "employmentType", "hireDate", "employeeStatus"]
   const rows = employees.map(e => [
     e.employeeId,
+    (e.user as any)?.role ?? "",
     e.firstName,
     e.lastName,
     (e.user as any)?.email ?? "",
@@ -56,7 +63,13 @@ export async function GET(req: NextRequest) {
     e.employeeStatus,
   ])
 
+  const notes = [
+    `# Bulk update — ${role === "STAFF" ? "Staff" : "Project Lead"} role only.`,
+    "# The 'role' column is read-only; changing it has no effect (use the role-change UI to switch a person's role).",
+    "# Match rows by 'employeeId'. Edit any other column to update that field on the matched employee.",
+  ]
   const csv = [
+    notes.join("\n"),
     headers.join(","),
     ...rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")),
   ].join("\n")
@@ -64,7 +77,7 @@ export async function GET(req: NextRequest) {
   return new Response(csv, {
     headers: {
       "Content-Type": "text/csv",
-      "Content-Disposition": 'attachment; filename="employees_bulk_update.csv"',
+      "Content-Disposition": `attachment; filename="employees_bulk_update_${role.toLowerCase()}.csv"`,
     },
   })
 }

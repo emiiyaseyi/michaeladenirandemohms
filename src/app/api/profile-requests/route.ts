@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, caps } from "@/lib/api-auth"
+import { requireAuth, hasCap } from "@/lib/api-auth"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
 
-  const isAdmin = caps(user.role).canViewAllEmployees
+  const isAdmin = hasCap(user, "canViewAllEmployees")
 
   if (isAdmin) {
     const status = req.nextUrl.searchParams.get("status") ?? undefined
