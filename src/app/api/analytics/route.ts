@@ -22,7 +22,10 @@ export async function GET() {
     const reports = await prisma.employee.findMany({ where: { managerId: user.employeeId }, select: { id: true } })
     teamIds = reports.map(r => r.id)
   }
-  const empFilter = teamIds ? { id: { in: teamIds } } : {}
+  const superAdminExclusion = { NOT: { user: { role: "SUPER_ADMIN" as any } } }
+  const empFilter: any = teamIds
+    ? { AND: [{ id: { in: teamIds } }, superAdminExclusion] }
+    : superAdminExclusion
 
   const [total, active, onLeave, openJobs, byDept, byType, allLeave, recruitment] = await Promise.all([
     prisma.employee.count({ where: empFilter }),

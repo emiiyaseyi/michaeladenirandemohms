@@ -567,6 +567,30 @@ async function main() {
     prisma.employee.update({ where: { id: empRecords["grace.okeke@datasciencenigeria.ai"]?.id },    data: { managerId: blessing?.id } }),
   ])
 
+  // Reparent sample employees that have direct reports to the manager tier.
+  // Without this they appear as extra roots in the org chart alongside the 2 top managers.
+  const ngozi   = empRecords["ngozi.eze@datasciencenigeria.ai"]
+  const tunde   = empRecords["tunde.adeyemi@datasciencenigeria.ai"]
+  const ibrahim = empRecords["ibrahim.sule@datasciencenigeria.ai"]
+  await Promise.all([
+    // Technology stream → CEO (Manager 1)
+    emeka?.id && manager1EmpId && prisma.employee.update({ where: { id: emeka.id },   data: { managerId: manager1EmpId } }),
+    chidi?.id && manager1EmpId && prisma.employee.update({ where: { id: chidi.id },   data: { managerId: manager1EmpId } }),
+    // Operations / Design stream → Executive Director (Manager 2)
+    blessing?.id && manager2EmpId && prisma.employee.update({ where: { id: blessing.id }, data: { managerId: manager2EmpId } }),
+    ngozi?.id    && manager2EmpId && prisma.employee.update({ where: { id: ngozi.id },    data: { managerId: manager2EmpId } }),
+    tunde?.id    && manager2EmpId && prisma.employee.update({ where: { id: tunde.id },    data: { managerId: manager2EmpId } }),
+    ibrahim?.id  && manager2EmpId && prisma.employee.update({ where: { id: ibrahim.id },  data: { managerId: manager2EmpId } }),
+    // Demo staff → their PLs
+    demoEmpIds["staff1@dsn-hrms.com"] && demoPLEmpIds["lead2@dsn-hrms.com"] &&
+      prisma.employee.update({ where: { id: demoEmpIds["staff1@dsn-hrms.com"] }, data: { managerId: demoPLEmpIds["lead2@dsn-hrms.com"] } }),
+    demoEmpIds["staff3@dsn-hrms.com"] && demoPLEmpIds["lead1@dsn-hrms.com"] &&
+      prisma.employee.update({ where: { id: demoEmpIds["staff3@dsn-hrms.com"] }, data: { managerId: demoPLEmpIds["lead1@dsn-hrms.com"] } }),
+    demoEmpIds["staff4@dsn-hrms.com"] && demoPLEmpIds["lead2@dsn-hrms.com"] &&
+      prisma.employee.update({ where: { id: demoEmpIds["staff4@dsn-hrms.com"] }, data: { managerId: demoPLEmpIds["lead2@dsn-hrms.com"] } }),
+  ].filter(Boolean) as Promise<any>[])
+  console.log("  ✓ Reparented sample employees to manager tier")
+
   // Intern demo account reports to lead1 (PL of EqualyzAI)
   const intern1EmpId = demoEmpIds["intern1@datasciencenigeria.ai"]
   const lead1EmpId = demoPLEmpIds["lead1@dsn-hrms.com"]
