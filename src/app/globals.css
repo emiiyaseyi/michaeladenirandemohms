@@ -305,3 +305,59 @@ main { min-width: 0; }
 }
 @media (max-width: 1100px) { .stat-grid { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 540px)  { .stat-grid { grid-template-columns: 1fr; } }
+
+/* ─── iOS Safari fixes ────────────────────────────────────────────────────── */
+
+/* Stop iOS Safari from auto-zooming the page when an input is focused.
+   The zoom fires whenever the field's font-size is < 16px. We force every
+   input/select/textarea to be ≥ 16px ONLY on touch devices (so desktop's
+   13-14px UI stays compact). The visual zoom is the source of the "screen
+   jumps" complaint on iPhone. */
+@supports (-webkit-touch-callout: none) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Backup for non-iOS touch devices (older Android Chrome etc.) using a
+   touch-only media query. Same goal — no focus-zoom. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Prevent horizontal overflow on the body, which iOS reveals as a rubber-band
+   scroll on the whole page (and makes pages feel "broken"). Use min-width: 0
+   on flex children + overflow-x: hidden at root. */
+html, body { overflow-x: hidden; max-width: 100%; }
+
+/* iOS has its own date-picker UI but it ignores `appearance: none` on type=date
+   without an explicit `-webkit-appearance`. Normalise so date inputs match the
+   look of text inputs. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 44px; /* iOS Human-Interface tap-target minimum */
+}
+
+/* iOS Safari occasionally clips fixed-position modals when the on-screen
+   keyboard appears. `dvh` (dynamic viewport height) accounts for the keyboard. */
+@supports (height: 100dvh) {
+  .full-viewport { height: 100dvh !important; }
+}
+
+/* Tap targets — make all buttons + links comfortable on touch (min 44px iOS HIG).
+   Doesn't enlarge visual styling, just adds invisible touch area where needed. */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    -webkit-tap-highlight-color: rgba(11, 92, 46, 0.15);
+    touch-action: manipulation; /* removes 300ms double-tap delay on iOS */
+  }
+}
