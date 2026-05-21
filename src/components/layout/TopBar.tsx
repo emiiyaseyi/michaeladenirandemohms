@@ -3,9 +3,10 @@ import {
   Bell, Search, Sun, Moon, Users, CalendarDays, Briefcase,
   LayoutDashboard, Building2, X, CheckCheck, Info, AlertTriangle,
   CheckCircle, XCircle, ChevronDown,
-  LogOut, UserCircle, Menu, MoreVertical, Shield, Volume2, VolumeX,
+  LogOut, UserCircle, Menu, MoreVertical, Shield,
 } from "lucide-react"
 import { useState, useEffect, useRef, useCallback } from "react"
+import { createPortal } from "react-dom"
 import { useRouter, usePathname } from "next/navigation"
 import { useTheme } from "@/components/ThemeProvider"
 import { useLogoutConfirm } from "@/components/layout/LogoutConfirm"
@@ -84,57 +85,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
   const [unreadCount, setUnreadCount]     = useState(0)
   const [notifOpen, setNotifOpen]         = useState(false)
 
-  // Notification sound: soft chime when unread count increases while the tab is visible.
-  // Toggle persists in localStorage under "dsn:soundOn"; defaults ON.
-  const [soundOn, setSoundOn] = useState(true)
   const prevUnreadRef = useRef<number>(0)
-  const audioContextRef = useRef<AudioContext | null>(null)
-
-  useEffect(() => {
-    if (typeof window === "undefined") return
-    const stored = localStorage.getItem("dsn:soundOn")
-    if (stored === "false") setSoundOn(false)
-  }, [])
-
-  const toggleSound = () => {
-    setSoundOn(prev => {
-      const next = !prev
-      try { localStorage.setItem("dsn:soundOn", next ? "true" : "false") } catch {}
-      return next
-    })
-  }
-
-  const playChime = useCallback(() => {
-    if (typeof window === "undefined") return
-    try {
-      if (!audioContextRef.current) {
-        const Ctor: typeof AudioContext = (window.AudioContext || (window as any).webkitAudioContext)
-        if (!Ctor) return
-        audioContextRef.current = new Ctor()
-      }
-      const ctx = audioContextRef.current
-      if (ctx.state === "suspended") ctx.resume().catch(() => {})
-      // Soft two-note chime: C5 (523.25 Hz) → E5 (659.25 Hz), sine wave with gentle envelope
-      const now = ctx.currentTime
-      const playTone = (freq: number, start: number, dur: number) => {
-        const osc = ctx.createOscillator()
-        const gain = ctx.createGain()
-        osc.type = "sine"
-        osc.frequency.setValueAtTime(freq, now + start)
-        gain.gain.setValueAtTime(0, now + start)
-        gain.gain.linearRampToValueAtTime(0.12, now + start + 0.02)
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + start + dur)
-        osc.connect(gain)
-        gain.connect(ctx.destination)
-        osc.start(now + start)
-        osc.stop(now + start + dur + 0.05)
-      }
-      playTone(523.25, 0, 0.14)
-      playTone(659.25, 0.10, 0.18)
-    } catch {
-      // Browser blocked autoplay or AudioContext failed — silent no-op
-    }
-  }, [])
 
   const [userOpen, setUserOpen]   = useState(false)
   const userRef                   = useRef<HTMLDivElement>(null)
@@ -149,29 +100,21 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
   const roleBase = activeRole === "SUPER_ADMIN" ? "/admin" : "/staff"
   const profileHref = activeRole === "SUPER_ADMIN" ? "/admin/preferences" : `${roleBase}/self-service/profile`
 
+  // Show search only for SUPER_ADMIN and secondary-admin (canManageAdmins).
+  // All other roles (PROJECT_LEAD, regular STAFF, and limited admin bundles) get no search bar.
+  const showSearch = activeRole === "SUPER_ADMIN" || user?.permissions?.canManageAdmins === true
+
   const fetchNotifications = useCallback(() => {
     fetch("/api/notifications")
       .then(r => r.json())
       .then(d => {
         setNotifications(d.notifications ?? [])
         const newCount = d.unreadCount ?? 0
-        const prevCount = prevUnreadRef.current
-        // Only chime when count strictly increased AND tab is visible AND sound is on.
-        // Skip the very first fetch (prevCount = 0 initial) by checking prevCount > 0
-        // OR explicitly first fetch flag. We'll allow it if new > prev and prev !== 0
-        if (
-          newCount > prevCount &&
-          prevUnreadRef.current !== -1 &&
-          (typeof document === "undefined" || document.visibilityState === "visible") &&
-          (typeof localStorage === "undefined" || localStorage.getItem("dsn:soundOn") !== "false")
-        ) {
-          playChime()
-        }
         prevUnreadRef.current = newCount
         setUnreadCount(newCount)
       })
       .catch(() => {})
-  }, [playChime])
+  }, [])
 
   useEffect(() => {
     // Mark first fetch so we don't chime on initial page load
@@ -311,8 +254,8 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
 
       {/* ── Desktop controls ── */}
       <div className="hdr-desktop" style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-        {/* Global Search */}
-        <div ref={containerRef} style={{ position: "relative", flexShrink: 0 }}>
+        {/* Global Search — SUPER_ADMIN and secondary-admin only */}
+        {showSearch && <div ref={containerRef} style={{ position: "relative", flexShrink: 0 }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             background: open ? "var(--card)" : "var(--muted)",
@@ -401,7 +344,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Try a name, job title, leave type, or feature</div>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Theme toggle */}
         <button onClick={cycleTheme} title={`Switch theme (${theme})`}
@@ -414,15 +357,6 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
 
         {/* Notifications bell — desktop */}
         <BellBadge size={16} />
-
-        {/* Notification sound toggle */}
-        <button onClick={toggleSound} title={soundOn ? "Notification sound: on" : "Notification sound: off"}
-          style={{ background: "var(--muted)", border: "1px solid var(--border)", cursor: "pointer", borderRadius: 8, padding: 8, color: soundOn ? "var(--primary)" : "var(--muted-foreground)", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s", flexShrink: 0 }}
-          onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background = "var(--primary-50)" }}
-          onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background = "var(--muted)" }}
-        >
-          {soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
-        </button>
 
         {/* User dropdown */}
         <div ref={userRef} style={{ position: "relative", flexShrink: 0 }}>
@@ -513,8 +447,8 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
         </button>
       </div>
 
-      {/* ── Notification panel (fixed — works on both mobile and desktop) ── */}
-      {notifOpen && (
+      {/* ── Notification panel (portalled to body so it paints above the sidebar) ── */}
+      {notifOpen && typeof document !== "undefined" && createPortal(
         <>
           <div style={{ position: "fixed", inset: 0, zIndex: 190 }} onClick={() => setNotifOpen(false)} />
           <div style={{
@@ -564,11 +498,12 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               })}
             </div>
           </div>
-        </>
+        </>,
+        document.body
       )}
 
-      {/* ── Mobile ⋮ menu ── */}
-      {mobileMenuOpen && (
+      {/* ── Mobile ⋮ menu (portalled to body so it paints above the sidebar) ── */}
+      {mobileMenuOpen && typeof document !== "undefined" && createPortal(
         <>
           <div style={{ position: "fixed", inset: 0, zIndex: 290 }} onClick={() => setMobileMenuOpen(false)} />
           <div style={{
@@ -577,36 +512,38 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             border: "1px solid var(--border)", borderRadius: "0 0 0 12px",
             boxShadow: "var(--shadow-lg)", overflow: "hidden", zIndex: 300,
           }}>
-            {/* Search */}
-            <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "8px 12px", border: "1.5px solid var(--border)" }}>
-                <Search size={13} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
-                <input
-                  value={query}
-                  onChange={e => setQuery(e.target.value)}
-                  onKeyDown={handleKey}
-                  placeholder="Search…"
-                  autoComplete="off"
-                  style={{ border: "none", background: "transparent", fontSize: 13, color: "var(--foreground)", flex: 1, outline: "none" }}
-                />
-                {query && <button onClick={() => { setQuery(""); setResults([]); setOpen(false) }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--subtle)", padding: 0, display: "flex" }}><X size={12} /></button>}
-              </div>
-              {open && results.length > 0 && (
-                <div style={{ marginTop: 6, maxHeight: 180, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
-                  {results.slice(0, 5).map((item, i) => (
-                    <div key={i}
-                      onClick={() => { navigate(item.href); setMobileMenuOpen(false) }}
-                      style={{ padding: "9px 12px", cursor: "pointer", borderBottom: "1px solid var(--border)", fontSize: 13 }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-                    >
-                      <div style={{ fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</div>
-                      <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{item.desc}</div>
-                    </div>
-                  ))}
+            {/* Search — only for SUPER_ADMIN / secondary-admin */}
+            {showSearch && (
+              <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "8px 12px", border: "1.5px solid var(--border)" }}>
+                  <Search size={13} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
+                  <input
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    onKeyDown={handleKey}
+                    placeholder="Search…"
+                    autoComplete="off"
+                    style={{ border: "none", background: "transparent", fontSize: 13, color: "var(--foreground)", flex: 1, outline: "none" }}
+                  />
+                  {query && <button onClick={() => { setQuery(""); setResults([]); setOpen(false) }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--subtle)", padding: 0, display: "flex" }}><X size={12} /></button>}
                 </div>
-              )}
-            </div>
+                {open && results.length > 0 && (
+                  <div style={{ marginTop: 6, maxHeight: 180, overflowY: "auto", border: "1px solid var(--border)", borderRadius: 8, overflow: "hidden" }}>
+                    {results.slice(0, 5).map((item, i) => (
+                      <div key={i}
+                        onClick={() => { navigate(item.href); setMobileMenuOpen(false) }}
+                        style={{ padding: "9px 12px", cursor: "pointer", borderBottom: "1px solid var(--border)", fontSize: 13 }}
+                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
+                      >
+                        <div style={{ fontWeight: 600, color: "var(--foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</div>
+                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{item.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Theme */}
             <button
@@ -672,7 +609,8 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               <span style={{ fontSize: 13, color: "var(--accent)", fontWeight: 600 }}>Log Out</span>
             </button>
           </div>
-        </>
+        </>,
+        document.body
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
       const employees = await prisma.employee.findMany({
         where: {
           employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] },
+          user: { role: { not: "SUPER_ADMIN" as any } },
           ...(search ? { OR: [
             { firstName: { contains: search, mode: "insensitive" } },
             { lastName: { contains: search, mode: "insensitive" } },
