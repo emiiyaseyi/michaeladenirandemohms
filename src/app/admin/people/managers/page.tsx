@@ -139,12 +139,14 @@ export default function ManagersPage() {
             <tbody>
               {paged.map(m => {
                 const emp = m.employee
+                const canClick = !m.isSystem
+                const goToProfile = () => canClick && router.push(`/admin/people/employees/${emp.id}`)
                 return (
                   <tr key={m.id}
-                    style={{ cursor: "pointer" }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
+                    style={{ cursor: canClick ? "pointer" : "default" }}
+                    onMouseEnter={e => canClick && ((e.currentTarget as HTMLElement).style.background = "var(--muted)")}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
-                    <td style={td} onClick={() => router.push(`/admin/people/employees/${emp.id}`)}>
+                    <td style={td} onClick={goToProfile}>
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                         <Av name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} />
                         <div>
@@ -153,9 +155,9 @@ export default function ManagersPage() {
                         </div>
                       </div>
                     </td>
-                    <td style={{ ...td, color: "var(--muted-foreground)" }} onClick={() => router.push(`/admin/people/employees/${emp.id}`)}>{emp.jobTitle ?? "—"}</td>
-                    <td style={{ ...td, color: "var(--muted-foreground)" }} onClick={() => router.push(`/admin/people/employees/${emp.id}`)}>{emp.department?.name ?? "—"}</td>
-                    <td style={td} onClick={() => router.push(`/admin/people/employees/${emp.id}`)}>
+                    <td style={{ ...td, color: "var(--muted-foreground)" }} onClick={goToProfile}>{emp.jobTitle ?? "—"}</td>
+                    <td style={{ ...td, color: "var(--muted-foreground)" }} onClick={goToProfile}>{emp.department?.name ?? "—"}</td>
+                    <td style={td} onClick={goToProfile}>
                       {m.isSystem
                         ? <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "var(--muted)", color: "var(--muted-foreground)", display: "inline-flex", alignItems: "center", gap: 4 }}><Shield size={11} /> Seeded</span>
                         : <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "var(--success-bg)", color: "var(--success)" }}>Added</span>}

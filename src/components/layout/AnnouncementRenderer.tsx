@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { useSession } from "next-auth/react"
 import { X, Megaphone, ChevronLeft, ChevronRight, Volume2 } from "lucide-react"
 
@@ -65,7 +66,7 @@ function PopupAnnouncement({ items, userId }: { items: Announcement[]; userId: s
     setOpen(false)
   }
 
-  return (
+  const jsx = (
     <div style={{
       position: "fixed", inset: 0, zIndex: 9000,
       background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center",
@@ -136,6 +137,8 @@ function PopupAnnouncement({ items, userId }: { items: Announcement[]; userId: s
       </div>
     </div>
   )
+
+  return typeof document !== "undefined" ? createPortal(jsx, document.body) : null
 }
 
 // ─── Notification Bar ─────────────────────────────────────────────────────────

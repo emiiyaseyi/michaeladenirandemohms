@@ -1,11 +1,11 @@
 "use client"
 import { useState, useEffect, useRef, useCallback } from "react"
-import { Info, Users, Building2 } from "lucide-react"
+import { Users, ZoomIn, ZoomOut, Maximize2 } from "lucide-react"
 
 const NODE_W = 188
-const NODE_H = 124
-const H_GAP = 30
-const V_GAP = 80
+const NODE_H = 130
+const H_GAP  = 30
+const V_GAP  = 80
 
 type Emp = {
   id: string
@@ -51,7 +51,7 @@ function collectAll(n: LNode, nodes: LNode[], edges: Array<{ x1: number; y1: num
   }
 }
 
-function EmpAvatar({ name, photo, size = 42 }: { name: string; photo?: string | null; size?: number }) {
+function EmpAvatar({ name, photo, size = 40 }: { name: string; photo?: string | null; size?: number }) {
   if (photo) return <img src={photo} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
   return (
     <div style={{ width: size, height: size, borderRadius: "50%", background: "#C8D5EA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -67,23 +67,25 @@ function BezierEdge({ x1, y1, x2, y2 }: { x1: number; y1: number; x2: number; y2
   return <path d={`M${x1},${y1} C${x1},${mid} ${x2},${mid} ${x2},${y2}`} fill="none" stroke="#9CA3AF" strokeWidth={1.5} />
 }
 
+const MIN_ZOOM = 0.3
+const MAX_ZOOM = 1.5
+const ZOOM_STEP = 0.15
+
 export default function OrgChartPage() {
-  const [roots, setRoots] = useState<Emp[]>([])
-  const [departments, setDepartments] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [view, setView] = useState<"departments" | "tree">("departments")
+  const [roots, setRoots]       = useState<Emp[]>([])
+  const [loading, setLoading]   = useState(true)
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [offset, setOffset] = useState({ x: 60, y: 30 })
+  const [offset, setOffset]     = useState({ x: 60, y: 30 })
+  const [zoom, setZoom]         = useState(1)
   const [isDragging, setIsDragging] = useState(false)
-  const lastMouse = useRef({ x: 0, y: 0 })
+  const lastMouse  = useRef({ x: 0, y: 0 })
   const containerRef = useRef<HTMLDivElement>(null)
-  const initialised = useRef(false)
+  const initialised  = useRef(false)
 
   useEffect(() => {
     fetch("/api/org-chart").then(r => r.json()).then(d => {
       const r: Emp[] = d.roots ?? []
       setRoots(r)
-      setDepartments(d.departments ?? [])
       const auto = new Set<string>()
       r.forEach(e => { if ((e.directReports?.length ?? 0) > 0) auto.add(e.id) })
       setExpanded(auto)
@@ -124,6 +126,29 @@ export default function OrgChartPage() {
     return () => { window.removeEventListener("mousemove", onMouseMove); window.removeEventListener("mouseup", onMouseUp) }
   }, [onMouseMove, onMouseUp])
 
+  // Pinch-to-zoom (touch)
+  const lastPinchDist = useRef<number | null>(null)
+  const onTouchStart = (e: React.TouchEvent) => { if (e.touches.length === 2) lastPinchDist.current = null }
+  const onTouchMove  = (e: React.TouchEvent) => {
+    if (e.touches.length !== 2) return
+    const dx = e.touches[0].clientX - e.touches[1].clientX
+    const dy = e.touches[0].clientY - e.touches[1].clientY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    if (lastPinchDist.current !== null) {
+      const delta = dist - lastPinchDist.current
+      setZoom(z => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z + delta * 0.005)))
+    }
+    lastPinchDist.current = dist
+  }
+
+  const resetView = () => {
+    setZoom(1)
+    if (!containerRef.current || roots.length === 0) return
+    const rootNodes = roots.map(r => buildNode(r, expanded))
+    const totalW = rootNodes.reduce((s, r) => s + r.width, 0) + H_GAP * Math.max(0, rootNodes.length - 1)
+    setOffset({ x: Math.max(40, (containerRef.current.clientWidth - totalW) / 2), y: 30 })
+  }
+
   // Build layout
   const rootNodes = roots.map(r => buildNode(r, expanded))
   const totalW = Math.max(
@@ -133,7 +158,7 @@ export default function OrgChartPage() {
 
   const COMPANY_W = 200
   const COMPANY_H = 44
-  const FIRST_Y = COMPANY_H + 64
+  const FIRST_Y   = COMPANY_H + 64
   const companyCX = totalW / 2
 
   let rx = 0
@@ -149,149 +174,116 @@ export default function OrgChartPage() {
 
   return (
     <div>
-      {/* Header card */}
-      <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderBottom: "none", padding: "20px 24px", borderRadius: "12px 12px 0 0" }}>
+      {/* Header */}
+      <div style={{ background: "var(--card)", border: "1px solid var(--border)", padding: "20px 24px", borderRadius: 12, marginBottom: 16 }}>
         <h1 style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>Organisation Chart</h1>
-        <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>View the organisation chart of your company</p>
+        <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Reporting structure across the organisation. Drag to pan · pinch or use ± to zoom.</p>
       </div>
 
-      {/* Tabs */}
-      <div style={{ border: "1px solid var(--border)", borderTop: "none", borderBottom: "none", padding: "12px 20px", background: "var(--card)", display: "flex", gap: 4 }}>
-        {(["departments", "tree"] as const).map(t => (
-          <button key={t} onClick={() => setView(t)}
-            style={{ padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 600, background: view === t ? "var(--primary)" : "var(--muted)", color: view === t ? "white" : "var(--muted-foreground)" }}>
-            {t === "departments" ? "Departments" : "Reporting Tree"}
+      {/* Canvas */}
+      <div style={{ position: "relative", border: "1px solid var(--border)", borderRadius: 12, background: "var(--background)", overflow: "hidden" }}>
+        {/* Zoom controls */}
+        <div style={{ position: "absolute", top: 12, right: 12, zIndex: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+          <button onClick={() => setZoom(z => Math.min(MAX_ZOOM, z + ZOOM_STEP))}
+            style={{ width: 32, height: 32, border: "1px solid var(--border)", background: "var(--card)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--foreground)" }}>
+            <ZoomIn size={14} />
           </button>
-        ))}
-      </div>
+          <button onClick={() => setZoom(z => Math.max(MIN_ZOOM, z - ZOOM_STEP))}
+            style={{ width: 32, height: 32, border: "1px solid var(--border)", background: "var(--card)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--foreground)" }}>
+            <ZoomOut size={14} />
+          </button>
+          <button onClick={resetView} title="Reset view"
+            style={{ width: 32, height: 32, border: "1px solid var(--border)", background: "var(--card)", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--foreground)" }}>
+            <Maximize2 size={13} />
+          </button>
+          <div style={{ width: 32, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "var(--muted-foreground)", fontWeight: 600 }}>
+            {Math.round(zoom * 100)}%
+          </div>
+        </div>
 
-      {/* Departments view */}
-      {view === "departments" && (
-        <div style={{ border: "1px solid var(--border)", borderRadius: "0 0 12px 12px", padding: 24, background: "var(--background)" }}>
+        <div
+          ref={containerRef}
+          onMouseDown={onMouseDown}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          style={{
+            height: 560,
+            overflow: "hidden",
+            cursor: isDragging ? "grabbing" : "grab",
+            userSelect: "none",
+            position: "relative",
+            touchAction: "none",
+          }}
+        >
           {loading ? (
-            <div style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
-          ) : departments.length === 0 ? (
-            <div style={{ padding: 40, textAlign: "center" }}>
-              <Building2 size={32} style={{ color: "var(--muted-foreground)", display: "block", margin: "0 auto 12px" }} />
-              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No departments yet. Create departments in Settings to build your org structure.</p>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
+          ) : roots.length === 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 10 }}>
+              <Users size={32} style={{ color: "var(--muted-foreground)" }} />
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No reporting structure yet. Assign managers to employees to build the org chart.</p>
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
-              {departments.map((d: any) => (
-                <div key={d.id} style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: 20 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
-                    <div style={{ width: 40, height: 40, borderRadius: 10, background: "#EEF2FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <Building2 size={18} style={{ color: "#6366F1" }} />
+            <div style={{ position: "absolute", left: offset.x, top: offset.y, width: totalW, transformOrigin: "top left", transform: `scale(${zoom})` }}>
+              {/* SVG connectors */}
+              <svg style={{ position: "absolute", top: 0, left: 0, width: totalW, height: canvasH, overflow: "visible", pointerEvents: "none" }}>
+                {rootNodes.map((rn, i) => (
+                  <BezierEdge key={`cr-${i}`} x1={companyCX} y1={COMPANY_H} x2={rn.cx} y2={rn.y} />
+                ))}
+                {allEdges.map((e, i) => <BezierEdge key={`e-${i}`} {...e} />)}
+              </svg>
+
+              {/* Company node */}
+              <div style={{
+                position: "absolute", left: companyCX - COMPANY_W / 2, top: 0,
+                width: COMPANY_W, height: COMPANY_H,
+                background: "#6366F1", borderRadius: 8, zIndex: 10,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "white", fontSize: 13, fontWeight: 700,
+                boxShadow: "0 2px 10px rgba(99,102,241,0.3)",
+              }}>
+                Data Science Nigeria
+              </div>
+
+              {/* Employee nodes */}
+              {allNodes.map(n => (
+                <div key={n.id} style={{
+                  position: "absolute", left: n.x, top: n.y,
+                  width: NODE_W, height: NODE_H,
+                  background: "#EBF0FA", borderRadius: 10,
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.07)", zIndex: 10,
+                  overflow: "hidden", display: "flex", flexDirection: "column",
+                }}>
+                  {/* Gold accent bar */}
+                  <div style={{ height: 4, background: "#F59E0B", flexShrink: 0 }} />
+                  <div style={{ padding: "8px 10px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 5, flex: 1, justifyContent: "space-between" }}>
+                    <EmpAvatar name={`${n.emp.firstName} ${n.emp.lastName}`} photo={n.emp.profilePhoto} size={36} />
+                    <div style={{ textAlign: "center", lineHeight: 1.3, width: "100%", overflow: "hidden" }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: "#1E293B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {n.emp.firstName} {n.emp.lastName}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#64748B", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {n.emp.jobTitle ?? "—"}
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 14 }}>{d.name}</div>
-                      {d.division && <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{d.division.name}</div>}
-                    </div>
+                    <button
+                      onClick={() => toggle(n.id)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 3, padding: "3px 8px",
+                        background: "white", border: "1px solid #D1D5DB", borderRadius: 20,
+                        fontSize: 10, cursor: "pointer", color: "#374151", fontWeight: 500,
+                        flexShrink: 0, whiteSpace: "nowrap",
+                      }}>
+                      <Users size={9} />
+                      {n.emp.directReports?.length ?? 0}
+                      <span style={{ fontSize: 8 }}>{n.expanded ? "▲" : "▼"}</span>
+                    </button>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                    <Users size={13} style={{ color: "var(--muted-foreground)" }} />
-                    <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>{d._count?.employees ?? 0} employee{(d._count?.employees ?? 0) !== 1 ? "s" : ""}</span>
-                  </div>
-                  {(d.employees ?? []).slice(0, 3).map((e: any) => (
-                    <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                      <EmpAvatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={26} />
-                      <span style={{ fontSize: 12 }}>{e.firstName} {e.lastName}</span>
-                    </div>
-                  ))}
                 </div>
               ))}
             </div>
           )}
         </div>
-      )}
-
-      {/* Reporting Tree (visual chart) */}
-      {view === "tree" && <>
-      {/* Info banner */}
-      <div style={{ background: "#EEF2FF", border: "1px solid var(--border)", borderBottom: "none", padding: "12px 20px", display: "flex", gap: 10, alignItems: "flex-start" }}>
-        <Info size={15} style={{ color: "#6366F1", marginTop: 1, flexShrink: 0 }} />
-        <div style={{ fontSize: 13, color: "#374151", lineHeight: 1.5 }}>
-          People who neither have a manager nor reports won't show up here.<br />
-          Hint: You can drag the chart to move around.
-        </div>
       </div>
-
-      {/* Canvas */}
-      <div
-        ref={containerRef}
-        onMouseDown={onMouseDown}
-        style={{
-          border: "1px solid var(--border)", borderRadius: "0 0 12px 12px",
-          background: "var(--background)", height: 540, overflow: "hidden",
-          cursor: isDragging ? "grabbing" : "grab", userSelect: "none", position: "relative",
-        }}
-      >
-        {loading ? (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
-        ) : roots.length === 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 10 }}>
-            <Users size={32} style={{ color: "var(--muted-foreground)" }} />
-            <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No reporting structure yet. Assign managers to employees to build the org chart.</p>
-          </div>
-        ) : (
-          <div style={{ position: "absolute", left: offset.x, top: offset.y, width: totalW }}>
-            {/* SVG connectors */}
-            <svg style={{ position: "absolute", top: 0, left: 0, width: totalW, height: canvasH, overflow: "visible", pointerEvents: "none" }}>
-              {/* Company → first level */}
-              {rootNodes.map((rn, i) => (
-                <BezierEdge key={`cr-${i}`} x1={companyCX} y1={COMPANY_H} x2={rn.cx} y2={rn.y} />
-              ))}
-              {/* Level to level */}
-              {allEdges.map((e, i) => <BezierEdge key={`e-${i}`} {...e} />)}
-            </svg>
-
-            {/* Company node */}
-            <div style={{
-              position: "absolute", left: companyCX - COMPANY_W / 2, top: 0,
-              width: COMPANY_W, height: COMPANY_H,
-              background: "#6366F1", borderRadius: 8, zIndex: 10,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              color: "white", fontSize: 13, fontWeight: 700,
-              boxShadow: "0 2px 10px rgba(99,102,241,0.3)",
-            }}>
-              Data Science Nigeria
-            </div>
-
-            {/* Employee nodes */}
-            {allNodes.map(n => (
-              <div key={n.id} style={{
-                position: "absolute", left: n.x, top: n.y,
-                width: NODE_W, height: NODE_H,
-                background: "#EBF0FA", borderRadius: 10,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.07)", zIndex: 10,
-                overflow: "hidden",
-              }}>
-                {/* Gold accent bar */}
-                <div style={{ height: 4, background: "#F59E0B" }} />
-                <div style={{ padding: "10px 12px 10px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                  <EmpAvatar name={`${n.emp.firstName} ${n.emp.lastName}`} photo={n.emp.profilePhoto} size={40} />
-                  <div style={{ textAlign: "center", lineHeight: 1.35 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "#1E293B" }}>{n.emp.firstName} {n.emp.lastName}</div>
-                    <div style={{ fontSize: 11, color: "#64748B", marginTop: 1 }}>{n.emp.jobTitle ?? "—"}</div>
-                  </div>
-                  <button
-                    onClick={() => toggle(n.id)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 4, padding: "3px 10px",
-                      background: "white", border: "1px solid #D1D5DB", borderRadius: 20,
-                      fontSize: 11, cursor: "pointer", color: "#374151", fontWeight: 500,
-                    }}>
-                    <Users size={10} />
-                    {n.emp.directReports?.length ?? 0} report{(n.emp.directReports?.length ?? 0) !== 1 ? "s" : ""}
-                    <span style={{ fontSize: 9 }}>{n.expanded ? "▲" : "▼"}</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      </>}
     </div>
   )
 }

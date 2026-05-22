@@ -25,8 +25,8 @@ async function getAttritionData() {
       const start = new Date(year, month - 1, 1)
       const end   = new Date(year, month, 0, 23, 59, 59, 999)
       const [inCompany, exited] = await Promise.all([
-        prisma.employee.count({ where: { createdAt: { lte: end }, OR: [{ endDate: null }, { endDate: { gt: end } }] } }),
-        prisma.employee.count({ where: { endDate: { gte: start, lte: end } } }),
+        prisma.employee.count({ where: { ...NO_SUPER_ADMIN, createdAt: { lte: end }, OR: [{ endDate: null }, { endDate: { gt: end } }] } }),
+        prisma.employee.count({ where: { ...NO_SUPER_ADMIN, endDate: { gte: start, lte: end } } }),
       ])
       return { label, inCompany, exited }
     })
@@ -34,11 +34,13 @@ async function getAttritionData() {
   return results
 }
 
+const NO_SUPER_ADMIN = { NOT: { user: { role: "SUPER_ADMIN" as any } } }
+
 async function getHeadcountData() {
   const [total, male, female] = await Promise.all([
-    prisma.employee.count({ where: { employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] } } }),
-    prisma.employee.count({ where: { gender: "MALE",   employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] } } }),
-    prisma.employee.count({ where: { gender: "FEMALE", employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] } } }),
+    prisma.employee.count({ where: { ...NO_SUPER_ADMIN, employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] } } }),
+    prisma.employee.count({ where: { ...NO_SUPER_ADMIN, gender: "MALE",   employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] } } }),
+    prisma.employee.count({ where: { ...NO_SUPER_ADMIN, gender: "FEMALE", employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] } } }),
   ])
   return { total, male, female }
 }
@@ -74,15 +76,16 @@ export default async function AdminDashboard() {
     attritionData,
     headcount,
   ] = await Promise.all([
-    canViewEmployees ? prisma.employee.count() : Promise.resolve(0),
-    canViewEmployees ? prisma.employee.count({ where: { employeeStatus: "ACTIVE" } }) : Promise.resolve(0),
-    canViewEmployees ? prisma.employee.count({ where: { employeeStatus: "ON_LEAVE" } }) : Promise.resolve(0),
+    canViewEmployees ? prisma.employee.count({ where: NO_SUPER_ADMIN }) : Promise.resolve(0),
+    canViewEmployees ? prisma.employee.count({ where: { ...NO_SUPER_ADMIN, employeeStatus: "ACTIVE" } }) : Promise.resolve(0),
+    canViewEmployees ? prisma.employee.count({ where: { ...NO_SUPER_ADMIN, employeeStatus: "ON_LEAVE" } }) : Promise.resolve(0),
     prisma.department.count(),
     prisma.jobPosting.count({ where: { status: "OPEN" } }),
     canViewPerformance ? prisma.kPI.count({ where: { status: "SUBMITTED" } }) : Promise.resolve(0),
     canViewLeave ? prisma.leaveRequest.count({ where: { status: "PENDING" } }) : Promise.resolve(0),
     canViewEmployees
       ? prisma.employee.findMany({
+          where: NO_SUPER_ADMIN,
           take: 6, orderBy: { createdAt: "desc" },
           include: {
             department: true,
