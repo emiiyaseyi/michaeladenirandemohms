@@ -75,6 +75,7 @@ model User {
   passwordResetRequests  PasswordResetRequest[] @relation("PasswordResetUser")
   resolvedResetRequests  PasswordResetRequest[] @relation("PasswordResetResolver")
   projectLeadDepartments ProjectLeadDepartment[]
+  busBookings            BusBooking[]
 }
 
 model Division {
@@ -211,6 +212,7 @@ model Employee {
   benefitEnrollments          BenefitEnrollment[]
   invite             EmployeeInvite?
   internReports       InternWeeklyReport[] @relation("InternReports")
+  busBookings         BusBooking[]
   managerEntry           Manager?
   departmentMemberships  EmployeeDepartment[]
   departmentsLed         Department[]              @relation("DepartmentLead")
@@ -1465,6 +1467,7 @@ model InternWeeklyReport {
   taskDescriptions     Json?
   personalReflection   String?
   dailyReflections     Json?
+  generalReflection    String?
   submittedAt          DateTime?
   lateFlag             Boolean            @default(false)
   status               InternReportStatus @default(DRAFT)
@@ -1495,6 +1498,9 @@ model InternReportReviewer {
   reportId           String
   reviewerEmployeeId String
   isPrimary          Boolean   @default(false)
+  productivityRating Int?
+  ldRating           Int?
+  reflectionsRating  Int?
   comment            String?
   reviewedAt         DateTime?
   createdAt          DateTime  @default(now())
@@ -1504,6 +1510,38 @@ model InternReportReviewer {
   reviewer Employee           @relation("InternReportReviews", fields: [reviewerEmployeeId], references: [id])
 
   @@unique([reportId, reviewerEmployeeId])
+}
+
+// ── Bus Booking ───────────────────────────────────────────────────────────────
+
+model BusBooking {
+  id          String           @id @default(cuid())
+  employeeId  String
+  userId      String
+  bookingDate DateTime         // midnight UTC of the day (Mon/Wed/Fri)
+  trip        BusTripType
+  stop        String           // pickup (morning) or dropoff (afternoon) stop name
+  seatNumber  Int?             // null until allocation cron assigns it
+  bookedAt    DateTime         @default(now())
+  status      BusBookingStatus @default(PENDING)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  employee    Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, bookingDate, trip])
+}
+
+enum BusTripType {
+  MORNING
+  AFTERNOON
+}
+
+enum BusBookingStatus {
+  PENDING
+  CONFIRMED
+  BOUNCED
+  CANCELLED
 }
 
 model InternReportSettings {

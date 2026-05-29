@@ -1,5 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
+import { useSession } from "next-auth/react"
+import { useRouter } from "next/navigation"
 import { Loader2, Gift } from "lucide-react"
 import { formatDate } from "@/lib/utils"
 
@@ -19,8 +21,17 @@ function fmtDeduction(type: string, val: number) {
 }
 
 export default function StaffBenefitsPage() {
+  const { data: session } = useSession()
+  const router = useRouter()
   const [enrollments, setEnrollments] = useState<Enrollment[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Interns don't have access to benefits
+  useEffect(() => {
+    if ((session?.user as any)?.isIntern) {
+      router.replace("/staff")
+    }
+  }, [session, router])
 
   useEffect(() => {
     fetch("/api/self-service/benefits")
