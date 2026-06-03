@@ -117,16 +117,26 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const empRole = (request.employee as any).user?.role ?? "STAFF"
     const stageLabel = stage === "HR_ADMIN" ? "HR Admin" : "Project Lead"
 
+    // Resolve relief officer names from handoverNotes — the LeaveReliefOfficer rows are
+    // created later in this function so querying that table here would always return empty.
+    let reliefNamesForEmail: string[] = []
+    if (isApproval && stage === "HR_ADMIN") {
+      let handoverForEmail: any[] = []
+      try { handoverForEmail = JSON.parse(request.handoverNotes as string ?? "[]") } catch {}
+      const uniqueReliefIds = [...new Set(handoverForEmail.filter((h: any) => h.relieverId).map((h: any) => h.relieverId as string))]
+      if (uniqueReliefIds.length > 0) {
+        const reliefEmps = await prisma.employee.findMany({
+          where: { id: { in: uniqueReliefIds } },
+          select: { firstName: true, lastName: true },
+        })
+        reliefNamesForEmail = reliefEmps.map(e => `${e.firstName} ${e.lastName}`)
+      }
+    }
+
     let approvedMessage = ""
     if (isApproval && stage === "HR_ADMIN") {
-      // Fetch confirmed relief officers to include in the notification
-      const reliefList = await prisma.leaveReliefOfficer.findMany({
-        where: { leaveRequestId: id },
-        include: { employee: { select: { firstName: true, lastName: true } } },
-      })
-      const reliefNames = reliefList.map(r => `${r.employee.firstName} ${r.employee.lastName}`)
-      const reliefSentence = reliefNames.length > 0
-        ? ` ${reliefNames.join(" and ")} will cover your tasks during your absence.`
+      const reliefSentence = reliefNamesForEmail.length > 0
+        ? ` ${reliefNamesForEmail.join(" and ")} will cover your tasks during your absence.`
         : ""
       approvedMessage = `Your ${request.leaveType?.name} leave request has been fully approved.${reliefSentence}${comment ? ` Note: ${comment}` : ""}`
     }
@@ -161,7 +171,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           startDate: format(request.startDate, "MMM d, yyyy"),
           endDate: format(request.endDate, "MMM d, yyyy"),
           days: String(request.days),
-          reliefOfficers: "",
+          reliefOfficers: reliefNamesForEmail.join(", "),
           note: comment ?? "",
           rejectedBy: stage === "HR_ADMIN" ? "HR Admin" : "Project Lead",
           reason: comment ?? "",

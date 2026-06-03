@@ -9,14 +9,19 @@ import PageHeader from "@/components/ui/PageHeader"
 const STATUS_OPTS = [
   { value: "", label: "All" },
   { value: "ACTIVE", label: "Active" },
-  { value: "TERMINATED", label: "Inactive" },
+  { value: "ON_LEAVE", label: "On Leave" },
+  { value: "SUSPENDED", label: "Suspended" },
+  { value: "TERMINATED", label: "Terminated" },
+  { value: "RESIGNED", label: "Resigned" },
 ]
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  ACTIVE:     { bg: "#DCFCE7", color: "#16a34a", label: "Active" },
-  ON_LEAVE:   { bg: "#FEF3C7", color: "#D97706", label: "On Leave" },
-  TERMINATED: { bg: "#FEE2E2", color: "#DC2626", label: "Inactive" },
-  RESIGNED:   { bg: "#F3F4F6", color: "#6B7280", label: "Resigned" },
+  ACTIVE:          { bg: "#DCFCE7", color: "#16a34a", label: "Active" },
+  ON_LEAVE:        { bg: "#FEF3C7", color: "#D97706", label: "On Leave" },
+  SUSPENDED:       { bg: "#FEE2E2", color: "#DC2626", label: "Suspended" },
+  TERMINATED:      { bg: "#F3F4F6", color: "#6B7280", label: "Terminated" },
+  RESIGNED:        { bg: "#F3F4F6", color: "#6B7280", label: "Resigned" },
+  NEEDS_ATTENTION: { bg: "#EFF6FF", color: "#1D4ED8", label: "Needs Attention" },
 }
 
 const PAGE_SIZES = [10, 20, 50, 100]

@@ -56,9 +56,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const updates: any = {}
-  // Field whitelist: PL editors can only touch dates. Admins can touch reason + handoverNotes too.
-  if (isAdmin && !isPLEdit) {
+  // Admins can touch reason + handoverNotes. PL editors can also update handoverNotes (to set
+  // their relief officer) but cannot change reason. Dates are open to both.
+  if (isAdmin) {
     if (reason !== undefined) updates.reason = reason
+  }
+  if (isAdmin || isPLEdit) {
     if (handoverNotes !== undefined) updates.handoverNotes = handoverNotes || null
   }
 
