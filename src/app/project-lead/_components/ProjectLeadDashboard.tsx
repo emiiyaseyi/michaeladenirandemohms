@@ -52,6 +52,12 @@ export default async function ProjectLeadDashboard() {
   const greeting = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"
   const currentYear = new Date().getFullYear()
 
+  // Current week bounds (UTC) for intern report summary
+  const nowUTC = new Date(); nowUTC.setUTCHours(0,0,0,0)
+  const dayUTC = nowUTC.getUTCDay()
+  const diffToMon = dayUTC === 0 ? -6 : 1 - dayUTC
+  const weekStart = new Date(nowUTC); weekStart.setUTCDate(nowUTC.getUTCDate() + diffToMon)
+
   const [employee, plDepts] = await Promise.all([
     employeeId
       ? prisma.employee.findUnique({
@@ -125,6 +131,26 @@ export default async function ProjectLeadDashboard() {
         })
       : Promise.resolve([]),
   ])
+
+  // Intern report summary for this week
+  const internReportsThisWeek = employeeId ? await prisma.internWeeklyReport.findMany({
+    where: {
+      weekStart,
+      employee: {
+        OR: [{ managerId: employeeId }, { projectLeadId: employeeId }],
+        jobTitle: { contains: "intern", mode: "insensitive" },
+      },
+    },
+    include: {
+      employee: { select: { firstName: true, lastName: true } },
+    },
+    orderBy: { submittedAt: "desc" },
+    take: 5,
+  }) : []
+
+  const internReportsPendingReview = internReportsThisWeek.filter(r =>
+    r.status === "SUBMITTED" || r.status === "LATE"
+  ).length
 
   const deptOnLeave = deptOnLeaveRaw.map((m: any) => ({
     id: m.id,
@@ -351,6 +377,45 @@ export default async function ProjectLeadDashboard() {
         <CelebrationsCard />
         <AnnouncementsCard />
       </div>
+
+      {/* ── Intern Reports This Week ──────────────────────────────────────────── */}
+      {internReportsThisWeek.length > 0 && (
+        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginTop: 4 }}>
+          <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <ClipboardList size={18} style={{ color: "var(--primary)" }} />
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 800 }}>Intern Reports This Week</div>
+                {internReportsPendingReview > 0 && (
+                  <div style={{ fontSize: 12, color: "#DC2626", fontWeight: 600, marginTop: 2 }}>
+                    {internReportsPendingReview} pending your review
+                  </div>
+                )}
+              </div>
+            </div>
+            <Link href="/project-lead/intern-reports" style={{ fontSize: 12, fontWeight: 600, color: "var(--primary)", textDecoration: "none" }}>
+              View all →
+            </Link>
+          </div>
+          <div>
+            {internReportsThisWeek.map((r: any) => (
+              <div key={r.id} style={{ padding: "12px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{r.employee.firstName} {r.employee.lastName}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>{(r.totalHours ?? 0).toFixed(1)}h logged</div>
+                </div>
+                <span style={{
+                  padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                  background: r.status === "REVIEWED" || r.status === "ATTENDANCE_FILLED" ? "#DCFCE7" : r.status === "SUBMITTED" || r.status === "LATE" ? "#DBEAFE" : r.status === "MISSING" ? "#FEE2E2" : "#F3F4F6",
+                  color: r.status === "REVIEWED" || r.status === "ATTENDANCE_FILLED" ? "#15803D" : r.status === "SUBMITTED" || r.status === "LATE" ? "#1D4ED8" : r.status === "MISSING" ? "#DC2626" : "#6B7280",
+                }}>
+                  {r.status === "SUBMITTED" ? "Submitted" : r.status === "LATE" ? "Late" : r.status === "REVIEWED" ? "Reviewed" : r.status === "ATTENDANCE_FILLED" ? "Completed" : r.status === "MISSING" ? "Missed" : r.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }

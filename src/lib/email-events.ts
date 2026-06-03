@@ -362,6 +362,20 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
 
   // ── Intern Reports ──────────────────────────────────────────────────────────
 
+  intern_report_submitted: {
+    name: "Intern Report Submitted — Reviewer Notification",
+    description: "Sent to all assigned reviewers when an intern submits their weekly report.",
+    category: "People",
+    variables: ["internName", "weekRange", "reviewLink"],
+    defaultSubject: "Action Required: {{internName}}'s weekly report for {{weekRange}}",
+    defaultBody:
+      LOGO +
+      H("Intern Report Submitted") +
+      P("<strong>{{internName}}</strong> has submitted their weekly report for <strong>{{weekRange}}</strong> and needs your feedback.") +
+      `<div style="text-align:center;margin:24px 0;"><a href="{{reviewLink}}" style="display:inline-block;padding:12px 32px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Fill Feedback →</a></div>` +
+      NOTE("Please log in to provide your ratings and comments."),
+  },
+
   intern_report_missing: {
     name: "Intern Report — Missing (auto-flagged)",
     description: "Sent to the intern's Project Lead on Monday morning when an intern did not submit a weekly report by Sunday midnight.",
@@ -408,6 +422,38 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
         ROW("Temporary Password", `<span style="font-family:monospace;">{{tempPassword}}</span>`),
       ) +
       NOTE("Keep this email safe — anyone with the temporary password can log in until you change it."),
+  },
+
+  bus_booking_confirmed: {
+    name: "Bus Booking Confirmed",
+    category: "Admin",
+    description: "Sent to an employee when their bus seat is confirmed after allocation.",
+    variables: ["name", "seatNumber", "trip", "stop", "loginUrl"],
+    defaultSubject: "Your {{trip}} bus seat is confirmed — Seat #{{seatNumber}}",
+    defaultBody:
+      LOGO +
+      H("Bus Seat Confirmed ✓") +
+      P("Hi {{name}}, your seat on the <strong>{{trip}}</strong> bus has been confirmed.") +
+      TABLE(
+        ROW("Seat Number", "#{{seatNumber}}"),
+        ROW("Stop", "{{stop}}"),
+        ROW("Trip", "{{trip}}"),
+      ) +
+      NOTE("Have a safe trip!"),
+  },
+
+  bus_booking_bounced: {
+    name: "Bus Booking — No Seat Available",
+    category: "Admin",
+    description: "Sent to an employee when their bus booking was not allocated a seat.",
+    variables: ["name", "trip", "loginUrl"],
+    defaultSubject: "{{trip}} bus — No seat available today",
+    defaultBody:
+      LOGO +
+      H("No Seat Available") +
+      P("Hi {{name}}, unfortunately there is no space for you on the <strong>{{trip}}</strong> bus today.") +
+      P("Please find alternative transport home. Thank you for your understanding.") +
+      NOTE("You can book again next bus day (Mon/Wed/Fri)."),
   },
 }
 

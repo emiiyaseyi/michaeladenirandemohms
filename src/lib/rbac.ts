@@ -72,15 +72,22 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
 
-  // Requests — dropdown for admin, flat link for staff
+  // Requests — dropdown for admin and staff, includes Bus Booking
   {
     label: "Requests", icon: "Receipt", roles: ["ADMIN"],
     children: [
-      { label: "Leave",     href: "/requests/leave",     permission: "canViewAllLeave" },
-      { label: "Documents", href: "/requests/documents", permission: "canViewDocuments" },
+      { label: "Leave",        href: "/requests/leave",     permission: "canViewAllLeave" },
+      { label: "Documents",    href: "/requests/documents", permission: "canViewDocuments" },
+      { label: "Bus Booking",  href: "/requests/bus" },
     ],
   },
-  { label: "Requests", href: "/requests", icon: "Receipt", roles: ["STAFF"] },
+  {
+    label: "Requests", icon: "Receipt", roles: ["STAFF"],
+    children: [
+      { label: "Leave",       href: "/requests/leave" },
+      { label: "Bus Booking", href: "/requests/bus" },
+    ],
+  },
 
   // Documents before Surveys (staff order)
   { label: "Documents",   href: "/documents",   icon: "FolderOpen",    roles: ALL_ROLES, permission: "canViewDocuments" },
@@ -89,7 +96,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── COMPENSATION ─────────────────────────────────────────────────────────────
   { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"], permission: "canViewBenefits" },
-  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["STAFF"] },
+  { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["STAFF"], hideForIntern: true },
 
   // ── PRODUCTIVITY ─────────────────────────────────────────────────────────────
   {
@@ -177,7 +184,13 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "People",         href: "/people",         icon: "UserCheck",     roles: ["PROJECT_LEAD"] },
   { label: "My Team",       href: "/team",           icon: "Users",         roles: ["PROJECT_LEAD"] },
   { label: "Intern Reports",href: "/intern-reports", icon: "ClipboardList", roles: ["PROJECT_LEAD"], permission: "canReviewInternReports" },
-  { label: "Requests",      href: "/requests",       icon: "CalendarDays",  roles: ["PROJECT_LEAD"] },
+  {
+    label: "Requests", icon: "CalendarDays", roles: ["PROJECT_LEAD"],
+    children: [
+      { label: "Leave",       href: "/requests" },
+      { label: "Bus Booking", href: "/requests/bus" },
+    ],
+  },
   { label: "Documents",    href: "/documents",             icon: "FolderOpen",      roles: ["PROJECT_LEAD"] },
   { label: "Surveys",      href: "/surveys",               icon: "ClipboardList",   roles: ["PROJECT_LEAD"] },
   { label: "Benefits",     href: "/benefits",              icon: "Gift",            roles: ["PROJECT_LEAD"] },

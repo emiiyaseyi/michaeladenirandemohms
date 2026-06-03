@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
+import { sendEmail } from "@/lib/email"
 import { format } from "date-fns"
 
 // WAT = UTC+1
@@ -126,16 +127,21 @@ export async function POST(req: NextRequest) {
     personalReflection = "",
     taskDescriptions = {},
     dailyReflections = {} as Record<string, string>,
+    generalReflection = "",
     extraReviewerIds = [] as string[],
   } = body
 
   // Compulsory: every Mon-Fri reflection must be non-empty after trim.
-  // We check content FIRST so the intern always learns about missing fields even if outside the window.
   const REFLECTION_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
   for (const key of REFLECTION_KEYS) {
     if (!dailyReflections?.[key] || dailyReflections[key].trim().length === 0) {
       return NextResponse.json({ error: `Daily reflection for ${key} is required.` }, { status: 400 })
     }
+  }
+
+  // Compulsory: general reflection
+  if (!generalReflection || generalReflection.trim().length === 0) {
+    return NextResponse.json({ error: "General reflection is required." }, { status: 400 })
   }
 
   // Load configurable submission window
@@ -190,6 +196,24 @@ export async function POST(req: NextRequest) {
 
   const { weekStart: ws, weekEnd: we } = getWeekBounds(new Date())
 
+  // Hours cap: base hard cap = 40h, reduced by 8h per public holiday in the week
+  const totalHoursRaw = [
+    mainProjectHours, consultingHours, specialProjectHours, trainingHours,
+    newBusinessHours, reportingDocHours, operationalHours, researchHours,
+    meetingsHours, communityHours, representationHours, selfDevHours,
+  ].reduce((a, b) => a + Number(b), 0)
+
+  const holidaysThisWeek = await prisma.publicHoliday.count({
+    where: { date: { gte: ws, lte: we } },
+  })
+  const hardCap = Math.max(0, 40 - holidaysThisWeek * 8)
+
+  if (totalHoursRaw > hardCap) {
+    return NextResponse.json({
+      error: `Total hours (${totalHoursRaw.toFixed(1)}h) exceed the weekly limit of ${hardCap}h${holidaysThisWeek > 0 ? ` (adjusted for ${holidaysThisWeek} public holiday${holidaysThisWeek > 1 ? "s" : ""} this week)` : ""}.`,
+    }, { status: 400 })
+  }
+
   // Prevent duplicate / block on MISSING placeholder
   const existing = await prisma.internWeeklyReport.findFirst({
     where: { employeeId: emp.id, weekStart: ws },
@@ -201,11 +225,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "You have already submitted a report for this week." }, { status: 409 })
   }
 
-  const totalHours = [
-    mainProjectHours, consultingHours, specialProjectHours, trainingHours,
-    newBusinessHours, reportingDocHours, operationalHours, researchHours,
-    meetingsHours, communityHours, representationHours, selfDevHours,
-  ].reduce((a, b) => a + Number(b), 0)
+  const totalHours = totalHoursRaw
 
   const isNew = !existing
   const report = await prisma.internWeeklyReport.upsert({
@@ -215,7 +235,7 @@ export async function POST(req: NextRequest) {
       mainProjectHours, consultingHours, specialProjectHours, trainingHours,
       newBusinessHours, reportingDocHours, operationalHours, researchHours,
       meetingsHours, communityHours, representationHours, selfDevHours,
-      totalHours, personalReflection, taskDescriptions, dailyReflections,
+      totalHours, personalReflection, taskDescriptions, dailyReflections, generalReflection,
       submittedAt: new Date(), lateFlag,
       pointDeduction,
       status: computedStatus,
@@ -224,7 +244,7 @@ export async function POST(req: NextRequest) {
       mainProjectHours, consultingHours, specialProjectHours, trainingHours,
       newBusinessHours, reportingDocHours, operationalHours, researchHours,
       meetingsHours, communityHours, representationHours, selfDevHours,
-      totalHours, personalReflection, taskDescriptions, dailyReflections,
+      totalHours, personalReflection, taskDescriptions, dailyReflections, generalReflection,
       submittedAt: new Date(), lateFlag,
       pointDeduction,
       status: computedStatus,
@@ -260,40 +280,47 @@ export async function POST(req: NextRequest) {
   // Notification copy
   const internName = `${emp.firstName} ${emp.lastName}`
 
-  // Notify project lead (email dropped in R6 — PL checks reports as part of normal flow)
-  if (emp.projectLeadId) {
-    const lead = await prisma.employee.findUnique({ where: { id: emp.projectLeadId }, select: { userId: true } })
-    if (lead?.userId) {
-      await prisma.notification.create({
-        data: {
-          userId: lead.userId,
-          title: "Intern Weekly Report Submitted",
-          message: `${internName} submitted their weekly report for ${format(ws, "MMM d")} – ${format(we, "MMM d, yyyy")}.${lateFlag ? " (Late submission)" : ""}`,
-          type: lateFlag ? "WARNING" : "INFO",
-          link: "/project-lead/intern-reports",
-        },
-      }).catch(() => {})
+  // Notify ALL assigned reviewers (primary PL + extras) with in-app notification + email
+  const weekRange = `${format(ws, "MMM d")} – ${format(we, "MMM d, yyyy")}`
+  const reviewLink = `${process.env.NEXTAUTH_URL ?? ""}/project-lead/intern-reports`
 
-      // intern_report_submitted email dropped (R6) — PL reviews intern reports as part of
-      // their normal workflow; in-app notification + bell icon is enough.
-    }
-  }
+  // Collect all reviewer employee IDs: primary PL + extras
+  const allReviewerEmpIds = [
+    emp.projectLeadId,
+    ...(extraReviewerIds as string[]).filter(id => id && id !== emp.projectLeadId),
+  ].filter(Boolean) as string[]
 
-  // Notify each extra reviewer individually (email dropped — they're colleagues in the app)
-  for (const revId of (extraReviewerIds as string[])) {
-    if (!revId || revId === emp.projectLeadId) continue
-    const revEmp = await prisma.employee.findUnique({ where: { id: revId }, select: { userId: true } })
+  for (const revEmpId of allReviewerEmpIds) {
+    const revEmp = await prisma.employee.findUnique({
+      where: { id: revEmpId },
+      select: { userId: true, firstName: true, lastName: true },
+    })
     if (!revEmp?.userId) continue
+
+    const isPrimaryPL = revEmpId === emp.projectLeadId
+    const notifLink = isPrimaryPL ? "/project-lead/intern-reports" : "/staff/intern-reviews"
+
+    // In-app notification
     await prisma.notification.create({
       data: {
         userId: revEmp.userId,
-        title: "Intern Report: Review Requested",
-        message: `${internName} has asked you to review their weekly report for ${format(ws, "MMM d")} – ${format(we, "MMM d, yyyy")}.`,
-        type: "INFO",
-        link: "/staff/intern-reviews",
+        title: "Intern Weekly Report Submitted",
+        message: `${internName} submitted their weekly report for ${weekRange}.${lateFlag ? " (Late submission)" : ""} Please fill your feedback.`,
+        type: lateFlag ? "WARNING" : "INFO",
+        link: notifLink,
       },
     }).catch(() => {})
-    // intern_report_reviewer_assigned email dropped (R6) — extra reviewers are in-app colleagues.
+
+    // Email notification
+    await sendEmail({
+      eventKey: "intern_report_submitted",
+      toUserId: revEmp.userId,
+      variables: {
+        internName,
+        weekRange,
+        reviewLink,
+      },
+    }).catch(() => {})
   }
 
   return NextResponse.json({ report }, { status: 201 })

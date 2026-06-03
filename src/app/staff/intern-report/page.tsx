@@ -240,6 +240,8 @@ export default function InternReportPage() {
   const [cfg, setCfg] = useState<Settings>(DEFAULTS)
   const [entries, setEntries] = useState<Record<string, Record<DayKey, {tasks: string, hours: string}>>>(initEntries())
   const [dailyReflections, setDailyReflections] = useState<Record<string, string>>({ Mon: "", Tue: "", Wed: "", Thu: "", Fri: "" })
+  const [generalReflection, setGeneralReflection] = useState("")
+  const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr] = useState("")
   const [submitOk, setSubmitOk] = useState(false)
@@ -261,6 +263,7 @@ export default function InternReportPage() {
       .then(d => { setCfg(d); setWindow(computeWindow(d)) })
       .catch(() => {})
     fetch("/api/intern-reports").then(r => r.json()).then(d => setReports(d.reports ?? [])).finally(() => setLoading(false))
+    fetch("/api/intern-reports/leaderboard").then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
     fetch("/api/self-service/profile").then(r => r.json()).then(d => {
       const pl = d.profile?.projectLead
       if (pl) setProjectLead({ id: pl.id, name: pl.name })
@@ -324,7 +327,7 @@ export default function InternReportPage() {
     const res = await fetch("/api/intern-reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...hoursPayload, taskDescriptions, dailyReflections, extraReviewerIds }),
+      body: JSON.stringify({ ...hoursPayload, taskDescriptions, dailyReflections, generalReflection, extraReviewerIds }),
     })
     const d = await res.json()
     setSubmitting(false)
@@ -334,13 +337,15 @@ export default function InternReportPage() {
   }
 
   const alreadySubmitted = submitOk
-    || ["SUBMITTED","LATE","REVIEWED","ATTENDANCE_FILLED"].includes(thisWeekReport?.status)
+    || ["SUBMITTED","LATE","REVIEWED"].includes(thisWeekReport?.status)
 
   // Compulsory: every Mon-Fri daily reflection must be non-empty after trim
   const missingReflectionDays = REFLECTION_DAYS
     .filter(d => !dailyReflections[d.key] || dailyReflections[d.key].trim().length === 0)
     .map(d => d.label)
   const allReflectionsFilled = missingReflectionDays.length === 0
+  const generalReflectionFilled = generalReflection.trim().length > 0
+  const hoursOk = totalHours <= 40
 
   const hasMissingPlaceholder = thisWeekReport?.status === "MISSING"
 
@@ -396,58 +401,76 @@ export default function InternReportPage() {
           <>
             <div style={{ padding: "16px 24px 0" }}>
 
-              {/* Task table */}
-              <div style={{ overflowX: "auto", marginBottom: 20 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 900, fontSize: 12 }}>
+              {/* Task table — Days as rows, Categories as columns */}
+              <div style={{ overflowX: "auto", marginBottom: 12 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>
                     <tr style={{ background: "var(--muted)" }}>
-                      <th style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 150, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Category</th>
-                      {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(d => (
-                        <th key={d} style={{ padding: "10px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 160 }}>{d}</th>
+                      <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 80, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Day</th>
+                      {CATEGORIES.map(cat => (
+                        <th key={cat.key} style={{ padding: "9px 8px", textAlign: "center", fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 110 }}>{cat.label}</th>
                       ))}
-                      <th style={{ padding: "10px 12px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Total</th>
+                      <th style={{ padding: "9px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Daily Total</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {CATEGORIES.map((cat, i) => (
-                      <tr key={cat.key} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
-                        <td style={{ padding: "10px 12px", fontWeight: 600, fontSize: 12, color: "var(--foreground)", verticalAlign: "middle", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{cat.label}</td>
-                        {DAYS_LIST.map(day => (
-                          <td key={day} style={{ padding: "6px 8px", verticalAlign: "top" }}>
-                            <textarea
-                              value={entries[cat.key][day].tasks}
-                              onChange={e => setEntry(cat.key, day, "tasks", e.target.value)}
-                              disabled={!window.open}
-                              placeholder="Tasks…"
-                              rows={2}
-                              style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, marginBottom: 4 }}
-                            />
-                            <input
-                              type="number" min={0} max={24} step={0.25}
-                              value={entries[cat.key][day].hours}
-                              onChange={e => setEntry(cat.key, day, "hours", e.target.value)}
-                              disabled={!window.open}
-                              placeholder="Hrs"
-                              style={{ width: "100%", padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 6, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, textAlign: "center" }}
-                            />
+                    {DAYS_LIST.map((day, i) => {
+                      const dayLabel = day.charAt(0).toUpperCase() + day.slice(1)
+                      const dayTotal = CATEGORIES.reduce((s, c) => s + (parseFloat(entries[c.key][day].hours || "0") || 0), 0)
+                      return (
+                        <tr key={day} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.015)" }}>
+                          <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: "var(--foreground)", verticalAlign: "middle", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{dayLabel}</td>
+                          {CATEGORIES.map(cat => (
+                            <td key={cat.key} style={{ padding: "5px 6px", verticalAlign: "top" }}>
+                              <textarea
+                                value={entries[cat.key][day].tasks}
+                                onChange={e => setEntry(cat.key, day, "tasks", e.target.value)}
+                                disabled={!window.open}
+                                placeholder="Tasks…"
+                                rows={2}
+                                style={{ width: "100%", padding: "4px 6px", border: "1px solid var(--border)", borderRadius: 5, fontSize: 10, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, marginBottom: 3 }}
+                              />
+                              <input
+                                type="number" min={0} max={24} step={0.25}
+                                value={entries[cat.key][day].hours}
+                                onChange={e => setEntry(cat.key, day, "hours", e.target.value)}
+                                disabled={!window.open}
+                                placeholder="Hrs"
+                                style={{ width: "100%", padding: "3px 6px", border: "1px solid var(--border)", borderRadius: 5, fontSize: 10, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, textAlign: "center" }}
+                              />
+                            </td>
+                          ))}
+                          <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "middle" }}>
+                            {dayTotal > 0 ? dayTotal.toFixed(1) : "—"}
                           </td>
-                        ))}
-                        <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--primary)", verticalAlign: "middle" }}>
-                          {catTotal(cat.key).toFixed(1)}
-                        </td>
-                      </tr>
-                    ))}
+                        </tr>
+                      )
+                    })}
+                    {/* Category totals row */}
                     <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
-                      <td style={{ padding: "12px", fontWeight: 800, fontSize: 13, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total Hours</td>
-                      {DAYS_LIST.map(day => {
-                        const dayTotal = CATEGORIES.reduce((s, c) => s + (parseFloat(entries[c.key][day].hours || "0") || 0), 0)
-                        return <td key={day} style={{ padding: "12px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--muted-foreground)" }}>{dayTotal > 0 ? dayTotal.toFixed(1) : "—"}</td>
-                      })}
-                      <td style={{ padding: "12px 8px", textAlign: "center", fontWeight: 900, fontSize: 16, color: "var(--primary)" }}>{totalHours.toFixed(1)}</td>
+                      <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 12, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total</td>
+                      {CATEGORIES.map(cat => (
+                        <td key={cat.key} style={{ padding: "10px 6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>
+                          {catTotal(cat.key) > 0 ? catTotal(cat.key).toFixed(1) : "—"}
+                        </td>
+                      ))}
+                      <td style={{ padding: "10px 6px", textAlign: "center", fontWeight: 900, fontSize: 14, color: totalHours > 40 ? "#DC2626" : totalHours > 35 ? "#D97706" : "var(--primary)" }}>
+                        {totalHours.toFixed(1)}h
+                      </td>
                     </tr>
                   </tbody>
                 </table>
               </div>
+
+              {/* Hours cap warning */}
+              {totalHours > 35 && (
+                <div style={{ padding: "10px 14px", background: totalHours > 40 ? "#FEE2E2" : "#FEF3C7", border: `1px solid ${totalHours > 40 ? "#FECACA" : "#FDE68A"}`, borderRadius: 8, fontSize: 12, color: totalHours > 40 ? "#991B1B" : "#92400E", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16 }}>{totalHours > 40 ? "🚫" : "⚠️"}</span>
+                  {totalHours > 40
+                    ? `Total hours (${totalHours.toFixed(1)}h) exceed the weekly limit of 40h. Please reduce before submitting.`
+                    : `Total hours (${totalHours.toFixed(1)}h) are approaching the weekly limit of 40h.`}
+                </div>
+              )}
 
               {/* Daily Reflections */}
               <div style={{ marginBottom: 20 }}>
@@ -486,6 +509,31 @@ export default function InternReportPage() {
                   <div style={{ marginTop: 8, fontSize: 12, color: "#DC2626" }}>
                     Missing reflections for: <strong>{missingReflectionDays.join(", ")}</strong>. All 5 days are compulsory.
                   </div>
+                )}
+              </div>
+
+              {/* General Reflection */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8, color: "var(--foreground)", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span>General Reflection</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em" }}>Required</span>
+                </div>
+                <textarea
+                  value={generalReflection}
+                  onChange={e => setGeneralReflection(e.target.value)}
+                  rows={4}
+                  disabled={!window.open}
+                  placeholder="Summarise your week overall — what went well, what you learned, and what you'd do differently…"
+                  style={{
+                    width: "100%", padding: "10px 12px",
+                    border: `1.5px solid ${(!generalReflection.trim() && window.open) ? "#FCA5A5" : "var(--border)"}`,
+                    borderRadius: 8, fontSize: 13, background: "var(--background)",
+                    color: "var(--foreground)", outline: "none", resize: "vertical",
+                    boxSizing: "border-box", opacity: !window.open ? 0.6 : 1,
+                  }}
+                />
+                {window.open && !generalReflection.trim() && (
+                  <div style={{ marginTop: 4, fontSize: 12, color: "#DC2626" }}>General reflection is required.</div>
                 )}
               </div>
 
@@ -565,7 +613,7 @@ export default function InternReportPage() {
               )}
               <button
                 onClick={handleSubmit}
-                disabled={!window.open || submitting || !allReflectionsFilled || hasMissingPlaceholder}
+                disabled={!window.open || submitting || !allReflectionsFilled || !generalReflectionFilled || !hoursOk || hasMissingPlaceholder}
                 title={
                   !window.open ? "Submission window closed"
                     : hasMissingPlaceholder ? "Ask an admin to clear the missing-report record first"
@@ -606,6 +654,13 @@ export default function InternReportPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
                     <StatusBadge status={r.status} />
                     <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{(r.totalHours ?? 0).toFixed(1)}h</span>
+                    {r.totalScore !== undefined && r.productivityRating !== null ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)" }}>
+                        {r.attendanceRating !== null
+                          ? `${Math.round((r.totalScore / 12) * 100)}%`
+                          : `TL: ${Math.round(((r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)) / 9 * 100)}% (att. pending)`}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <button onClick={() => setViewReport(r)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", color: "var(--primary)", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px", flexShrink: 0 }}>
@@ -619,8 +674,8 @@ export default function InternReportPage() {
 
       {/* View Report Modal */}
       {viewReport && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setViewReport(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 720, width: "100%", maxHeight: "88vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewReport(null)}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: "min(1100px, 95vw)", width: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--card)", zIndex: 1 }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>
@@ -635,49 +690,65 @@ export default function InternReportPage() {
             </div>
 
             <div style={{ padding: "20px 24px" }}>
-              {/* Task breakdown table */}
+              {/* Task breakdown — Days as rows, Categories as columns */}
               <div style={{ overflowX: "auto", marginBottom: 20 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 800, fontSize: 12 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>
                     <tr style={{ background: "var(--muted)" }}>
-                      <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 130, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Category</th>
-                      {["Monday","Tuesday","Wednesday","Thursday","Friday"].map(d => (
-                        <th key={d} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 140 }}>{d}</th>
+                      <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 80, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Day</th>
+                      {CATEGORIES.map(cat => (
+                        <th key={cat.key} style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 10, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 90 }}>{cat.label}</th>
                       ))}
-                      <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 60 }}>Total</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Daily Total</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {CATEGORIES.map((cat, i) => {
-                      const dayData = (viewReport.taskDescriptions as any)?.[cat.key]
-                      const hasData = DAYS_LIST.some(d => dayData?.[d]?.tasks || dayData?.[d]?.hours)
-                      const weekTotal = DAYS_LIST.reduce((s, d) => s + (parseFloat(dayData?.[d]?.hours || "0") || 0), 0)
-                      const isLegacy = typeof dayData === "string"
-                      const legacyHrs = viewReport[cat.hoursKey] ?? 0
-                      if (!hasData && !isLegacy && !legacyHrs) return null
+                    {DAYS_LIST.map((day, i) => {
+                      const dayLabel = day.charAt(0).toUpperCase() + day.slice(1)
+                      const td = viewReport.taskDescriptions as any
+                      const isLegacy = typeof td?.[CATEGORIES[0]?.key] === "string"
+                      const dayTotal = CATEGORIES.reduce((s, cat) => {
+                        if (isLegacy) return s + (viewReport[cat.hoursKey] ?? 0)
+                        return s + (parseFloat(td?.[cat.key]?.[day]?.hours || "0") || 0)
+                      }, 0)
                       return (
-                        <tr key={cat.key} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
-                          <td style={{ padding: "8px 12px", fontWeight: 600, fontSize: 12, verticalAlign: "top", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{cat.label}</td>
-                          {isLegacy ? (
-                            <td style={{ padding: "8px 12px", fontSize: 11, color: "var(--foreground)" }} colSpan={5}>{dayData}</td>
-                          ) : (
-                            DAYS_LIST.map(day => {
-                              const cell = dayData?.[day]
-                              return (
-                                <td key={day} style={{ padding: "8px 12px", fontSize: 11, verticalAlign: "top" }}>
-                                  {cell?.tasks && <div style={{ marginBottom: 2, color: "var(--foreground)" }}>{cell.tasks}</div>}
-                                  {cell?.hours && parseFloat(cell.hours) > 0 && <div style={{ fontWeight: 700, color: "var(--primary)" }}>{parseFloat(cell.hours).toFixed(1)}h</div>}
-                                  {!cell?.tasks && !cell?.hours && <span style={{ color: "var(--border)" }}>—</span>}
-                                </td>
-                              )
-                            })
-                          )}
-                          <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "top" }}>
-                            {isLegacy ? legacyHrs.toFixed(1) : weekTotal > 0 ? weekTotal.toFixed(1) : "—"}
+                        <tr key={day} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
+                          <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, verticalAlign: "top", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{dayLabel}</td>
+                          {CATEGORIES.map(cat => {
+                            const cell = isLegacy ? null : td?.[cat.key]?.[day]
+                            return (
+                              <td key={cat.key} style={{ padding: "6px 8px", fontSize: 11, verticalAlign: "top" }}>
+                                {cell?.tasks && <div style={{ marginBottom: 2, color: "var(--foreground)", lineHeight: 1.4 }}>{cell.tasks}</div>}
+                                {cell?.hours && parseFloat(cell.hours) > 0 && <div style={{ fontWeight: 700, color: "var(--primary)" }}>{parseFloat(cell.hours).toFixed(1)}h</div>}
+                                {!cell?.tasks && !cell?.hours && <span style={{ color: "var(--border)" }}>—</span>}
+                              </td>
+                            )
+                          })}
+                          <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "middle" }}>
+                            {dayTotal > 0 ? dayTotal.toFixed(1) : "—"}
                           </td>
                         </tr>
                       )
                     })}
+                    {/* Category totals row */}
+                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
+                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total</td>
+                      {CATEGORIES.map(cat => {
+                        const td = viewReport.taskDescriptions as any
+                        const isLegacy = typeof td?.[cat.key] === "string"
+                        const catTot = isLegacy
+                          ? viewReport[cat.hoursKey] ?? 0
+                          : DAYS_LIST.reduce((s, d) => s + (parseFloat(td?.[cat.key]?.[d]?.hours || "0") || 0), 0)
+                        return (
+                          <td key={cat.key} style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)" }}>
+                            {catTot > 0 ? catTot.toFixed(1) : "—"}
+                          </td>
+                        )
+                      })}
+                      <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 900, fontSize: 13, color: "var(--primary)" }}>
+                        {(viewReport.totalHours ?? 0).toFixed(1)}h
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -707,7 +778,119 @@ export default function InternReportPage() {
                   <p style={{ fontSize: 13, lineHeight: 1.7, background: "var(--muted)", borderRadius: 8, padding: "12px 14px" }}>{viewReport.personalReflection}</p>
                 </div>
               )}
+
+              {/* General Reflection */}
+              {viewReport.generalReflection && (
+                <div style={{ marginBottom: 20 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 6, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>General Reflection</p>
+                  <p style={{ fontSize: 13, lineHeight: 1.7, background: "var(--muted)", borderRadius: 8, padding: "12px 14px" }}>{viewReport.generalReflection}</p>
+                </div>
+              )}
+
+              {/* Reviewer Feedback */}
+              {(viewReport.reviewers?.length ?? 0) > 0 && (
+                <div style={{ marginBottom: 8 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Reviewer Feedback</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {viewReport.reviewers.map((rv: any) => {
+                      const tlScore = (rv.productivityRating ?? 0) + (rv.ldRating ?? 0) + (rv.reflectionsRating ?? 0)
+                      const rated = rv.productivityRating !== null
+                      return (
+                        <div key={rv.id} style={{ background: "var(--muted)", borderRadius: 10, padding: "12px 14px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                            <span style={{ fontWeight: 700, fontSize: 13 }}>
+                              {rv.reviewer?.firstName} {rv.reviewer?.lastName}
+                            </span>
+                            {rv.isPrimary && (
+                              <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#EEF2FF", color: "#4338CA", fontWeight: 700 }}>Primary</span>
+                            )}
+                            {rated && (
+                              <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", marginLeft: "auto" }}>
+                                TL Score: {Math.round((tlScore / 9) * 100)}%
+                              </span>
+                            )}
+                          </div>
+                          {rated ? (
+                            <div style={{ display: "flex", gap: 12, marginBottom: rv.comment ? 8 : 0, fontSize: 11, color: "var(--muted-foreground)" }}>
+                              <span>Productivity: <strong>{rv.productivityRating}/3</strong></span>
+                              <span>L&D: <strong>{rv.ldRating}/3</strong></span>
+                              <span>Reflections: <strong>{rv.reflectionsRating}/3</strong></span>
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: 12, color: "var(--muted-foreground)", fontStyle: "italic" }}>Awaiting feedback…</p>
+                          )}
+                          {rv.comment && <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0 }}>{rv.comment}</p>}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Attendance score */}
+                  {viewReport.attendanceRating !== null && (
+                    <div style={{ marginTop: 10, background: "#F0FDF4", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700 }}>Attendance Score:</span>
+                      <span style={{ fontSize: 13, fontWeight: 900, color: "#16A34A" }}>{Math.round((viewReport.attendanceRating / 3) * 100)}%</span>
+                      {viewReport.attendanceComment && <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{viewReport.attendanceComment}</span>}
+                    </div>
+                  )}
+
+                  {/* Total score */}
+                  {viewReport.totalScore !== undefined && viewReport.productivityRating !== null && (
+                    <div style={{ marginTop: 10, background: "var(--primary)", borderRadius: 10, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "white" }}>Total Score:</span>
+                      <span style={{ fontSize: 15, fontWeight: 900, color: "white" }}>
+                        {viewReport.attendanceRating !== null
+                          ? `${Math.round((viewReport.totalScore / 12) * 100)}%`
+                          : "Attendance pending"}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* This Week's Leaderboard */}
+      {leaderboard.length > 0 && (
+        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginTop: 20 }}>
+          <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)" }}>
+            <h2 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>This Week's Leaderboard</h2>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: "var(--muted)" }}>
+                  {["Rank", "Intern", "Dept", "TL Score", "Attendance", "Total"].map(h => (
+                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((row: any) => {
+                  const isMe = !!reports.find((r: any) => r.employeeId === row.employeeId)
+                  return (
+                    <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)", background: isMe ? "rgba(22,163,74,0.06)" : "transparent" }}>
+                      <td style={{ padding: "10px 14px", fontWeight: 700, color: row.rank === 1 ? "#D97706" : "var(--muted-foreground)" }}>
+                        {row.rank ?? "–"}
+                      </td>
+                      <td style={{ padding: "10px 14px", fontWeight: isMe ? 700 : 400 }}>
+                        {row.name} {isMe && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 12, background: "#DCFCE7", color: "#15803D", fontWeight: 700, marginLeft: 4 }}>You</span>}
+                      </td>
+                      <td style={{ padding: "10px 14px", color: "var(--muted-foreground)" }}>{row.dept}</td>
+                      <td style={{ padding: "10px 14px", fontWeight: 600 }}>{row.tlScorePct}%</td>
+                      <td style={{ padding: "10px 14px", color: row.attendancePending ? "var(--muted-foreground)" : "inherit" }}>
+                        {row.attendancePending ? "Pending" : `${row.attendanceScorePct}%`}
+                      </td>
+                      <td style={{ padding: "10px 14px", fontWeight: 700, color: "var(--primary)" }}>
+                        {row.attendancePending ? "–" : `${row.totalScorePct}%`}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
