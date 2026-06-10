@@ -22,9 +22,15 @@ export async function GET(req: NextRequest) {
   // Team-scoped views for PLs go through /api/project-lead/team instead.
   if (isStaff || user.role === "PROJECT_LEAD") {
     try {
+      // When no status filter: show ACTIVE + ON_LEAVE (hide TERMINATED from non-admins)
+      // When a specific status is selected: apply it exactly
+      const staffStatusFilter = status && status !== ""
+        ? { employeeStatus: status as any }
+        : { employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] as any[] } }
+
       const employees = await prisma.employee.findMany({
         where: {
-          employeeStatus: { in: ["ACTIVE", "ON_LEAVE"] },
+          ...staffStatusFilter,
           user: { role: { not: "SUPER_ADMIN" as any } },
           ...(search ? { OR: [
             { firstName: { contains: search, mode: "insensitive" } },

@@ -78,7 +78,7 @@ type Phase =
 // src/app/api/intern-reports/route.ts (search for "TESTING_ALWAYS_OPEN").
 // Flip back to false (or delete the early return + the const) to restore the
 // real Friday-only window. Also documented in work.md Round 6.
-const TESTING_ALWAYS_OPEN = true
+const TESTING_ALWAYS_OPEN = false
 
 function computePhase(cfg: Settings, nowWat: Date): Phase {
   if (TESTING_ALWAYS_OPEN) {

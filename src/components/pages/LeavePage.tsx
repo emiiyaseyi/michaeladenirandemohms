@@ -823,7 +823,7 @@ function PLApproveModal({ req, employees, currentUserEmployeeId, onClose, onDone
           {req.employeeLeaveBalance && (
             <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginTop: 2, display: "flex", justifyContent: "space-between", fontSize: 12 }}>
               <span style={{ color: "var(--muted-foreground)" }}>Balance ({req.leaveType?.name})</span>
-              <span style={{ fontWeight: 600, color: req.days > req.employeeLeaveBalance.remaining ? "var(--accent)" : "var(--foreground)" }}>
+              <span style={{ fontWeight: 600, color: req.days > (req.employeeLeaveBalance.allocated - req.employeeLeaveBalance.used) ? "var(--accent)" : "var(--foreground)" }}>
                 {req.employeeLeaveBalance.remaining} / {req.employeeLeaveBalance.allocated} days remaining
               </span>
             </div>
@@ -839,10 +839,10 @@ function PLApproveModal({ req, employees, currentUserEmployeeId, onClose, onDone
             </div>
           )}
         </div>
-        {req.employeeLeaveBalance && req.days > req.employeeLeaveBalance.remaining && (
+        {req.employeeLeaveBalance && req.days > (req.employeeLeaveBalance.allocated - req.employeeLeaveBalance.used) && (
           <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning)", borderRadius: 8, padding: "10px 14px", fontSize: 12, color: "var(--warning)", display: "flex", gap: 8, fontWeight: 600 }}>
             <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
-            This request ({req.days}d) exceeds the employee's remaining balance ({req.employeeLeaveBalance.remaining}d). You may still approve — HR will see the shortfall.
+            This request ({req.days}d) exceeds the employee's approved balance ({req.employeeLeaveBalance.allocated - req.employeeLeaveBalance.used}d available). You may still approve — HR will see the shortfall.
           </div>
         )}
 

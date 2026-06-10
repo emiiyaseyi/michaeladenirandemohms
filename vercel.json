@@ -1,8 +1,0 @@
-{
-  "crons": [
-    { "path": "/api/cron/birthdays", "schedule": "0 8 * * *" },
-    { "path": "/api/cron/intern-deductions", "schedule": "0 7 * * 1" },
-    { "path": "/api/leave/auto-status", "schedule": "0 6 * * *" },
-    { "path": "/api/leave/auto-welcome", "schedule": "0 7 * * *" }
-  ]
-}

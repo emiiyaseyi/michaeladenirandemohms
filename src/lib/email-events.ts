@@ -13,8 +13,14 @@ export interface EmailEventDef {
 // The host comes from NEXTAUTH_URL so rotating the deploy domain only needs
 // an env-var change (not a code edit). Logo image is served from /public.
 const APP_URL = process.env.NEXTAUTH_URL ?? ""
+// Use PNG for email clients — SVG is blocked by Gmail, Outlook, Apple Mail.
+// Add /public/dsn-logo.png to the repo if it doesn't exist yet.
+// Falls back to a text header so emails are still readable even without the image.
 const LOGO =
-  `<div style="text-align:center;padding:4px 0 20px;"><a href="${APP_URL}" style="display:inline-block;text-decoration:none;border:0;outline:none;"><img src="${APP_URL}/dsn-logo.svg" alt="DSN" width="150" style="max-width:150px;height:auto;border:0;outline:none;text-decoration:none;display:block;" /></a></div>`
+  `<div style="text-align:center;padding:4px 0 20px;">` +
+  `<a href="${APP_URL}" style="display:inline-block;text-decoration:none;border:0;outline:none;">` +
+  `<img src="${APP_URL}/dsn-logo.png" alt="Data Science Nigeria" width="150" height="50" style="max-width:150px;height:auto;border:0;outline:none;text-decoration:none;display:block;margin:0 auto;" />` +
+  `</a></div>`
 
 const ROW = (label: string, val: string) =>
   `<tr><td style="padding:10px 14px;font-size:13px;color:#6b7280;border-bottom:1px solid #f3f4f6;width:130px;">${label}</td><td style="padding:10px 14px;font-size:13px;font-weight:600;color:#111827;border-bottom:1px solid #f3f4f6;">${val}</td></tr>`

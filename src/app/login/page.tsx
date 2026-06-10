@@ -6,16 +6,6 @@ import Link from "next/link"
 import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
 import AuthLeftPanel from "@/components/layout/AuthLeftPanel"
 
-const DEMOS: [string, string, string, string][] = [
-  ["HR", "HR Admin",      "edodida@datasciencenigeria.ai",        "Admin@DSN2024!"],
-  ["A1", "Admin 1",       "staff1@dsn-hrms.com",                  "dsn-demo"],
-  ["L1", "Project Lead 1","lead1@dsn-hrms.com",                   "dsn-demo"],
-  ["L2", "Project Lead 2","lead2@dsn-hrms.com",                   "dsn-demo"],
-  ["S1", "Staff 1",       "staff3@dsn-hrms.com",                  "dsn-demo"],
-  ["S2", "Staff 2",       "staff4@dsn-hrms.com",                  "dsn-demo"],
-  ["IN", "Intern",        "intern1@datasciencenigeria.ai",        "dsn-demo"],
-]
-
 
 export default function LoginPage() {
   const router = useRouter()
@@ -31,8 +21,6 @@ export default function LoginPage() {
     const e = params.get("email")
     if (e) setEmail(e)
   }, [])
-
-  const fill = (e: string, p: string) => { setEmail(e); setPassword(p); setError("") }
 
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault()
@@ -170,22 +158,6 @@ export default function LoginPage() {
               </button>
             </form>
 
-            {/* Demo credentials */}
-            <div style={{ marginTop: 24, padding: 16, background: "var(--muted)", borderRadius: 12, border: "1px solid var(--border)" }}>
-              {DEMOS.map(([, role, em, pw]) => (
-                <div
-                  key={role}
-                  style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 4, cursor: "pointer", padding: "7px 8px", borderRadius: 6, transition: "background 0.12s", display: "flex", alignItems: "center", gap: 8 }}
-                  onClick={() => fill(em, pw)}
-                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--border)"}
-                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "transparent"}
-                >
-                  <span style={{ fontWeight: 700, color: "var(--accent)", fontSize: 11, minWidth: 72 }}>{role}</span>
-                  <span style={{ fontFamily: "monospace", fontSize: 11, color: "var(--foreground)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{em}</span>
-                </div>
-              ))}
-              <p style={{ fontSize: 11, color: "var(--subtle)", margin: "8px 0 0", textAlign: "center" }}>Click a row to auto-fill</p>
-            </div>
           </div>
 
           <p style={{ textAlign: "center", fontSize: 12, color: "var(--subtle)", marginTop: 20 }}>

@@ -5,6 +5,7 @@ import { Search, Loader2, ChevronDown, Check } from "lucide-react"
 const STATUS_OPTS = [
   { value: "", label: "All" },
   { value: "ACTIVE", label: "Active" },
+  { value: "ON_LEAVE", label: "On Leave" },
   { value: "TERMINATED", label: "Inactive" },
 ]
 
