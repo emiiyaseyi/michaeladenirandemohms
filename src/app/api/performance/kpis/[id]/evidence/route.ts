@@ -4,11 +4,13 @@ import path from "path"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
+import { UPLOADS_ENABLED, uploadsDisabledResponse } from "@/lib/uploads"
 
 const ALLOWED = ["pdf", "jpeg", "jpg", "png", "docx", "xlsx"]
 const MAX_SIZE = 10 * 1024 * 1024 // 10 MB
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!UPLOADS_ENABLED) return uploadsDisabledResponse()
   const { user, error } = await requireAuth()
   if (error) return error
   if (!user.employeeId) return forbidden("No employee linked to this account")

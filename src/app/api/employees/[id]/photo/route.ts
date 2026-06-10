@@ -4,8 +4,10 @@ import path from "path"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
+import { UPLOADS_ENABLED, uploadsDisabledResponse } from "@/lib/uploads"
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  if (!UPLOADS_ENABLED) return uploadsDisabledResponse()
   const { user, error } = await requireAuth()
   if (error) return error
   if (!hasCap(user, "canViewAllEmployees")) return forbidden()

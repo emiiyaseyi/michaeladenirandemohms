@@ -4,6 +4,7 @@ import path from "path"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
+import { UPLOADS_ENABLED, uploadsDisabledResponse } from "@/lib/uploads"
 
 const VALID_TYPES = ["SSCE", "FIRST_DEGREE", "NYSC", "PROFESSIONAL_CERT", "UTILITY_BILL", "NIN_SLIP", "OTHER"]
 
@@ -53,6 +54,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!UPLOADS_ENABLED) return uploadsDisabledResponse()
   const { user, error } = await requireAuth()
   if (error) return error
 
