@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
   // delete the const + restore the `if` blocks below as `return` statements).
   // Matching client-side override lives in src/app/staff/intern-report/page.tsx
   // (search for "TESTING_ALWAYS_OPEN"). Also documented in work.md Round 6.
-  const TESTING_ALWAYS_OPEN = true
+  const TESTING_ALWAYS_OPEN = false
   if (!TESTING_ALWAYS_OPEN) {
     if (!isFri && !isSat && !isSun) {
       return NextResponse.json({ error: `Submission window opens Friday at ${openHour}:00 WAT and closes Sunday at 11:59 PM WAT.` }, { status: 400 })

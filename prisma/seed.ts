@@ -5,7 +5,8 @@
  *   - Leave Types
  *   - Public Holidays (Nigeria)
  *   - Active Performance Cycle
- *   - Super admin account (requires ADMIN_EMAIL + ADMIN_PASSWORD in .env)
+ *   - Super admin account (edodida@datasciencenigeria.ai)
+ *   - CEO + Executive Director accounts (top-tier managers)
  *
  * Run: npm run db:seed
  */
@@ -15,6 +16,8 @@ import bcrypt from "bcryptjs"
 import { EMAIL_EVENTS } from "../src/lib/email-events"
 
 const prisma = new PrismaClient()
+
+const hash = (pw: string) => bcrypt.hashSync(pw, 10)
 
 async function main() {
   console.log("🌱 Seeding reference data…")
@@ -52,7 +55,6 @@ async function main() {
   console.log("  ✓ Divisions & Departments")
 
   // ── Leave Types (DSN policy) ────────────────────────────────────────────────
-  // All re-seeds also refresh the policy fields so existing rows can't drift.
   const leavePolicy = {
     annual:        { name: "Annual Leave",        description: "Standard annual leave",                                          defaultDays: 10, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
     sick:          { name: "Sick Leave",          description: "Medical leave — align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
@@ -63,16 +65,10 @@ async function main() {
   }
 
   await Promise.all(Object.values(leavePolicy).map(p =>
-    prisma.leaveType.upsert({
-      where:  { name: p.name },
-      update: p,
-      create: p,
-    })
+    prisma.leaveType.upsert({ where: { name: p.name }, update: p, create: p })
   ))
 
-  // One-time cleanup of legacy leave types no longer offered by DSN.
-  // "Study Leave" is hard-deleted along with any historical requests/balances (org decision).
-  // Other legacy types: hard-delete if no leave requests still reference them, else soft-disable as a fallback.
+  // Clean up legacy leave types no longer offered by DSN.
   for (const legacyName of ["Study Leave", "Work From Home"]) {
     const lt = await prisma.leaveType.findUnique({ where: { name: legacyName } })
     if (!lt) continue
@@ -90,10 +86,9 @@ async function main() {
       await prisma.leaveType.update({ where: { id: lt.id }, data: { isActive: false } })
     }
   }
-
   console.log("  ✓ Leave Types (6 active per DSN policy)")
 
-  // ── Request Document Types (starter set; admins can add more from the UI) ────
+  // ── Request Document Types ────────────────────────────────────────────────────
   await Promise.all([
     prisma.requestDocumentType.upsert({ where: { name: "Employment Confirmation Letter" }, update: {}, create: { name: "Employment Confirmation Letter" } }),
     prisma.requestDocumentType.upsert({ where: { name: "Experience Letter" },              update: {}, create: { name: "Experience Letter" } }),
@@ -138,12 +133,13 @@ async function main() {
   console.log("  ✓ Performance Cycle")
 
   // ── Production HR Admin (Super Admin) ────────────────────────────────────────
+  // isSeeded: false — real person, emails flow normally.
   {
     const hashed = await bcrypt.hash("Admin@DSN2024!", 12)
     await prisma.user.upsert({
       where:  { email: "edodida@datasciencenigeria.ai" },
-      update: { role: "SUPER_ADMIN" as any, mustChangePassword: false, isSeeded: true },
-      create: { name: "HR Admin", email: "edodida@datasciencenigeria.ai", password: hashed, role: "SUPER_ADMIN" as any, mustChangePassword: false, isSeeded: true },
+      update: { role: "SUPER_ADMIN" as any, mustChangePassword: false, isSeeded: false },
+      create: { name: "HR Admin", email: "edodida@datasciencenigeria.ai", password: hashed, role: "SUPER_ADMIN" as any, mustChangePassword: false, isSeeded: false },
     })
     console.log("  ✓ Admin account (edodida@datasciencenigeria.ai)")
   }
@@ -275,12 +271,10 @@ async function main() {
 
   // ── Job Titles ────────────────────────────────────────────────────────────────
   const JOB_TITLES = [
-    // Leadership & Executive
     "CEO/Founder",
     "Chief Finance Officer",
     "Executive Director, Talent & Process",
     "Director, AI Solutions Delivery",
-    // Technology & Engineering
     "AI/DPI Lead",
     "Data Analyst",
     "Data Analyst/Geospatial Lead",
@@ -297,7 +291,6 @@ async function main() {
     "Technical Delivery (Solutions and Training) Lead",
     "UI/UX Designer",
     "UI/UX Designer (Associate)",
-    // Programs & Delivery
     "Business Development Lead",
     "Community Project Analyst",
     "Product Lead",
@@ -307,16 +300,13 @@ async function main() {
     "Project Assistant",
     "Project Data Analyst",
     "Project/Delivery Coordinator",
-    // Creative & Brand
     "Brand Analyst",
     "Content Creator and Social Media Manager",
     "Creative Analyst",
-    // Operations & Administration
     "Admin/Executive Assistant",
     "Finance Officer",
     "HR Analyst",
     "Legal/Administrative Lead",
-    // Interns
     "Admin Intern",
     "Finance Intern",
     "Legal Intern",
@@ -328,7 +318,7 @@ async function main() {
   })
   console.log(`  ✓ ${JOB_TITLES.length} job titles seeded`)
 
-  // ── Email Settings (disabled by default until email is configured) ──────────
+  // ── Email Settings (disabled by default until email is configured) ────────────
   await prisma.emailSettings.upsert({
     where: { id: "singleton" },
     update: {},
@@ -336,20 +326,18 @@ async function main() {
       id: "singleton",
       enabled: false,
       fromName: "DSN HRMS",
-      // Sender address lives in EMAIL_FROM_ADDRESS env var at runtime (src/lib/email.ts).
-      // Value here is a historical seed default — the running code reads env first.
       fromEmail: process.env.EMAIL_FROM_ADDRESS ?? "noreply@hrms.dsnsandbox.com",
       eventToggles: {},
     },
   })
-  console.log("  ✓ Email settings (defaults, disabled until configured)")
+  console.log("  ✓ Email settings (disabled by default — enable via Settings → Customization)")
 
-  // ── Email Templates (seed defaults, inactive by default until email is configured) ──
+  // ── Email Templates ───────────────────────────────────────────────────────────
   let templateCount = 0
   for (const [eventKey, def] of Object.entries(EMAIL_EVENTS)) {
     await prisma.emailTemplate.upsert({
-      where: { eventKey },
-      update: {}, // never overwrite customised templates
+      where:  { eventKey },
+      update: {},  // never overwrite customised templates
       create: {
         eventKey,
         name: def.name,
@@ -361,304 +349,41 @@ async function main() {
     })
     templateCount++
   }
-  console.log(`  ✓ ${templateCount} email templates seeded (defaults, isActive=true)`)
+  console.log(`  ✓ ${templateCount} email templates seeded`)
 
-  // Resolve IDs for elevation assignments in demo data
-  const hrAdminRole = await prisma.adminRole.findUnique({ where: { slug: "hr-admin" } })
-
-  console.log("\n✅ Seed complete.")
-
-  // ── Dev / Demo Data ───────────────────────────────────────────────────────────
-  const hash = (pw: string) => bcrypt.hashSync(pw, 10)
-
-  const [equalyzai, techDelivery, productDesign, adminFacility, finance, solutionDelivery, brandComms, bizDev] = await Promise.all([
-    prisma.department.findFirst({ where: { name: "EqualyzAI" } }),
-    prisma.department.findFirst({ where: { name: "Technical Delivery (Service & Consulting)" } }),
-    prisma.department.findFirst({ where: { name: "Product Design Team" } }),
-    prisma.department.findFirst({ where: { name: "Administration & Facility" } }),
-    prisma.department.findFirst({ where: { name: "Finance" } }),
-    prisma.department.findFirst({ where: { name: "Solution Delivery (Training)" } }),
-    prisma.department.findFirst({ where: { name: "Brand and Comms" } }),
-    prisma.department.findFirst({ where: { name: "Business Development" } }),
-  ])
-
-  if (!equalyzai || !techDelivery || !adminFacility) {
-    console.log("  ⚠  Skipping demo data — departments not found")
-    return
-  }
-
-  // Quick-login demo accounts (2 elevated admin + 2 staff + 2 project leads + 1 intern)
-  // The intern entry uses jobTitle that includes "Intern" so the session's isIntern flag is true.
-  const demoStaffs = [
-    { email: "staff1@dsn-hrms.com",  name: "Admin 1",  empId: "DSN-D001", fn: "Admin",  ln: "1", title: "HR Manager",        dept: adminFacility, gender: "FEMALE", dob: "1992-03-10", salary: 480000, role: "STAFF", elevate: true,  isIntern: false },
-    { email: "staff3@dsn-hrms.com",  name: "Staff 1",  empId: "DSN-D003", fn: "Staff",  ln: "1", title: "Data Analyst",      dept: equalyzai,     gender: "FEMALE", dob: "1996-01-15", salary: 360000, role: "STAFF", elevate: false, isIntern: false },
-    { email: "staff4@dsn-hrms.com",  name: "Staff 2",  empId: "DSN-D004", fn: "Staff",  ln: "2", title: "Finance Officer",   dept: finance,       gender: "MALE",   dob: "1991-09-05", salary: 390000, role: "STAFF", elevate: false, isIntern: false },
-    { email: "intern1@datasciencenigeria.ai", name: "Intern 1", empId: "DSN-D007", fn: "Intern", ln: "1", title: "Data Science Intern", dept: equalyzai, gender: "FEMALE", dob: "2002-04-12", salary: 100000, role: "STAFF", elevate: false, isIntern: true  },
-  ]
-  const demoEmpIds: Record<string, string> = {}
-  for (const s of demoStaffs) {
-    const u = await prisma.user.upsert({
-      where: { email: s.email },
-      update: { mustChangePassword: false, password: hash("dsn-demo"), role: "STAFF" as any, isSeeded: true },
-      create: { name: s.name, email: s.email, password: hash("dsn-demo"), role: "STAFF" as any, mustChangePassword: false, isSeeded: true },
-    })
-    const emp = await prisma.employee.upsert({
-      where: { userId: u.id },
-      update: { dateOfBirth: new Date(s.dob) },
-      create: { userId: u.id, employeeId: s.empId, firstName: s.fn, lastName: s.ln, jobTitle: s.title, departmentId: s.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: s.isIntern ? "INTERN" : "FULL_TIME", hireDate: new Date("2024-01-01"), gender: s.gender as any, dateOfBirth: new Date(s.dob) },
-    })
-    demoEmpIds[s.email] = emp.id
-    if (s.elevate && hrAdminRole) {
-      await prisma.userAdminRole.upsert({
-        where: { userId_adminRoleId: { userId: u.id, adminRoleId: hrAdminRole.id } },
-        update: {},
-        create: { userId: u.id, adminRoleId: hrAdminRole.id },
-      })
-    }
-  }
-
-  // PROJECT_LEAD demo accounts
-  const demoPLs = [
-    { email: "lead1@dsn-hrms.com", name: "Lead 1", empId: "DSN-D005", fn: "Lead", ln: "1", title: "Team Lead — Technology",   dept: equalyzai,     gender: "MALE",   dob: "1990-06-15", salary: 550000, deptIds: [equalyzai?.id, techDelivery?.id].filter(Boolean) as string[] },
-    { email: "lead2@dsn-hrms.com", name: "Lead 2", empId: "DSN-D006", fn: "Lead", ln: "2", title: "Team Lead — Operations",   dept: adminFacility, gender: "FEMALE", dob: "1993-09-20", salary: 520000, deptIds: [adminFacility?.id, finance?.id].filter(Boolean) as string[] },
-  ]
-  const demoPLEmpIds: Record<string, string> = {}
-  const demoPLUserIds: Record<string, string> = {}
-  for (const pl of demoPLs) {
-    const u = await prisma.user.upsert({
-      where: { email: pl.email },
-      update: { mustChangePassword: false, password: hash("dsn-demo"), role: "PROJECT_LEAD" as any, isSeeded: true },
-      create: { name: pl.name, email: pl.email, password: hash("dsn-demo"), role: "PROJECT_LEAD" as any, mustChangePassword: false, isSeeded: true },
-    })
-    demoPLUserIds[pl.email] = u.id
-    const emp = await prisma.employee.upsert({
-      where: { userId: u.id },
-      update: { dateOfBirth: new Date(pl.dob) },
-      create: { userId: u.id, employeeId: pl.empId, firstName: pl.fn, lastName: pl.ln, jobTitle: pl.title, departmentId: pl.dept?.id ?? null, employeeStatus: "ACTIVE", employmentType: "FULL_TIME", hireDate: new Date("2024-01-01"), gender: pl.gender as any, dateOfBirth: new Date(pl.dob) },
-    })
-    demoPLEmpIds[pl.email] = emp.id
-    // Assign departments
-    for (const deptId of pl.deptIds) {
-      await prisma.projectLeadDepartment.upsert({
-        where: { userId_departmentId: { userId: u.id, departmentId: deptId } },
-        update: {},
-        create: { userId: u.id, departmentId: deptId },
-      })
-    }
-  }
-  console.log("  ✓ Demo accounts (admin, staff, project lead)")
-
-  // ── MANAGERS ──────────────────────────────────────────────────────────────────
-  // REPLACE placeholder emails and names with real ones before prod deployment.
-  // Until provisioned: log in as the super admin and update via /admin/people/employees.
-  // Manager 1 = CEO (male) | Manager 2 = Executive Director (female)
-  // Both are SUPER_ADMIN so they have full admin access without a staff/PL panel switcher.
+  // ── Top-tier Managers (CEO + Executive Director) ─────────────────────────────
+  // Real accounts — isSeeded: false so emails flow normally in production.
+  // mustChangePassword: true — they set their own password on first login.
   const managerSeeds = [
-    { email: "manager1@datasciencenigeria.ai", name: "Manager One", fn: "Manager", ln: "One", empId: "DSN-M001", title: "CEO/Founder",                          gender: "MALE",   dob: "1980-01-01", hire: "2020-01-01" },
-    { email: "manager2@datasciencenigeria.ai", name: "Manager Two", fn: "Manager", ln: "Two", empId: "DSN-M002", title: "Executive Director, Talent & Process", gender: "FEMALE", dob: "1982-01-01", hire: "2020-01-01" },
+    { email: "olubayo@datasciencenigeria.ai", name: "Olubayo Adekanbi", fn: "Olubayo", ln: "Adekanbi", empId: "DSN-M001", title: "CEO/Founder",                          gender: "MALE",   dob: "1980-01-01", hire: "2020-01-01" },
+    { email: "toyin@datasciencenigeria.ai",   name: "Toyin Adekanbi",   fn: "Toyin",   ln: "Adekanbi", empId: "DSN-M002", title: "Executive Director, Talent & Process", gender: "FEMALE", dob: "1982-01-01", hire: "2020-01-01" },
   ]
-  const managerEmpIds: Record<string, string> = {}
   for (const m of managerSeeds) {
     const u = await prisma.user.upsert({
       where:  { email: m.email },
-      update: { role: "SUPER_ADMIN" as any, isSeeded: true },
-      create: { name: m.name, email: m.email, password: hash("Welcome@DSN1"), role: "SUPER_ADMIN" as any, mustChangePassword: true, isSeeded: true },
+      update: { role: "SUPER_ADMIN" as any, isSeeded: false },
+      create: { name: m.name, email: m.email, password: hash("Welcome@DSN1"), role: "SUPER_ADMIN" as any, mustChangePassword: true, isSeeded: false },
     })
     const emp = await prisma.employee.upsert({
       where:  { userId: u.id },
-      update: { jobTitle: m.title, employeeStatus: "ACTIVE" },
+      update: { jobTitle: m.title, employeeStatus: "ACTIVE", firstName: m.fn, lastName: m.ln },
       create: {
         userId: u.id, employeeId: m.empId,
         firstName: m.fn, lastName: m.ln, gender: m.gender as any,
         jobTitle: m.title, employmentType: "FULL_TIME", employeeStatus: "ACTIVE",
         hireDate: new Date(m.hire), dateOfBirth: new Date(m.dob),
-        managerId: null,  // top of the tree
+        managerId: null,
       },
     })
-    managerEmpIds[m.email] = emp.id
-    // Manager-table row (isSystem: true → protected from deletion in the UI)
     await prisma.manager.upsert({
       where:  { employeeId: emp.id },
       update: { isSystem: true },
       create: { employeeId: emp.id, isSystem: true },
     })
   }
-  const manager1EmpId = managerEmpIds["manager1@datasciencenigeria.ai"]
-  const manager2EmpId = managerEmpIds["manager2@datasciencenigeria.ai"]
-  console.log("  ✓ Seeded managers (CEO + Executive Director, SUPER_ADMIN, Manager rows isSystem: true)")
+  console.log("  ✓ Top-tier managers (CEO: Olubayo Adekanbi, ED: Toyin Adekanbi)")
 
-  // Reparent demo PLs so they sit under the new top tier
-  if (manager1EmpId && demoPLEmpIds["lead1@dsn-hrms.com"]) {
-    await prisma.employee.update({ where: { id: demoPLEmpIds["lead1@dsn-hrms.com"] }, data: { managerId: manager1EmpId } })
-  }
-  if (manager2EmpId && demoPLEmpIds["lead2@dsn-hrms.com"]) {
-    await prisma.employee.update({ where: { id: demoPLEmpIds["lead2@dsn-hrms.com"] }, data: { managerId: manager2EmpId } })
-  }
-  console.log("  ✓ Reparented demo PLs (lead1 → Manager 1, lead2 → Manager 2)")
-
-  // 12 sample employees
-  const samples = [
-    { name: "Emeka Okonkwo",   email: "emeka.okonkwo@datasciencenigeria.ai",   gender: "MALE",   title: "Senior Data Scientist",       dept: equalyzai!.id,        type: "FULL_TIME", hire: "2022-05-10", dob: "1990-05-14", role: "STAFF", elevate: true },
-    { name: "Fatima Musa",     email: "fatima.musa@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Analyst",                dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-01-15", dob: "1996-06-02", role: "STAFF", elevate: false },
-    { name: "Chidi Nwosu",     email: "chidi.nwosu@datasciencenigeria.ai",     gender: "MALE",   title: "Software Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-08-22", dob: "1993-08-30", role: "STAFF", elevate: true },
-    { name: "Ngozi Eze",       email: "ngozi.eze@datasciencenigeria.ai",       gender: "FEMALE", title: "Product Designer",            dept: productDesign!.id,    type: "FULL_TIME", hire: "2023-03-01", dob: "1994-07-19", role: "STAFF", elevate: true },
-    { name: "Tunde Adeyemi",   email: "tunde.adeyemi@datasciencenigeria.ai",   gender: "MALE",   title: "Programs Lead",               dept: solutionDelivery!.id, type: "FULL_TIME", hire: "2021-11-05", dob: "1988-04-25", role: "STAFF", elevate: true },
-    { name: "Blessing Okafor", email: "blessing.okafor@datasciencenigeria.ai", gender: "FEMALE", title: "Brand & Comms Manager",       dept: brandComms!.id,       type: "FULL_TIME", hire: "2022-02-14", dob: "1991-05-08", role: "STAFF", elevate: true },
-    { name: "Ibrahim Sule",    email: "ibrahim.sule@datasciencenigeria.ai",    gender: "MALE",   title: "Finance Officer",             dept: finance!.id,          type: "FULL_TIME", hire: "2022-07-18", dob: "1992-06-17", role: "STAFF", elevate: false },
-    { name: "Aisha Garba",     email: "aisha.garba@datasciencenigeria.ai",     gender: "FEMALE", title: "Data Engineer",               dept: equalyzai!.id,        type: "FULL_TIME", hire: "2023-06-01", dob: "1997-05-21", role: "STAFF", elevate: false },
-    { name: "Kelechi Ibe",     email: "kelechi.ibe@datasciencenigeria.ai",     gender: "MALE",   title: "Frontend Engineer",           dept: techDelivery!.id,     type: "FULL_TIME", hire: "2023-09-11", dob: "1998-07-03", role: "STAFF", elevate: false },
-    { name: "Zainab Hassan",   email: "zainab.hassan@datasciencenigeria.ai",   gender: "FEMALE", title: "Data Science Intern",         dept: equalyzai!.id,        type: "INTERN",    hire: "2024-01-08", dob: "2001-06-11", role: "STAFF", elevate: false },
-    { name: "Olumide Adewale", email: "olumide.adewale@datasciencenigeria.ai", gender: "MALE",   title: "Backend Engineer",            dept: techDelivery!.id,     type: "FULL_TIME", hire: "2022-04-20", dob: "1993-04-28", role: "STAFF", elevate: false },
-    { name: "Grace Okeke",     email: "grace.okeke@datasciencenigeria.ai",     gender: "FEMALE", title: "Business Development Officer",dept: bizDev!.id,           type: "CONTRACT",  hire: "2023-11-01", dob: "1995-05-30", role: "STAFF", elevate: false },
-  ]
-
-  const defaultPwd = hash("dsn-staff")
-  const empRecords: Record<string, any> = {}
-  const allExisting = await prisma.employee.findMany({ select: { employeeId: true } })
-  const maxNum = allExisting.reduce((max, e) => { const n = parseInt(e.employeeId.replace(/\D/g, ""), 10); return isNaN(n) ? max : Math.max(max, n) }, 0)
-  let counter = maxNum
-
-  for (const s of samples) {
-    const [fn, ...ln] = s.name.split(" ")
-    const u = await prisma.user.upsert({
-      where: { email: s.email },
-      update: { role: s.role as any, mustChangePassword: false, isSeeded: true },
-      create: { name: s.name, email: s.email, password: defaultPwd, role: s.role as any, mustChangePassword: false, isSeeded: true },
-    })
-    const existingEmp = await prisma.employee.findFirst({ where: { userId: u.id } })
-    let emp: any
-    if (existingEmp) {
-      emp = await prisma.employee.update({ where: { id: existingEmp.id }, data: { jobTitle: s.title, departmentId: s.dept, dateOfBirth: new Date(s.dob) } })
-    } else {
-      counter++
-      emp = await prisma.employee.upsert({
-        where: { userId: u.id },
-        update: { dateOfBirth: new Date(s.dob) },
-        create: { userId: u.id, employeeId: `DSN-${String(counter).padStart(4, "0")}`, firstName: fn, lastName: ln.join(" "), gender: s.gender as any, jobTitle: s.title, departmentId: s.dept, employmentType: s.type as any, employeeStatus: "ACTIVE", hireDate: new Date(s.hire), dateOfBirth: new Date(s.dob) },
-      })
-    }
-    empRecords[s.email] = emp
-  }
-  console.log("  ✓ Sample employees")
-
-  // Elevate sample employees that have elevate: true to hr-admin
-  if (hrAdminRole) {
-    for (const s of samples.filter(s => s.elevate)) {
-      const u = await prisma.user.findUnique({ where: { email: s.email }, select: { id: true } })
-      if (u) {
-        await prisma.userAdminRole.upsert({
-          where: { userId_adminRoleId: { userId: u.id, adminRoleId: hrAdminRole.id } },
-          update: {}, create: { userId: u.id, adminRoleId: hrAdminRole.id },
-        })
-      }
-    }
-  }
-
-  // Manager / dept lead relationships
-  const emeka = empRecords["emeka.okonkwo@datasciencenigeria.ai"]
-  const chidi = empRecords["chidi.nwosu@datasciencenigeria.ai"]
-  const blessing = empRecords["blessing.okafor@datasciencenigeria.ai"]
-  await Promise.all([
-    prisma.employee.update({ where: { id: empRecords["fatima.musa@datasciencenigeria.ai"]?.id },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
-    prisma.employee.update({ where: { id: empRecords["aisha.garba@datasciencenigeria.ai"]?.id },    data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
-    prisma.employee.update({ where: { id: empRecords["zainab.hassan@datasciencenigeria.ai"]?.id },  data: { managerId: emeka?.id, projectLeadId: emeka?.id } }),
-    prisma.employee.update({ where: { id: empRecords["kelechi.ibe@datasciencenigeria.ai"]?.id },    data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
-    prisma.employee.update({ where: { id: empRecords["olumide.adewale@datasciencenigeria.ai"]?.id },data: { managerId: chidi?.id, projectLeadId: chidi?.id } }),
-    prisma.employee.update({ where: { id: empRecords["grace.okeke@datasciencenigeria.ai"]?.id },    data: { managerId: blessing?.id } }),
-  ])
-
-  // Reparent sample employees that have direct reports to the manager tier.
-  // Without this they appear as extra roots in the org chart alongside the 2 top managers.
-  const ngozi   = empRecords["ngozi.eze@datasciencenigeria.ai"]
-  const tunde   = empRecords["tunde.adeyemi@datasciencenigeria.ai"]
-  const ibrahim = empRecords["ibrahim.sule@datasciencenigeria.ai"]
-  await Promise.all([
-    // Technology stream → CEO (Manager 1)
-    emeka?.id && manager1EmpId && prisma.employee.update({ where: { id: emeka.id },   data: { managerId: manager1EmpId } }),
-    chidi?.id && manager1EmpId && prisma.employee.update({ where: { id: chidi.id },   data: { managerId: manager1EmpId } }),
-    // Operations / Design stream → Executive Director (Manager 2)
-    blessing?.id && manager2EmpId && prisma.employee.update({ where: { id: blessing.id }, data: { managerId: manager2EmpId } }),
-    ngozi?.id    && manager2EmpId && prisma.employee.update({ where: { id: ngozi.id },    data: { managerId: manager2EmpId } }),
-    tunde?.id    && manager2EmpId && prisma.employee.update({ where: { id: tunde.id },    data: { managerId: manager2EmpId } }),
-    ibrahim?.id  && manager2EmpId && prisma.employee.update({ where: { id: ibrahim.id },  data: { managerId: manager2EmpId } }),
-    // Demo staff → their PLs
-    demoEmpIds["staff1@dsn-hrms.com"] && demoPLEmpIds["lead2@dsn-hrms.com"] &&
-      prisma.employee.update({ where: { id: demoEmpIds["staff1@dsn-hrms.com"] }, data: { managerId: demoPLEmpIds["lead2@dsn-hrms.com"] } }),
-    demoEmpIds["staff3@dsn-hrms.com"] && demoPLEmpIds["lead1@dsn-hrms.com"] &&
-      prisma.employee.update({ where: { id: demoEmpIds["staff3@dsn-hrms.com"] }, data: { managerId: demoPLEmpIds["lead1@dsn-hrms.com"] } }),
-    demoEmpIds["staff4@dsn-hrms.com"] && demoPLEmpIds["lead2@dsn-hrms.com"] &&
-      prisma.employee.update({ where: { id: demoEmpIds["staff4@dsn-hrms.com"] }, data: { managerId: demoPLEmpIds["lead2@dsn-hrms.com"] } }),
-  ].filter(Boolean) as Promise<any>[])
-  console.log("  ✓ Reparented sample employees to manager tier")
-
-  // Intern demo account reports to lead1 (PL of EqualyzAI)
-  const intern1EmpId = demoEmpIds["intern1@datasciencenigeria.ai"]
-  const lead1EmpId = demoPLEmpIds["lead1@dsn-hrms.com"]
-  if (intern1EmpId && lead1EmpId) {
-    await prisma.employee.update({
-      where: { id: intern1EmpId },
-      data: { managerId: lead1EmpId, projectLeadId: lead1EmpId },
-    })
-  }
-
-  // Backfill EmployeeDepartment junction rows for everyone with a primary departmentId
-  const allEmployeesWithDept = await prisma.employee.findMany({
-    where: { departmentId: { not: null } },
-    select: { id: true, departmentId: true },
-  })
-  for (const e of allEmployeesWithDept) {
-    if (!e.departmentId) continue
-    await prisma.employeeDepartment.upsert({
-      where: { employeeId_departmentId: { employeeId: e.id, departmentId: e.departmentId } },
-      update: { isPrimary: true },
-      create: { employeeId: e.id, departmentId: e.departmentId, isPrimary: true },
-    })
-  }
-  console.log(`  ✓ EmployeeDepartment backfill (${allEmployeesWithDept.length} rows)`)
-
-  // Department leads — point each demo dept at the right PL
-  const lead1Emp = demoPLEmpIds["lead1@dsn-hrms.com"]
-  const lead2Emp = demoPLEmpIds["lead2@dsn-hrms.com"]
-  if (equalyzai && lead1Emp)        await prisma.department.update({ where: { id: equalyzai.id },        data: { leadEmployeeId: lead1Emp } })
-  if (techDelivery && lead1Emp)     await prisma.department.update({ where: { id: techDelivery.id },     data: { leadEmployeeId: lead1Emp } })
-  if (adminFacility && lead2Emp)    await prisma.department.update({ where: { id: adminFacility.id },    data: { leadEmployeeId: lead2Emp } })
-  if (finance && lead2Emp)          await prisma.department.update({ where: { id: finance.id },          data: { leadEmployeeId: lead2Emp } })
-  console.log("  ✓ Department leads assigned")
-
-  // Job postings
-  await Promise.all([
-    prisma.jobPosting.upsert({ where: { id: "job-ds-001" },     update: {}, create: { id: "job-ds-001",     title: "Senior Data Scientist", departmentId: equalyzai!.id,    description: "We are looking for a Senior Data Scientist to join our growing team.", employmentType: "FULL_TIME", status: "OPEN", openDate: new Date() } }),
-    prisma.jobPosting.upsert({ where: { id: "job-eng-001" },    update: {}, create: { id: "job-eng-001",    title: "Full Stack Engineer",   departmentId: techDelivery!.id, description: "Join our technical delivery team to build the next generation of data platforms.", employmentType: "FULL_TIME", status: "OPEN", openDate: new Date() } }),
-    prisma.jobPosting.upsert({ where: { id: "job-intern-001" }, update: {}, create: { id: "job-intern-001", title: "Data Science Intern",   departmentId: equalyzai!.id,    description: "Exciting internship opportunity for aspiring data scientists.", employmentType: "INTERN", status: "OPEN", openDate: new Date() } }),
-  ])
-  const appDefs = [
-    { name: "Chukwuemeka Obi",  email: "c.obi@gmail.com",       jobId: "job-ds-001",     stage: "INTERVIEW" },
-    { name: "Halima Abdullahi", email: "h.abdullahi@yahoo.com", jobId: "job-ds-001",     stage: "ASSESSMENT" },
-    { name: "Samuel Adeyinka",  email: "s.adeyinka@gmail.com",  jobId: "job-eng-001",    stage: "TECHNICAL" },
-    { name: "Miriam Osei",      email: "m.osei@outlook.com",    jobId: "job-eng-001",    stage: "APPLICATION" },
-    { name: "David Umeh",       email: "d.umeh@gmail.com",      jobId: "job-intern-001", stage: "OFFER" },
-  ]
-  for (const a of appDefs) {
-    const exists = await prisma.jobApplication.findFirst({ where: { candidateEmail: a.email } })
-    if (!exists) await prisma.jobApplication.create({ data: { jobPostingId: a.jobId, candidateName: a.name, candidateEmail: a.email, stage: a.stage as any, status: "ACTIVE" } })
-  }
-  console.log("  ✓ Job postings & applications")
-
-  // Leave balances — all employees including demo accounts
-  const annualLeave = await prisma.leaveType.findFirst({ where: { name: "Annual Leave" } })
-  const sickLeave   = await prisma.leaveType.findFirst({ where: { name: "Sick Leave" } })
-  const allEmpIds = [
-    ...Object.values(empRecords).filter(Boolean).map((e: any) => e.id as string),
-    ...Object.values(demoEmpIds),
-    ...Object.values(demoPLEmpIds),
-  ]
-  for (const empId of allEmpIds) {
-    if (annualLeave) await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: empId, leaveTypeId: annualLeave.id, year: 2026 } }, update: {}, create: { employeeId: empId, leaveTypeId: annualLeave.id, year: 2026, allocated: 21, used: 0, pending: 0 } })
-    if (sickLeave)   await prisma.leaveBalance.upsert({ where: { employeeId_leaveTypeId_year: { employeeId: empId, leaveTypeId: sickLeave.id,   year: 2026 } }, update: {}, create: { employeeId: empId, leaveTypeId: sickLeave.id,   year: 2026, allocated: 14, used: 0, pending: 0 } })
-  }
-  console.log("  ✓ Leave balances")
-
-  // Announcements
+  // ── Announcements ─────────────────────────────────────────────────────────────
   const superAdminUser = await prisma.user.findUnique({ where: { email: "edodida@datasciencenigeria.ai" }, select: { id: true } })
   const annDefs = [
     { title: "Welcome to DSN HRMS",              body: "We're excited to launch the new DSN HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
@@ -679,10 +404,7 @@ async function main() {
   await prisma.systemSetting.upsert({
     where:  { key: "company_details" },
     update: {},
-    create: {
-      key:   "company_details",
-      value: { companyName: "Data Science Nigeria" },
-    },
+    create: { key: "company_details", value: { companyName: "Data Science Nigeria" } },
   })
 
   const existingWorkplace = await prisma.workplace.findFirst({ where: { displayName: "Data Science Nigeria" } })
@@ -703,21 +425,13 @@ async function main() {
   }
   console.log("  ✓ Company details & workplace")
 
-  console.log("\n✅ Demo data complete.")
-  console.log("\n🔑 Demo login accounts:")
-  console.log("   HR Admin:  edodida@datasciencenigeria.ai     /  Admin@DSN2024!  (SUPER_ADMIN)")
-  console.log("   Manager 1: manager1@datasciencenigeria.ai    /  Welcome@DSN1    (SUPER_ADMIN — CEO, mustChange on first login)")
-  console.log("   Manager 2: manager2@datasciencenigeria.ai    /  Welcome@DSN1    (SUPER_ADMIN — Executive Director, mustChange)")
-  console.log("   Admin 1:   staff1@dsn-hrms.com               /  dsn-demo        (STAFF + HR Admin role — elevated)")
-  console.log("   Staff 1:   staff3@dsn-hrms.com               /  dsn-demo        (plain STAFF)")
-  console.log("   Staff 2:   staff4@dsn-hrms.com               /  dsn-demo        (plain STAFF)")
-  console.log("   Lead 1:    lead1@dsn-hrms.com                /  dsn-demo        (PROJECT_LEAD — EqualyzAI + Tech Delivery, reports to Manager 1)")
-  console.log("   Lead 2:    lead2@dsn-hrms.com                /  dsn-demo        (PROJECT_LEAD — Admin & Facility + Finance, reports to Manager 2)")
-  console.log("   Intern 1:  intern1@datasciencenigeria.ai     /  dsn-demo        (STAFF + INTERN — reports to lead1)")
+  console.log("\n✅ Seed complete.")
+  console.log("\n🔑 Production accounts:")
+  console.log("   HRMS Admin:     edodida@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")
+  console.log("   CEO:            olubayo@datasciencenigeria.ai  /  Welcome@DSN1   (SUPER_ADMIN — must change password on first login)")
+  console.log("   Exec Director:  toyin@datasciencenigeria.ai    /  Welcome@DSN1   (SUPER_ADMIN — must change password on first login)")
 }
 
 main()
   .catch(e => { console.error(e); process.exit(1) })
   .finally(() => prisma.$disconnect())
-
- 

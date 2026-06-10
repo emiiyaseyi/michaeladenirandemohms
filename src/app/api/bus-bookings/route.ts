@@ -10,7 +10,7 @@ import {
 // Allows testing outside Mon/Wed/Fri and outside the real time windows.
 // Flip to false (or delete this const + the guards below) before production.
 // Documented in work.md under Round 7.
-const TESTING_ALWAYS_OPEN = true
+const TESTING_ALWAYS_OPEN = false
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
