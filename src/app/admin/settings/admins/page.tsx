@@ -94,7 +94,7 @@ export default function AdminsSettingsPage() {
     setSaving(false); setRemoveAdmin(null); load()
   }
 
-  const superAdmin = filtered.find(a => a.role === "SUPER_ADMIN")
+  const superAdmins = filtered.filter(a => a.role === "SUPER_ADMIN")
   const elevated = filtered.filter(a => a.role !== "SUPER_ADMIN")
 
   return (
@@ -146,10 +146,10 @@ export default function AdminsSettingsPage() {
               </thead>
               <tbody>
                 {elevated.map(a => <AdminRow key={a.id} admin={a} canManage={canManage} onEdit={openEdit} onRemove={ad => { setRemoveAdmin(ad); setMenuOpen(null) }} menuOpen={menuOpen} setMenuOpen={setMenuOpen} menuRef={menuRef} />)}
-                {elevated.length === 0 && !superAdmin && (
+                {elevated.length === 0 && superAdmins.length === 0 && (
                   <tr><td colSpan={4} style={{ padding: 40, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>{search ? "No admins match your search." : "No elevated staff yet."}</td></tr>
                 )}
-                {superAdmin && <SuperAdminRow admin={superAdmin} />}
+                {superAdmins.map(a => <SuperAdminRow key={a.id} admin={a} />)}
               </tbody>
             </table>
           </div>
