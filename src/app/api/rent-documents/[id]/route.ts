@@ -4,6 +4,7 @@ import { requireAuth } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
+import { UPLOADS_ENABLED, uploadsDisabledResponse } from "@/lib/uploads"
 
 const ALLOWED = ["application/pdf", "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -39,6 +40,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const ct = req.headers.get("content-type") ?? ""
 
   if (ct.includes("multipart/form-data")) {
+    if (!UPLOADS_ENABLED) return uploadsDisabledResponse()
     const form = await req.formData()
     const data: any = {}
     for (const k of ["employeeId", "propertyAddress", "landlordName", "landlordPhone", "landlordEmail"]) {

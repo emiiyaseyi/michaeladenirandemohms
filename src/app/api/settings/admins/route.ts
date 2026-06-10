@@ -17,19 +17,20 @@ export async function GET() {
   if (error) return error
   if (user.role !== "SUPER_ADMIN") return forbidden()
 
-  const [elevated, superAdmin] = await Promise.all([
+  const [elevated, superAdmins] = await Promise.all([
     prisma.user.findMany({
       where: { adminRoles: { some: {} }, role: { not: "SUPER_ADMIN" } },
       select: MEMBER_SELECT,
       orderBy: { name: "asc" },
     }),
-    prisma.user.findFirst({
+    prisma.user.findMany({
       where: { role: "SUPER_ADMIN" },
       select: MEMBER_SELECT,
+      orderBy: { name: "asc" },
     }),
   ])
 
-  const admins = [...elevated, ...(superAdmin ? [superAdmin] : [])]
+  const admins = [...elevated, ...superAdmins]
   return NextResponse.json({ admins })
 }
 

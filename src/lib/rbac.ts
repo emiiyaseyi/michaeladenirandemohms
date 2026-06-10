@@ -72,22 +72,12 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
 
-  // Requests — dropdown for admin and staff, includes Bus Booking
-  {
-    label: "Requests", icon: "Receipt", roles: ["ADMIN"],
-    children: [
-      { label: "Leave",        href: "/requests/leave",     permission: "canViewAllLeave" },
-      { label: "Documents",    href: "/requests/documents", permission: "canViewDocuments" },
-      { label: "Bus Booking",  href: "/requests/bus" },
-    ],
-  },
-  {
-    label: "Requests", icon: "Receipt", roles: ["STAFF"],
-    children: [
-      { label: "Leave",       href: "/requests/leave" },
-      { label: "Bus Booking", href: "/requests/bus" },
-    ],
-  },
+  { label: "Leave Requests",       href: "/requests/leave",     icon: "CalendarDays", roles: ["ADMIN"], permission: "canViewAllLeave" },
+  { label: "Documents Requests",   href: "/requests/documents", icon: "FileText",     roles: ["ADMIN"], permission: "canViewDocuments" },
+  { label: "Bus Booking Requests", href: "/requests/bus",       icon: "Bus",          roles: ["ADMIN"] },
+
+  { label: "Leave Requests",       href: "/requests/leave", icon: "CalendarDays", roles: ["STAFF"] },
+  { label: "Bus Booking Requests", href: "/requests/bus",   icon: "Bus",          roles: ["STAFF"] },
 
   // Documents before Surveys (staff order)
   { label: "Documents",   href: "/documents",   icon: "FolderOpen",    roles: ALL_ROLES, permission: "canViewDocuments" },
@@ -184,13 +174,8 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "People",         href: "/people",         icon: "UserCheck",     roles: ["PROJECT_LEAD"] },
   { label: "My Team",       href: "/team",           icon: "Users",         roles: ["PROJECT_LEAD"] },
   { label: "Intern Reports",href: "/intern-reports", icon: "ClipboardList", roles: ["PROJECT_LEAD"], permission: "canReviewInternReports" },
-  {
-    label: "Requests", icon: "CalendarDays", roles: ["PROJECT_LEAD"],
-    children: [
-      { label: "Leave",       href: "/requests" },
-      { label: "Bus Booking", href: "/requests/bus" },
-    ],
-  },
+  { label: "Leave Requests",       href: "/requests",    icon: "CalendarDays", roles: ["PROJECT_LEAD"] },
+  { label: "Bus Booking Requests", href: "/requests/bus", icon: "Bus",          roles: ["PROJECT_LEAD"] },
   { label: "Documents",    href: "/documents",             icon: "FolderOpen",      roles: ["PROJECT_LEAD"] },
   { label: "Surveys",      href: "/surveys",               icon: "ClipboardList",   roles: ["PROJECT_LEAD"] },
   { label: "Benefits",     href: "/benefits",              icon: "Gift",            roles: ["PROJECT_LEAD"] },
