@@ -119,20 +119,7 @@ async function main() {
   }
   console.log("  ✓ Public Holidays")
 
-  // ── Active Performance Cycle ──────────────────────────────────────────────────
-  await prisma.performanceCycle.upsert({
-    where: { id: "perf-2026-h1" },
-    update: {},
-    create: {
-      id: "perf-2026-h1", name: "2026 H1 Performance Cycle",
-      year: 2026, half: 1, isActive: true,
-      startDate: new Date("2026-01-01"), endDate: new Date("2026-06-30"),
-      kpiDeadline: new Date("2026-01-31"),
-    },
-  })
-  console.log("  ✓ Performance Cycle")
-
-  // ── Production HR Admin (Super Admin) ────────────────────────────────────────
+// ── Production HR Admin (Super Admin) ────────────────────────────────────────
   // isSeeded: false — real person, emails flow normally.
   {
     const hashed = await bcrypt.hash("Admin@DSN2024!", 12)
@@ -352,11 +339,14 @@ async function main() {
   console.log(`  ✓ ${templateCount} email templates seeded`)
 
   // ── Top-tier Managers (CEO + Executive Director) ─────────────────────────────
-  // Real accounts — isSeeded: false so emails flow normally in production.
+  // SUPER_ADMIN users with Employee + Manager records — they sit at the top of the
+  // org hierarchy (managerId = null). PLs report to them via Employee.managerId.
+  // The Manager table FK requires an Employee record — that's the only reason they
+  // have one. They do NOT appear in the staff/PL employee directory.
   // mustChangePassword: true — they set their own password on first login.
   const managerSeeds = [
-    { email: "olubayo@datasciencenigeria.ai", name: "Olubayo Adekanbi", fn: "Olubayo", ln: "Adekanbi", empId: "DSN-M001", title: "CEO/Founder",                          gender: "MALE",   dob: "1980-01-01", hire: "2020-01-01" },
-    { email: "toyin@datasciencenigeria.ai",   name: "Toyin Adekanbi",   fn: "Toyin",   ln: "Adekanbi", empId: "DSN-M002", title: "Executive Director, Talent & Process", gender: "FEMALE", dob: "1982-01-01", hire: "2020-01-01" },
+    { email: "olubayo@datasciencenigeria.ai", name: "Olubayo Adekanbi", fn: "Olubayo", ln: "Adekanbi", empId: "DSN-M001", title: "CEO/Founder",                          gender: "MALE"   },
+    { email: "toyin@datasciencenigeria.ai",   name: "Toyin Adekanbi",   fn: "Toyin",   ln: "Adekanbi", empId: "DSN-M002", title: "Executive Director, Talent & Process", gender: "FEMALE" },
   ]
   for (const m of managerSeeds) {
     const u = await prisma.user.upsert({
@@ -371,7 +361,6 @@ async function main() {
         userId: u.id, employeeId: m.empId,
         firstName: m.fn, lastName: m.ln, gender: m.gender as any,
         jobTitle: m.title, employmentType: "FULL_TIME", employeeStatus: "ACTIVE",
-        hireDate: new Date(m.hire), dateOfBirth: new Date(m.dob),
         managerId: null,
       },
     })
