@@ -51,6 +51,7 @@ async function main() {
     prisma.department.upsert({ where: { name: "Administration & Facility" },          update: {}, create: { name: "Administration & Facility",          description: "Office administration and facility management",     divisionId: opsDiv.id } }),
     prisma.department.upsert({ where: { name: "Finance" },                            update: {}, create: { name: "Finance",                            description: "Finance and accounting",                            divisionId: opsDiv.id } }),
     prisma.department.upsert({ where: { name: "Legal" },                              update: {}, create: { name: "Legal",                              description: "Legal and compliance",                              divisionId: opsDiv.id } }),
+    prisma.department.upsert({ where: { name: "Human Resources" },                   update: {}, create: { name: "Human Resources",                   description: "Human resources and people operations",            divisionId: opsDiv.id } }),
   ])
   console.log("  ✓ Divisions & Departments")
 
@@ -293,6 +294,9 @@ async function main() {
     "Admin/Executive Assistant",
     "Finance Officer",
     "HR Analyst",
+    "HR Associate",
+    "Performance/HR Data Analyst",
+    "Creative/HR Analyst",
     "Legal/Administrative Lead",
     "Admin Intern",
     "Finance Intern",
