@@ -262,10 +262,7 @@ function SuperAdminRow({ admin }: { admin: AdminRecord }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Avatar name={admin.name ?? admin.email ?? "?"} size={34} />
           <div>
-            <div style={{ fontWeight: 600, fontSize: 13, display: "flex", alignItems: "center", gap: 6 }}>
-              {admin.name ?? "—"}
-              <span style={{ fontSize: 10, background: "var(--primary)", color: "white", borderRadius: 999, padding: "2px 8px", fontWeight: 700 }}>PRIMARY ADMIN</span>
-            </div>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{admin.name ?? "—"}</div>
             <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{admin.email}</div>
           </div>
         </div>

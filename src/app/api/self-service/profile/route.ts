@@ -103,7 +103,7 @@ export async function GET() {
   // Build leave balance summary
 
   // Intern entitlement — must match the apply-form filter and API enforcement.
-  const isIntern = (employee.jobTitle ?? "").toLowerCase().includes("intern")
+  const isIntern = (employee.jobTitle ?? "").toLowerCase().includes("intern") || employee.employmentType === "INTERN"
   const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
 
   const leaveBalanceSummary = leaveTypes

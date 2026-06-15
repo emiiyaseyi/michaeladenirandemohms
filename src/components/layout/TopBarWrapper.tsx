@@ -54,10 +54,6 @@ const SECTION_TITLES: Record<string, string> = {
   "surveys":                   "Surveys",
   "surveys/new":               "Create Survey",
   "surveys/templates/new":     "Survey Template",
-  "contractors":               "Contractors",
-  "contractors/new":           "Add Contractor",
-  "contractors/bulk-update":   "Bulk Update Contractors",
-  "contractors/bulk-upload":   "Bulk Upload Contractors",
   "self-service/edit":         "Edit Profile",
   "self-service/preferences":  "Preferences",
   "assets/overview":           "Assets",
@@ -91,9 +87,6 @@ export default function TopBarWrapper({ user }: { user: any }) {
     else if (segs[0] === "performance" && segs[1] === "conversations" && segs[2] === "setup" && segs[4] === "edit") title = "Edit Conversation Setup"
     else if (segs[0] === "performance" && segs[1] === "conversations" && segs[2] === "prompts" && segs[4] === "edit") title = "Edit Prompt"
     else if (segs[0] === "disciplinary" && segs[1] === "policies" && segs.length === 3) title = "View Policy"
-    else if (segs[0] === "contractors" && segs.length === 1) title = "Contractors"
-    else if (segs[0] === "contractors" && segs.length === 2) title = "Contractor Details"
-    else if (segs[0] === "contractors" && segs[2] === "edit") title = "Edit Contractor"
     else if (segs[0] === "rent-documents" && segs[2] === "edit") title = "Edit Rent Document"
     else if (segs[0] === "assets" && segs[1] === "overview" && segs.length === 3) title = "View Asset"
     else if (segs[0] === "assets" && segs[1] === "overview" && segs[3] === "edit") title = "Edit Asset"

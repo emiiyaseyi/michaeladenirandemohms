@@ -1,4 +1,4 @@
-const STATS = [["60+","Employees"],["17","Departments"],["36","States"],["7+","Years"]]
+const STATS = [["60+","Employees"],["18","Departments"],["36","States"],["7+","Years"]]
 
 export default function AuthLeftPanel() {
   return (

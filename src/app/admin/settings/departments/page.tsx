@@ -11,7 +11,7 @@ const inp: React.CSSProperties = {
 }
 const lbl: React.CSSProperties = { display: "block", fontSize: 12, fontWeight: 600, marginBottom: 6 }
 
-const BLANK = { name: "", description: "", divisionId: "" }
+const BLANK = { name: "", description: "", divisionId: "", phone: "", email: "" }
 
 
 export default function DepartmentsSettingsPage() {
@@ -62,7 +62,7 @@ export default function DepartmentsSettingsPage() {
                 <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{d.division?.name ?? "No Division"} · {d._count?.employees ?? 0} employees</div>
               </div>
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => { setEditing(d); setForm({ name: d.name, description: d.description ?? "", divisionId: d.divisionId ?? "" }); setError(""); setOpen(true) }} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}><Pencil size={12} /> Edit</button>
+                <button onClick={() => { setEditing(d); setForm({ name: d.name, description: d.description ?? "", divisionId: d.divisionId ?? "", phone: d.phone ?? "", email: d.email ?? "" }); setError(""); setOpen(true) }} style={{ background: "var(--muted)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}><Pencil size={12} /> Edit</button>
                 <button onClick={() => del(d.id)} style={{ background: "var(--danger-bg)", border: "none", borderRadius: 6, padding: "5px 10px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "var(--danger)" }}><Trash2 size={12} /> Delete</button>
               </div>
             </div>
@@ -77,6 +77,8 @@ export default function DepartmentsSettingsPage() {
             {error && <div style={{ background: "var(--danger-bg)", color: "var(--danger)", borderRadius: 8, padding: "10px 14px", fontSize: 13 }}>{error}</div>}
             <div><label style={lbl}>Name *</label><input required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} style={inp} /></div>
             <div><label style={lbl}>Description</label><input value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} style={inp} /></div>
+            <div><label style={lbl}>Department Phone</label><input type="tel" value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} style={inp} placeholder="e.g. +234 800 000 0000" /></div>
+            <div><label style={lbl}>Department Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} style={inp} placeholder="e.g. hr@datasciencenigeria.ai" /></div>
             {divisions.length > 0 && (
               <div><label style={lbl}>Division</label>
                 <select value={form.divisionId} onChange={e => setForm(f => ({...f, divisionId: e.target.value}))} style={inp}>

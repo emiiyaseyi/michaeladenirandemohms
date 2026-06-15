@@ -286,6 +286,8 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
   const [form, setForm] = useState({
     name: dept?.name ?? "",
     description: dept?.description ?? "",
+    phone: dept?.phone ?? "",
+    email: dept?.email ?? "",
     leadEmployeeId: dept?.lead?.id ?? dept?.leadEmployeeId ?? "",
   })
   const [loading, setLoading] = useState(false)
@@ -307,7 +309,6 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
 
   const save = async () => {
     if (!form.name.trim()) { setError("Name is required"); return }
-    if (!form.leadEmployeeId) { setError("Department lead is required"); return }
     setLoading(true); setError("")
     const method = dept ? "PATCH" : "POST"
     const body = dept ? { ...form, id: dept.id } : form
@@ -330,9 +331,17 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Description</label>
           <textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} rows={2} style={{ ...fi, resize: "vertical" }} placeholder="Optional description" />
         </div>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Department Phone</label>
+          <input type="tel" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={fi} placeholder="e.g. +234 800 000 0000" />
+        </div>
+        <div>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Department Email</label>
+          <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={fi} placeholder="e.g. hr@datasciencenigeria.ai" />
+        </div>
 
         <div>
-          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Department Lead <span style={{ color: "var(--accent)" }}>*</span></label>
+          <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Department Lead <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontWeight: 400 }}>(optional)</span></label>
           <BrowsablePicker
             options={eligibleLeads}
             value={form.leadEmployeeId}
@@ -351,7 +360,7 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
               </div>
             )}
           />
-          <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Required. Only Project Leads can be selected.</div>
+          <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>Optional. Only Project Leads can be selected.</div>
         </div>
 
         {error && <div style={{ color: "#EF4444", fontSize: 13, display: "flex", gap: 6 }}><AlertCircle size={14} />{error}</div>}

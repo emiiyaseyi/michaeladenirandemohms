@@ -9,8 +9,8 @@ const COMMON_COLS = ["firstName", "middleName", "lastName", "email", "phone", "j
 const STAFF_COLS = [...COMMON_COLS, "primaryDepartment", "primaryProjectLeadEmail", "secondaryDepartments"]
 const PL_COLS    = [...COMMON_COLS, "departments", "managerEmail"]
 const REQUIRED_COMMON = ["firstName", "lastName", "email", "jobTitle", "hireDate", "dateOfBirth", "gender"]
-const REQUIRED_STAFF = [...REQUIRED_COMMON, "primaryDepartment", "primaryProjectLeadEmail"]
-const REQUIRED_PL    = [...REQUIRED_COMMON, "departments", "managerEmail"]
+const REQUIRED_STAFF = [...REQUIRED_COMMON, "primaryDepartment"]
+const REQUIRED_PL    = [...REQUIRED_COMMON, "departments"]
 const VALID_GENDERS = ["MALE", "FEMALE"]
 const VALID_EMP_TYPES = ["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN", "NYSC"]
 
@@ -138,35 +138,34 @@ export async function POST(req: NextRequest) {
         const primaryDeptName = row.primaryDepartment!.trim()
         const dept = await prisma.department.findFirst({ where: { name: { equals: primaryDeptName, mode: "insensitive" } } })
         if (!dept) { results.push({ row: rowNum, status: "skipped", email, error: `Department not found: "${primaryDeptName}"` }); continue }
-        // PL must be assigned to that dept
-        const plEmail = row.primaryProjectLeadEmail!.trim().toLowerCase()
-        const plEmp = await prisma.employee.findFirst({
-          where: {
-            user: {
-              email: plEmail,
-              role: "PROJECT_LEAD",
-              projectLeadDepartments: { some: { departmentId: dept.id } },
+
+        // PL is optional — only resolve if email provided
+        const plEmail = (row.primaryProjectLeadEmail ?? "").trim().toLowerCase()
+        if (plEmail) {
+          const plEmp = await prisma.employee.findFirst({
+            where: {
+              user: {
+                email: plEmail,
+                role: "PROJECT_LEAD",
+                projectLeadDepartments: { some: { departmentId: dept.id } },
+              },
             },
-            managerEntry: { is: null },
-          },
-        })
-        if (!plEmp) { results.push({ row: rowNum, status: "skipped", email, error: `"${plEmail}" is not a Project Lead for ${primaryDeptName}` }); continue }
+          })
+          if (!plEmp) { results.push({ row: rowNum, status: "skipped", email, error: `"${plEmail}" is not a Project Lead for ${primaryDeptName}` }); continue }
+          computedManagerId = plEmp.id
+          computedProjectLeadId = plEmp.id
+        }
 
         // Secondary depts (pipe-separated)
         const secNames = (row.secondaryDepartments ?? "").split("|").map(s => s.trim()).filter(Boolean)
+        let secSkipped = false
         for (const secName of secNames) {
           const secDept = await prisma.department.findFirst({ where: { name: { equals: secName, mode: "insensitive" } } })
-          if (!secDept) { results.push({ row: rowNum, status: "skipped", email, error: `Secondary department not found: "${secName}"` }); continue }
-          const secPLCount = await prisma.projectLeadDepartment.count({ where: { departmentId: secDept.id, user: { role: "PROJECT_LEAD" } } })
-          if (secPLCount === 0) { results.push({ row: rowNum, status: "skipped", email, error: `"${secName}" has no Project Lead yet` }); continue }
+          if (!secDept) { results.push({ row: rowNum, status: "skipped", email, error: `Secondary department not found: "${secName}"` }); secSkipped = true; break }
           secondaryDeptIdsForJunction.push(secDept.id)
         }
-        // If we skipped via the inner continues above, this row was added to results already — but we still flow here.
-        // Verify the row is still eligible: re-check last result. If it's already "skipped", break.
-        if (results.length && results[results.length - 1].row === rowNum && results[results.length - 1].status === "skipped") continue
+        if (secSkipped) continue
 
-        computedManagerId = plEmp.id
-        computedProjectLeadId = plEmp.id
         computedDepartmentId = dept.id
         primaryDeptIdForJunction = dept.id
       } else {
@@ -181,13 +180,16 @@ export async function POST(req: NextRequest) {
         }
         if (!allFound) continue
 
-        const mgrEmail = row.managerEmail!.trim().toLowerCase()
-        const mgrEmp = await prisma.employee.findFirst({
-          where: { user: { email: mgrEmail }, managerEntry: { isNot: null } },
-        })
-        if (!mgrEmp) { results.push({ row: rowNum, status: "skipped", email, error: `"${mgrEmail}" is not in the Manager list` }); continue }
+        // Manager is optional
+        const mgrEmail = (row.managerEmail ?? "").trim().toLowerCase()
+        if (mgrEmail) {
+          const mgrEmp = await prisma.employee.findFirst({
+            where: { user: { email: mgrEmail }, managerEntry: { isNot: null } },
+          })
+          if (!mgrEmp) { results.push({ row: rowNum, status: "skipped", email, error: `"${mgrEmail}" is not in the Manager list` }); continue }
+          computedManagerId = mgrEmp.id
+        }
 
-        computedManagerId = mgrEmp.id
         computedProjectLeadId = null
         computedDepartmentId = plDeptIds[0] ?? null
       }
@@ -296,15 +298,15 @@ export async function GET(req: NextRequest) {
     ]
     const notes = [
       "# Staff template — for adding STAFF role members.",
-      "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, primaryDepartment, primaryProjectLeadEmail",
-      "# Optional: middleName, phone, employmentType, secondaryDepartments",
+      "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, primaryDepartment",
+      "# Optional: middleName, phone, employmentType, primaryProjectLeadEmail, secondaryDepartments",
       "# email must end with @datasciencenigeria.ai",
       "# gender: MALE or FEMALE",
       "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN | NYSC (default: FULL_TIME)",
       "# hireDate / dateOfBirth: YYYY-MM-DD format",
       "# primaryDepartment: must match an existing department exactly (case-insensitive)",
-      "# primaryProjectLeadEmail: must be a PROJECT_LEAD assigned to the primary department",
-      "# secondaryDepartments: optional, pipe-separated, e.g. Finance|Brand and Comms — each must have a PL",
+      "# primaryProjectLeadEmail: optional — if provided, must be a PROJECT_LEAD assigned to the primary department",
+      "# secondaryDepartments: optional, pipe-separated, e.g. Finance|Brand and Comms",
     ]
     const csv = [notes.join("\n"), headers.join(","), example.join(",")].join("\n")
     return new Response(csv, {
@@ -321,14 +323,14 @@ export async function GET(req: NextRequest) {
   ]
   const notes = [
     "# Project Lead template — for adding PROJECT_LEAD role members.",
-    "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, departments, managerEmail",
-    "# Optional: middleName, phone, employmentType",
+    "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, departments",
+    "# Optional: middleName, phone, employmentType, managerEmail",
     "# email must end with @datasciencenigeria.ai",
     "# gender: MALE or FEMALE",
     "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN | NYSC (default: FULL_TIME)",
     "# hireDate / dateOfBirth: YYYY-MM-DD format",
     "# departments: pipe-separated list of departments they will lead, e.g. EqualyzAI|Finance",
-    "# managerEmail: must be a Manager (seeded CEO/Executive Director or added via /admin/people/managers)",
+    "# managerEmail: optional — if provided, must be a Manager (CEO/Executive Director or added via /admin/people/managers)",
   ]
   const csv = [notes.join("\n"), headers.join(","), example.join(",")].join("\n")
   return new Response(csv, {

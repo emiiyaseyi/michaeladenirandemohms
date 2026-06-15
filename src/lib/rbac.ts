@@ -82,8 +82,6 @@ export const NAV_ITEMS: NavItem[] = [
   // Documents before Surveys (staff order)
   { label: "Documents",   href: "/documents",   icon: "FolderOpen",    roles: ALL_ROLES, permission: "canViewDocuments" },
   { label: "Surveys",     href: "/surveys",     icon: "ClipboardList", roles: ALL_ROLES, permission: "canViewSurveys" },
-  { label: "Contractors", href: "/contractors", icon: "UserCheck",     roles: ["ADMIN"], permission: "canViewContractors" },
-
   // ── COMPENSATION ─────────────────────────────────────────────────────────────
   { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["ADMIN"], permission: "canViewBenefits" },
   { label: "Benefits", href: "/benefits", icon: "Gift", roles: ["STAFF"], hideForIntern: true },

@@ -35,10 +35,11 @@ function Av({ name, photo }: { name: string; photo?: string | null }) {
 function RoleBadge({ emp, onChanged, isSuperAdmin }: { emp: any; onChanged: () => void; isSuperAdmin: boolean }) {
   const role: string = emp.user?.role ?? "STAFF"
   const isPL = role === "PROJECT_LEAD"
+  const isIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern") || emp.employmentType === "INTERN"
   const [loading, setLoading] = useState(false)
 
   const toggle = async () => {
-    if (!isSuperAdmin || !emp.userId) return
+    if (!isSuperAdmin || !emp.userId || isIntern) return
     const newRole = isPL ? "STAFF" : "PROJECT_LEAD"
     setLoading(true)
     await fetch(`/api/employees/${emp.id}/role`, {
@@ -48,6 +49,14 @@ function RoleBadge({ emp, onChanged, isSuperAdmin }: { emp: any; onChanged: () =
     })
     setLoading(false)
     onChanged()
+  }
+
+  if (isIntern) {
+    return (
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 20, background: "rgba(245,158,11,0.12)", color: "#d97706", whiteSpace: "nowrap" }}>
+        Intern
+      </span>
+    )
   }
 
   return (
@@ -140,7 +149,7 @@ export default function EmployeesPage() {
   const [departments, setDepartments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("ACTIVE")
+  const [statusFilter, setStatusFilter] = useState("")
   const [deptFilter, setDeptFilter] = useState("")
   const [manageOpen, setManageOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
@@ -161,6 +170,10 @@ export default function EmployeesPage() {
   const [roleChangeTarget, setRoleChangeTarget] = useState<any>(null)
   const [selectedRole, setSelectedRole] = useState<"STAFF" | "PROJECT_LEAD">("STAFF")
   const [roleChanging, setRoleChanging] = useState(false)
+  const [conversionEmpType, setConversionEmpType] = useState("FULL_TIME")
+  const [conversionJobTitle, setConversionJobTitle] = useState("")
+  const [conversionStartDate, setConversionStartDate] = useState("")
+  const [conversionJobTitles, setConversionJobTitles] = useState<string[]>([])
 
   useEffect(() => {
     if (!manageOpen) return
@@ -189,6 +202,13 @@ export default function EmployeesPage() {
     document.addEventListener("mousedown", h)
     return () => document.removeEventListener("mousedown", h)
   }, [pageSizeOpen])
+
+  useEffect(() => {
+    if (!roleChangeTarget) return
+    const isIntern = (roleChangeTarget.jobTitle ?? "").toLowerCase().includes("intern") || roleChangeTarget.employmentType === "INTERN"
+    if (!isIntern || conversionJobTitles.length > 0) return
+    fetch("/api/job-titles").then(r => r.json()).then(d => setConversionJobTitles((d.jobTitles ?? []).map((jt: any) => jt.name))).catch(() => {})
+  }, [roleChangeTarget, conversionJobTitles.length])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -264,16 +284,31 @@ export default function EmployeesPage() {
 
   const doChangeRole = async () => {
     if (!roleChangeTarget) return
+    const targetIsIntern = (roleChangeTarget.jobTitle ?? "").toLowerCase().includes("intern") || roleChangeTarget.employmentType === "INTERN"
+    if (targetIsIntern && (!conversionEmpType || !conversionJobTitle || !conversionStartDate)) {
+      setResetMsg("Please fill in all conversion fields.")
+      setTimeout(() => setResetMsg(""), 4000)
+      return
+    }
     setRoleChanging(true)
+    const body: any = { role: selectedRole }
+    if (targetIsIntern) {
+      body.employmentType = conversionEmpType
+      body.jobTitle = conversionJobTitle
+      body.convertedAt = conversionStartDate
+    }
     const r = await fetch(`/api/employees/${roleChangeTarget.id}/role`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role: selectedRole }),
+      body: JSON.stringify(body),
     })
     setRoleChanging(false)
     if (r.ok) {
       setRoleChangeTarget(null)
-      setResetMsg(`Role updated to ${selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}.`)
+      setConversionEmpType("FULL_TIME")
+      setConversionJobTitle("")
+      setConversionStartDate("")
+      setResetMsg(targetIsIntern ? `Intern converted to ${selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"} successfully.` : `Role updated to ${selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}.`)
       setTimeout(() => setResetMsg(""), 4000)
       load()
     } else {
@@ -407,12 +442,12 @@ export default function EmployeesPage() {
                     <input type="checkbox" checked={allSelected} onChange={toggleAll} style={{ accentColor: "var(--primary)", cursor: "pointer" }} />
                   </th>
                   <th style={th}>Name</th>
-                  <th style={th}>Email Address</th>
                   <th style={th}>ID Number</th>
-                  <th style={th}>Department</th>
                   <th style={th}>Job Title</th>
-                  <th style={th}>Phone</th>
                   <th style={th}>Status</th>
+                  <th style={th}>Department</th>
+                  <th style={th}>Dept. Phone</th>
+                  <th style={th}>Dept. Email</th>
                   <th style={th}>Role</th>
                   <th style={{ ...th, width: 60 }}></th>
                 </tr>
@@ -439,16 +474,16 @@ export default function EmployeesPage() {
                           </span>
                         </div>
                       </td>
-                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.user?.email ?? "—"}</td>
                       <td style={{ ...td, color: "var(--muted-foreground)", fontFamily: "monospace", fontSize: 12 }}>{emp.employeeId}</td>
-                      <td style={td}>{emp.department?.name ?? "—"}</td>
                       <td style={td}>{emp.jobTitle ?? "—"}</td>
-                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.phone ?? "—"}</td>
                       <td style={td}>
                         <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: badge.bg, color: badge.color, whiteSpace: "nowrap" }}>
                           {badge.label}
                         </span>
                       </td>
+                      <td style={td}>{emp.department?.name ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.department?.phone ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.department?.email ?? "—"}</td>
                       <td style={td} onClick={e => e.stopPropagation()}>
                         <RoleBadge emp={emp} onChanged={load} isSuperAdmin={user?.role === "SUPER_ADMIN"} />
                       </td>
@@ -458,7 +493,15 @@ export default function EmployeesPage() {
                           onReset={() => setResetTarget(emp)}
                           onDelete={canDeleteEmployee ? () => setDeleteTarget(emp) : undefined}
                           onChangeRole={canChangeRole && emp.userId ? () => {
-                            setSelectedRole((emp.user?.role === "PROJECT_LEAD" ? "STAFF" : "PROJECT_LEAD") as "STAFF" | "PROJECT_LEAD")
+                            const empIsIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern") || emp.employmentType === "INTERN"
+                            if (empIsIntern) {
+                              setSelectedRole("STAFF")
+                              setConversionEmpType("FULL_TIME")
+                              setConversionJobTitle("")
+                              setConversionStartDate("")
+                            } else {
+                              setSelectedRole((emp.user?.role === "PROJECT_LEAD" ? "STAFF" : "PROJECT_LEAD") as "STAFF" | "PROJECT_LEAD")
+                            }
                             setRoleChangeTarget(emp)
                           } : undefined} />
                       </td>
@@ -575,30 +618,74 @@ export default function EmployeesPage() {
       )}
 
       {/* Role Change Modal */}
-      {roleChangeTarget && (
+      {roleChangeTarget && (() => {
+        const targetIsIntern = (roleChangeTarget.jobTitle ?? "").toLowerCase().includes("intern") || roleChangeTarget.employmentType === "INTERN"
+        const fi: React.CSSProperties = { width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box" }
+        return (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: 420, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
-            <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Change Role</h2>
-            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
-              Change the role of <strong>{roleChangeTarget.firstName} {roleChangeTarget.lastName}</strong> from{" "}
-              <strong>{(roleChangeTarget.user?.role ?? "STAFF") === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</strong> to{" "}
-              <strong>{selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</strong>?
-            </p>
-            <div style={{ padding: "14px 16px", borderRadius: 10, border: "2px solid var(--primary)", background: "rgba(37,99,235,0.05)", marginBottom: 24 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</div>
-              <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{selectedRole === "PROJECT_LEAD" ? "Can approve leave requests for their assigned departments. Access to the Project Lead portal." : "Standard employee access. Leave requests routed to their Project Lead."}</div>
-            </div>
-            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 20 }}>The employee must sign out and back in for this change to take effect.</p>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 28, width: targetIsIntern ? 480 : 420, boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+            {targetIsIntern ? (
+              <>
+                <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Convert Intern to Staff</h2>
+                <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
+                  Converting <strong>{roleChangeTarget.firstName} {roleChangeTarget.lastName}</strong> from Intern to a full team member. All their intern data (reports, leave history, audit log) is preserved.
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 20 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Role *</label>
+                    <select value={selectedRole} onChange={e => setSelectedRole(e.target.value as "STAFF" | "PROJECT_LEAD")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                      <option value="STAFF">Staff</option>
+                      <option value="PROJECT_LEAD">Project Lead</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Employment Type *</label>
+                    <select value={conversionEmpType} onChange={e => setConversionEmpType(e.target.value)} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                      <option value="FULL_TIME">Full-time</option>
+                      <option value="PART_TIME">Part-time</option>
+                      <option value="CONTRACT">Contract</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Job Title *</label>
+                    <select value={conversionJobTitle} onChange={e => setConversionJobTitle(e.target.value)} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                      <option value="">Select job title…</option>
+                      {conversionJobTitles.map(jt => <option key={jt} value={jt}>{jt}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Start Date *</label>
+                    <input type="date" value={conversionStartDate} onChange={e => setConversionStartDate(e.target.value)} style={fi} />
+                  </div>
+                </div>
+                <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 20 }}>A welcome notification and email will be sent to the employee. HR will receive a check-in reminder 5 months from this date.</p>
+              </>
+            ) : (
+              <>
+                <h2 style={{ fontSize: 16, fontWeight: 800, marginBottom: 4 }}>Change Role</h2>
+                <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
+                  Change the role of <strong>{roleChangeTarget.firstName} {roleChangeTarget.lastName}</strong> from{" "}
+                  <strong>{(roleChangeTarget.user?.role ?? "STAFF") === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</strong> to{" "}
+                  <strong>{selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</strong>?
+                </p>
+                <div style={{ padding: "14px 16px", borderRadius: 10, border: "2px solid var(--primary)", background: "rgba(37,99,235,0.05)", marginBottom: 24 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{selectedRole === "PROJECT_LEAD" ? "Project Lead" : "Staff"}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{selectedRole === "PROJECT_LEAD" ? "Can approve leave requests for their assigned departments. Access to the Project Lead portal." : "Standard employee access. Leave requests routed to their Project Lead."}</div>
+                </div>
+                <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 20 }}>The employee must sign out and back in for this change to take effect.</p>
+              </>
+            )}
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
               <button onClick={() => setRoleChangeTarget(null)} disabled={roleChanging} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
               <button onClick={doChangeRole} disabled={roleChanging} style={{ padding: "9px 20px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: roleChanging ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 7 }}>
-                {roleChanging ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : "Confirm Change"}
+                {roleChanging ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : targetIsIntern ? "Convert to Staff" : "Confirm Change"}
               </button>
             </div>
           </div>
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
         </div>
-      )}
+        )
+      })()}
     </div>
   )
 }
