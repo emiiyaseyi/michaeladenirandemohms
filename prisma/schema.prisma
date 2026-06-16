@@ -108,6 +108,7 @@ model Department {
   offerLetters           OfferLetter[]
   projectLeads           ProjectLeadDepartment[]
   memberships            EmployeeDepartment[]
+  projects               Project[]
 }
 
 model Manager {
@@ -222,6 +223,8 @@ model Employee {
   tlReviews           InternWeeklyReport[] @relation("TLReviews")
   attendanceFills     InternWeeklyReport[] @relation("AttendanceFills")
   internReportReviews InternReportReviewer[] @relation("InternReportReviews")
+  projectsLed         Project[]             @relation("ProjectLead")
+  projectMemberships  ProjectMember[]
 }
 
 model Document {
@@ -1512,6 +1515,43 @@ enum BusBookingStatus {
   CONFIRMED
   BOUNCED
   CANCELLED
+}
+
+// ── Projects ──────────────────────────────────────────────────────────────────
+
+enum ProjectStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+model Project {
+  id           String        @id @default(cuid())
+  name         String
+  description  String?
+  status       ProjectStatus @default(ACTIVE)
+  startDate    DateTime?
+  endDate      DateTime?
+  departmentId String
+  leadId       String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  department   Department    @relation(fields: [departmentId], references: [id])
+  lead         Employee      @relation("ProjectLead", fields: [leadId], references: [id])
+  members      ProjectMember[]
+}
+
+model ProjectMember {
+  id          String   @id @default(cuid())
+  projectId   String
+  employeeId  String
+  projectRole String?
+  assignedAt  DateTime @default(now())
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, employeeId])
 }
 
 model InternReportSettings {

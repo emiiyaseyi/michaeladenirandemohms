@@ -9,7 +9,8 @@ import {
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, FolderOpen, Layers,
   Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck,
   ClipboardList, DollarSign, Gift, Clock, Scale, Package, FileText,
-  Calendar, ShoppingBag, MessageSquare, House, Banknote, Bus,
+  Calendar, ShoppingBag, MessageSquare, House, Banknote, Bus, FolderKanban,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react"
 import { roleLabel, type NavItem } from "@/lib/rbac"
@@ -19,7 +20,8 @@ const ICON_MAP: Record<string, LucideIcon> = {
   UserCheck, UserMinus, GitBranch, BarChart3, Settings, FolderOpen, Layers,
   Megaphone, HelpCircle, BarChart2, Receipt, Building2, Trash2, FileCheck,
   ClipboardList, DollarSign, Gift, Clock, Scale, Package, FileText,
-  Calendar, ShoppingBag, MessageSquare, House, Banknote, Bus,
+  Calendar, ShoppingBag, MessageSquare, House, Banknote, Bus, FolderKanban,
+  ClipboardCheck,
 }
 
 function resolveIcon(name: string): LucideIcon {

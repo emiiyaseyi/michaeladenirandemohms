@@ -45,6 +45,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "People",        href: "/people",        icon: "Users",         roles: ["STAFF"] },
   { label: "Weekly Report",   href: "/intern-report",  icon: "ClipboardList",  roles: ["STAFF"], requiresIntern: true },
   { label: "Intern Reviews", href: "/intern-reviews", icon: "ClipboardCheck", roles: ["STAFF"], hideForIntern: true },
+  { label: "My Projects",    href: "/projects",       icon: "FolderKanban",   roles: ["STAFF"], hideForIntern: true },
 
   // ── PEOPLE ──────────────────────────────────────────────────────────────────
   {
@@ -171,6 +172,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "__spacer_pl__", spacer: true, icon: "", roles: ["PROJECT_LEAD"] },
   { label: "People",         href: "/people",         icon: "UserCheck",     roles: ["PROJECT_LEAD"] },
   { label: "My Team",       href: "/team",           icon: "Users",         roles: ["PROJECT_LEAD"] },
+  { label: "Projects",      href: "/projects",       icon: "FolderKanban",  roles: ["PROJECT_LEAD"] },
   { label: "Intern Reports",href: "/intern-reports", icon: "ClipboardList", roles: ["PROJECT_LEAD"], permission: "canReviewInternReports" },
   { label: "Leave Requests",       href: "/requests",    icon: "CalendarDays", roles: ["PROJECT_LEAD"] },
   { label: "Bus Booking Requests", href: "/requests/bus", icon: "Bus",          roles: ["PROJECT_LEAD"] },

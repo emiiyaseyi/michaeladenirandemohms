@@ -8,7 +8,7 @@ import Modal from "@/components/ui/Modal"
 import {
   Building2, Users, Plus, Search, X, Loader2,
   UserPlus, UserMinus, Edit2, Trash2,
-  AlertCircle,
+  AlertCircle, FolderKanban, Calendar, ChevronRight,
 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import PageHeader from "@/components/ui/PageHeader"
@@ -373,6 +373,102 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
   )
 }
 
+// ── Department Projects Modal (admin read-only) ───────────────────────────────
+const PROJECT_STATUS: Record<string, { bg: string; color: string; label: string }> = {
+  ACTIVE:    { bg: "#DCFCE7", color: "#16a34a", label: "Active" },
+  ON_HOLD:   { bg: "#FEF3C7", color: "#D97706", label: "On Hold" },
+  COMPLETED: { bg: "#DBEAFE", color: "#2563eb", label: "Completed" },
+  CANCELLED: { bg: "#FEE2E2", color: "#DC2626", label: "Cancelled" },
+}
+
+function DeptProjectsModal({ dept, onClose }: { dept: any; onClose: () => void }) {
+  const [projects, setProjects] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expanded, setExpanded] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/admin/departments/${dept.id}/projects`)
+      .then(r => r.json())
+      .then(d => { setProjects(d.projects ?? []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [dept.id])
+
+  return (
+    <Modal open onClose={onClose} title={`${dept.name} — Projects`} width={620}>
+      <div style={{ padding: "16px 24px", maxHeight: "65vh", overflowY: "auto" }}>
+        {loading ? (
+          <div style={{ padding: 40, display: "flex", justifyContent: "center" }}>
+            <Loader2 size={20} style={{ animation: "spin .8s linear infinite", color: "var(--muted-foreground)" }} />
+          </div>
+        ) : projects.length === 0 ? (
+          <div style={{ padding: "32px 0", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>
+            <FolderKanban size={32} style={{ margin: "0 auto 10px", opacity: 0.3 }} />
+            No projects in this department yet.
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {projects.map((p: any) => {
+              const s = PROJECT_STATUS[p.status] ?? PROJECT_STATUS.ACTIVE
+              const isOpen = expanded === p.id
+              return (
+                <div key={p.id} style={{ border: "1px solid var(--border)", borderRadius: 10, overflow: "hidden", background: "var(--card)" }}>
+                  <button
+                    onClick={() => setExpanded(isOpen ? null : p.id)}
+                    style={{ width: "100%", padding: "12px 16px", background: "none", border: "none", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", gap: 12 }}>
+                    <FolderKanban size={15} style={{ color: "var(--primary)", flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>{p.name}</div>
+                      <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 1 }}>
+                        Lead: {p.lead.firstName} {p.lead.lastName} · {p._count.members} member{p._count.members !== 1 ? "s" : ""}
+                        {(p.startDate || p.endDate) && (
+                          <span style={{ marginLeft: 8 }}>
+                            · {p.startDate ? new Date(p.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"} → {p.endDate ? new Date(p.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Ongoing"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: s.bg, color: s.color, flexShrink: 0 }}>{s.label}</span>
+                    <ChevronRight size={14} style={{ color: "var(--muted-foreground)", flexShrink: 0, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform .15s" }} />
+                  </button>
+
+                  {isOpen && (
+                    <div style={{ borderTop: "1px solid var(--border)", padding: "10px 16px", background: "var(--muted)" }}>
+                      {p.description && (
+                        <p style={{ fontSize: 12, color: "var(--muted-foreground)", margin: "0 0 10px", lineHeight: 1.5 }}>{p.description}</p>
+                      )}
+                      {p.members.length === 0 ? (
+                        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>No members assigned yet.</div>
+                      ) : (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {p.members.map((m: any) => (
+                            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <Avatar name={`${m.employee.firstName} ${m.employee.lastName}`} photo={m.employee.profilePhoto} size={28} />
+                              <div>
+                                <div style={{ fontSize: 12, fontWeight: 600 }}>{m.employee.firstName} {m.employee.lastName}</div>
+                                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
+                                  {m.employee.jobTitle ?? "—"}{m.projectRole && <span style={{ marginLeft: 6, color: "var(--primary)", fontWeight: 600 }}>· {m.projectRole}</span>}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+        <Button variant="secondary" onClick={onClose}>Close</Button>
+      </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </Modal>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function DepartmentsPage() {
   const { user } = useCurrentUser()
@@ -382,6 +478,7 @@ export default function DepartmentsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
   const [viewDept, setViewDept] = useState<any>(null)
+  const [viewProjectsDept, setViewProjectsDept] = useState<any>(null)
   const [editDept, setEditDept] = useState<any>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null)
@@ -484,7 +581,12 @@ export default function DepartmentsPage() {
                     flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                     fontSize: 12, fontWeight: 700, padding: "7px 0", borderRadius: 8, cursor: "pointer",
                     background: "var(--primary)", color: "white", border: "none",
-                  }}><Users size={12} /> View Members</button>
+                  }}><Users size={12} /> Members</button>
+                  <button onClick={() => setViewProjectsDept(dept)} style={{
+                    flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                    fontSize: 12, fontWeight: 700, padding: "7px 0", borderRadius: 8, cursor: "pointer",
+                    background: "var(--muted)", color: "var(--foreground)", border: "1px solid var(--border)",
+                  }}><FolderKanban size={12} /> Projects</button>
                   {isAdmin && <>
                     <button onClick={() => setEditDept(dept)} style={{ padding: "7px 10px", borderRadius: 8, cursor: "pointer", background: "var(--muted)", border: "1px solid var(--border)", color: "var(--foreground)", display: "flex", alignItems: "center" }}>
                       <Edit2 size={13} />
@@ -501,6 +603,7 @@ export default function DepartmentsPage() {
       )}
 
       {viewDept && <DeptMembersModal dept={viewDept} isAdmin={isAdmin} onClose={() => setViewDept(null)} />}
+      {viewProjectsDept && <DeptProjectsModal dept={viewProjectsDept} onClose={() => setViewProjectsDept(null)} />}
       {editDept && <DeptFormModal dept={editDept} onClose={() => setEditDept(null)} onSuccess={load} />}
       {showCreate && <DeptFormModal onClose={() => setShowCreate(false)} onSuccess={load} />}
 
