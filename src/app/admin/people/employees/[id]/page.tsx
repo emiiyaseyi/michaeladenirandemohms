@@ -186,7 +186,7 @@ function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any
       <InfoCard icon={<Briefcase size={16} color="#16a34a" />} iconBg="#DCFCE7" title="Employment Details"
         onEdit={() => openModal("employment", { departmentId: emp.department?.id ?? "", managerId: emp.manager?.id ?? "", hireDate: isoDate(emp.hireDate) })}>
         <InfoRow label="Department" value={emp.department?.name} />
-        <InfoRow label="Manager" value={emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : null} />
+        <InfoRow label={emp.user?.role === "PROJECT_LEAD" ? "Manager" : "Project Lead"} value={emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : null} />
         <InfoRow label="Start Date" value={fmtDate(emp.hireDate)} />
         <InfoRow label="Employee No." value={emp.employeeId} />
       </InfoCard>
@@ -971,9 +971,9 @@ export default function EmployeeProfilePage() {
                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </MF>
-            <MF label="Manager">
+            <MF label={emp.user?.role === "PROJECT_LEAD" ? "Manager" : "Project Lead"}>
               <select value={mf.managerId ?? ""} onChange={setMF("managerId")} style={{ ...fi, appearance: "none" }}>
-                <option value="">No manager</option>
+                <option value="">{emp.user?.role === "PROJECT_LEAD" ? "No manager" : "No project lead"}</option>
                 {allEmployees.filter(e => e.id !== id).map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
               </select>
             </MF>
