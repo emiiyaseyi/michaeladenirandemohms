@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
-import { ClipboardList, Clock, CheckCircle2, AlertCircle, Eye, X, Search, Users } from "lucide-react"
+import { ClipboardList, Clock, CheckCircle2, AlertCircle, Eye, X, Search, Users, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns"
 
 const CATEGORIES = [
@@ -242,6 +242,8 @@ export default function InternReportPage() {
   const [dailyReflections, setDailyReflections] = useState<Record<string, string>>({ Mon: "", Tue: "", Wed: "", Thu: "", Fri: "" })
   const [generalReflection, setGeneralReflection] = useState("")
   const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [lbWeekOffset, setLbWeekOffset] = useState(0)
+  const [tab, setTab] = useState<"report" | "leaderboard">("report")
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr] = useState("")
   const [submitOk, setSubmitOk] = useState(false)
@@ -263,7 +265,6 @@ export default function InternReportPage() {
       .then(d => { setCfg(d); setWindow(computeWindow(d)) })
       .catch(() => {})
     fetch("/api/intern-reports").then(r => r.json()).then(d => setReports(d.reports ?? [])).finally(() => setLoading(false))
-    fetch("/api/intern-reports/leaderboard").then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
     fetch("/api/self-service/profile").then(r => r.json()).then(d => {
       const pl = d.profile?.projectLead
       if (pl) setProjectLead({ id: pl.id, name: pl.name })
@@ -275,6 +276,14 @@ export default function InternReportPage() {
     const t = setInterval(() => setWindow(computeWindow(cfg)), 30_000)
     return () => clearInterval(t)
   }, [cfg])
+
+  useEffect(() => {
+    const d = new Date(); d.setUTCHours(0,0,0,0)
+    const dayN = d.getUTCDay(); const diff = dayN === 0 ? -6 : 1 - dayN
+    d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
+    fetch(`/api/intern-reports/leaderboard?week=${encodeURIComponent(d.toISOString())}`)
+      .then(r => r.json()).then(data => setLeaderboard(data.leaderboard ?? [])).catch(() => {})
+  }, [lbWeekOffset])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -312,6 +321,15 @@ export default function InternReportPage() {
   const weekMon = new Date(wat); weekMon.setDate(wat.getDate() + diffToMonday); weekMon.setHours(0,0,0,0)
   const weekFri = new Date(weekMon); weekFri.setDate(weekMon.getDate() + 4)
   const weekLabel = `${format(weekMon, "MMM d")} – ${format(weekFri, "MMM d, yyyy")}`
+
+  const lbMonday = (() => {
+    const d = new Date(); d.setUTCHours(0,0,0,0)
+    const dayN = d.getUTCDay(); const diff = dayN === 0 ? -6 : 1 - dayN
+    d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
+    return d
+  })()
+  const lbFriday = new Date(lbMonday); lbFriday.setUTCDate(lbMonday.getUTCDate() + 4)
+  const lbWeekLabel = `${format(lbMonday, "MMM d")} – ${format(lbFriday, "MMM d, yyyy")}`
 
   const thisWeekReport = reports.find(r => {
     const ws = new Date(r.weekStart); ws.setHours(0,0,0,0)
@@ -362,6 +380,18 @@ export default function InternReportPage() {
           On time: 0 pts • Sat: −{cfg.lateDeduction} pts • Sun: −{cfg.lateDeductionSunday} pts.
         </p>
       </div>
+
+      {/* Tab bar */}
+      <div style={{ display: "flex", background: "var(--muted)", borderRadius: 10, padding: 3, gap: 2, marginBottom: 24, width: "fit-content" }}>
+        {(["report", "leaderboard"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: "7px 20px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: tab === t ? "var(--card)" : "transparent", color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+            {t === "report" ? "My Report" : "Leaderboard"}
+          </button>
+        ))}
+      </div>
+
+      {tab === "report" && (<>
 
       {/* Big live countdown — phase + colour change as Friday → Sat → Sun progresses */}
       <CountdownBanner cfg={cfg} />
@@ -672,6 +702,66 @@ export default function InternReportPage() {
         )}
       </div>
 
+      </>)}
+
+      {tab === "leaderboard" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 20px" }}>
+              <button onClick={() => setLbWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
+                <ChevronLeft size={18} />
+              </button>
+              <span style={{ fontSize: 14, fontWeight: 700, minWidth: 200, textAlign: "center" }}>{lbWeekLabel}</span>
+              <button onClick={() => setLbWeekOffset(o => Math.min(o + 1, 0))} disabled={lbWeekOffset === 0}
+                style={{ background: "none", border: "none", cursor: lbWeekOffset === 0 ? "not-allowed" : "pointer", color: lbWeekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}>
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          </div>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+            {leaderboard.length === 0 ? (
+              <div style={{ padding: "40px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leaderboard data for this week.</div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "var(--muted)" }}>
+                      {["Rank", "Intern", "Dept", "TL Score", "Attendance", "Total"].map(h => (
+                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((row: any) => {
+                      const isMe = !!reports.find((r: any) => r.employeeId === row.employeeId)
+                      const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null
+                      return (
+                        <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)", background: isMe ? "rgba(22,163,74,0.06)" : "transparent" }}>
+                          <td style={{ padding: "12px 16px", fontWeight: 700 }}>
+                            {medal ? <span style={{ fontSize: 16 }}>{medal}</span> : <span style={{ color: "var(--muted-foreground)" }}>{row.rank}</span>}
+                          </td>
+                          <td style={{ padding: "12px 16px", fontWeight: isMe ? 700 : 500 }}>
+                            {row.name}{isMe && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 12, background: "#DCFCE7", color: "#15803D", fontWeight: 700, marginLeft: 6 }}>You</span>}
+                          </td>
+                          <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>{row.dept}</td>
+                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{row.tlScorePct}%</td>
+                          <td style={{ padding: "12px 16px", color: row.attendancePending ? "var(--muted-foreground)" : "inherit" }}>
+                            {row.attendancePending ? "Pending" : `${row.attendanceScorePct}%`}
+                          </td>
+                          <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--primary)" }}>
+                            {row.attendancePending ? "–" : `${row.totalScorePct}%`}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* View Report Modal */}
       {viewReport && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewReport(null)}>
@@ -848,49 +938,6 @@ export default function InternReportPage() {
                 </div>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* This Week's Leaderboard */}
-      {leaderboard.length > 0 && (
-        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginTop: 20 }}>
-          <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)" }}>
-            <h2 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>This Week's Leaderboard</h2>
-          </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "var(--muted)" }}>
-                  {["Rank", "Intern", "Dept", "TL Score", "Attendance", "Total"].map(h => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboard.map((row: any) => {
-                  const isMe = !!reports.find((r: any) => r.employeeId === row.employeeId)
-                  return (
-                    <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)", background: isMe ? "rgba(22,163,74,0.06)" : "transparent" }}>
-                      <td style={{ padding: "10px 14px", fontWeight: 700, color: row.rank === 1 ? "#D97706" : "var(--muted-foreground)" }}>
-                        {row.rank ?? "–"}
-                      </td>
-                      <td style={{ padding: "10px 14px", fontWeight: isMe ? 700 : 400 }}>
-                        {row.name} {isMe && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 12, background: "#DCFCE7", color: "#15803D", fontWeight: 700, marginLeft: 4 }}>You</span>}
-                      </td>
-                      <td style={{ padding: "10px 14px", color: "var(--muted-foreground)" }}>{row.dept}</td>
-                      <td style={{ padding: "10px 14px", fontWeight: 600 }}>{row.tlScorePct}%</td>
-                      <td style={{ padding: "10px 14px", color: row.attendancePending ? "var(--muted-foreground)" : "inherit" }}>
-                        {row.attendancePending ? "Pending" : `${row.attendanceScorePct}%`}
-                      </td>
-                      <td style={{ padding: "10px 14px", fontWeight: 700, color: "var(--primary)" }}>
-                        {row.attendancePending ? "–" : `${row.totalScorePct}%`}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
           </div>
         </div>
       )}

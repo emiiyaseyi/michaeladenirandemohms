@@ -24,7 +24,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (action === "approve") {
     const changes = req_.changes as Record<string, any>
-    await prisma.employee.update({ where: { id: req_.employeeId }, data: changes })
+    const sanitized: Record<string, any> = { ...changes }
+    if (typeof sanitized.dateOfBirth === "string" && sanitized.dateOfBirth) {
+      sanitized.dateOfBirth = new Date(sanitized.dateOfBirth)
+    }
+    await prisma.employee.update({ where: { id: req_.employeeId }, data: sanitized })
 
     await prisma.profileUpdateRequest.update({
       where: { id },

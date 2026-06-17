@@ -41,6 +41,7 @@ export default function ProfileRequestsPage() {
   const [reviewing, setReviewing] = useState<any | null>(null)
   const [reviewNote, setReviewNote] = useState("")
   const [submittingP, setSubmittingP] = useState(false)
+  const [reviewErr, setReviewErr] = useState("")
 
   // ── Password reset state ──
   const [resets, setResets]     = useState<any[]>([])
@@ -73,14 +74,21 @@ export default function ProfileRequestsPage() {
   async function reviewProfile(action: "approve" | "reject") {
     if (!reviewing) return
     setSubmittingP(true)
-    await fetch(`/api/profile-requests/${reviewing.id}`, {
+    setReviewErr("")
+    const res = await fetch(`/api/profile-requests/${reviewing.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action, reviewNote }),
     })
     setSubmittingP(false)
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setReviewErr(d.error ?? "Something went wrong. Please try again.")
+      return
+    }
     setReviewing(null)
     setReviewNote("")
+    setReviewErr("")
     await loadProfile()
   }
 
@@ -200,7 +208,7 @@ export default function ProfileRequestsPage() {
                           )}
                         </div>
                         {req.status === "PENDING" && (
-                          <Button onClick={() => { setReviewing(req); setReviewNote("") }} style={{ flexShrink: 0 }}>
+                          <Button onClick={() => { setReviewing(req); setReviewNote(""); setReviewErr("") }} style={{ flexShrink: 0 }}>
                             Review
                           </Button>
                         )}
@@ -238,13 +246,18 @@ export default function ProfileRequestsPage() {
                   <textarea value={reviewNote} onChange={e => setReviewNote(e.target.value)} rows={2} placeholder="Add a note visible to the employee…"
                     style={{ width: "100%", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, resize: "vertical", background: "var(--background)", color: "var(--foreground)", boxSizing: "border-box" }} />
                 </div>
+                {reviewErr && (
+                  <div style={{ padding: "10px 14px", background: "#FEE2E2", border: "1px solid #FECACA", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>
+                    {reviewErr}
+                  </div>
+                )}
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                  <Button variant="secondary" onClick={() => setReviewing(null)}>Cancel</Button>
+                  <Button variant="secondary" onClick={() => { setReviewing(null); setReviewErr("") }}>Cancel</Button>
                   <Button onClick={() => reviewProfile("reject")} disabled={submittingP} style={{ background: "#EF4444", borderColor: "#EF4444" }}>
                     <XCircle size={13} /> Reject
                   </Button>
                   <Button onClick={() => reviewProfile("approve")} disabled={submittingP}>
-                    <CheckCircle size={13} /> Approve
+                    <CheckCircle size={13} /> {submittingP ? "Saving…" : "Approve"}
                   </Button>
                 </div>
               </div>
