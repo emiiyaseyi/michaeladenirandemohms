@@ -258,6 +258,7 @@ export default function PLTeamPage() {
                   <th style={th}>Type</th>
                   <th style={th}>Phone</th>
                   <th style={th}>Status</th>
+                  <th style={th}>Gender</th>
                 </tr>
               </thead>
               <tbody>
@@ -287,6 +288,13 @@ export default function PLTeamPage() {
                         <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: badge.bg, color: badge.color, whiteSpace: "nowrap" }}>
                           {badge.label}
                         </span>
+                      </td>
+                      <td style={td}>
+                        {emp.gender ? (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", background: emp.gender === "MALE" ? "#EFF6FF" : "#FDF2F8", color: emp.gender === "MALE" ? "#1D4ED8" : "#9D174D" }}>
+                            {emp.gender === "MALE" ? "Male" : "Female"}
+                          </span>
+                        ) : "—"}
                       </td>
                     </tr>
                   )

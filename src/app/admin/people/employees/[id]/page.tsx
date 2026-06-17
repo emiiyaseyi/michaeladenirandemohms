@@ -729,6 +729,8 @@ export default function EmployeeProfilePage() {
   // For modal dropdowns
   const [departments, setDepartments] = useState<any[]>([])
   const [allEmployees, setAllEmployees] = useState<any[]>([])
+  const [managers, setManagers] = useState<any[]>([])
+  const [deptPLs, setDeptPLs] = useState<any[]>([])
 
   // Modal state
   const [modalKey, setModalKey] = useState<string | null>(null)
@@ -761,7 +763,17 @@ export default function EmployeeProfilePage() {
   useEffect(() => {
     fetch("/api/settings").then(r => r.json()).then(d => setDepartments(d.departments ?? []))
     fetch("/api/employees?status=ACTIVE&limit=200").then(r => r.json()).then(d => setAllEmployees(d.employees ?? []))
+    fetch("/api/people/managers").then(r => r.json()).then(d => setManagers(d.managers ?? []))
   }, [])
+
+  useEffect(() => {
+    if (modalKey !== "employment" || emp?.user?.role === "PROJECT_LEAD") return
+    const deptId = modalForm.departmentId
+    if (!deptId) { setDeptPLs([]); return }
+    fetch(`/api/people/managers/pls-for-department?departmentId=${deptId}`)
+      .then(r => r.json())
+      .then(d => setDeptPLs(d.pls ?? []))
+  }, [modalKey, modalForm.departmentId])
 
   useEffect(() => {
     if (!manageOpen) return
@@ -973,8 +985,14 @@ export default function EmployeeProfilePage() {
             </MF>
             <MF label={emp.user?.role === "PROJECT_LEAD" ? "Manager" : "Project Lead"}>
               <select value={mf.managerId ?? ""} onChange={setMF("managerId")} style={{ ...fi, appearance: "none" }}>
-                <option value="">{emp.user?.role === "PROJECT_LEAD" ? "No manager" : "No project lead"}</option>
-                {allEmployees.filter(e => e.id !== id).map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
+                <option value="">{emp.user?.role === "PROJECT_LEAD" ? "No manager" : deptPLs.length === 0 && modalForm.departmentId ? "No project lead in this department" : "No project lead"}</option>
+                {emp.user?.role === "PROJECT_LEAD"
+                  ? managers.map((m: any) => m.employee
+                      ? <option key={m.employee.id} value={m.employee.id}>{m.employee.firstName} {m.employee.lastName}</option>
+                      : null)
+                  : deptPLs.map(e =>
+                      <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)
+                }
               </select>
             </MF>
             <MF label="Hire Date"><input type="date" value={mf.hireDate ?? ""} onChange={setMF("hireDate")} style={fi} /></MF>
