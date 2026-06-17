@@ -20,6 +20,9 @@ export async function GET(req: NextRequest) {
 
   const cfg = await prisma.internReportSettings.findUnique({ where: { id: "singleton" } })
   const missingDeduction = cfg?.lateDeductionSunday ?? 3
+  const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
+  const subDay = cfg?.submissionDay ?? 5
+  const closingDay = DAYS[(subDay + 2) % 7]
 
   const interns = await prisma.employee.findMany({
     where: {
@@ -66,7 +69,7 @@ export async function GET(req: NextRequest) {
         entity: "InternWeeklyReport",
         entityId: placeholder.id,
         newValues: { weekStart, weekEnd, status: "MISSING", pointDeduction: missingDeduction },
-        reason: "Auto-created by Monday cron — intern did not submit by Sunday 11:59 PM WAT.",
+        reason: `Auto-created by Monday cron — intern did not submit by ${closingDay} 11:59 PM WAT.`,
       },
     }).catch(err => console.error("[audit] MISSING placeholder audit failed:", err))
 

@@ -76,17 +76,6 @@ export default function InternReportSettingsPage() {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  const lockedRow = (label: string, sublabel: string, value: string) => (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16 }}>
-      <div>
-        <div style={{ fontSize: 14, fontWeight: 600 }}>{label}</div>
-        <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{sublabel}</div>
-      </div>
-      {/* Fixed value rendered in muted gray (no "Locked" pill — the gray tone already signals read-only) */}
-      <span style={{ fontSize: 14, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{value}</span>
-    </div>
-  )
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -105,12 +94,62 @@ export default function InternReportSettingsPage() {
         </div>
       ) : (
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: "8px 24px 20px" }}>
-          {/* Locked policy: submission day is Friday; window closes Sunday 11:59 PM WAT. Only the on-Friday hours are configurable. */}
           <div style={{ padding: "12px 14px", background: "#F3F4F6", borderRadius: 8, fontSize: 12, color: "var(--muted-foreground)", marginBottom: 12, lineHeight: 1.6 }}>
-            <strong style={{ color: "var(--foreground)" }}>Fixed policy:</strong> submissions open on <strong>Friday</strong> and the full window stays open through <strong>Sunday 11:59 PM WAT</strong>. Saturday submissions incur the Saturday deduction; Sunday submissions incur the Sunday deduction; non-submission by Monday becomes a MISSING record. Only the deduction amounts and warning threshold below are admin-configurable.
+            The submission window opens on the chosen day and stays open through the following two days. Saturday and Sunday submissions incur deductions; non-submission by the day after Sunday becomes a MISSING record.
           </div>
-          {lockedRow("Window Opens (Friday start time)", "Fixed — cannot be changed", "16:00 WAT")}
-          {lockedRow("Late Threshold (Friday — submissions after this time are LATE)", "Fixed — cannot be changed", "20:00 WAT")}
+
+          {/* Submission Day */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Submission Day</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Day of the week when the submission window opens</div>
+            </div>
+            <select
+              value={settings.submissionDay}
+              onChange={e => set("submissionDay", Number(e.target.value))}
+              style={{ padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", minWidth: 140 }}
+            >
+              {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+            </select>
+          </div>
+
+          {/* Open Hour */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Window Opens At</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>WAT hour when interns can start submitting on the submission day</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <select
+                value={settings.openHour}
+                onChange={e => set("openHour", Number(e.target.value))}
+                style={{ padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", minWidth: 100 }}
+              >
+                {Array.from({ length: 25 }, (_, h) => (
+                  <option key={h} value={h}>{hourLabel(h)} WAT</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Late Hour */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Late Threshold</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Submissions after this time on the submission day are flagged LATE</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <select
+                value={settings.lateHour}
+                onChange={e => set("lateHour", Number(e.target.value))}
+                style={{ padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", minWidth: 100 }}
+              >
+                {Array.from({ length: 25 }, (_, h) => (
+                  <option key={h} value={h}>{hourLabel(h)} WAT</option>
+                ))}
+              </select>
+            </div>
+          </div>
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
             <div>
@@ -164,19 +203,27 @@ export default function InternReportSettingsPage() {
           <div style={{ background: "var(--muted)", borderRadius: 10, padding: "12px 16px", marginTop: 8 }}>
             <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Preview — current window</div>
             <div style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.8 }}>
-              Window opens <strong>{DAYS[settings.submissionDay]} {hourLabel(settings.openHour)} WAT</strong> and stays open through <strong>Sunday 11:59 PM WAT</strong>.
-              <br />
-              • <strong>{DAYS[settings.submissionDay]} {hourLabel(settings.openHour)}–{hourLabel(settings.lateHour)}:</strong> on time — 0 pts
-              <br />
-              • <strong>{DAYS[settings.submissionDay]} {hourLabel(settings.lateHour)}–midnight:</strong> LATE flag, 0 pts
-              <br />
-              • <strong>Saturday:</strong> LATE, <strong>−{settings.lateDeduction} pts</strong>
-              <br />
-              • <strong>Sunday:</strong> LATE, <strong>−{settings.lateDeductionSunday} pts</strong>
-              <br />
-              • <strong>Monday onwards:</strong> window closed. No submission row → auto-created as <strong>MISSING (−{settings.lateDeductionSunday} pts)</strong> by Monday cron.
-              <br />
-              Countdown turns red <strong>{settings.warningThresholdMinutes} minutes</strong> before the late threshold.
+              {(() => {
+                const d1 = DAYS[settings.submissionDay]
+                const d2 = DAYS[(settings.submissionDay + 1) % 7]
+                const d3 = DAYS[(settings.submissionDay + 2) % 7]
+                const d4 = DAYS[(settings.submissionDay + 3) % 7]
+                return <>
+                  Window opens <strong>{d1} {hourLabel(settings.openHour)} WAT</strong> and stays open through <strong>{d3} 11:59 PM WAT</strong>.
+                  <br />
+                  • <strong>{d1} {hourLabel(settings.openHour)}–{hourLabel(settings.lateHour)}:</strong> on time — 0 pts
+                  <br />
+                  • <strong>{d1} {hourLabel(settings.lateHour)}–midnight:</strong> LATE flag, 0 pts
+                  <br />
+                  • <strong>{d2}:</strong> LATE, <strong>−{settings.lateDeduction} pts</strong>
+                  <br />
+                  • <strong>{d3}:</strong> LATE, <strong>−{settings.lateDeductionSunday} pts</strong>
+                  <br />
+                  • <strong>{d4} onwards:</strong> window closed. No submission row → auto-created as <strong>MISSING (−{settings.lateDeductionSunday} pts)</strong> by cron.
+                  <br />
+                  Countdown turns red <strong>{settings.warningThresholdMinutes} minutes</strong> before the late threshold.
+                </>
+              })()}
             </div>
           </div>
 
