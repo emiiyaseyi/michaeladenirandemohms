@@ -729,6 +729,7 @@ export default function EmployeeProfilePage() {
   // For modal dropdowns
   const [departments, setDepartments] = useState<any[]>([])
   const [allEmployees, setAllEmployees] = useState<any[]>([])
+  const [managers, setManagers] = useState<any[]>([])
 
   // Modal state
   const [modalKey, setModalKey] = useState<string | null>(null)
@@ -761,6 +762,7 @@ export default function EmployeeProfilePage() {
   useEffect(() => {
     fetch("/api/settings").then(r => r.json()).then(d => setDepartments(d.departments ?? []))
     fetch("/api/employees?status=ACTIVE&limit=200").then(r => r.json()).then(d => setAllEmployees(d.employees ?? []))
+    fetch("/api/people/managers").then(r => r.json()).then(d => setManagers(d.managers ?? []))
   }, [])
 
   useEffect(() => {
@@ -974,7 +976,13 @@ export default function EmployeeProfilePage() {
             <MF label={emp.user?.role === "PROJECT_LEAD" ? "Manager" : "Project Lead"}>
               <select value={mf.managerId ?? ""} onChange={setMF("managerId")} style={{ ...fi, appearance: "none" }}>
                 <option value="">{emp.user?.role === "PROJECT_LEAD" ? "No manager" : "No project lead"}</option>
-                {allEmployees.filter(e => e.id !== id).map(e => <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)}
+                {emp.user?.role === "PROJECT_LEAD"
+                  ? managers.map((m: any) => m.employee
+                      ? <option key={m.employee.id} value={m.employee.id}>{m.employee.firstName} {m.employee.lastName}</option>
+                      : null)
+                  : allEmployees.filter(e => e.id !== id && e.user?.role === "PROJECT_LEAD").map(e =>
+                      <option key={e.id} value={e.id}>{e.firstName} {e.lastName}</option>)
+                }
               </select>
             </MF>
             <MF label="Hire Date"><input type="date" value={mf.hireDate ?? ""} onChange={setMF("hireDate")} style={fi} /></MF>
