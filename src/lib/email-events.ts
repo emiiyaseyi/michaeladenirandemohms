@@ -7,20 +7,6 @@ export interface EmailEventDef {
   defaultBody: string
 }
 
-// Wrap the logo in an anchor — Gmail (and a few other clients) show a
-// "download image" icon on hover for bare <img> tags. Linking it suppresses
-// that, and gives a small navigational benefit if the recipient does click.
-// The host comes from NEXTAUTH_URL so rotating the deploy domain only needs
-// an env-var change (not a code edit). Logo image is served from /public.
-const APP_URL = process.env.NEXTAUTH_URL ?? ""
-// Use PNG for email clients — SVG is blocked by Gmail, Outlook, Apple Mail.
-// Add /public/dsn-logo.png to the repo if it doesn't exist yet.
-// Falls back to a text header so emails are still readable even without the image.
-const LOGO =
-  `<div style="text-align:center;padding:4px 0 20px;">` +
-  `<a href="${APP_URL}" style="display:inline-block;text-decoration:none;border:0;outline:none;">` +
-  `<img src="${APP_URL}/dsn-logo.png" alt="Data Science Nigeria" width="150" height="50" style="max-width:150px;height:auto;border:0;outline:none;text-decoration:none;display:block;margin:0 auto;" />` +
-  `</a></div>`
 
 const ROW = (label: string, val: string) =>
   `<tr><td style="padding:10px 14px;font-size:13px;color:#6b7280;border-bottom:1px solid #f3f4f6;width:130px;">${label}</td><td style="padding:10px 14px;font-size:13px;font-weight:600;color:#111827;border-bottom:1px solid #f3f4f6;">${val}</td></tr>`
@@ -48,7 +34,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "leaveType", "startDate", "endDate", "days", "reason"],
     defaultSubject: "Action Required: {{employeeName}} submitted a {{leaveType}} request",
     defaultBody:
-      LOGO +
+
       H("Leave Approval Needed") +
       P("<strong>{{employeeName}}</strong> has submitted a <strong>{{leaveType}}</strong> leave request that requires your approval.") +
       TABLE(
@@ -66,7 +52,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "leaveType", "startDate", "endDate", "days"],
     defaultSubject: "New Leave Request: {{employeeName}} — {{leaveType}}",
     defaultBody:
-      LOGO +
+
       H("New Leave Request Submitted") +
       P("<strong>{{employeeName}}</strong> submitted a <strong>{{leaveType}}</strong> leave request. It is pending Project Lead approval before reaching you.") +
       TABLE(
@@ -83,7 +69,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "leaveType", "startDate", "endDate", "days", "reliefOfficers", "note"],
     defaultSubject: "Your {{leaveType}} leave has been approved",
     defaultBody:
-      LOGO +
+
       H("Leave Request Approved") +
       P("Your <strong>{{leaveType}}</strong> leave request has been fully approved.") +
       TABLE(
@@ -102,7 +88,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "leaveType", "startDate", "endDate", "rejectedBy", "reason"],
     defaultSubject: "Your {{leaveType}} request was not approved",
     defaultBody:
-      LOGO +
+
       H("Leave Request Not Approved") +
       P("Unfortunately, your <strong>{{leaveType}}</strong> leave request ({{startDate}} – {{endDate}}) was rejected by <strong>{{rejectedBy}}</strong>.") +
       P("Reason: <em>{{reason}}</em>") +
@@ -116,7 +102,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["requesterName", "leaveType"],
     defaultSubject: "Reminder: {{requesterName}}'s {{leaveType}} request is awaiting your approval",
     defaultBody:
-      LOGO +
+
       H("Pending Leave Approval") +
       P("This is a reminder that <strong>{{requesterName}}</strong>'s <strong>{{leaveType}}</strong> leave request is still waiting for your approval.") +
       NOTE("Log in to your HRMS portal to take action."),
@@ -129,7 +115,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["requesterName", "leaveType"],
     defaultSubject: "Reminder: {{requesterName}}'s {{leaveType}} request awaits final approval",
     defaultBody:
-      LOGO +
+
       H("Pending Final Approval") +
       P("<strong>{{requesterName}}</strong>'s <strong>{{leaveType}}</strong> leave request has been approved by all Project Leads and is awaiting your final decision.") +
       NOTE("Log in to the admin panel to approve or reject."),
@@ -142,7 +128,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["requesterName", "leaveType"],
     defaultSubject: "Overdue: {{requesterName}}'s {{leaveType}} approval needs your attention",
     defaultBody:
-      LOGO +
+
       H("Leave Approval Overdue") +
       P("Your approval for <strong>{{requesterName}}</strong>'s <strong>{{leaveType}}</strong> leave request is overdue. Please review and take action as soon as possible.") +
       NOTE("Log in to your HRMS portal to take action."),
@@ -155,7 +141,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "editorName", "changes", "leaveType", "startDate", "endDate"],
     defaultSubject: "Your {{leaveType}} request was edited by {{editorName}}",
     defaultBody:
-      LOGO +
+
       H("Your Leave Request Was Edited") +
       P("Hi <strong>{{employeeName}}</strong>, <strong>{{editorName}}</strong> updated your {{leaveType}} request.") +
       P("Changes: {{changes}}") +
@@ -172,7 +158,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "leaveType"],
     defaultSubject: "Welcome back, {{employeeName}}!",
     defaultBody:
-      LOGO +
+
       H("Welcome Back!") +
       P("Hi <strong>{{employeeName}}</strong>, welcome back from your <strong>{{leaveType}}</strong>! We hope you had a great break.") +
       NOTE("Log in to your portal to catch up."),
@@ -187,7 +173,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "documentType", "note"],
     defaultSubject: "Your {{documentType}} has been approved",
     defaultBody:
-      LOGO +
+
       H("Document Approved") +
       P("Your <strong>{{documentType}}</strong> has been reviewed and approved.") +
       P("{{note}}") +
@@ -201,7 +187,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "documentType", "note"],
     defaultSubject: "Your {{documentType}} requires attention",
     defaultBody:
-      LOGO +
+
       H("Document Not Approved") +
       P("Your <strong>{{documentType}}</strong> was reviewed and could not be approved.") +
       P("Note: <em>{{note}}</em>") +
@@ -217,7 +203,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "previousRole", "newRole"],
     defaultSubject: "Your account role has been updated",
     defaultBody:
-      LOGO +
+
       H("Role Update") +
       P("Your account role has been updated from <strong>{{previousRole}}</strong> to <strong>{{newRole}}</strong>.") +
       P("Please sign out and back in for the change to take full effect.") +
@@ -231,7 +217,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName"],
     defaultSubject: "Your profile update has been approved",
     defaultBody:
-      LOGO +
+
       H("Profile Update Approved") +
       P("Your profile update request has been reviewed and approved. Your profile has been updated.") +
       NOTE(),
@@ -244,7 +230,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "reason"],
     defaultSubject: "Your profile update request was not approved",
     defaultBody:
-      LOGO +
+
       H("Profile Update Not Approved") +
       P("Your profile update request was reviewed and could not be approved.") +
       P("Reason: <em>{{reason}}</em>") +
@@ -260,7 +246,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName"],
     defaultSubject: "You have been granted admin access",
     defaultBody:
-      LOGO +
+
       H("Admin Access Granted") +
       P("You have been granted admin access to the HRMS. Use the panel switcher in the top menu to access the admin panel.") +
       NOTE(),
@@ -273,7 +259,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName"],
     defaultSubject: "Your admin role assignments have been updated",
     defaultBody:
-      LOGO +
+
       H("Admin Roles Updated") +
       P("Your admin role assignments have been updated. You may have gained or lost access to certain features. Please sign in again to see your updated permissions.") +
       NOTE(),
@@ -286,7 +272,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName"],
     defaultSubject: "Your admin access has been removed",
     defaultBody:
-      LOGO +
+
       H("Admin Access Removed") +
       P("Your admin access has been removed. You have been returned to a standard staff account.") +
       NOTE("Contact HR if you believe this is an error."),
@@ -301,15 +287,14 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "inviteLink", "workEmail", "loginUrl", "defaultPassword"],
     defaultSubject: "You're invited to complete your DSN HRMS profile",
     defaultBody:
-      LOGO +
+
       `<h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px;text-align:center;letter-spacing:-0.4px;">Welcome to Data Science Nigeria</h1>` +
       `<p style="font-size:15px;color:#6b7280;text-align:center;margin:0 0 24px;">Hi <strong style="color:#111827;">{{employeeName}}</strong>, your DSN HRMS account has been created and you've been invited to complete your profile.</p>` +
-      `<div style="text-align:center;margin:28px 0 20px;"><a href="{{inviteLink}}" style="display:inline-block;padding:14px 44px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.2px;">Set your password →</a></div>` +
-      `<p style="font-size:13px;color:#6b7280;text-align:center;margin:0 0 18px;">Or sign in directly using your work email and the default password:</p>` +
+      `<div style="text-align:center;margin:28px 0 20px;"><a href="{{inviteLink}}" style="display:inline-block;padding:14px 44px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.2px;">Set your password</a></div>` +
+      `<p style="font-size:13px;color:#6b7280;text-align:center;margin:0 0 18px;">Or sign in directly using your work email:</p>` +
       TABLE(
         ROW("Login page", `<a href="{{loginUrl}}" style="color:#16a34a;">{{loginUrl}}</a>`),
         ROW("Email", "{{workEmail}}"),
-        ROW("Password", "{{defaultPassword}}"),
       ) +
       P("On first sign-in you'll be asked to set your own password. After that, the dashboard will guide you to complete your profile.") +
       `<div style="border-top:1px solid #f3f4f6;padding-top:16px;text-align:center;"><p style="font-size:12px;color:#9ca3af;margin:0;">⏱ The set-password link above expires <strong style="color:#374151;">24 hours</strong> after this email was sent. After that, use the direct-login option.</p></div>`,
@@ -322,15 +307,14 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "inviteLink", "workEmail", "loginUrl", "defaultPassword"],
     defaultSubject: "Your DSN HRMS account is ready",
     defaultBody:
-      LOGO +
+
       `<h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px;text-align:center;letter-spacing:-0.4px;">Welcome to Data Science Nigeria</h1>` +
       `<p style="font-size:15px;color:#6b7280;text-align:center;margin:0 0 24px;">Hi <strong style="color:#111827;">{{employeeName}}</strong>, your DSN HRMS account has been created.</p>` +
-      `<div style="text-align:center;margin:28px 0 20px;"><a href="{{inviteLink}}" style="display:inline-block;padding:14px 44px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.2px;">Set your password →</a></div>` +
-      `<p style="font-size:13px;color:#6b7280;text-align:center;margin:0 0 18px;">Or sign in directly using your work email and the default password:</p>` +
+      `<div style="text-align:center;margin:28px 0 20px;"><a href="{{inviteLink}}" style="display:inline-block;padding:14px 44px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.2px;">Set your password</a></div>` +
+      `<p style="font-size:13px;color:#6b7280;text-align:center;margin:0 0 18px;">Or sign in directly using your work email:</p>` +
       TABLE(
         ROW("Login page", `<a href="{{loginUrl}}" style="color:#16a34a;">{{loginUrl}}</a>`),
         ROW("Email", "{{workEmail}}"),
-        ROW("Password", "{{defaultPassword}}"),
       ) +
       P("On first sign-in you'll be asked to set your own password.") +
       `<div style="border-top:1px solid #f3f4f6;padding-top:16px;text-align:center;"><p style="font-size:12px;color:#9ca3af;margin:0;">⏱ The set-password link above expires <strong style="color:#374151;">24 hours</strong> after this email was sent. After that, use the direct-login option.</p></div>`,
@@ -345,7 +329,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["count", "names", "today"],
     defaultSubject: "🎂 {{count}} birthday(s) today — {{today}}",
     defaultBody:
-      LOGO +
+
       H("Birthday Digest") +
       P("The following employee(s) have a birthday today (<strong>{{today}}</strong>):") +
       `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px 18px;margin-bottom:16px;font-size:14px;color:#166534;font-weight:600;">{{names}}</div>` +
@@ -359,7 +343,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName"],
     defaultSubject: "Happy Birthday, {{employeeName}}! 🎉",
     defaultBody:
-      LOGO +
+
       H("Happy Birthday! 🎂") +
       P("Wishing you a wonderful birthday, <strong>{{employeeName}}</strong>! Thank you for everything you bring to the team. Have a fantastic day!") +
       P("From everyone at DSN.") +
@@ -375,7 +359,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["internName", "weekRange", "reviewLink"],
     defaultSubject: "Missed weekly report — {{internName}} ({{weekRange}})",
     defaultBody:
-      LOGO +
+
       H("Missed Weekly Report") +
       P("<strong>{{internName}}</strong> did not submit a weekly report for <strong>{{weekRange}}</strong>. A 'Missed' placeholder has been auto-recorded with a 3-point deduction.") +
       P("If this was an oversight or there was a valid reason, please coordinate with HR — an admin can clear the missed-record so the intern can submit retroactively.") +
@@ -390,7 +374,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["announcementTitle", "announcementBody", "publishedBy"],
     defaultSubject: "📢 New Announcement: {{announcementTitle}}",
     defaultBody:
-      LOGO +
+
       H("New Announcement") +
       P("<strong>{{announcementTitle}}</strong>") +
       P("{{announcementBody}}") +
@@ -405,7 +389,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["name", "tempPassword", "loginUrl"],
     defaultSubject: "Your DSN Admin Account",
     defaultBody:
-      LOGO +
+
       H("Welcome to the DSN HRMS Admin Panel") +
       P("Hi {{name}},") +
       P("An admin account has been created for you. Use the credentials below to sign in. You will be prompted to change the password on first login.") +
@@ -423,7 +407,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["name", "seatNumber", "trip", "stop", "loginUrl"],
     defaultSubject: "Your {{trip}} bus seat is confirmed — Seat #{{seatNumber}}",
     defaultBody:
-      LOGO +
+
       H("Bus Seat Confirmed ✓") +
       P("Hi {{name}}, your seat on the <strong>{{trip}}</strong> bus has been confirmed.") +
       TABLE(
@@ -441,7 +425,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["name", "trip", "loginUrl"],
     defaultSubject: "{{trip}} bus — No seat available today",
     defaultBody:
-      LOGO +
+
       H("No Seat Available") +
       P("Hi {{name}}, unfortunately there is no space for you on the <strong>{{trip}}</strong> bus today.") +
       P("Please find alternative transport home. Thank you for your understanding.") +
@@ -457,7 +441,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "newType"],
     defaultSubject: "Welcome to the DSN Team, {{employeeName}}!",
     defaultBody:
-      LOGO +
+
       H("Welcome to the Team!") +
       P("Hi <strong>{{employeeName}}</strong>, congratulations! Your employment status has been updated from <strong>Intern</strong> to <strong>{{newType}}</strong>.") +
       P("You are now a full member of the Data Science Nigeria team. Please sign out and back in to see your updated profile and access.") +
@@ -471,7 +455,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     variables: ["employeeName", "convertedAt", "profileLink"],
     defaultSubject: "5-Month Check-in: {{employeeName}} (converted {{convertedAt}})",
     defaultBody:
-      LOGO +
+
       H("Intern Conversion Follow-up") +
       P("<strong>{{employeeName}}</strong> was converted from Intern to Staff on <strong>{{convertedAt}}</strong> — 5 months ago.") +
       P("Consider scheduling an engagement check-in before the 6-month mark to ensure a smooth transition.") +

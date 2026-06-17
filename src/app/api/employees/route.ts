@@ -198,11 +198,11 @@ export async function POST(req: NextRequest) {
   let computedProjectLeadId: string | null = null
   let computedDepartmentId: string | null = null
   if (role === "STAFF") {
-    computedManagerId = primaryProjectLeadId
-    computedProjectLeadId = primaryProjectLeadId
+    computedManagerId = primaryProjectLeadId || null
+    computedProjectLeadId = primaryProjectLeadId || null
     computedDepartmentId = primaryDepartmentId
   } else if (role === "PROJECT_LEAD") {
-    computedManagerId = managerEmployeeId
+    computedManagerId = managerEmployeeId || null
     computedProjectLeadId = null
     computedDepartmentId = departmentIds[0] ?? null
   }
