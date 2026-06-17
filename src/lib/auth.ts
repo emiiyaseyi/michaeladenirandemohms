@@ -20,7 +20,7 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
-          include: { employee: { select: { id: true, profilePhoto: true, jobTitle: true } } },
+          include: { employee: { select: { id: true, profilePhoto: true, jobTitle: true, employmentType: true } } },
         })
         if (!user || !user.password) return null
         const valid = await bcrypt.compare(credentials.password, user.password)
@@ -51,6 +51,7 @@ export const authOptions: NextAuthOptions = {
           }
         }
         const isIntern = (user.employee?.jobTitle ?? "").toLowerCase().includes("intern")
+               || user.employee?.employmentType === "INTERN"
         return {
           id: user.id, email: user.email, name: user.name, role: user.role,
           employeeId: user.employee?.id, image: user.employee?.profilePhoto ?? user.image,

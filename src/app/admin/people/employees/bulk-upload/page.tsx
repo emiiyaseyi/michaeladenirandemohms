@@ -71,15 +71,15 @@ export default function BulkUploadEmployeesPage() {
     ? [
         "First name, last name, work email",
         "Job title, hire date, date of birth (YYYY-MM-DD), gender (MALE/FEMALE)",
-        "Primary department name (must exist and have a Project Lead)",
-        "Primary Project Lead's email (must be a PL of the primary department)",
-        "Secondary department names (optional, pipe-separated, each must have a PL)",
+        "Primary department name (must exist — no Project Lead required)",
+        "Primary Project Lead email (optional — leave blank if no PL assigned yet)",
+        "Secondary department names (optional, pipe-separated)",
       ]
     : [
         "First name, last name, work email",
         "Job title, hire date, date of birth (YYYY-MM-DD), gender (MALE/FEMALE)",
         "Departments to lead (pipe-separated, e.g. Finance|EqualyzAI)",
-        "Manager's email (must be a seeded/added Manager)",
+        "Manager email (optional — leave blank if no manager assigned yet)",
       ]
 
   return (

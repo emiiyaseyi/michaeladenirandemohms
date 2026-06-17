@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { ChevronLeft, Check, Loader2, Search, X, ChevronDown, Users, UserCog, AlertCircle, Info } from "lucide-react"
 
 const STEPS = ["Basic Information", "Personal Details", "Documents", "Welcome Options"]
-const STATUSES = ["Full-time", "Part-time", "Contract"]
+const STATUSES = ["Full-time", "Part-time", "Contract", "Intern"]
 const GENDERS = ["Male", "Female"]
 const MARITAL = ["Single", "Married", "Divorced", "Widowed"]
 
@@ -160,6 +160,7 @@ export default function AddNewMemberPage() {
   // Invite mode state
   const [inviteForm, setInviteForm] = useState({
     firstName: "", lastName: "", email: "", hireDate: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF",
+    employmentType: "FULL_TIME",
     primaryDepartmentId: "", primaryProjectLeadId: "", secondaryDepartmentIds: [] as string[],
     departmentIds: [] as string[], managerEmployeeId: "",
   })
@@ -273,7 +274,7 @@ export default function AddNewMemberPage() {
   }, [inviteForm.role, inviteForm.secondaryDepartmentIds])
 
   useEffect(() => {
-    setInviteForm(f => ({ ...f, primaryDepartmentId: "", primaryProjectLeadId: "", secondaryDepartmentIds: [], departmentIds: [], managerEmployeeId: "" }))
+    setInviteForm(f => ({ ...f, employmentType: "FULL_TIME", primaryDepartmentId: "", primaryProjectLeadId: "", secondaryDepartmentIds: [], departmentIds: [], managerEmployeeId: "" }))
     setInviteSecDeptStatus({})
   }, [inviteForm.role])
 
@@ -320,17 +321,8 @@ export default function AddNewMemberPage() {
     if (!form.jobTitle) { setErr("Job title is required"); return false }
     if (form.role === "STAFF") {
       if (!form.primaryDepartmentId) { setErr("Primary Department is required"); return false }
-      if (pls.length === 0) { setErr("Primary department has no Project Lead. Assign one before adding staff."); return false }
-      if (!form.primaryProjectLeadId) { setErr("Primary Project Lead is required"); return false }
-      const blockedSec = form.secondaryDepartmentIds.find(id => secondaryDeptStatus[id] === "no-pl")
-      if (blockedSec) {
-        const dept = departments.find(d => d.id === blockedSec)
-        setErr(`${dept?.name ?? "Department"} does not have a Project Lead yet`)
-        return false
-      }
     } else if (form.role === "PROJECT_LEAD") {
       if (form.departmentIds.length === 0) { setErr("At least one department to lead is required"); return false }
-      if (!form.managerEmployeeId) { setErr("Manager is required"); return false }
     }
     return true
   }
@@ -346,7 +338,7 @@ export default function AddNewMemberPage() {
     setSaving(true); setErr("")
     try {
       const genderMap: Record<string, string> = { Male: "MALE", Female: "FEMALE" }
-      const statusMap: Record<string, string> = { "Full-time": "FULL_TIME", "Part-time": "PART_TIME", "Contract": "CONTRACT" }
+      const statusMap: Record<string, string> = { "Full-time": "FULL_TIME", "Part-time": "PART_TIME", "Contract": "CONTRACT", "Intern": "INTERN" }
       const r = await fetch("/api/employees", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -425,16 +417,8 @@ export default function AddNewMemberPage() {
       if (inviteEmailAvailable === false) { setInviteErr("This email is already in use"); return }
       if (inviteForm.role === "STAFF") {
         if (!inviteForm.primaryDepartmentId) { setInviteErr("Primary Department is required"); return }
-        if (invitePls.length === 0) { setInviteErr("Primary department has no Project Lead. Assign one before adding staff."); return }
-        if (!inviteForm.primaryProjectLeadId) { setInviteErr("Primary Project Lead is required"); return }
-        const blockedSec = inviteForm.secondaryDepartmentIds.find(id => inviteSecDeptStatus[id] === "no-pl")
-        if (blockedSec) {
-          const dept = departments.find(d => d.id === blockedSec)
-          setInviteErr(`${dept?.name ?? "Department"} does not have a Project Lead yet`); return
-        }
       } else if (inviteForm.role === "PROJECT_LEAD") {
         if (inviteForm.departmentIds.length === 0) { setInviteErr("At least one department to lead is required"); return }
-        if (!inviteForm.managerEmployeeId) { setInviteErr("Manager is required"); return }
       }
       setInviteSaving(true); setInviteErr("")
       const genderMap: Record<string, string> = { Male: "MALE", Female: "FEMALE" }
@@ -484,9 +468,20 @@ export default function AddNewMemberPage() {
               </Field>
               <Field label="Hire Date" required><input type="date" value={inviteForm.hireDate} onChange={setIF("hireDate")} style={fi} /></Field>
               <Field label="Role" required>
-                <select value={inviteForm.role} onChange={setIF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
+                <select
+                  value={inviteForm.employmentType === "INTERN" ? "INTERN" : inviteForm.role}
+                  onChange={e => {
+                    const val = e.target.value
+                    if (val === "INTERN") {
+                      setInviteForm(f => ({ ...f, role: "STAFF", employmentType: "INTERN" }))
+                    } else {
+                      setInviteForm(f => ({ ...f, role: val, employmentType: "FULL_TIME" }))
+                    }
+                  }}
+                  style={{ ...fi, appearance: "none", cursor: "pointer" }}>
                   <option value="STAFF">Staff</option>
                   <option value="PROJECT_LEAD">Project Lead</option>
+                  <option value="INTERN">Intern</option>
                 </select>
               </Field>
               <SearchableSelect label="Job Title" value={inviteForm.jobTitle} required
@@ -514,13 +509,13 @@ export default function AddNewMemberPage() {
                     placeholder="Select primary department…" />
                   {inviteForm.primaryDepartmentId && (
                     <div>
-                      <SearchableSelect label="Primary Project Lead" value={inviteForm.primaryProjectLeadId} required
+                      <SearchableSelect label="Primary Project Lead (optional)" value={inviteForm.primaryProjectLeadId}
                         onChange={v => setInviteForm(f => ({ ...f, primaryProjectLeadId: v }))}
                         options={invitePls.map((p: any) => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.jobTitle ? ` — ${p.jobTitle}` : ""}` }))}
-                        placeholder={invitePls.length === 0 ? "No Project Lead in this department" : "Select Project Lead…"} />
+                        placeholder={invitePls.length === 0 ? "No Project Lead in this department yet" : "Select Project Lead…"} />
                       {invitePls.length === 0 && (
-                        <div style={{ marginTop: 6, padding: "8px 12px", background: "#FEE2E2", borderRadius: 6, fontSize: 12, color: "#DC2626", display: "flex", alignItems: "center", gap: 6 }}>
-                          <AlertCircle size={13} /> This department has no Project Lead yet.
+                        <div style={{ marginTop: 6, padding: "8px 12px", background: "#FEF3C7", borderRadius: 6, fontSize: 12, color: "#92400E", display: "flex", alignItems: "center", gap: 6 }}>
+                          <AlertCircle size={13} /> No Project Lead in this department yet — you can assign one later.
                         </div>
                       )}
                     </div>
@@ -567,10 +562,10 @@ export default function AddNewMemberPage() {
                       })}
                     </div>
                   </div>
-                  <SearchableSelect label="Manager" value={inviteForm.managerEmployeeId} required
+                  <SearchableSelect label="Manager (optional)" value={inviteForm.managerEmployeeId}
                     onChange={v => setInviteForm(f => ({ ...f, managerEmployeeId: v }))}
                     options={managers.map((m: any) => ({ value: m.employee.id, label: `${m.employee.firstName} ${m.employee.lastName}${m.employee.jobTitle ? ` — ${m.employee.jobTitle}` : ""}` }))}
-                    placeholder={managers.length === 0 ? "No managers seeded yet" : "Select Manager…"} />
+                    placeholder={managers.length === 0 ? "No managers available" : "Select Manager…"} />
                 </>
               )}
             </div>
@@ -601,7 +596,7 @@ export default function AddNewMemberPage() {
             An invitation email has been sent to <strong>{inviteForm.email}</strong>. They&apos;ll receive a link to complete their profile.
           </p>
           <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-            <button onClick={() => { setInviteForm({ firstName: "", lastName: "", email: "", hireDate: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF", primaryDepartmentId: "", primaryProjectLeadId: "", secondaryDepartmentIds: [], departmentIds: [], managerEmployeeId: "" }); setInviteSuccess(false) }}
+            <button onClick={() => { setInviteForm({ firstName: "", lastName: "", email: "", hireDate: "", jobTitle: "", gender: "", dateOfBirth: "", role: "STAFF", employmentType: "FULL_TIME", primaryDepartmentId: "", primaryProjectLeadId: "", secondaryDepartmentIds: [], departmentIds: [], managerEmployeeId: "" }); setInviteSuccess(false) }}
               style={{ padding: "10px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 14, fontWeight: 600 }}>
               Invite Another
             </button>
@@ -722,13 +717,13 @@ export default function AddNewMemberPage() {
 
                   {form.primaryDepartmentId && (
                     <div>
-                      <SearchableSelect label="Primary Project Lead" value={form.primaryProjectLeadId} required
+                      <SearchableSelect label="Primary Project Lead (optional)" value={form.primaryProjectLeadId}
                         onChange={v => setForm(f => ({ ...f, primaryProjectLeadId: v }))}
                         options={pls.map(p => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.jobTitle ? ` — ${p.jobTitle}` : ""}` }))}
-                        placeholder={plsLoading ? "Loading PLs…" : pls.length === 0 ? "No Project Lead in this department" : "Select Project Lead…"} />
+                        placeholder={plsLoading ? "Loading PLs…" : pls.length === 0 ? "No Project Lead in this department yet" : "Select Project Lead…"} />
                       {!plsLoading && pls.length === 0 && (
-                        <div style={{ marginTop: 6, padding: "8px 12px", background: "#FEE2E2", borderRadius: 6, fontSize: 12, color: "#DC2626", display: "flex", alignItems: "center", gap: 6 }}>
-                          <AlertCircle size={13} /> This department has no Project Lead yet. Assign one before adding staff.
+                        <div style={{ marginTop: 6, padding: "8px 12px", background: "#FEF3C7", borderRadius: 6, fontSize: 12, color: "#92400E", display: "flex", alignItems: "center", gap: 6 }}>
+                          <AlertCircle size={13} /> No Project Lead in this department yet — you can assign one later.
                         </div>
                       )}
                     </div>
@@ -794,10 +789,10 @@ export default function AddNewMemberPage() {
                       })}
                     </div>
                   </div>
-                  <SearchableSelect label="Manager" value={form.managerEmployeeId} required
+                  <SearchableSelect label="Manager (optional)" value={form.managerEmployeeId}
                     onChange={v => setForm(f => ({ ...f, managerEmployeeId: v }))}
                     options={managers.map((m: any) => ({ value: m.employee.id, label: `${m.employee.firstName} ${m.employee.lastName}${m.employee.jobTitle ? ` — ${m.employee.jobTitle}` : ""}` }))}
-                    placeholder={managers.length === 0 ? "No managers seeded yet" : "Select Manager…"} />
+                    placeholder={managers.length === 0 ? "No managers available" : "Select Manager…"} />
                 </div>
               )}
             </div>

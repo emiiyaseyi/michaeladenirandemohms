@@ -12,7 +12,6 @@ const ENTITY_COLORS: Record<string, { bg: string; color: string }> = {
   ExternalAdmin:     { bg: "#F3E8FF", color: "#7E22CE" },
   OrgDocument:       { bg: "#FCE7F3", color: "#BE185D" },
   PersonalDocument:  { bg: "#FCE7F3", color: "#BE185D" },
-  Contractor:        { bg: "#FFEDD5", color: "#C2410C" },
   Role:              { bg: "#E0E7FF", color: "#3730A3" },
   AdminRole:         { bg: "#E0E7FF", color: "#3730A3" },
   Violation:         { bg: "#FEE2E2", color: "#DC2626" },

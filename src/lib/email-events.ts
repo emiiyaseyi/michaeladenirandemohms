@@ -368,20 +368,6 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
 
   // ── Intern Reports ──────────────────────────────────────────────────────────
 
-  intern_report_submitted: {
-    name: "Intern Report Submitted — Reviewer Notification",
-    description: "Sent to all assigned reviewers when an intern submits their weekly report.",
-    category: "People",
-    variables: ["internName", "weekRange", "reviewLink"],
-    defaultSubject: "Action Required: {{internName}}'s weekly report for {{weekRange}}",
-    defaultBody:
-      LOGO +
-      H("Intern Report Submitted") +
-      P("<strong>{{internName}}</strong> has submitted their weekly report for <strong>{{weekRange}}</strong> and needs your feedback.") +
-      `<div style="text-align:center;margin:24px 0;"><a href="{{reviewLink}}" style="display:inline-block;padding:12px 32px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Fill Feedback →</a></div>` +
-      NOTE("Please log in to provide your ratings and comments."),
-  },
-
   intern_report_missing: {
     name: "Intern Report — Missing (auto-flagged)",
     description: "Sent to the intern's Project Lead on Monday morning when an intern did not submit a weekly report by Sunday midnight.",
@@ -460,6 +446,37 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       P("Hi {{name}}, unfortunately there is no space for you on the <strong>{{trip}}</strong> bus today.") +
       P("Please find alternative transport home. Thank you for your understanding.") +
       NOTE("You can book again next bus day (Mon/Wed/Fri)."),
+  },
+
+  // ── Intern Conversion ──────────────────────────────────────────────────────
+
+  intern_to_staff: {
+    name: "Intern Converted to Staff",
+    category: "People",
+    description: "Sent to an intern when they are converted to a full staff or project lead role.",
+    variables: ["employeeName", "newType"],
+    defaultSubject: "Welcome to the DSN Team, {{employeeName}}!",
+    defaultBody:
+      LOGO +
+      H("Welcome to the Team!") +
+      P("Hi <strong>{{employeeName}}</strong>, congratulations! Your employment status has been updated from <strong>Intern</strong> to <strong>{{newType}}</strong>.") +
+      P("You are now a full member of the Data Science Nigeria team. Please sign out and back in to see your updated profile and access.") +
+      NOTE("We're excited to have you on board — welcome!"),
+  },
+
+  intern_conversion_followup: {
+    name: "Intern Conversion — 5-Month Follow-up",
+    category: "People",
+    description: "Sent to HR admins 5 months after an intern was converted to staff. Prompts a check-in before the 6-month mark.",
+    variables: ["employeeName", "convertedAt", "profileLink"],
+    defaultSubject: "5-Month Check-in: {{employeeName}} (converted {{convertedAt}})",
+    defaultBody:
+      LOGO +
+      H("Intern Conversion Follow-up") +
+      P("<strong>{{employeeName}}</strong> was converted from Intern to Staff on <strong>{{convertedAt}}</strong> — 5 months ago.") +
+      P("Consider scheduling an engagement check-in before the 6-month mark to ensure a smooth transition.") +
+      `<div style="text-align:center;margin:24px 0;"><a href="{{profileLink}}" style="display:inline-block;padding:12px 32px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">View Profile</a></div>` +
+      NOTE("This is an automated reminder from the HRMS."),
   },
 }
 

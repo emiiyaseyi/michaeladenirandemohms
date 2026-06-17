@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
-import { sendEmail } from "@/lib/email"
 import { format } from "date-fns"
 
 // WAT = UTC+1
@@ -111,10 +110,10 @@ export async function POST(req: NextRequest) {
   // Verify this user is an intern
   const emp = await prisma.employee.findUnique({
     where: { id: user.employeeId },
-    select: { id: true, jobTitle: true, firstName: true, lastName: true, projectLeadId: true },
+    select: { id: true, jobTitle: true, employmentType: true, firstName: true, lastName: true, projectLeadId: true },
   })
   if (!emp) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
-  const isIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern")
+  const isIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern") || emp.employmentType === "INTERN"
   if (!isIntern) return forbidden("Only interns can submit weekly reports")
 
   // Parse body up front so content validation (reflections) fires before time-window checks.
@@ -311,16 +310,6 @@ export async function POST(req: NextRequest) {
       },
     }).catch(() => {})
 
-    // Email notification
-    await sendEmail({
-      eventKey: "intern_report_submitted",
-      toUserId: revEmp.userId,
-      variables: {
-        internName,
-        weekRange,
-        reviewLink,
-      },
-    }).catch(() => {})
   }
 
   return NextResponse.json({ report }, { status: 201 })

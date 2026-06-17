@@ -51,6 +51,7 @@ async function main() {
     prisma.department.upsert({ where: { name: "Administration & Facility" },          update: {}, create: { name: "Administration & Facility",          description: "Office administration and facility management",     divisionId: opsDiv.id } }),
     prisma.department.upsert({ where: { name: "Finance" },                            update: {}, create: { name: "Finance",                            description: "Finance and accounting",                            divisionId: opsDiv.id } }),
     prisma.department.upsert({ where: { name: "Legal" },                              update: {}, create: { name: "Legal",                              description: "Legal and compliance",                              divisionId: opsDiv.id } }),
+    prisma.department.upsert({ where: { name: "Human Resources" },                   update: {}, create: { name: "Human Resources",                   description: "Human resources and people operations",            divisionId: opsDiv.id } }),
   ])
   console.log("  ✓ Divisions & Departments")
 
@@ -153,7 +154,6 @@ async function main() {
         canViewDisciplinary: true, canManageViolations: true, canManagePolicies: true, canManageViolationTypes: true, canManageTriggers: true, canViewSuspensions: true, canManageSuspensions: true,
         canViewAnnouncements: true, canCreateAnnouncement: true, canEditAnnouncement: true, canDeleteAnnouncement: true, canManageAnnouncementGroups: true,
         canViewAssets: true, canCreateAsset: true, canEditAsset: true, canDeleteAsset: true, canManageAssetAssignments: true,
-        canViewContractors: true, canManageContractors: true,
         canViewRentDocuments: true, canManageRentDocuments: true,
         canViewInternReports: true, canReviewInternReports: true, canFillAttendance: true,
         canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
@@ -179,7 +179,6 @@ async function main() {
         canViewBenefits: true, canManageBenefits: true,
         canViewDisciplinary: true, canManageViolations: true, canManagePolicies: true, canManageViolationTypes: true, canManageTriggers: true, canViewSuspensions: true, canManageSuspensions: true,
         canViewAnnouncements: true, canCreateAnnouncement: true, canEditAnnouncement: true, canDeleteAnnouncement: true, canManageAnnouncementGroups: true,
-        canViewContractors: true, canManageContractors: true,
         canViewInternReports: true, canReviewInternReports: true, canFillAttendance: true,
         canViewReports: true, canDownloadReports: true, canViewAnalytics: true,
         canManageSettings: true, canManageHRSettings: true, canManageDepartmentSettings: true, canManageLeaveTypeSettings: true, canManageHolidaySettings: true, canManageApprovalWorkflows: true,
@@ -293,6 +292,10 @@ async function main() {
     "Admin/Executive Assistant",
     "Finance Officer",
     "HR Analyst",
+    "HR Associate",
+    "HR Intern",
+    "Performance/HR Data Analyst",
+    "Creative/HR Analyst",
     "Legal/Administrative Lead",
     "Admin Intern",
     "Finance Intern",

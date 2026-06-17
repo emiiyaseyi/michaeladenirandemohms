@@ -43,8 +43,8 @@ export async function GET(req: NextRequest) {
           id: true, firstName: true, lastName: true, jobTitle: true,
           profilePhoto: true, gender: true, employeeId: true,
           employeeStatus: true, phone: true,
-          departmentId: true, department: { select: { id: true, name: true } },
-          managerId: true, projectLeadId: true,
+          departmentId: true, department: { select: { id: true, name: true, phone: true, email: true } },
+          managerId: true, projectLeadId: true, employmentType: true,
           user: { select: { role: true, email: true } },
         },
         orderBy: { firstName: "asc" },
@@ -131,38 +131,26 @@ export async function POST(req: NextRequest) {
     if (!primaryDepartmentId) {
       return NextResponse.json({ error: "Primary department is required" }, { status: 400 })
     }
-    if (!primaryProjectLeadId) {
-      return NextResponse.json({ error: "Primary Project Lead is required" }, { status: 400 })
-    }
-    // Confirm PL is actually a PL of the primary department
-    const pl = await prisma.employee.findUnique({
-      where: { id: primaryProjectLeadId },
-      include: { user: { select: { id: true, role: true, projectLeadDepartments: { where: { departmentId: primaryDepartmentId } } } } },
-    })
-    if (!pl || pl.user.role !== "PROJECT_LEAD" || pl.user.projectLeadDepartments.length === 0) {
-      return NextResponse.json({ error: "Selected Project Lead is not assigned to the primary department" }, { status: 400 })
-    }
-    // Each secondary dept must have at least one PL
-    for (const secId of secondaryDepartmentIds as string[]) {
-      const plCount = await prisma.projectLeadDepartment.count({
-        where: { departmentId: secId, user: { role: "PROJECT_LEAD" } },
+    // Only validate PL if one was provided
+    if (primaryProjectLeadId) {
+      const pl = await prisma.employee.findUnique({
+        where: { id: primaryProjectLeadId },
+        include: { user: { select: { id: true, role: true, projectLeadDepartments: { where: { departmentId: primaryDepartmentId } } } } },
       })
-      if (plCount === 0) {
-        const dept = await prisma.department.findUnique({ where: { id: secId }, select: { name: true } })
-        return NextResponse.json({ error: `${dept?.name ?? "Department"} does not have a Project Lead yet` }, { status: 400 })
+      if (!pl || pl.user.role !== "PROJECT_LEAD" || pl.user.projectLeadDepartments.length === 0) {
+        return NextResponse.json({ error: "Selected Project Lead is not assigned to the primary department" }, { status: 400 })
       }
     }
   } else if (role === "PROJECT_LEAD") {
     if (!Array.isArray(departmentIds) || departmentIds.length === 0) {
       return NextResponse.json({ error: "At least one department to lead is required" }, { status: 400 })
     }
-    if (!managerEmployeeId) {
-      return NextResponse.json({ error: "Manager is required" }, { status: 400 })
-    }
-    // Confirm managerEmployeeId is in the Manager table
-    const mgrEntry = await prisma.manager.findUnique({ where: { employeeId: managerEmployeeId } })
-    if (!mgrEntry) {
-      return NextResponse.json({ error: "Selected manager is not in the Manager list" }, { status: 400 })
+    // Only validate manager if one was provided
+    if (managerEmployeeId) {
+      const mgrEntry = await prisma.manager.findUnique({ where: { employeeId: managerEmployeeId } })
+      if (!mgrEntry) {
+        return NextResponse.json({ error: "Selected manager is not in the Manager list" }, { status: 400 })
+      }
     }
   }
 

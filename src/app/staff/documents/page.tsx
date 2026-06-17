@@ -136,7 +136,7 @@ export default function StaffDocumentsPage() {
                                 <Eye size={13} /> View
                               </a>
                             )}
-                            {doc.canDownload && (
+                            {doc.canDownload && !doc.requiresAck && (
                               <a href={doc.fileUrl} download
                                 style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600, background: "var(--muted)", border: "1px solid var(--border)", color: "var(--foreground)", textDecoration: "none" }}>
                                 <Download size={13} /> Download

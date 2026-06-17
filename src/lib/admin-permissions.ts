@@ -145,13 +145,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     ],
   },
   {
-    group: "Contractors",
-    items: [
-      { key: "canViewContractors", label: "View contractors" },
-      { key: "canManageContractors", label: "Manage contractors" },
-    ],
-  },
-  {
     group: "Rent Documents",
     items: [
       { key: "canViewRentDocuments", label: "View rent documents" },
