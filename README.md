@@ -1,6 +1,6 @@
 # DSN HRMS
 
-Human Resource Management System for Data Science Nigeria — built with Next.js 16, Prisma, and PostgreSQL.
+Human Resource Management System for Data Science Nigeria — built with Next.js 16, Prisma, and PostgreSQL
 
 ## Prerequisites
 
