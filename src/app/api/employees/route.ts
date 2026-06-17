@@ -106,7 +106,10 @@ export async function POST(req: NextRequest) {
   const perm = requirePermission(user, "canCreateEmployee")
   if (perm) return perm
 
-  const body = await req.json()
+  let body: any
+  try { body = await req.json() } catch { return NextResponse.json({ error: "Invalid request body" }, { status: 400 }) }
+
+  try {
   const {
     firstName, lastName, middleName,
     email: workEmail, phone, jobTitle,
@@ -325,4 +328,8 @@ export async function POST(req: NextRequest) {
   })
 
   return NextResponse.json({ employee }, { status: 201 })
+  } catch (e: any) {
+    console.error("[POST /api/employees]", e)
+    return NextResponse.json({ error: e?.message ?? "Internal server error" }, { status: 500 })
+  }
 }
