@@ -157,10 +157,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── Resolve User (either existing for hire flow, or create fresh) ──────────
-  let userIdToUse: string
-  let isHireFlow = false
-
+  // ── Pre-transaction: validate + hash password ─────────────────────────────
   if (existingUserId) {
     const existingUser = await prisma.user.findUnique({
       where: { id: existingUserId },
@@ -169,31 +166,19 @@ export async function POST(req: NextRequest) {
     if (!existingUser) return NextResponse.json({ error: "User not found" }, { status: 400 })
     if (existingUser.employee) return NextResponse.json({ error: "User already has an employee record" }, { status: 400 })
     if (existingUser.adminRoles.length === 0) return NextResponse.json({ error: "User has no admin role — cannot be hired through this flow" }, { status: 400 })
-
-    // Update User.role to the chosen role
-    await prisma.user.update({ where: { id: existingUserId }, data: { role: role as any } })
-    userIdToUse = existingUserId
-    isHireFlow = true
   } else {
     if (!workEmail.toLowerCase().trim().endsWith("@datasciencenigeria.ai")) {
       return NextResponse.json({ error: "Employee email must be a @datasciencenigeria.ai address" }, { status: 400 })
     }
     const existing = await prisma.user.findFirst({ where: { email: workEmail.toLowerCase().trim() } })
     if (existing) return NextResponse.json({ error: "Email already in use" }, { status: 400 })
-
-    const hashedPwd = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 10)
-    const newUser = await prisma.user.create({
-      data: {
-        name: `${firstName} ${middleName ? middleName + " " : ""}${lastName}`,
-        email: workEmail.toLowerCase().trim(),
-        password: hashedPwd,
-        role: role as any,
-      },
-    })
-    userIdToUse = newUser.id
   }
 
-  // ── Compute manager + PL fields based on role ──────────────────────────────
+  const hashedPwd = !existingUserId
+    ? await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 10)
+    : null
+
+  // ── Compute manager + PL fields ────────────────────────────────────────────
   let computedManagerId: string | null = null
   let computedProjectLeadId: string | null = null
   let computedDepartmentId: string | null = null
@@ -207,60 +192,86 @@ export async function POST(req: NextRequest) {
     computedDepartmentId = departmentIds[0] ?? null
   }
 
-  // ── Create Employee ────────────────────────────────────────────────────────
-  const count = await prisma.employee.count()
-  const employeeId = `DSN${String(count + 1).padStart(4, "0")}`
+  // ── Atomic transaction: user + employee + junctions + invite ──────────────
+  // Any failure inside rolls back everything — no orphaned User rows in the DB.
+  const { employee, userIdToUse, isHireFlow, invite } = await prisma.$transaction(async (tx) => {
+    let txUserId: string
+    let txIsHireFlow = false
 
-  const employee = await prisma.employee.create({
-    data: {
-      userId: userIdToUse, employeeId,
-      firstName, lastName, middleName: middleName || null,
-      phone: phone || null, jobTitle: jobTitle || null,
-      departmentId: computedDepartmentId,
-      managerId: computedManagerId,
-      projectLeadId: computedProjectLeadId,
-      employmentType: (employmentType ?? "FULL_TIME") as any,
-      hireDate: hireDate ? new Date(hireDate) : null,
-      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-      gender: (gender || null) as any,
-      employeeStatus: isHireFlow ? EmployeeStatus.ACTIVE : EmployeeStatus.NEEDS_ATTENTION,
-    },
-    include: { department: true },
-  })
-
-  // ── Department junction rows + PL-dept rows ────────────────────────────────
-  if (role === "STAFF") {
-    // Primary
-    await prisma.employeeDepartment.create({
-      data: { employeeId: employee.id, departmentId: primaryDepartmentId, isPrimary: true },
-    })
-    // Secondaries
-    for (const secId of secondaryDepartmentIds as string[]) {
-      await prisma.employeeDepartment.upsert({
-        where: { employeeId_departmentId: { employeeId: employee.id, departmentId: secId } },
-        update: { isPrimary: false },
-        create: { employeeId: employee.id, departmentId: secId, isPrimary: false },
+    if (existingUserId) {
+      await tx.user.update({ where: { id: existingUserId }, data: { role: role as any } })
+      txUserId = existingUserId
+      txIsHireFlow = true
+    } else {
+      const newUser = await tx.user.create({
+        data: {
+          name: `${firstName} ${middleName ? middleName + " " : ""}${lastName}`,
+          email: workEmail.toLowerCase().trim(),
+          password: hashedPwd!,
+          role: role as any,
+        },
       })
+      txUserId = newUser.id
     }
-  } else if (role === "PROJECT_LEAD") {
-    // ProjectLeadDepartment rows for each dept they lead
-    for (const deptId of departmentIds as string[]) {
-      await prisma.projectLeadDepartment.upsert({
-        where: { userId_departmentId: { userId: userIdToUse, departmentId: deptId } },
-        update: {},
-        create: { userId: userIdToUse, departmentId: deptId },
+
+    const count = await tx.employee.count()
+    const empId = `DSN${String(count + 1).padStart(4, "0")}`
+
+    const emp = await tx.employee.create({
+      data: {
+        userId: txUserId, employeeId: empId,
+        firstName, lastName, middleName: middleName || null,
+        phone: phone || null, jobTitle: jobTitle || null,
+        departmentId: computedDepartmentId,
+        managerId: computedManagerId,
+        projectLeadId: computedProjectLeadId,
+        employmentType: (employmentType ?? "FULL_TIME") as any,
+        hireDate: hireDate ? new Date(hireDate) : null,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        gender: (gender || null) as any,
+        employeeStatus: txIsHireFlow ? EmployeeStatus.ACTIVE : EmployeeStatus.NEEDS_ATTENTION,
+      },
+      include: { department: true },
+    })
+
+    if (role === "STAFF") {
+      await tx.employeeDepartment.create({
+        data: { employeeId: emp.id, departmentId: primaryDepartmentId, isPrimary: true },
       })
-      // Set Department.leadEmployeeId if the dept doesn't have a lead yet
-      const dept = await prisma.department.findUnique({ where: { id: deptId }, select: { leadEmployeeId: true } })
-      if (dept && !dept.leadEmployeeId) {
-        await prisma.department.update({ where: { id: deptId }, data: { leadEmployeeId: employee.id } })
+      for (const secId of secondaryDepartmentIds as string[]) {
+        await tx.employeeDepartment.upsert({
+          where: { employeeId_departmentId: { employeeId: emp.id, departmentId: secId } },
+          update: { isPrimary: false },
+          create: { employeeId: emp.id, departmentId: secId, isPrimary: false },
+        })
+      }
+    } else if (role === "PROJECT_LEAD") {
+      for (const deptId of departmentIds as string[]) {
+        await tx.projectLeadDepartment.upsert({
+          where: { userId_departmentId: { userId: txUserId, departmentId: deptId } },
+          update: {},
+          create: { userId: txUserId, departmentId: deptId },
+        })
+        const dept = await tx.department.findUnique({ where: { id: deptId }, select: { leadEmployeeId: true } })
+        if (dept && !dept.leadEmployeeId) {
+          await tx.department.update({ where: { id: deptId }, data: { leadEmployeeId: emp.id } })
+        }
       }
     }
-  }
 
-  // ── Email ──────────────────────────────────────────────────────────────────
+    let txInvite: any = null
+    if (!txIsHireFlow) {
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
+      txInvite = await tx.employeeInvite.create({
+        data: { employeeId: emp.id, expiresAt },
+      })
+    }
+
+    return { employee: emp, userIdToUse: txUserId, isHireFlow: txIsHireFlow, invite: txInvite }
+  })
+
+  // ── Email (outside transaction — fire and forget) ──────────────────────────
   if (isHireFlow) {
-    // Hired email — existing user, no credentials needed
     await sendEmail({
       eventKey: "employee_account_created",
       to: workEmail,
@@ -272,11 +283,6 @@ export async function POST(req: NextRequest) {
       },
     }).catch(() => {})
   } else {
-    // Regular create — invite + credentials
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
-    const invite = await prisma.employeeInvite.create({
-      data: { employeeId: employee.id, expiresAt },
-    })
     const inviteLink = `${process.env.NEXTAUTH_URL}/onboard/${invite.token}`
     const loginUrl = `${process.env.NEXTAUTH_URL}/login`
     const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1"
@@ -293,10 +299,9 @@ export async function POST(req: NextRequest) {
     }).catch(() => {})
   }
 
-  // ── Department PL notifications (Phase 2i) ─────────────────────────────────
+  // ── Department PL notifications ────────────────────────────────────────────
   if (role === "STAFF") {
     const { notifyDepartmentPLs } = await import("@/lib/notifications")
-    // Primary
     notifyDepartmentPLs({
       departmentId: primaryDepartmentId,
       excludeUserId: userIdToUse,
@@ -304,7 +309,6 @@ export async function POST(req: NextRequest) {
       message: `${firstName} ${lastName} has been added to your department as a primary member.`,
       link: `/admin/people/employees/${employee.id}`,
     }).catch(() => {})
-    // Each secondary
     for (const secId of secondaryDepartmentIds as string[]) {
       notifyDepartmentPLs({
         departmentId: secId,
@@ -320,7 +324,7 @@ export async function POST(req: NextRequest) {
     req, actor: user, action: "EMPLOYEE_CREATE", entity: "Employee", entityId: employee.id,
     targetUserId: userIdToUse,
     newValues: {
-      employeeId, firstName, lastName, email: workEmail,
+      employeeId: employee.employeeId, firstName, lastName, email: workEmail,
       jobTitle: jobTitle ?? null, departmentId: computedDepartmentId,
       role: role, employmentType: employee.employmentType,
       hireFlow: isHireFlow,
@@ -330,6 +334,6 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ employee }, { status: 201 })
   } catch (e: any) {
     console.error("[POST /api/employees]", e)
-    return NextResponse.json({ error: e?.message ?? "Internal server error" }, { status: 500 })
+    return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 })
   }
 }

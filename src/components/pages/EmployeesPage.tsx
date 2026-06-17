@@ -445,6 +445,7 @@ export default function EmployeesPage() {
                   <th style={th}>ID Number</th>
                   <th style={th}>Job Title</th>
                   <th style={th}>Status</th>
+                  <th style={th}>Gender</th>
                   <th style={th}>Department</th>
                   <th style={th}>Dept. Phone</th>
                   <th style={th}>Dept. Email</th>
@@ -480,6 +481,13 @@ export default function EmployeesPage() {
                         <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: badge.bg, color: badge.color, whiteSpace: "nowrap" }}>
                           {badge.label}
                         </span>
+                      </td>
+                      <td style={td}>
+                        {emp.gender ? (
+                          <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", background: emp.gender === "MALE" ? "#EFF6FF" : "#FDF2F8", color: emp.gender === "MALE" ? "#1D4ED8" : "#9D174D" }}>
+                            {emp.gender === "MALE" ? "Male" : "Female"}
+                          </span>
+                        ) : "—"}
                       </td>
                       <td style={td}>{emp.department?.name ?? "—"}</td>
                       <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.department?.phone ?? "—"}</td>
