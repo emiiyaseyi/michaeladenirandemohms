@@ -108,6 +108,8 @@ export default function PLInternReportsPage() {
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState("")
   const [leaderboard, setLeaderboard] = useState<any[]>([])
+  const [tab, setTab] = useState<"reports" | "leaderboard">("reports")
+  const [lbWeekOffset, setLbWeekOffset] = useState(0)
 
   const now = new Date()
 
@@ -137,6 +139,15 @@ export default function PLInternReportsPage() {
     return yearLabel
   }
 
+  const lbMonday = (() => {
+    const d = new Date(now); d.setUTCHours(0,0,0,0)
+    const day = d.getUTCDay(); const diff = day === 0 ? -6 : 1 - day
+    d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
+    return d
+  })()
+  const lbFriday = new Date(lbMonday); lbFriday.setUTCDate(lbMonday.getUTCDate() + 4)
+  const lbWeekLabel = `${format(lbMonday, "MMM d")} – ${format(lbFriday, "MMM d, yyyy")}`
+
   const buildFetchParams = (): URLSearchParams => {
     if (mode === "week") {
       return new URLSearchParams({ week: currentMonday.toISOString() })
@@ -163,12 +174,9 @@ export default function PLInternReportsPage() {
   useEffect(() => { loadReports() }, [mode, weekOffset, monthOffset, yearOffset])
 
   useEffect(() => {
-    if (mode === "week") {
-      const weekParam = currentMonday.toISOString()
-      fetch(`/api/intern-reports/leaderboard?week=${encodeURIComponent(weekParam)}`)
-        .then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
-    }
-  }, [mode, weekOffset])
+    fetch(`/api/intern-reports/leaderboard?week=${encodeURIComponent(lbMonday.toISOString())}`)
+      .then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
+  }, [lbWeekOffset])
 
   const openReview = (id: string) => {
     const r = reports.find(r => r.id === id)
@@ -215,6 +223,18 @@ export default function PLInternReportsPage() {
         </div>
         <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Review and provide feedback on your interns' weekly reports.</p>
       </div>
+
+      {/* Tab bar */}
+      <div style={{ display: "flex", background: "var(--muted)", borderRadius: 10, padding: 3, gap: 2, marginBottom: 24, width: "fit-content" }}>
+        {(["reports", "leaderboard"] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)}
+            style={{ padding: "7px 20px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: tab === t ? "var(--card)" : "transparent", color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+            {t.charAt(0).toUpperCase() + t.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {tab === "reports" && (<>
 
       {/* Mode selector + navigator */}
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
@@ -329,42 +349,63 @@ export default function PLInternReportsPage() {
         </div>
       </div>
 
-      {/* Leaderboard panel (week mode only) */}
-      {mode === "week" && leaderboard.length > 0 && (
-        <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginTop: 20 }}>
-          <div style={{ padding: "16px 24px", borderBottom: "1px solid var(--border)" }}>
-            <h2 style={{ fontSize: 14, fontWeight: 800, margin: 0 }}>Weekly Leaderboard — {weekLabel}</h2>
+      </>)}
+
+      {tab === "leaderboard" && (
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 20px" }}>
+              <button onClick={() => setLbWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
+                <ChevronLeft size={18} />
+              </button>
+              <span style={{ fontSize: 14, fontWeight: 700, minWidth: 200, textAlign: "center" }}>{lbWeekLabel}</span>
+              <button onClick={() => setLbWeekOffset(o => Math.min(o + 1, 0))} disabled={lbWeekOffset === 0}
+                style={{ background: "none", border: "none", cursor: lbWeekOffset === 0 ? "not-allowed" : "pointer", color: lbWeekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}>
+                <ChevronRight size={18} />
+              </button>
+            </div>
           </div>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-              <thead>
-                <tr style={{ background: "var(--muted)" }}>
-                  {["Rank", "Intern", "Dept", "Hours", "TL Score", "Attendance", "Deduction", "Total"].map(h => (
-                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {leaderboard.map((row: any) => (
-                  <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)" }}>
-                    <td style={{ padding: "10px 14px", fontWeight: 700, color: row.rank === 1 ? "#D97706" : "var(--muted-foreground)" }}>{row.rank ?? "–"}</td>
-                    <td style={{ padding: "10px 14px", fontWeight: 600 }}>{row.name}</td>
-                    <td style={{ padding: "10px 14px", color: "var(--muted-foreground)" }}>{row.dept}</td>
-                    <td style={{ padding: "10px 14px" }}>{row.totalHours?.toFixed(1)}h</td>
-                    <td style={{ padding: "10px 14px" }}>{row.tlScorePct}%</td>
-                    <td style={{ padding: "10px 14px", color: row.attendancePending ? "var(--muted-foreground)" : "inherit" }}>
-                      {row.attendancePending ? "Pending" : `${row.attendanceScorePct}%`}
-                    </td>
-                    <td style={{ padding: "10px 14px", color: row.pointDeduction > 0 ? "#DC2626" : "var(--muted-foreground)" }}>
-                      {row.pointDeduction > 0 ? `-${row.pointDeduction}` : "—"}
-                    </td>
-                    <td style={{ padding: "10px 14px", fontWeight: 700, color: "var(--primary)" }}>
-                      {row.attendancePending ? "–" : `${row.totalScorePct}%`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+            {leaderboard.length === 0 ? (
+              <div style={{ padding: "40px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leaderboard data for this week.</div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ background: "var(--muted)" }}>
+                      {["Rank", "Intern", "Dept", "Hours", "TL Score", "Attendance", "Deduction", "Total"].map(h => (
+                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {leaderboard.map((row: any) => {
+                      const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null
+                      return (
+                        <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)" }}>
+                          <td style={{ padding: "12px 16px", fontWeight: 700 }}>
+                            {medal ? <span style={{ fontSize: 16 }}>{medal}</span> : <span style={{ color: "var(--muted-foreground)" }}>{row.rank}</span>}
+                          </td>
+                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{row.name}</td>
+                          <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>{row.dept}</td>
+                          <td style={{ padding: "12px 16px" }}>{row.totalHours?.toFixed(1)}h</td>
+                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{row.tlScorePct}%</td>
+                          <td style={{ padding: "12px 16px", color: row.attendancePending ? "var(--muted-foreground)" : "inherit" }}>
+                            {row.attendancePending ? "Pending" : `${row.attendanceScorePct}%`}
+                          </td>
+                          <td style={{ padding: "12px 16px", color: row.pointDeduction > 0 ? "#DC2626" : "var(--muted-foreground)" }}>
+                            {row.pointDeduction > 0 ? `-${row.pointDeduction}` : "—"}
+                          </td>
+                          <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--primary)" }}>
+                            {row.attendancePending ? "–" : `${row.totalScorePct}%`}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
