@@ -7,6 +7,7 @@ Human Resource Management System for Data Science Nigeria — built with Next.js
 - Node.js 18+
 - PostgreSQL database
 - Git
+- Vercel
 
 ## First-time setup guide
 
