@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
-import { relationshipTo, recomputeAndPersist } from "@/lib/appraisal"
+import { relationshipTo, recomputeAndPersist, reviewerCanEdit } from "@/lib/appraisal"
 import { logAudit } from "@/lib/audit"
 
 async function loadCtx(id: string, kpiId: string) {
@@ -31,21 +31,41 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.employeeComment !== undefined) data.employeeComment = body.employeeComment
     if (body.evidenceUrl !== undefined) data.evidenceUrl = body.evidenceUrl
   }
-  // Reviewers: score during REVIEW.
-  else if (rel.isReviewer && stage === "REVIEW") {
-    if (rel.isPrimary && body.primaryScore !== undefined) data.primaryScore = body.primaryScore === null ? null : Number(body.primaryScore)
-    if (rel.isCounter && body.counterScore !== undefined) data.counterScore = body.counterScore === null ? null : Number(body.counterScore)
+  // Reviewers: score once the employee has submitted, until finalized.
+  // ADMIN-source rows (Brand, Learning & Dev) are admin-only — reviewers cannot score them.
+  else if (rel.isReviewer && reviewerCanEdit(appraisal.stage)) {
+    if (row.source === "ADMIN") return NextResponse.json({ error: "This row is scored by admin only" }, { status: 400 })
+    if (rel.isPrimary) {
+      if (body.primaryScore !== undefined) data.primaryScore = body.primaryScore === null ? null : Number(body.primaryScore)
+      if (body.primaryComment !== undefined) data.primaryComment = body.primaryComment
+    }
+    if (rel.isCounter) {
+      if (body.counterScore !== undefined) data.counterScore = body.counterScore === null ? null : Number(body.counterScore)
+      if (body.counterComment !== undefined) data.counterComment = body.counterComment
+    }
     if (body.reviewerComment !== undefined) data.reviewerComment = body.reviewerComment
   }
-  // Admin: any field while REVIEW/COMPILING (incl. ADMIN-source global rows).
-  else if (rel.isAdmin && (stage === "REVIEW" || stage === "COMPILING")) {
-    for (const f of ["projectName", "deliverable", "kpi", "employeeComment", "reviewerComment", "evidenceUrl"]) if (body[f] !== undefined) data[f] = body[f]
+  // Admin: any field at any time before finalize (incl. the fixed ADMIN-source global rows).
+  else if (rel.isAdmin && appraisal.stage !== "FINALIZED") {
+    for (const f of ["projectName", "deliverable", "kpi", "employeeComment", "reviewerComment", "primaryComment", "counterComment", "evidenceUrl"]) if (body[f] !== undefined) data[f] = body[f]
     for (const f of ["weight", "employeeScore", "primaryScore", "counterScore"]) if (body[f] !== undefined) data[f] = body[f] === null ? null : Number(body[f])
   } else {
     return NextResponse.json({ error: "Cannot edit this KPI now" }, { status: 400 })
   }
 
   if (!Object.keys(data).length) return NextResponse.json({ error: "No editable fields" }, { status: 400 })
+  // Each KPI is scored out of its OWN weight — clamp scores to [0, weight].
+  const maxScore = Number(data.weight ?? row.weight ?? 0)
+  for (const f of ["employeeScore", "primaryScore", "counterScore"]) {
+    if (typeof data[f] === "number") data[f] = Math.max(0, Math.min(maxScore, data[f]))
+  }
+  // Guard: job-specific weights cannot total more than 100.
+  if (data.weight !== undefined) {
+    const others = await prisma.appraisalKpi.aggregate({ where: { appraisalId: id, id: { not: kpiId } }, _sum: { weight: true } })
+    if ((others._sum.weight ?? 0) + Number(data.weight) > 100) {
+      return NextResponse.json({ error: "Total job-specific weight cannot exceed 100" }, { status: 400 })
+    }
+  }
   // Keep the combined reviewerScore in sync (avg of primary+counter).
   const merged = { ...row, ...data }
   const vals = [merged.primaryScore, merged.counterScore].filter((v: any) => typeof v === "number")

@@ -464,7 +464,7 @@ async function main() {
           weights: DEFAULT_WEIGHTS as any,
           queryBands: DEFAULT_QUERY_BANDS as any,
           recommendationBands: DEFAULT_RECOMMENDATION_BANDS as any,
-          questions: { create: defaultQuestions().map(q => ({ section: q.section as any, text: q.text, scaleMax: q.scaleMax, order: q.order })) },
+          questions: { create: defaultQuestions().map(q => ({ section: q.section as any, text: q.text, scaleMax: q.scaleMax, order: q.order, adminScored: q.adminScored ?? false })) },
           globalKpis: { create: DEFAULT_GLOBAL_KPIS.map((k, i) => ({ projectName: k.projectName, deliverable: k.deliverable, kpi: k.kpi, weight: k.weight, order: i })) },
         },
       })

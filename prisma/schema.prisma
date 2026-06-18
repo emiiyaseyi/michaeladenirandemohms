@@ -554,9 +554,10 @@ enum AppraisalStage {
 }
 
 enum AppraisalSection {
-  BEHAVIOURAL   // Section II — upward/around behavioural rating (feeds 360)
+  BEHAVIOURAL   // Section II — team-member behavioural items; self + lead + peer rate (the 360)
+  LEADERSHIP    // upward leadership items; a lead's reports rate them → Team Lead Score
   CORE_VALUE    // Section IV — self + reviewer scored
-  PEER          // peer review behavioural (feeds 360)
+  PEER          // legacy — retained for back-compat; peers now rate BEHAVIOURAL
 }
 
 enum RaterType {
@@ -565,6 +566,7 @@ enum RaterType {
   MEMBER
   PRIMARY_REVIEWER
   COUNTER_REVIEWER
+  ADMIN              // HR/admin-entered score (e.g. attendance) — locked from staff & lead
 }
 
 enum ReviewerRole {
@@ -584,6 +586,7 @@ model AppraisalQuestion {
   text      String
   scaleMax  Int               @default(5)
   order     Int               @default(0)
+  adminScored Boolean         @default(false) // admin enters an extra locked score (e.g. attendance)
   createdAt DateTime          @default(now())
   updatedAt DateTime          @updatedAt
   cycle     PerformanceCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
@@ -616,24 +619,30 @@ model Appraisal {
   areasForImprovement     String?
   developmentPlan         String?
   employeeComments        String?
+  employeeImprovementPlan String?   // staff's own improvement plan (Section VII)
   reviewerComments        String?
   counterReviewerComments String?
-  // Section V — Query (negative points)
-  queryWarnings      Int?
+  // Section V — Query (negative points). Counts entered by staff (self) + HR; points auto-derived from bands.
+  queryWarnings      Int?      // staff self count
   queryBadges        Int?
-  queryEmployeeRating Float?
-  queryHrRating      Float?
+  queryWarningsHr    Int?      // HR count
+  queryBadgesHr      Int?
+  queryEmployeeRating Float?   // derived from staff counts
+  queryHrRating      Float?    // derived from HR counts
   queryComment       String?
-  // Section VI — Recommendations (positive points)
-  recCount           Int?
-  recEmployeeRating  Float?
-  recHrRating        Float?
+  // Section VI — Recommendations (positive points). Counts entered by staff + HR; points auto-derived.
+  recCount           Int?      // staff self count
+  recCountHr         Int?      // HR count
+  recEmployeeRating  Float?    // derived
+  recHrRating        Float?    // derived
   recComment         String?
   // Section VII-b — Physical meeting confirmation
   meetingEmployeeConfirmed Boolean @default(false)
   meetingReviewerConfirmed Boolean @default(false)
   // Computed score snapshot (set at finalize)
-  behavioural360Score Float?
+  behavioural360Score Float?   // legacy combined pool (kept for back-compat)
+  behavioural360Emp   Float?   // self behavioural (Employee column)
+  behavioural360Rev   Float?   // lead + peer + member-upward (Reviewer column)
   jobScoreEmp         Float?
   jobScoreRev         Float?
   coreScoreEmp        Float?
@@ -690,7 +699,9 @@ model AppraisalKpi {
   reviewerScore   Float?
   evidenceUrl     String?
   employeeComment String?
-  reviewerComment String?
+  reviewerComment String?   // legacy shared reviewer comment
+  primaryComment  String?   // team lead's comment
+  counterComment  String?   // counter reviewer's comment
   source      AppraisalKpiSource @default(STAFF)
   order       Int                @default(0)
   createdAt   DateTime           @default(now())

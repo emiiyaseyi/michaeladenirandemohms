@@ -5,7 +5,8 @@ import React from "react"
 //  - 0–5 scale: behavioural (Section II) + peer review
 //  - 0–3 scale: organisation core values (Section IV)
 export function scaleHint(scaleMax: number): string {
-  if (scaleMax >= 5) return "0 = Unacceptable  ·  1–2 = Needs Improvement  ·  3–4 = Meets expectation  ·  5 = Exceeds expectation"
+  if (scaleMax >= 10) return "0 = Unacceptable  ·  1–4 = Needs Improvement  ·  5–7 = Meets expectation  ·  8–10 = Exceeds expectation"
+  if (scaleMax === 5) return "0 = Unacceptable  ·  1–2 = Needs Improvement  ·  3–4 = Meets expectation  ·  5 = Exceeds expectation"
   if (scaleMax === 3) return "0 = Unacceptable  ·  1 = Needs Improvement  ·  2 = Meets Expectations  ·  3 = Exceeds Expectations"
   return `Rate on a scale of 0 to ${scaleMax}`
 }

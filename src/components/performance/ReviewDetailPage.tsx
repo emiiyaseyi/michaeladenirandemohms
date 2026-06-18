@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Star, ArrowLeft } from "lucide-react"
+import { Star, ArrowLeft, CheckCircle2 } from "lucide-react"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
-import { ScaleLegend, validateRatings } from "@/components/performance/scale"
+import { ScaleLegend } from "@/components/performance/scale"
+import { StackedRatings, type RaterRow } from "@/components/performance/StackedRatings"
+import { SMART_GUIDANCE, DEFAULT_QUERY_BANDS, DEFAULT_RECOMMENDATION_BANDS } from "@/lib/appraisal-defaults"
+import type { QueryBand, RecommendationBand } from "@/lib/appraisal-defaults"
+import { queryPoints, recommendationPoints } from "@/lib/appraisal-scoring"
 
 interface Kpi {
   id: string
@@ -17,6 +21,8 @@ interface Kpi {
   evidenceUrl?: string | null
   primaryScore?: number | null
   counterScore?: number | null
+  primaryComment?: string | null
+  counterComment?: string | null
   reviewerScore?: number | null
   reviewerComment?: string | null
   source?: string | null
@@ -34,7 +40,7 @@ interface Appraisal {
   id: string
   stage: string
   employee: { firstName: string; lastName: string; jobTitle?: string | null }
-  cycle: { id: string; name: string; year?: number; half?: string; stage: string }
+  cycle: { id: string; name: string; year?: number; half?: string; stage: string; queryBands?: QueryBand[] | null; recommendationBands?: RecommendationBand[] | null }
   kpis: Kpi[]
   ratings: Rating[]
   reviewers: { role: string; reviewer: { firstName: string; lastName: string } }[]
@@ -48,8 +54,21 @@ interface Appraisal {
   queryHrRating?: number | null
   recEmployeeRating?: number | null
   recHrRating?: number | null
+  queryWarningsHr?: number | null
+  queryBadgesHr?: number | null
+  recCountHr?: number | null
   meetingEmployeeConfirmed?: boolean | null
   meetingReviewerConfirmed?: boolean | null
+  behavioural360Emp?: number | null
+  behavioural360Rev?: number | null
+  jobScoreEmp?: number | null
+  jobScoreRev?: number | null
+  coreScoreEmp?: number | null
+  coreScoreRev?: number | null
+  finalEmployeePercent?: number | null
+  finalReviewerPercent?: number | null
+  finalPercent?: number | null
+  teamLeadPercent?: number | null
 }
 
 interface Relationship {
@@ -61,7 +80,7 @@ interface Relationship {
   canSeeFull: boolean
 }
 
-interface CvQuestion { id: string; text: string; scaleMax: number }
+interface Question { id: string; section: string; text: string; scaleMax: number; order: number; adminScored: boolean }
 
 const fi: React.CSSProperties = {
   width: "100%",
@@ -111,11 +130,22 @@ const labelStyle: React.CSSProperties = {
 
 const fieldRow: React.CSSProperties = { marginBottom: 14 }
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
+function SavedTick({ show }: { show: boolean }) {
+  if (!show) return null
+  return <span style={{ fontSize: 12, color: "var(--primary)", display: "inline-flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={14} /> Saved</span>
+}
+
+function ScaleList({ title, bands }: { title: string; bands: { label: string; points: number }[] }) {
   return (
-    <div style={fieldRow}>
-      <span style={labelStyle}>{label}</span>
-      <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>{value ?? "—"}</div>
+    <div style={{ marginTop: 8, marginBottom: 6 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 4 }}>{title}</div>
+      <ul style={{ margin: 0, paddingLeft: 16, fontSize: 12, color: "var(--muted-foreground)" }}>
+        {bands.map((b, i) => (
+          <li key={i}>
+            {b.label}: {b.points > 0 ? `+${b.points}` : b.points}
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -126,22 +156,22 @@ export default function ReviewDetailPage() {
 
   const [appraisal, setAppraisal] = useState<Appraisal | null>(null)
   const [relationship, setRelationship] = useState<Relationship | null>(null)
-  const [cvQuestions, setCvQuestions] = useState<CvQuestion[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
   const [loading, setLoading] = useState(true)
   const [base, setBase] = useState("")
 
   // editable local state
-  const [kpiScores, setKpiScores] = useState<Record<string, string>>({})
-  const [reviewerComment, setReviewerComment] = useState("")
-  const [cvScores, setCvScores] = useState<Record<string, { score: string; comment: string }>>({})
+  // The reviewer's OWN editable KPI rows, keyed by kpiId.
+  const [kpiEdits, setKpiEdits] = useState<Record<string, { score: number | null; comment: string }>>({})
+  // The reviewer's OWN editable rows, keyed by questionId, per section.
+  const [cvEdits, setCvEdits] = useState<Record<string, { score: number | null; comment: string }>>({})
+  const [behEdits, setBehEdits] = useState<Record<string, { score: number | null; comment: string }>>({})
   const [feedback, setFeedback] = useState({
     keyAchievements: "",
     areasForImprovement: "",
     developmentPlan: "",
     reviewerComments: "",
     counterReviewerComments: "",
-    queryHrRating: "",
-    recHrRating: "",
     meetingReviewerConfirmed: false,
   })
 
@@ -149,10 +179,19 @@ export default function ReviewDetailPage() {
   const [submitting, setSubmitting] = useState(false)
   const [cvSaving, setCvSaving] = useState(false)
   const [cvErr, setCvErr] = useState<string | null>(null)
+  const [behSaving, setBehSaving] = useState(false)
+  const [behErr, setBehErr] = useState<string | null>(null)
+  const [kpiSaving, setKpiSaving] = useState(false)
+  const [savedKey, setSavedKey] = useState<string | null>(null) // which section just saved
+
+  const behQuestions = questions.filter(q => q.section === "BEHAVIOURAL").sort((a, b) => a.order - b.order)
+  const cvQuestions = questions.filter(q => q.section === "CORE_VALUE").sort((a, b) => a.order - b.order)
   const [fbSaving, setFbSaving] = useState(false)
 
   const raterType = relationship?.isPrimary ? "PRIMARY_REVIEWER" : "COUNTER_REVIEWER"
-  const editable = appraisal?.cycle.stage === "REVIEW" && !!relationship?.isReviewer
+  // Reviewer can fill once the employee has submitted, until finalized — not tied to a global REVIEW stage.
+  const reviewable = ["SUBMITTED", "LEAD_REVIEWING", "LEAD_DONE"].includes(appraisal?.stage ?? "")
+  const editable = reviewable && !!relationship?.isReviewer
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -171,15 +210,14 @@ export default function ReviewDetailPage() {
         setAppraisal(ap)
         setRelationship(d.relationship)
 
-        const ks: Record<string, string> = {}
+        // Seed the reviewer's OWN editable KPI rows from their own score/comment.
+        const ke: Record<string, { score: number | null; comment: string }> = {}
         ap.kpis.forEach(k => {
-          const v = d.relationship.isPrimary ? k.primaryScore : k.counterScore
-          ks[k.id] = v == null ? "" : String(v)
+          const score = d.relationship.isPrimary ? k.primaryScore : k.counterScore
+          const comment = d.relationship.isPrimary ? k.primaryComment : k.counterComment
+          ke[k.id] = { score: score ?? null, comment: comment ?? "" }
         })
-        setKpiScores(ks)
-        // shared reviewerComment — seed from first kpi that has one
-        const seed = ap.kpis.find(k => k.reviewerComment)?.reviewerComment ?? ""
-        setReviewerComment(seed)
+        setKpiEdits(ke)
 
         setFeedback({
           keyAchievements: ap.keyAchievements ?? "",
@@ -187,50 +225,102 @@ export default function ReviewDetailPage() {
           developmentPlan: ap.developmentPlan ?? "",
           reviewerComments: ap.reviewerComments ?? "",
           counterReviewerComments: ap.counterReviewerComments ?? "",
-          queryHrRating: ap.queryHrRating == null ? "" : String(ap.queryHrRating),
-          recHrRating: ap.recHrRating == null ? "" : String(ap.recHrRating),
           meetingReviewerConfirmed: !!ap.meetingReviewerConfirmed,
         })
 
-        const rt = d.relationship.isPrimary ? "PRIMARY_REVIEWER" : "COUNTER_REVIEWER"
-        return fetch(`/api/performance/appraisals/${id}/rate?raterType=${rt}`).then(r => r.json())
+        return fetch(`/api/performance/questions?cycleId=${ap.cycle.id}`)
+          .then(r => r.json())
+          .then((q: { questions: Question[] }) => ({ ap, q }))
       })
-      .then((cv: { questions: CvQuestion[]; myRatings: { questionId: string; score?: number | null; comment?: string | null }[] }) => {
-        if (!cv) return
-        setCvQuestions(cv.questions ?? [])
-        const cs: Record<string, { score: string; comment: string }> = {}
-        ;(cv.questions ?? []).forEach(q => {
-          const mr = (cv.myRatings ?? []).find(m => m.questionId === q.id)
-          cs[q.id] = { score: mr?.score == null ? "" : String(mr.score), comment: mr?.comment ?? "" }
-        })
-        setCvScores(cs)
+      .then((res: { ap: Appraisal; q: { questions: Question[] } } | void) => {
+        if (!res) return
+        const { ap, q } = res
+        const qs = q.questions ?? []
+        setQuestions(qs)
+
+        // Seed the reviewer's own editable rows from the appraisal's ratings.
+        const own = rel?.isPrimary ? "PRIMARY_REVIEWER" : "COUNTER_REVIEWER"
+        const seedFor = (section: string) => {
+          const map: Record<string, { score: number | null; comment: string }> = {}
+          qs.filter(x => x.section === section).forEach(x => {
+            const r = ap.ratings.find(rr => rr.raterType === own && rr.questionId === x.id)
+            map[x.id] = { score: r?.score ?? null, comment: r?.comment ?? "" }
+          })
+          return map
+        }
+        setBehEdits(seedFor("BEHAVIOURAL"))
+        setCvEdits(seedFor("CORE_VALUE"))
       })
       .finally(() => setLoading(false))
   }, [id])
 
-  function saveKpi(kpiId: string) {
-    if (!editable || !relationship) return
-    const raw = kpiScores[kpiId]
-    const value = raw === "" ? null : Number(raw)
-    const body: Record<string, unknown> = { reviewerComment }
-    if (relationship.isPrimary) body.primaryScore = value
-    else body.counterScore = value
-    fetch(`/api/performance/appraisals/${id}/kpis/${kpiId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    })
+  // Re-fetch the appraisal so the Scores summary reflects the latest
+  // server-computed values. Only updates the `appraisal` object; in-progress
+  // editable inputs are left untouched.
+  function refreshScores() {
+    fetch(`/api/performance/appraisals/${id}`)
+      .then(r => r.json())
+      .then((d: { appraisal: Appraisal }) => {
+        if (d?.appraisal) setAppraisal(d.appraisal)
+      })
+      .catch(() => {})
+  }
+
+  async function saveKpis() {
+    if (!editable || !relationship || !appraisal) return
+    setKpiSaving(true)
+    // Only STAFF-sourced KPIs are scored by the reviewer; admin KPIs are skipped.
+    const staffKpis = appraisal.kpis.filter(k => k.source !== "ADMIN")
+    try {
+      await Promise.all(
+        staffKpis.map(k => {
+          const edit = kpiEdits[k.id] ?? { score: null, comment: "" }
+          const body: Record<string, unknown> = relationship.isPrimary
+            ? { primaryScore: edit.score, primaryComment: edit.comment }
+            : { counterScore: edit.score, counterComment: edit.comment }
+          return fetch(`/api/performance/appraisals/${id}/kpis/${k.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          })
+        })
+      )
+    } finally {
+      setKpiSaving(false)
+      refreshScores()
+      setSavedKey("kpi")
+    }
+  }
+
+  // Build the stacked rows for one KPI: Employee (read-only) → reviewer's own
+  // editable row. Admin-sourced KPIs (Brand, L&D) get only the read-only Employee row.
+  function rowsForKpi(k: Kpi): RaterRow[] {
+    const rows: RaterRow[] = [
+      { raterType: "SELF", label: "Employee", score: k.employeeScore ?? null, comment: k.employeeComment ?? null, editable: false },
+    ]
+    if (k.source !== "ADMIN") {
+      const edit = kpiEdits[k.id] ?? { score: null, comment: "" }
+      rows.push({
+        raterType,
+        label: relationship?.isPrimary ? "Team Lead" : "Reviewer 2",
+        score: edit.score,
+        comment: edit.comment,
+        editable,
+      })
+    }
+    return rows
   }
 
   function saveCoreValues() {
     if (!editable || !relationship) return
     const ratings = cvQuestions.map(q => ({
       questionId: q.id,
-      score: cvScores[q.id]?.score === "" || cvScores[q.id]?.score == null ? null : Number(cvScores[q.id]?.score),
-      comment: (cvScores[q.id]?.comment ?? "").trim(),
+      score: cvEdits[q.id]?.score ?? null,
+      comment: (cvEdits[q.id]?.comment ?? "").trim(),
     }))
-    const v = validateRatings(ratings)
-    if (v) { setCvErr(v); return }
+    if (ratings.some(r => r.score == null || !r.comment)) {
+      setCvErr("Give every item a score and a comment."); return
+    }
     setCvErr(null); setCvSaving(true)
     fetch(`/api/performance/appraisals/${id}/ratings`, {
       method: "POST",
@@ -240,7 +330,52 @@ export default function ReviewDetailPage() {
         raterType,
         ratings,
       }),
-    }).finally(() => setCvSaving(false))
+    }).finally(() => { setCvSaving(false); refreshScores(); setSavedKey("cv") })
+  }
+
+  function saveBehavioural() {
+    if (!editable || !relationship) return
+    const ratings = behQuestions.map(q => ({
+      questionId: q.id,
+      score: behEdits[q.id]?.score ?? null,
+      comment: (behEdits[q.id]?.comment ?? "").trim(),
+    }))
+    if (ratings.some(r => r.score == null || !r.comment)) {
+      setBehErr("Give every item a score and a comment."); return
+    }
+    setBehErr(null); setBehSaving(true)
+    fetch(`/api/performance/appraisals/${id}/ratings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        section: "BEHAVIOURAL",
+        raterType,
+        ratings,
+      }),
+    }).finally(() => { setBehSaving(false); refreshScores(); setSavedKey("beh") })
+  }
+
+  // Build the stacked rows for one question: Employee (read-only) → reviewer's own
+  // editable row → Admin (read-only, only for adminScored questions).
+  function rowsForQuestion(q: Question, edits: Record<string, { score: number | null; comment: string }>): RaterRow[] {
+    if (!appraisal || !relationship) return []
+    const self = appraisal.ratings.find(r => r.raterType === "SELF" && r.questionId === q.id)
+    const own = edits[q.id] ?? { score: null, comment: "" }
+    const rows: RaterRow[] = [
+      { raterType: "SELF", label: "Employee", score: self?.score ?? null, comment: self?.comment ?? null, editable: false },
+      {
+        raterType,
+        label: relationship.isPrimary ? "Team Lead" : "Reviewer 2",
+        score: own.score,
+        comment: own.comment,
+        editable,
+      },
+    ]
+    if (q.adminScored) {
+      const admin = appraisal.ratings.find(r => r.raterType === "ADMIN" && r.questionId === q.id)
+      rows.push({ raterType: "ADMIN", label: "Admin", score: admin?.score ?? null, comment: admin?.comment ?? null, editable: false })
+    }
+    return rows
   }
 
   function saveFeedback() {
@@ -251,8 +386,6 @@ export default function ReviewDetailPage() {
       areasForImprovement: feedback.areasForImprovement,
       developmentPlan: feedback.developmentPlan,
       reviewerComments: feedback.reviewerComments,
-      queryHrRating: feedback.queryHrRating === "" ? null : Number(feedback.queryHrRating),
-      recHrRating: feedback.recHrRating === "" ? null : Number(feedback.recHrRating),
       meetingReviewerConfirmed: feedback.meetingReviewerConfirmed,
     }
     if (relationship.isCounter) body.counterReviewerComments = feedback.counterReviewerComments
@@ -260,7 +393,7 @@ export default function ReviewDetailPage() {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    }).finally(() => setFbSaving(false))
+    }).finally(() => { setFbSaving(false); refreshScores(); setSavedKey("fb") })
   }
 
   function submitReview() {
@@ -295,6 +428,9 @@ export default function ReviewDetailPage() {
 
   const roleName = relationship.isPrimary ? "Primary" : relationship.isCounter ? "Counter" : "—"
 
+  const qBands = appraisal.cycle.queryBands && appraisal.cycle.queryBands.length ? appraisal.cycle.queryBands : DEFAULT_QUERY_BANDS
+  const rBands = appraisal.cycle.recommendationBands && appraisal.cycle.recommendationBands.length ? appraisal.cycle.recommendationBands : DEFAULT_RECOMMENDATION_BANDS
+
   return (
     <div style={{ padding: "28px 32px", maxWidth: 1320, margin: "0 auto" }}>
       <button
@@ -328,192 +464,178 @@ export default function ReviewDetailPage() {
         Your role: {roleName} reviewer{!editable && " · Read-only"}
       </p>
 
-      {/* SECTION 1 — Employee self-input */}
-      <div style={card}>
-        <h2 style={sectionTitle}>Employee&apos;s self-input</h2>
-        <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 14 }}>
-          Context submitted by the employee (read-only).
-        </div>
-        {appraisal.kpis.length === 0 ? (
-          <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No KPIs.</div>
-        ) : (
-          appraisal.kpis.map(k => (
-            <div
-              key={k.id}
-              style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 10 }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
-                {k.projectName ?? "—"} {k.weight != null && (
-                  <span style={{ fontWeight: 600, color: "var(--muted-foreground)" }}>· weight {k.weight}</span>
-                )}
-              </div>
-              <Field label="Deliverable" value={k.deliverable} />
-              <Field label="KPI" value={k.kpi} />
-              <Field label="Employee score" value={k.employeeScore ?? "—"} />
-              <Field label="Employee comment" value={k.employeeComment} />
-            </div>
-          ))
-        )}
-        <Field label="Query self-rating" value={appraisal.queryEmployeeRating ?? "—"} />
-        <Field label="Recommendation self-rating" value={appraisal.recEmployeeRating ?? "—"} />
-        <Field label="Employee comments" value={appraisal.employeeComments} />
-        <Field
-          label="Meeting confirmed (employee)"
-          value={appraisal.meetingEmployeeConfirmed ? "Yes" : "No"}
-        />
-      </div>
-
-      {/* SECTION 2 — Score the KPIs */}
+      {/* SECTION — Score the KPIs (stacked: Employee read-only on top, your row below) */}
       <div style={card}>
         <h2 style={sectionTitle}>Score the KPIs</h2>
+        <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: -8, marginBottom: 14 }}>Each KPI is scored out of its assigned weight.</p>
         {appraisal.kpis.length === 0 ? (
           <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No KPIs to score.</div>
         ) : (
           appraisal.kpis.map(k => (
-            <div
-              key={k.id}
-              style={{
-                border: "1px solid var(--border)",
-                borderRadius: 10,
-                padding: 14,
-                marginBottom: 10,
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>{k.projectName ?? "—"}</div>
-                <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{k.kpi ?? "—"}</div>
-              </div>
-              <div style={{ width: 130 }}>
-                <span style={labelStyle}>Your score (0–10)</span>
-                {editable ? (
-                  <input
-                    type="number"
-                    min={0}
-                    max={10}
-                    style={fi}
-                    value={kpiScores[k.id] ?? ""}
-                    onChange={e => setKpiScores(s => ({ ...s, [k.id]: e.target.value }))}
-                    onBlur={() => saveKpi(k.id)}
-                  />
-                ) : (
-                  <div style={{ fontSize: 13, color: "var(--foreground)" }}>
-                    {(relationship.isPrimary ? k.primaryScore : k.counterScore) ?? "—"}
-                  </div>
-                )}
-              </div>
+            <div key={k.id}>
+              <StackedRatings
+                questionText={`${k.projectName ?? "—"} — ${k.kpi ?? k.deliverable ?? ""} (weight ${k.weight ?? 0})`}
+                scaleMax={k.weight ?? 0}
+                mode="number"
+                rows={rowsForKpi(k)}
+                onChange={(rt, patch) => {
+                  if (rt !== raterType || k.source === "ADMIN") return
+                  setKpiEdits(s => ({ ...s, [k.id]: { score: s[k.id]?.score ?? null, comment: s[k.id]?.comment ?? "", ...patch } }))
+                }}
+              />
+              {k.source === "ADMIN" && (
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)", margin: "-6px 0 12px 2px" }}>
+                  Admin-scored — reviewers cannot rate this item.
+                </div>
+              )}
             </div>
           ))
         )}
-        <div style={{ marginTop: 6 }}>
-          <span style={labelStyle}>Reviewer comment (shared)</span>
-          {editable ? (
-            <textarea
-              style={{ ...fi, minHeight: 70, resize: "vertical" }}
-              value={reviewerComment}
-              onChange={e => setReviewerComment(e.target.value)}
-              onBlur={() => appraisal.kpis[0] && saveKpi(appraisal.kpis[0].id)}
-            />
-          ) : (
-            <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
-              {appraisal.reviewerComments ?? reviewerComment ?? "—"}
-            </div>
-          )}
-        </div>
+        {editable && appraisal.kpis.some(k => k.source !== "ADMIN") && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button style={{ ...primaryBtn, opacity: kpiSaving ? 0.6 : 1 }} disabled={kpiSaving} onClick={saveKpis}>
+            {kpiSaving ? "Saving…" : "Save KPI scores"}
+          </button>
+          <SavedTick show={savedKey === "kpi" && !kpiSaving} />
+          </div>
+        )}
       </div>
 
-      {/* SECTION 3 — Core Values */}
+      {/* SECTION 3 — Behavioural (Section II) — stacked per question */}
       <div style={card}>
-        <h2 style={sectionTitle}>Core Values rating</h2>
+        <h2 style={sectionTitle}>Behavioural (Section II)</h2>
+        {editable && behQuestions.length > 0 && <ScaleLegend scaleMax={behQuestions[0]?.scaleMax ?? 5} />}
+        {behQuestions.length === 0 ? (
+          <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No behavioural questions.</div>
+        ) : (
+          behQuestions.map(q => (
+            <StackedRatings
+              key={q.id}
+              questionText={q.text}
+              scaleMax={q.scaleMax}
+              rows={rowsForQuestion(q, behEdits)}
+              onChange={(rt, patch) => {
+                if (rt !== raterType) return
+                setBehEdits(s => ({ ...s, [q.id]: { score: s[q.id]?.score ?? null, comment: s[q.id]?.comment ?? "", ...patch } }))
+              }}
+            />
+          ))
+        )}
+        {behErr && <div style={{ fontSize: 12, color: "#EF4444", marginBottom: 8 }}>{behErr}</div>}
+        {editable && behQuestions.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <button style={{ ...primaryBtn, opacity: behSaving ? 0.6 : 1 }} disabled={behSaving} onClick={saveBehavioural}>
+            {behSaving ? "Saving…" : "Save"}
+          </button>
+          <SavedTick show={savedKey === "beh" && !behSaving} />
+          </div>
+        )}
+      </div>
+
+      {/* SECTION 4 — Organisation Core Values (Section IV) — stacked per question */}
+      <div style={card}>
+        <h2 style={sectionTitle}>Organisation Core Values (Section IV)</h2>
         {editable && cvQuestions.length > 0 && <ScaleLegend scaleMax={cvQuestions[0]?.scaleMax ?? 3} />}
         {cvQuestions.length === 0 ? (
           <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>No core-value questions.</div>
         ) : (
           cvQuestions.map(q => (
-            <div
+            <StackedRatings
               key={q.id}
-              style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 10 }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--foreground)", marginBottom: 8 }}>{q.text}</div>
-              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                <div style={{ width: 150 }}>
-                  <span style={labelStyle}>Score (0–{q.scaleMax})</span>
-                  {editable ? (
-                    <select
-                      style={fi}
-                      value={cvScores[q.id]?.score ?? ""}
-                      onChange={e =>
-                        setCvScores(s => ({ ...s, [q.id]: { ...s[q.id], score: e.target.value } }))
-                      }
-                    >
-                      <option value="">—</option>
-                      {Array.from({ length: q.scaleMax + 1 }, (_, i) => (
-                        <option key={i} value={i}>
-                          {i}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div style={{ fontSize: 13, color: "var(--foreground)" }}>{cvScores[q.id]?.score || "—"}</div>
-                  )}
-                </div>
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <span style={labelStyle}>Comment (required)</span>
-                  {editable ? (
-                    <input
-                      style={fi}
-                      value={cvScores[q.id]?.comment ?? ""}
-                      onChange={e =>
-                        setCvScores(s => ({ ...s, [q.id]: { ...s[q.id], comment: e.target.value } }))
-                      }
-                    />
-                  ) : (
-                    <div style={{ fontSize: 13, color: "var(--foreground)" }}>{cvScores[q.id]?.comment || "—"}</div>
-                  )}
-                </div>
-              </div>
-            </div>
+              questionText={q.text}
+              scaleMax={q.scaleMax}
+              rows={rowsForQuestion(q, cvEdits)}
+              onChange={(rt, patch) => {
+                if (rt !== raterType) return
+                setCvEdits(s => ({ ...s, [q.id]: { score: s[q.id]?.score ?? null, comment: s[q.id]?.comment ?? "", ...patch } }))
+              }}
+            />
           ))
         )}
         {cvErr && <div style={{ fontSize: 12, color: "#EF4444", marginBottom: 8 }}>{cvErr}</div>}
         {editable && cvQuestions.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button style={{ ...primaryBtn, opacity: cvSaving ? 0.6 : 1 }} disabled={cvSaving} onClick={saveCoreValues}>
-            {cvSaving ? "Saving…" : "Save core values"}
+            {cvSaving ? "Saving…" : "Save"}
           </button>
+          <SavedTick show={savedKey === "cv" && !cvSaving} />
+          </div>
         )}
       </div>
 
-      {/* SECTION 4 — Reviewer feedback */}
+      {/* SECTION 5 — Reviewer feedback */}
       <div style={card}>
-        <h2 style={sectionTitle}>Reviewer feedback (Section VII)</h2>
-        {([
-          ["keyAchievements", "Key achievements"],
-          ["areasForImprovement", "Areas for improvement"],
-          ["developmentPlan", "Development plan"],
-          ["reviewerComments", "Reviewer comments"],
-        ] as const).map(([key, lbl]) => (
-          <div key={key} style={fieldRow}>
-            <span style={labelStyle}>{lbl}</span>
-            {editable ? (
-              <textarea
-                style={{ ...fi, minHeight: 70, resize: "vertical" }}
-                value={feedback[key]}
-                onChange={e => setFeedback(f => ({ ...f, [key]: e.target.value }))}
-              />
-            ) : (
-              <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
-                {appraisal[key] ?? "—"}
-              </div>
-            )}
+        <h2 style={sectionTitle}>Reviewer Feedback (Section VII)</h2>
+
+        <div style={fieldRow}>
+          <span style={labelStyle}>Key Achievements</span>
+          {editable ? (
+            <textarea
+              style={{ ...fi, minHeight: 70, resize: "vertical" }}
+              value={feedback.keyAchievements}
+              onChange={e => setFeedback(f => ({ ...f, keyAchievements: e.target.value }))}
+            />
+          ) : (
+            <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
+              {appraisal.keyAchievements || "—"}
+            </div>
+          )}
+        </div>
+
+        <div style={fieldRow}>
+          <span style={labelStyle}>Areas for Improvement</span>
+          <div style={{ fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "pre-wrap", marginBottom: 6 }}>
+            {SMART_GUIDANCE.areasForImprovement}
           </div>
-        ))}
+          {editable ? (
+            <textarea
+              style={{ ...fi, minHeight: 70, resize: "vertical" }}
+              value={feedback.areasForImprovement}
+              onChange={e => setFeedback(f => ({ ...f, areasForImprovement: e.target.value }))}
+            />
+          ) : (
+            <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
+              {appraisal.areasForImprovement || "—"}
+            </div>
+          )}
+        </div>
+
+        <div style={fieldRow}>
+          <span style={labelStyle}>Development Plan for Next Period</span>
+          <div style={{ fontSize: 11, color: "var(--muted-foreground)", whiteSpace: "pre-wrap", marginBottom: 6 }}>
+            {SMART_GUIDANCE.developmentPlan}
+          </div>
+          {editable ? (
+            <textarea
+              style={{ ...fi, minHeight: 70, resize: "vertical" }}
+              value={feedback.developmentPlan}
+              onChange={e => setFeedback(f => ({ ...f, developmentPlan: e.target.value }))}
+            />
+          ) : (
+            <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
+              {appraisal.developmentPlan || "—"}
+            </div>
+          )}
+        </div>
+
+        <div style={fieldRow}>
+          <span style={labelStyle}>Reviewer Comments</span>
+          {editable ? (
+            <textarea
+              style={{ ...fi, minHeight: 70, resize: "vertical" }}
+              value={feedback.reviewerComments}
+              onChange={e => setFeedback(f => ({ ...f, reviewerComments: e.target.value }))}
+            />
+          ) : (
+            <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
+              {appraisal.reviewerComments || "—"}
+            </div>
+          )}
+        </div>
 
         {relationship.isCounter && (
           <div style={fieldRow}>
-            <span style={labelStyle}>Counter-reviewer comments</span>
+            <span style={labelStyle}>Counter Reviewer Comments</span>
             {editable ? (
               <textarea
                 style={{ ...fi, minHeight: 70, resize: "vertical" }}
@@ -522,40 +644,11 @@ export default function ReviewDetailPage() {
               />
             ) : (
               <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
-                {appraisal.counterReviewerComments ?? "—"}
+                {appraisal.counterReviewerComments || "—"}
               </div>
             )}
           </div>
         )}
-
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ width: 160 }}>
-            <span style={labelStyle}>Query HR rating</span>
-            {editable ? (
-              <input
-                type="number"
-                style={fi}
-                value={feedback.queryHrRating}
-                onChange={e => setFeedback(f => ({ ...f, queryHrRating: e.target.value }))}
-              />
-            ) : (
-              <div style={{ fontSize: 13, color: "var(--foreground)" }}>{appraisal.queryHrRating ?? "—"}</div>
-            )}
-          </div>
-          <div style={{ width: 160 }}>
-            <span style={labelStyle}>Recommendation HR rating</span>
-            {editable ? (
-              <input
-                type="number"
-                style={fi}
-                value={feedback.recHrRating}
-                onChange={e => setFeedback(f => ({ ...f, recHrRating: e.target.value }))}
-              />
-            ) : (
-              <div style={{ fontSize: 13, color: "var(--foreground)" }}>{appraisal.recHrRating ?? "—"}</div>
-            )}
-          </div>
-        </div>
 
         <label
           style={{
@@ -578,9 +671,56 @@ export default function ReviewDetailPage() {
         </label>
 
         {editable && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button style={{ ...primaryBtn, opacity: fbSaving ? 0.6 : 1 }} disabled={fbSaving} onClick={saveFeedback}>
             {fbSaving ? "Saving…" : "Save feedback"}
           </button>
+          <SavedTick show={savedKey === "fb" && !fbSaving} />
+          </div>
+        )}
+      </div>
+
+      {/* SCORES — live summary */}
+      <div style={card}>
+        <h2 style={sectionTitle}>Scores</h2>
+        <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 14 }}>
+          Updates each time you save.
+        </div>
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: "left", padding: "6px 8px", color: "var(--muted-foreground)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Section</th>
+              <th style={{ textAlign: "left", padding: "6px 8px", color: "var(--muted-foreground)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Employee (self)</th>
+              <th style={{ textAlign: "left", padding: "6px 8px", color: "var(--muted-foreground)", fontWeight: 600, borderBottom: "1px solid var(--border)" }}>Reviewer</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              { label: "360 Behavioural", emp: appraisal.behavioural360Emp != null ? `${appraisal.behavioural360Emp} / 5` : "—", rev: appraisal.behavioural360Rev != null ? `${appraisal.behavioural360Rev} / 5` : "—" },
+              { label: "Job-Specific", emp: appraisal.jobScoreEmp != null ? `${appraisal.jobScoreEmp} / 100` : "—", rev: appraisal.jobScoreRev != null ? `${appraisal.jobScoreRev} / 100` : "—" },
+              { label: "Core Values", emp: appraisal.coreScoreEmp ?? "—", rev: appraisal.coreScoreRev ?? "—" },
+              { label: "Query points", emp: appraisal.queryEmployeeRating ?? "—", rev: appraisal.queryHrRating ?? "—" },
+              { label: "Recommendation points", emp: appraisal.recEmployeeRating ?? "—", rev: appraisal.recHrRating ?? "—" },
+            ].map(row => (
+              <tr key={row.label}>
+                <td style={{ padding: "6px 8px", color: "var(--foreground)", borderBottom: "1px solid var(--border)" }}>{row.label}</td>
+                <td style={{ padding: "6px 8px", color: "var(--foreground)", borderBottom: "1px solid var(--border)" }}>{row.emp}</td>
+                <td style={{ padding: "6px 8px", color: "var(--foreground)", borderBottom: "1px solid var(--border)" }}>{row.rev}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <div style={{ marginTop: 16, fontSize: 24, fontWeight: 800, color: "var(--primary)" }}>
+          Reviewer overall score: {appraisal.finalReviewerPercent ?? "—"}%
+        </div>
+        <div style={{ marginTop: 4, fontSize: 13, color: "var(--muted-foreground)" }}>
+          Employee self score: {appraisal.finalEmployeePercent ?? "—"}%
+        </div>
+        {appraisal.teamLeadPercent != null && (
+          <div style={{ marginTop: 4, fontSize: 13, color: "var(--muted-foreground)" }}>
+            Team Lead Score: {appraisal.teamLeadPercent}%
+          </div>
         )}
       </div>
 

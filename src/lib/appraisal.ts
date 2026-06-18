@@ -1,7 +1,7 @@
 // Shared server-side helpers for the half-year performance appraisal.
 import { prisma } from "@/lib/prisma"
-import { scoreAppraisal, type RatingRow, type KpiRow } from "@/lib/appraisal-scoring"
-import { DEFAULT_WEIGHTS, type SectionWeights } from "@/lib/appraisal-defaults"
+import { scoreAppraisal, queryPoints, recommendationPoints, type RatingRow, type KpiRow } from "@/lib/appraisal-scoring"
+import { DEFAULT_WEIGHTS, DEFAULT_QUERY_BANDS, DEFAULT_RECOMMENDATION_BANDS, type SectionWeights } from "@/lib/appraisal-defaults"
 import type { SessionUser } from "@/lib/api-auth"
 
 export async function getActiveCycle() {
@@ -31,7 +31,7 @@ type AppraisalWithRel = {
 }
 
 export function computeScores(a: AppraisalWithRel) {
-  const weights: SectionWeights = (a.cycle?.weights as SectionWeights) ?? DEFAULT_WEIGHTS
+  const weights: SectionWeights = (a.cycle?.weights as unknown as SectionWeights) ?? DEFAULT_WEIGHTS
   return scoreAppraisal({
     ratings: a.ratings as RatingRow[],
     kpis: a.kpis as KpiRow[],
@@ -50,11 +50,29 @@ export async function recomputeAndPersist(appraisalId: string) {
     include: { cycle: true, ratings: true, kpis: true },
   })
   if (!a) return null
-  const s = computeScores(a as any)
+
+  // Derive Query (V) + Recommendation (VI) points from the entered COUNTS, using the cycle's bands.
+  const qBands = (a.cycle?.queryBands as any) ?? DEFAULT_QUERY_BANDS
+  const rBands = (a.cycle?.recommendationBands as any) ?? DEFAULT_RECOMMENDATION_BANDS
+  const queryEmployeeRating = queryPoints(qBands, a.queryWarnings ?? 0, a.queryBadges ?? 0)
+  const queryHrRating = queryPoints(qBands, a.queryWarningsHr ?? 0, a.queryBadgesHr ?? 0)
+  const recEmployeeRating = recommendationPoints(rBands, a.recCount ?? 0)
+  const recHrRating = recommendationPoints(rBands, a.recCountHr ?? 0)
+
+  const weights: SectionWeights = (a.cycle?.weights as unknown as SectionWeights) ?? DEFAULT_WEIGHTS
+  const s = scoreAppraisal({
+    ratings: a.ratings as RatingRow[],
+    kpis: a.kpis as KpiRow[],
+    weights,
+    queryEmployeeRating, queryHrRating, recEmployeeRating, recHrRating,
+  })
   return prisma.appraisal.update({
     where: { id: appraisalId },
     data: {
+      queryEmployeeRating, queryHrRating, recEmployeeRating, recHrRating,
       behavioural360Score: s.behavioural360Score,
+      behavioural360Emp: s.behavioural360Emp,
+      behavioural360Rev: s.behavioural360Rev,
       jobScoreEmp: s.jobScoreEmp,
       jobScoreRev: s.jobScoreRev,
       coreScoreEmp: s.coreScoreEmp,
@@ -65,6 +83,12 @@ export async function recomputeAndPersist(appraisalId: string) {
       teamLeadPercent: s.teamLeadPercent,
     },
   })
+}
+
+// A reviewer (primary/counter) may fill their review once the employee has submitted
+// and until the appraisal is finalized — independent of the global cycle stage.
+export function reviewerCanEdit(appraisalStage: string): boolean {
+  return appraisalStage === "SUBMITTED" || appraisalStage === "LEAD_REVIEWING" || appraisalStage === "LEAD_DONE"
 }
 
 export function isSuperAdmin(user: SessionUser) {
@@ -125,11 +149,12 @@ export function relationshipTo(user: SessionUser, appraisal: any): Relationship 
 export function shapeForViewer(appraisal: any, user: SessionUser) {
   const admin = isAdminLike(user)
   const isSubject = appraisal.employeeId === user.employeeId
-  const ratings = (appraisal.ratings ?? []).map((r: any) => {
-    // Peers are anonymous to the subject (and to reviewers); only admins see identities.
-    const anon = !admin && (r.raterType === "PEER" || r.raterType === "MEMBER")
-    return { ...r, raterId: anon ? null : r.raterId }
-  })
+  // Peer (PEER) and team-member upward (MEMBER) reviews are visible ONLY to admins.
+  // Everyone else (subject, reviewers) does not see these rows at all — the scores still
+  // roll up into the 360 total server-side, but the individual rows are hidden.
+  const ratings = admin
+    ? (appraisal.ratings ?? [])
+    : (appraisal.ratings ?? []).filter((r: any) => r.raterType !== "PEER" && r.raterType !== "MEMBER")
   // The subject should not see who the assigned peers are (anonymity); admins do.
   let peers = appraisal.peers
   if (!admin) peers = (appraisal.peers ?? []).map((p: any) => ({ id: p.id, status: p.status, submittedAt: p.submittedAt }))

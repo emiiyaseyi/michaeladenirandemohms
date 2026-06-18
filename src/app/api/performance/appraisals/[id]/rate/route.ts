@@ -26,23 +26,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const eid = user.employeeId
 
   // section for the rater type
-  let section: "PEER" | "BEHAVIOURAL" | "CORE_VALUE"
+  //  - PEER   → BEHAVIOURAL (Section II)
+  //  - MEMBER → LEADERSHIP (upward, leads only)
+  //  - reviewer → BEHAVIOURAL or CORE_VALUE (via ?section=, default CORE_VALUE)
+  const sectionParam = req.nextUrl.searchParams.get("section")
+  let section: "BEHAVIOURAL" | "LEADERSHIP" | "CORE_VALUE"
   let authorised = false
-  if (raterType === "PEER") { section = "PEER"; authorised = rel.isPeer }
+  if (raterType === "PEER") { section = "BEHAVIOURAL"; authorised = rel.isPeer }
   else if (raterType === "MEMBER") {
-    section = "BEHAVIOURAL"
+    section = "LEADERSHIP"
     const me = await prisma.employee.findUnique({ where: { id: eid }, select: { managerId: true, projectLeadId: true } })
     authorised = !!me && (me.managerId === appraisal.employeeId || me.projectLeadId === appraisal.employeeId)
   }
   else if (raterType === "PRIMARY_REVIEWER" || raterType === "COUNTER_REVIEWER") {
-    section = "CORE_VALUE"; authorised = raterType === "PRIMARY_REVIEWER" ? rel.isPrimary : rel.isCounter
+    section = sectionParam === "BEHAVIOURAL" ? "BEHAVIOURAL" : "CORE_VALUE"
+    authorised = raterType === "PRIMARY_REVIEWER" ? rel.isPrimary : rel.isCounter
+  }
+  else if (raterType === "ADMIN") {
+    // Admin-scored items only (e.g. attendance).
+    section = "CORE_VALUE"; authorised = rel.isAdmin
   }
   else return NextResponse.json({ error: "Invalid raterType" }, { status: 400 })
 
   if (!authorised) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
 
   const questions = await prisma.appraisalQuestion.findMany({
-    where: { cycleId: appraisal.cycleId, section: section as any },
+    where: { cycleId: appraisal.cycleId, section: section as any, ...(raterType === "ADMIN" ? { adminScored: true } : {}) },
     orderBy: { order: "asc" },
   })
   const myRatings = await prisma.appraisalRating.findMany({

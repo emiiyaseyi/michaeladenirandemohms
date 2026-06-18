@@ -20,7 +20,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await prisma.$transaction([
     prisma.appraisalQuestion.deleteMany({ where: { cycleId: id } }),
     prisma.appraisalGlobalKpi.deleteMany({ where: { cycleId: id } }),
-    prisma.appraisalQuestion.createMany({ data: defaultQuestions().map(q => ({ cycleId: id, section: q.section as any, text: q.text, scaleMax: q.scaleMax, order: q.order })) }),
+    prisma.appraisalQuestion.createMany({ data: defaultQuestions().map(q => ({ cycleId: id, section: q.section as any, text: q.text, scaleMax: q.scaleMax, order: q.order, adminScored: q.adminScored ?? false })) }),
     prisma.appraisalGlobalKpi.createMany({ data: DEFAULT_GLOBAL_KPIS.map((k, i) => ({ cycleId: id, projectName: k.projectName, deliverable: k.deliverable, kpi: k.kpi, weight: k.weight, order: i })) }),
     prisma.performanceCycle.update({ where: { id }, data: { weights: DEFAULT_WEIGHTS as any, queryBands: DEFAULT_QUERY_BANDS as any, recommendationBands: DEFAULT_RECOMMENDATION_BANDS as any } }),
   ])

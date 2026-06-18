@@ -8,17 +8,17 @@
 //  • Team Leads Score = MEMBER-only pool (the standalone "Team Leads Score"), present
 //    only when the subject has direct reports who rated them.
 //  • Core Values = self vs reviewer, each item 0–3. Reviewer per item = avg(primary, counter).
-//  • Job-Specific = Σ(weight_i × score_i / KPI_SCORE_SCALE); employee vs reviewer columns.
+//  • Job-Specific = Σ(score_i) where each KPI is scored out of its own weight_i; weights sum to 100.
 //    Reviewer per KPI = avg(primary, counter) where both present, else whichever is set.
 //  • Query = raw negative points (band-derived). Recommendation = raw positive points.
 //  • Overall % = behavioural(weighted) + job(weighted) + coreValues(weighted)
 //                + recommendation points + query points. Reviewer total is the official %.
 
-import { KPI_SCORE_SCALE, type SectionWeights, DEFAULT_WEIGHTS } from "./appraisal-defaults"
+import { type SectionWeights, DEFAULT_WEIGHTS } from "./appraisal-defaults"
 
 export interface RatingRow {
-  raterType: "SELF" | "PEER" | "MEMBER" | "PRIMARY_REVIEWER" | "COUNTER_REVIEWER"
-  section: "BEHAVIOURAL" | "CORE_VALUE" | "PEER"
+  raterType: "SELF" | "PEER" | "MEMBER" | "PRIMARY_REVIEWER" | "COUNTER_REVIEWER" | "ADMIN"
+  section: "BEHAVIOURAL" | "LEADERSHIP" | "CORE_VALUE" | "PEER"
   questionId?: string | null
   score?: number | null
 }
@@ -28,6 +28,7 @@ export interface KpiRow {
   employeeScore?: number | null
   primaryScore?: number | null
   counterScore?: number | null
+  source?: string | null
 }
 
 export interface ScoreInput {
@@ -51,9 +52,11 @@ export function reviewerAvg(primary?: number | null, counter?: number | null): n
 }
 
 export interface ScoreResult {
-  behavioural360Score: number      // raw pooled mean (0–5)
-  behavioural360Pct: number        // 0–1 fraction
-  teamLeadScore: number | null     // MEMBER-only pooled mean (0–5)
+  behavioural360Score: number      // headline reviewer-side pooled mean (0–5)
+  behavioural360Emp: number        // self behavioural mean (0–5)
+  behavioural360Rev: number        // lead + peer + member-upward mean (0–5)
+  behavioural360Pct: number        // 0–1 fraction (reviewer side)
+  teamLeadScore: number | null     // MEMBER-on-LEADERSHIP pooled mean (0–5)
   teamLeadPercent: number | null   // 0–100
   hasMemberRatings: boolean
   coreScoreEmp: number             // sum of self item scores
@@ -73,48 +76,72 @@ export interface ScoreResult {
 export function scoreAppraisal(input: ScoreInput): ScoreResult {
   const w = input.weights ?? DEFAULT_WEIGHTS
 
-  // ── 360 Behavioural — pool PEER + MEMBER rows equally (each 0–5) ──
-  const behavPool = input.ratings
-    .filter(r => (r.raterType === "PEER" || r.raterType === "MEMBER") && typeof r.score === "number")
+  // ── 360 Behavioural (Section II, scale 0–5) ──
+  // Employee column = the subject's OWN self ratings.
+  // Reviewer column = team lead (primary/counter) + peers + (for leads) member-upward — pooled equally.
+  const isBehav = (r: RatingRow) => r.section === "BEHAVIOURAL" && typeof r.score === "number"
+  const selfBehav = input.ratings.filter(r => r.raterType === "SELF" && isBehav(r)).map(r => num(r.score))
+  const revBehav = input.ratings
+    .filter(r => (r.raterType === "PRIMARY_REVIEWER" || r.raterType === "COUNTER_REVIEWER" || r.raterType === "PEER") && isBehav(r))
     .map(r => num(r.score))
-  const memberPool = input.ratings
-    .filter(r => r.raterType === "MEMBER" && typeof r.score === "number")
+  // Upward leadership ratings (a lead's reports) — feed the reviewer pool + Team Lead Score.
+  const memberLead = input.ratings
+    .filter(r => r.raterType === "MEMBER" && r.section === "LEADERSHIP" && typeof r.score === "number")
     .map(r => num(r.score))
 
-  const behavioural360Score = mean(behavPool)
-  const behavioural360Pct = behavioural360Score / 5
-  const hasMemberRatings = memberPool.length > 0
-  const teamLeadScore = hasMemberRatings ? mean(memberPool) : null
+  const behavioural360Emp = mean(selfBehav)
+  const reviewerBehavPool = [...revBehav, ...memberLead]
+  const behavioural360Rev = mean(reviewerBehavPool)
+  const behavioural360Score = behavioural360Rev
+  const behavioural360Pct = behavioural360Rev / 5
+  const hasMemberRatings = memberLead.length > 0
+  const teamLeadScore = hasMemberRatings ? mean(memberLead) : null
   const teamLeadPercent = teamLeadScore === null ? null : (teamLeadScore / 5) * 100
 
   // ── Core Values — self vs reviewer per item (0–3) ──
   const coreSelf = input.ratings.filter(r => r.section === "CORE_VALUE" && r.raterType === "SELF")
   const corePrimary = input.ratings.filter(r => r.section === "CORE_VALUE" && r.raterType === "PRIMARY_REVIEWER")
   const coreCounter = input.ratings.filter(r => r.section === "CORE_VALUE" && r.raterType === "COUNTER_REVIEWER")
+  const coreAdmin = input.ratings.filter(r => r.section === "CORE_VALUE" && r.raterType === "ADMIN")
 
   const coreScoreEmp = coreSelf.reduce((a, r) => a + num(r.score), 0)
-  // reviewer core = per-question avg(primary, counter)
+  // reviewer core = per-question mean of present reviewer-side scores (primary, counter, admin).
+  // The admin score only exists on admin-scored items (e.g. attendance) → that item averages lead + admin.
   const coreQIds = new Set<string>()
-  ;[...corePrimary, ...coreCounter].forEach(r => { if (r.questionId) coreQIds.add(r.questionId) })
+  ;[...corePrimary, ...coreCounter, ...coreAdmin].forEach(r => { if (r.questionId) coreQIds.add(r.questionId) })
   let coreScoreRev = 0
   coreQIds.forEach(qid => {
-    const p = corePrimary.find(r => r.questionId === qid)?.score
-    const c = coreCounter.find(r => r.questionId === qid)?.score
-    coreScoreRev += reviewerAvg(p, c) ?? 0
+    const vals = [
+      corePrimary.find(r => r.questionId === qid)?.score,
+      coreCounter.find(r => r.questionId === qid)?.score,
+      coreAdmin.find(r => r.questionId === qid)?.score,
+    ].filter((v): v is number => typeof v === "number" && !Number.isNaN(v))
+    if (vals.length) coreScoreRev += vals.reduce((a, b) => a + b, 0) / vals.length
   })
   // core max = number of core questions × 3 (derive from self count, fallback to reviewer count)
   const coreItemCount = Math.max(coreSelf.length, coreQIds.size)
   const coreMax = coreItemCount * 3
 
-  // ── Job-Specific — weighted ──
+  // ── Job-Specific — each KPI is scored out of its OWN assigned weight (no fixed scale).
+  // The weights sum to 100, so the raw job total is 0–100; it's then scaled to the
+  // section weight in the overall roll-up. ADMIN-source rows (Brand, L&D) are admin-scored
+  // and count the same for both the employee and reviewer columns. ──
   let jobScoreEmp = 0
   let jobScoreRev = 0
   for (const k of input.kpis) {
     const wt = num(k.weight)
-    jobScoreEmp += (wt * num(k.employeeScore)) / KPI_SCORE_SCALE
-    const rev = reviewerAvg(k.primaryScore, k.counterScore)
-    jobScoreRev += (wt * num(rev)) / KPI_SCORE_SCALE
+    const clampW = (v: number | null | undefined) => Math.max(0, Math.min(wt, num(v)))
+    if (k.source === "ADMIN") {
+      const adminScore = clampW(k.employeeScore)
+      jobScoreEmp += adminScore
+      jobScoreRev += adminScore
+    } else {
+      jobScoreEmp += clampW(k.employeeScore)
+      jobScoreRev += clampW(reviewerAvg(k.primaryScore, k.counterScore))
+    }
   }
+  jobScoreEmp = Math.min(100, jobScoreEmp)
+  jobScoreRev = Math.min(100, jobScoreRev)
 
   // ── Recommendation / Query — raw points ──
   const recPointsEmp = num(input.recEmployeeRating)
@@ -122,19 +149,21 @@ export function scoreAppraisal(input: ScoreInput): ScoreResult {
   const queryPointsEmp = num(input.queryEmployeeRating)
   const queryPointsRev = num(input.queryHrRating)
 
-  // ── Weighted section contributions ──
-  const behavWeighted = behavioural360Pct * w.behavioural
+  // ── Weighted section contributions (Employee = self; Reviewer = lead + 360) ──
+  const behavWeightedEmp = (behavioural360Emp / 5) * w.behavioural
+  const behavWeightedRev = (behavioural360Rev / 5) * w.behavioural
   const jobWeightedEmp = (jobScoreEmp / 100) * w.jobSpecific
   const jobWeightedRev = (jobScoreRev / 100) * w.jobSpecific
   const coreWeightedEmp = coreMax ? (coreScoreEmp / coreMax) * w.coreValues : 0
   const coreWeightedRev = coreMax ? (coreScoreRev / coreMax) * w.coreValues : 0
 
-  // 360 behavioural is a pooled crowd score — contributes equally to both columns.
-  const finalEmployeePercent = clampPct(behavWeighted + jobWeightedEmp + coreWeightedEmp + recPointsEmp + queryPointsEmp)
-  const finalReviewerPercent = clampPct(behavWeighted + jobWeightedRev + coreWeightedRev + recPointsRev + queryPointsRev)
+  const finalEmployeePercent = clampPct(behavWeightedEmp + jobWeightedEmp + coreWeightedEmp + recPointsEmp + queryPointsEmp)
+  const finalReviewerPercent = clampPct(behavWeightedRev + jobWeightedRev + coreWeightedRev + recPointsRev + queryPointsRev)
 
   return {
     behavioural360Score: round2(behavioural360Score),
+    behavioural360Emp: round2(behavioural360Emp),
+    behavioural360Rev: round2(behavioural360Rev),
     behavioural360Pct: round2(behavioural360Pct),
     teamLeadScore: teamLeadScore === null ? null : round2(teamLeadScore),
     teamLeadPercent: teamLeadPercent === null ? null : round2(teamLeadPercent),
@@ -157,13 +186,22 @@ function round2(v: number) { return Math.round(v * 100) / 100 }
 // ── Band helpers ──
 import type { QueryBand, RecommendationBand } from "./appraisal-defaults"
 
-// Query points from counts: take the worst (most negative) matching band for warnings and badges.
+// Query points from counts. Each band's `warnings`/`badges` is the UPPER bound of a
+// range (e.g. warnings:2 = "1–2 warnings", warnings:4 = "3–4 warnings"). For a given
+// count, pick the band with the smallest upper bound that still covers it; if the count
+// exceeds every band, use the highest band. Counts of 0 score nothing.
+function bandForCount<T extends { points: number }>(bands: (T & { threshold: number })[], count: number): T | null {
+  if (count <= 0 || !bands.length) return null
+  const asc = [...bands].sort((a, b) => a.threshold - b.threshold)
+  return asc.find(b => count <= b.threshold) ?? asc[asc.length - 1]
+}
+
 export function queryPoints(bands: QueryBand[], warnings: number, badges: number): number {
   let pts = 0
-  const warnBands = bands.filter(b => typeof b.warnings === "number").sort((a, b) => b.warnings! - a.warnings!)
-  const badgeBands = bands.filter(b => typeof b.badges === "number").sort((a, b) => b.badges! - a.badges!)
-  const w = warnBands.find(b => warnings >= b.warnings!)
-  const g = badgeBands.find(b => badges >= b.badges!)
+  const warnBands = bands.filter(b => typeof b.warnings === "number").map(b => ({ ...b, threshold: b.warnings! }))
+  const badgeBands = bands.filter(b => typeof b.badges === "number").map(b => ({ ...b, threshold: b.badges! }))
+  const w = bandForCount(warnBands, warnings)
+  const g = bandForCount(badgeBands, badges)
   if (w) pts += w.points
   if (g) pts += g.points
   return pts

@@ -100,10 +100,10 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Performance", icon: "TrendingUp", roles: ["STAFF"], section: "PRODUCTIVITY",
     children: [
-      { label: "Overview",     href: "/performance", exact: true },
-      { label: "My Appraisal", href: "/performance/my" },
-      { label: "Peer Reviews", href: "/performance/peer-reviews" },
-      { label: "To Review",    href: "/performance/to-review" },
+      { label: "Overview",         href: "/performance", exact: true },
+      { label: "My Appraisal",     href: "/performance/my" },
+      { label: "Peer Reviews",     href: "/performance/peer-reviews" },
+      { label: "Team Lead Review", href: "/performance/team-lead-review" },
     ],
   },
   { label: "Assets",    href: "/assets",    icon: "Package", roles: ["STAFF"] },
@@ -188,10 +188,11 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Performance", icon: "TrendingUp", roles: ["PROJECT_LEAD"],
     children: [
-      { label: "Overview",     href: "/performance", exact: true },
-      { label: "My Appraisal", href: "/performance/my" },
-      { label: "Peer Reviews", href: "/performance/peer-reviews" },
-      { label: "To Review",    href: "/performance/to-review" },
+      { label: "Overview",         href: "/performance", exact: true },
+      { label: "My Appraisal",     href: "/performance/my" },
+      { label: "Peer Reviews",     href: "/performance/peer-reviews" },
+      { label: "Team Lead Review", href: "/performance/team-lead-review" },
+      { label: "To Review",        href: "/performance/to-review" },
     ],
   },
   { label: "Assets",       href: "/assets",                icon: "Package",         roles: ["PROJECT_LEAD"] },
