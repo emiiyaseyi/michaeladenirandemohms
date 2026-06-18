@@ -39,6 +39,8 @@ yarn-error.log*
 
 # Private uploads (not web-accessible; gated via /api/files)
 /private/uploads/
+backup_2026-06-18.sql
+
 
 # typescript
 *.tsbuildinfo

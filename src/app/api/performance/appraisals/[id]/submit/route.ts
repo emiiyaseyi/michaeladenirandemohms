@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
-import { relationshipTo, recomputeAndPersist, isAdminLike } from "@/lib/appraisal"
+import { relationshipTo, recomputeAndPersist, isAdminLike, reviewerCanEdit } from "@/lib/appraisal"
 import { logAudit } from "@/lib/audit"
 import { notifyEmployeeSubmitted, notifyFinalized } from "@/lib/appraisal-notify"
 
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // ── A reviewer (primary/counter) submits their review ──
   if (action === "reviewerSubmit") {
     if (!rel.isReviewer) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    if (cycleStage !== "REVIEW") return NextResponse.json({ error: "Review window is not open" }, { status: 400 })
+    if (!reviewerCanEdit(appraisal.stage)) return NextResponse.json({ error: "The employee hasn't submitted yet, or the appraisal is finalized" }, { status: 400 })
     const myRole = rel.isPrimary ? "PRIMARY" : "COUNTER"
     await prisma.appraisalReviewer.updateMany({ where: { appraisalId: id, reviewerId: user.employeeId!, role: myRole as any }, data: { submittedAt: new Date() } })
     // If all assigned reviewers have submitted, mark the appraisal LEAD_DONE.
@@ -50,7 +50,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // ── Admin finalizes (locks + snapshots scores) ──
   if (action === "finalize") {
     if (!isAdminLike(user)) return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    if (cycleStage !== "COMPILING") return NextResponse.json({ error: "Cycle must be in COMPILING to finalize" }, { status: 400 })
+    // Admin can finalize once the employee has submitted (and reviews are in/optional), any time before it's already finalized.
+    if (appraisal.stage === "NOT_STARTED" || appraisal.stage === "DRAFT") return NextResponse.json({ error: "Employee hasn't submitted yet" }, { status: 400 })
+    if (appraisal.stage === "FINALIZED") return NextResponse.json({ error: "Already finalized" }, { status: 400 })
     await recomputeAndPersist(id)
     await prisma.appraisal.update({ where: { id }, data: { stage: "FINALIZED", finalizedAt: new Date() } })
     await notifyFinalized(appraisal.employeeId)

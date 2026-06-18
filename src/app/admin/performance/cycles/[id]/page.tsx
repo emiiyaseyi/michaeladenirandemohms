@@ -441,7 +441,8 @@ export default function CycleConfigPage() {
 
   const refetch = useCallback(async () => {
     const res = await fetch(`/api/performance/cycles/${id}`)
-    const data = await res.json()
+    const data = await res.json().catch(() => null)
+    if (!res.ok || !data) { console.error("Failed to load cycle", res.status); return }
     setCycle(data.cycle ?? null)
   }, [id])
 

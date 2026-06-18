@@ -20,16 +20,8 @@ interface PeerTask {
   cycle: { id: string; name: string; stage?: string }
 }
 
-interface LeadTask {
-  appraisalId: string
-  subject: Subject
-  cycle: { id: string; name: string }
-  submitted: boolean
-}
-
 interface Data {
   tasks: PeerTask[]
-  leadTask: LeadTask | null
 }
 
 const cardStyle: React.CSSProperties = {
@@ -71,7 +63,6 @@ export default function PeerReviewsPage() {
   }, [])
 
   const tasks = data?.tasks ?? []
-  const leadTask = data?.leadTask ?? null
 
   return (
     <div style={{ padding: "28px 32px", maxWidth: 1320, margin: "0 auto" }}>
@@ -87,36 +78,9 @@ export default function PeerReviewsPage() {
         <p style={{ marginTop: 24, color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 24 }}>
-          {leadTask && (
-            <div style={{ ...cardStyle, borderColor: "var(--primary)", background: "var(--card)" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                    Rate your team lead
-                  </div>
-                  <div style={{ fontSize: 16, fontWeight: 700, marginTop: 6 }}>
-                    {leadTask.subject.firstName} {leadTask.subject.lastName}
-                  </div>
-                  {leadTask.subject.jobTitle && (
-                    <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>{leadTask.subject.jobTitle}</div>
-                  )}
-                </div>
-                <button
-                  style={primaryBtn}
-                  onClick={() => router.push(`${base}/performance/peer-reviews/${leadTask.appraisalId}?type=MEMBER`)}
-                >
-                  {leadTask.submitted ? "Edit" : "Rate"}
-                </button>
-              </div>
-              {leadTask.submitted && (
-                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--primary)", marginTop: 8 }}>Submitted ✓</div>
-              )}
-            </div>
-          )}
-
-          {tasks.length === 0 && !leadTask ? (
+          {tasks.length === 0 ? (
             <div style={{ ...cardStyle, color: "var(--muted-foreground)", fontSize: 14 }}>
-              Nothing to review right now.
+              No peer reviews to give right now.
             </div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>

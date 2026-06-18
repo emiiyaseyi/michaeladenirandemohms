@@ -17,6 +17,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!editableBySubject && !rel.isAdmin) return NextResponse.json({ error: "Cannot add KPI rows now" }, { status: 400 })
 
   const { projectName, deliverable, kpi, weight } = await req.json()
+  const sum = await prisma.appraisalKpi.aggregate({ where: { appraisalId: id }, _sum: { weight: true } })
+  if ((sum._sum.weight ?? 0) + Number(weight ?? 0) > 100) {
+    return NextResponse.json({ error: "Total job-specific weight cannot exceed 100" }, { status: 400 })
+  }
   const max = await prisma.appraisalKpi.aggregate({ where: { appraisalId: id }, _max: { order: true } })
   const row = await prisma.appraisalKpi.create({
     data: { appraisalId: id, projectName, deliverable, kpi, weight: Number(weight ?? 0), source: "STAFF", order: (max._max.order ?? -1) + 1 },

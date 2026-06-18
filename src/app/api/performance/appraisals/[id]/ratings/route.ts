@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
-import { relationshipTo, recomputeAndPersist } from "@/lib/appraisal"
+import { relationshipTo, recomputeAndPersist, reviewerCanEdit } from "@/lib/appraisal"
 import { logAudit } from "@/lib/audit"
 
 // Submit a batch of ratings for one (section, raterType) from the caller.
@@ -27,8 +27,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!eid) return NextResponse.json({ error: "No employee profile" }, { status: 400 })
 
   const { section, raterType, ratings, submit } = await req.json() as {
-    section: "CORE_VALUE" | "PEER" | "BEHAVIOURAL"
-    raterType: "SELF" | "PEER" | "MEMBER" | "PRIMARY_REVIEWER" | "COUNTER_REVIEWER"
+    section: "CORE_VALUE" | "BEHAVIOURAL" | "LEADERSHIP" | "PEER"
+    raterType: "SELF" | "PEER" | "MEMBER" | "PRIMARY_REVIEWER" | "COUNTER_REVIEWER" | "ADMIN"
     ratings: { questionId: string; score?: number | null; comment?: string | null }[]
     submit?: boolean
   }
@@ -44,19 +44,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // ── Authorise the combination ──
+  // Self + reviewer rate the SAME sections (BEHAVIOURAL Section II, CORE_VALUE), scored
+  // separately. Peers rate BEHAVIOURAL. A lead's reports rate LEADERSHIP (upward).
   let allowed = false
   let isAnonymous = true
-  if (raterType === "SELF" && section === "CORE_VALUE") {
-    allowed = rel.isSubject && stage === "OPEN" && (appraisal.stage === "NOT_STARTED" || appraisal.stage === "DRAFT")
+  const subjectEditable = rel.isSubject && stage === "OPEN" && (appraisal.stage === "NOT_STARTED" || appraisal.stage === "DRAFT")
+  if (raterType === "SELF" && (section === "CORE_VALUE" || section === "BEHAVIOURAL")) {
+    allowed = subjectEditable
     isAnonymous = false
-  } else if (raterType === "PEER" && section === "PEER") {
+  } else if (raterType === "PEER" && section === "BEHAVIOURAL") {
     allowed = rel.isPeer && stage === "OPEN"
-  } else if (raterType === "MEMBER" && section === "BEHAVIOURAL") {
+  } else if (raterType === "MEMBER" && section === "LEADERSHIP") {
     // caller must be a direct report (manager/projectLead) of the subject
     const me = await prisma.employee.findUnique({ where: { id: eid }, select: { managerId: true, projectLeadId: true } })
     allowed = stage === "OPEN" && !!me && (me.managerId === appraisal.employeeId || me.projectLeadId === appraisal.employeeId)
-  } else if ((raterType === "PRIMARY_REVIEWER" || raterType === "COUNTER_REVIEWER") && section === "CORE_VALUE") {
-    allowed = (raterType === "PRIMARY_REVIEWER" ? rel.isPrimary : rel.isCounter) && stage === "REVIEW"
+  } else if ((raterType === "PRIMARY_REVIEWER" || raterType === "COUNTER_REVIEWER") && (section === "CORE_VALUE" || section === "BEHAVIOURAL")) {
+    // Reviewer fills once the employee has submitted, until finalized.
+    allowed = (raterType === "PRIMARY_REVIEWER" ? rel.isPrimary : rel.isCounter) && reviewerCanEdit(appraisal.stage)
+    isAnonymous = false
+  } else if (raterType === "ADMIN" && section === "CORE_VALUE") {
+    // Admin-entered locked scores (e.g. attendance) — at any time before finalize.
+    allowed = rel.isAdmin && appraisal.stage !== "FINALIZED"
     isAnonymous = false
   }
   if (!allowed) return NextResponse.json({ error: "Not allowed to submit these ratings now" }, { status: 403 })
