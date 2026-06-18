@@ -1,0 +1,73 @@
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+import { requireAuth } from "@/lib/api-auth"
+import { relationshipTo, recomputeAndPersist } from "@/lib/appraisal"
+import { logAudit } from "@/lib/audit"
+
+async function loadCtx(id: string, kpiId: string) {
+  const appraisal = await prisma.appraisal.findUnique({ where: { id }, include: { cycle: true, reviewers: true, peers: true } })
+  const row = appraisal ? await prisma.appraisalKpi.findUnique({ where: { id: kpiId } }) : null
+  return { appraisal, row }
+}
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string; kpiId: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const { id, kpiId } = await params
+  const { appraisal, row } = await loadCtx(id, kpiId)
+  if (!appraisal || !row || row.appraisalId !== id) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  const rel = relationshipTo(user, appraisal)
+  const stage = appraisal.cycle?.stage
+  const body = await req.json()
+  const data: any = {}
+
+  // Subject: edit description + own score, while OPEN, on STAFF rows only.
+  if (rel.isSubject && stage === "OPEN" && (appraisal.stage === "NOT_STARTED" || appraisal.stage === "DRAFT")) {
+    if (row.source === "STAFF") {
+      for (const f of ["projectName", "deliverable", "kpi"]) if (body[f] !== undefined) data[f] = body[f]
+      if (body.weight !== undefined) data.weight = Number(body.weight)
+    }
+    if (body.employeeScore !== undefined) data.employeeScore = body.employeeScore === null ? null : Number(body.employeeScore)
+    if (body.employeeComment !== undefined) data.employeeComment = body.employeeComment
+    if (body.evidenceUrl !== undefined) data.evidenceUrl = body.evidenceUrl
+  }
+  // Reviewers: score during REVIEW.
+  else if (rel.isReviewer && stage === "REVIEW") {
+    if (rel.isPrimary && body.primaryScore !== undefined) data.primaryScore = body.primaryScore === null ? null : Number(body.primaryScore)
+    if (rel.isCounter && body.counterScore !== undefined) data.counterScore = body.counterScore === null ? null : Number(body.counterScore)
+    if (body.reviewerComment !== undefined) data.reviewerComment = body.reviewerComment
+  }
+  // Admin: any field while REVIEW/COMPILING (incl. ADMIN-source global rows).
+  else if (rel.isAdmin && (stage === "REVIEW" || stage === "COMPILING")) {
+    for (const f of ["projectName", "deliverable", "kpi", "employeeComment", "reviewerComment", "evidenceUrl"]) if (body[f] !== undefined) data[f] = body[f]
+    for (const f of ["weight", "employeeScore", "primaryScore", "counterScore"]) if (body[f] !== undefined) data[f] = body[f] === null ? null : Number(body[f])
+  } else {
+    return NextResponse.json({ error: "Cannot edit this KPI now" }, { status: 400 })
+  }
+
+  if (!Object.keys(data).length) return NextResponse.json({ error: "No editable fields" }, { status: 400 })
+  // Keep the combined reviewerScore in sync (avg of primary+counter).
+  const merged = { ...row, ...data }
+  const vals = [merged.primaryScore, merged.counterScore].filter((v: any) => typeof v === "number")
+  data.reviewerScore = vals.length ? vals.reduce((a: number, b: number) => a + b, 0) / vals.length : null
+
+  await prisma.appraisalKpi.update({ where: { id: kpiId }, data })
+  await recomputeAndPersist(id)
+  await logAudit({ req, actor: user, action: "APPRAISAL_KPI_EDIT", entity: "AppraisalKpi", entityId: kpiId })
+  return NextResponse.json({ ok: true })
+}
+
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; kpiId: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const { id, kpiId } = await params
+  const { appraisal, row } = await loadCtx(id, kpiId)
+  if (!appraisal || !row || row.appraisalId !== id) return NextResponse.json({ error: "Not found" }, { status: 404 })
+  const rel = relationshipTo(user, appraisal)
+  const canDelete = (rel.isSubject && appraisal.cycle?.stage === "OPEN" && (appraisal.stage === "NOT_STARTED" || appraisal.stage === "DRAFT") && row.source === "STAFF") || rel.isAdmin
+  if (!canDelete) return NextResponse.json({ error: "Cannot delete this KPI" }, { status: 400 })
+  await prisma.appraisalKpi.delete({ where: { id: kpiId } })
+  await recomputeAndPersist(id)
+  await logAudit({ req, actor: user, action: "APPRAISAL_KPI_DELETE", entity: "AppraisalKpi", entityId: kpiId })
+  return NextResponse.json({ ok: true })
+}

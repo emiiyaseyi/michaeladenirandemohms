@@ -81,7 +81,7 @@ export default async function AdminDashboard() {
     canViewEmployees ? prisma.employee.count({ where: { ...NO_SUPER_ADMIN, employeeStatus: "ON_LEAVE" } }) : Promise.resolve(0),
     prisma.department.count(),
     prisma.jobPosting.count({ where: { status: "OPEN" } }),
-    canViewPerformance ? prisma.kPI.count({ where: { status: "SUBMITTED" } }) : Promise.resolve(0),
+    canViewPerformance ? prisma.appraisal.count({ where: { stage: "SUBMITTED" } }) : Promise.resolve(0),
     canViewLeave ? prisma.leaveRequest.count({ where: { status: "PENDING" } }) : Promise.resolve(0),
     canViewEmployees
       ? prisma.employee.findMany({

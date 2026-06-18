@@ -93,13 +93,10 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   {
     group: "Performance",
     items: [
-      { key: "canViewPerformance", label: "View performance records" },
-      { key: "canManagePerformancePeriods", label: "Manage performance periods" },
-      { key: "canManageObjectives", label: "Manage objectives & KPIs" },
-      { key: "canManageGroups", label: "Manage performance groups" },
-      { key: "canManageReviews", label: "Manage reviews" },
-      { key: "canViewFeedback", label: "View feedback" },
-      { key: "canManageConversations", label: "Manage conversations" },
+      { key: "canViewPerformance", label: "View appraisal records" },
+      { key: "canManageAppraisalCycles", label: "Configure appraisal cycles (questions, weights, bands)" },
+      { key: "canAssignReviewers", label: "Assign reviewers & peers" },
+      { key: "canCompileAppraisals", label: "Compile & finalize appraisals" },
     ],
   },
   {

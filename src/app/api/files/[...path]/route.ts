@@ -65,15 +65,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pat
   }
 
   if (category === "kpi-evidence") {
-    const kpi = await prisma.kPI.findFirst({
+    const kpi = await prisma.appraisalKpi.findFirst({
       where: { evidenceUrl: fileUrl },
-      select: { employeeId: true, employee: { select: { projectLeadId: true, secondaryProjectLeadIds: true } } },
+      select: { appraisal: { select: { employeeId: true, employee: { select: { projectLeadId: true, secondaryProjectLeadIds: true } } } } },
     })
     if (!kpi) return NextResponse.json({ error: "Not found" }, { status: 404 })
-    const isOwner = kpi.employeeId === user.employeeId
+    const isOwner = kpi.appraisal?.employeeId === user.employeeId
     const isPL = !!user.employeeId && (
-      kpi.employee?.projectLeadId === user.employeeId ||
-      (kpi.employee?.secondaryProjectLeadIds ?? []).includes(user.employeeId)
+      kpi.appraisal?.employee?.projectLeadId === user.employeeId ||
+      (kpi.appraisal?.employee?.secondaryProjectLeadIds ?? []).includes(user.employeeId)
     )
     const isAdmin = user.role === "SUPER_ADMIN" || !!user.permissions["canViewPerformance"]
     if (!isOwner && !isPL && !isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 })

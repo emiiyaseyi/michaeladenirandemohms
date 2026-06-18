@@ -1,2 +1,2 @@
-import Page from "@/components/pages/PerformancePage"
+import Page from "@/components/performance/OverviewPage"
 export default Page

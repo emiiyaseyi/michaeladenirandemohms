@@ -187,10 +187,7 @@ model Employee {
   profileUpdateRequests ProfileUpdateRequest[]
   personalDocuments  PersonalDocument[]
   user               User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  feedbackGiven      Feedback[]           @relation("FeedbackGiver")
-  feedbackReceived   Feedback[]           @relation("FeedbackReceiver")
   jobApplications    JobApplication[]
-  kpis               KPI[]
   leaveApprovals     LeaveApproval[]
   leaveBalances      LeaveBalance[]
   reliefAssignments  LeaveReliefOfficer[] @relation("ReliefAssignments")
@@ -201,10 +198,10 @@ model Employee {
   offerLettersSent     OfferLetter[]        @relation("OfferManager")
   customGroupMemberships CustomGroupMember[]
   surveyResponses        SurveyResponse[]
-  performanceGroupMemberships PerformanceGroupMember[]
-  conversationSetups          ConversationSetup[]
-  feedbackRequestsSent        FeedbackRequest[]        @relation("FeedbackRequester")
-  feedbackRequestsReceived    FeedbackRequest[]        @relation("FeedbackTarget")
+  appraisals                  Appraisal[]              @relation("AppraisalSubject")
+  appraisalRatings            AppraisalRating[]        @relation("AppraisalRater")
+  appraisalReviews            AppraisalReviewer[]      @relation("AppraisalReviewerEmp")
+  appraisalPeerReviews        AppraisalPeer[]          @relation("AppraisalPeerEmp")
   rentDocuments               RentDocument[]
   disciplinaryTriggers        DisciplinaryTrigger[]
   violationsReceived          Violation[]              @relation("ViolationEmployee")
@@ -524,49 +521,211 @@ model PerformanceCycle {
   endDate     DateTime
   kpiDeadline DateTime?
   isActive    Boolean     @default(false)
+  // ── Appraisal configuration ──
+  stage               AppraisalCycleStage @default(CONFIG)
+  peerCount           Int                 @default(3)
+  weights             Json?   // { behavioural, jobSpecific, coreValues, recommendation, query }
+  queryBands          Json?   // [{ minWarnings, maxWarnings, points, label }]
+  recommendationBands Json?   // [{ min, max, points, label }]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  kpis        KPI[]
+  questions   AppraisalQuestion[]
+  appraisals  Appraisal[]
+  globalKpis  AppraisalGlobalKpi[]
 }
 
-model KPI {
-  id            String            @id @default(cuid())
-  employeeId    String
-  cycleId       String
-  title         String
-  description   String?
-  keyResultArea String?
-  weight        Float
-  target        String?
-  deadline      DateTime?
-  projectName   String?
-  ownerId       String?
-  status        KPIStatus         @default(DRAFT)
-  kpiStatus     KPIProgressStatus @default(NOT_STARTED)
-  progress      Int               @default(0)
-  evidenceUrl   String?
-  selfScore     Float?
-  managerScore  Float?
-  finalScore    Float?
-  comments      String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
-  cycle         PerformanceCycle  @relation(fields: [cycleId], references: [id])
-  employee      Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+// ─── Half-Year Performance Appraisal ─────────────────────────────────────────
+
+enum AppraisalCycleStage {
+  CONFIG      // admin sets up questions, weights, reviewers, peers
+  OPEN        // employee self-fill + peers fill simultaneously
+  REVIEW      // team lead + counter reviewer score
+  COMPILING   // admin/management finalize
+  FINALIZED   // locked, results visible to all
 }
 
-model Feedback {
-  id          String       @id @default(cuid())
-  giverId     String
-  receiverId  String
-  type        FeedbackType @default(PEER)
-  rating      Float?
+enum AppraisalStage {
+  NOT_STARTED
+  DRAFT
+  SUBMITTED
+  LEAD_REVIEWING
+  LEAD_DONE
+  FINALIZED
+}
+
+enum AppraisalSection {
+  BEHAVIOURAL   // Section II — upward/around behavioural rating (feeds 360)
+  CORE_VALUE    // Section IV — self + reviewer scored
+  PEER          // peer review behavioural (feeds 360)
+}
+
+enum RaterType {
+  SELF
+  PEER
+  MEMBER
+  PRIMARY_REVIEWER
+  COUNTER_REVIEWER
+}
+
+enum ReviewerRole {
+  PRIMARY   // direct team lead
+  COUNTER   // HR-assigned second lead
+}
+
+enum AppraisalKpiSource {
+  STAFF
+  ADMIN     // global rows (Learning & Development, Strategic Brand Visibility)
+}
+
+model AppraisalQuestion {
+  id        String            @id @default(cuid())
+  cycleId   String
+  section   AppraisalSection
+  text      String
+  scaleMax  Int               @default(5)
+  order     Int               @default(0)
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  cycle     PerformanceCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  ratings   AppraisalRating[]
+
+  @@index([cycleId])
+}
+
+model AppraisalGlobalKpi {
+  id          String            @id @default(cuid())
+  cycleId     String
+  projectName String            // e.g. "Learning & Development"
+  deliverable String?
+  kpi         String?
+  weight      Float             @default(0)
+  order       Int               @default(0)
+  createdAt   DateTime          @default(now())
+  cycle       PerformanceCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@index([cycleId])
+}
+
+model Appraisal {
+  id         String          @id @default(cuid())
+  cycleId    String
+  employeeId String
+  stage      AppraisalStage  @default(NOT_STARTED)
+  // Section VII — Improvement / comments
+  keyAchievements         String?
+  areasForImprovement     String?
+  developmentPlan         String?
+  employeeComments        String?
+  reviewerComments        String?
+  counterReviewerComments String?
+  // Section V — Query (negative points)
+  queryWarnings      Int?
+  queryBadges        Int?
+  queryEmployeeRating Float?
+  queryHrRating      Float?
+  queryComment       String?
+  // Section VI — Recommendations (positive points)
+  recCount           Int?
+  recEmployeeRating  Float?
+  recHrRating        Float?
+  recComment         String?
+  // Section VII-b — Physical meeting confirmation
+  meetingEmployeeConfirmed Boolean @default(false)
+  meetingReviewerConfirmed Boolean @default(false)
+  // Computed score snapshot (set at finalize)
+  behavioural360Score Float?
+  jobScoreEmp         Float?
+  jobScoreRev         Float?
+  coreScoreEmp        Float?
+  coreScoreRev        Float?
+  finalEmployeePercent Float?
+  finalReviewerPercent Float?
+  finalPercent         Float?
+  teamLeadPercent      Float?
+  submittedAt        DateTime?
+  finalizedAt        DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  cycle      PerformanceCycle    @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee   Employee            @relation("AppraisalSubject", fields: [employeeId], references: [id], onDelete: Cascade)
+  ratings    AppraisalRating[]
+  kpis       AppraisalKpi[]
+  reviewers  AppraisalReviewer[]
+  peers      AppraisalPeer[]
+
+  @@unique([cycleId, employeeId])
+  @@index([employeeId])
+}
+
+model AppraisalRating {
+  id          String            @id @default(cuid())
+  appraisalId String
+  raterId     String?
+  raterType   RaterType
+  section     AppraisalSection
+  questionId  String?
+  score       Float?
   comment     String?
-  isAnonymous Boolean      @default(false)
+  isAnonymous Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  appraisal   Appraisal         @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+  rater       Employee?         @relation("AppraisalRater", fields: [raterId], references: [id])
+  question    AppraisalQuestion? @relation(fields: [questionId], references: [id], onDelete: SetNull)
+
+  @@index([appraisalId])
+  @@index([raterId])
+}
+
+model AppraisalKpi {
+  id          String             @id @default(cuid())
+  appraisalId String
+  projectName String?
+  deliverable String?
+  kpi         String?
+  weight      Float              @default(0)
+  employeeScore   Float?
+  primaryScore    Float?
+  counterScore    Float?
+  reviewerScore   Float?
+  evidenceUrl     String?
+  employeeComment String?
+  reviewerComment String?
+  source      AppraisalKpiSource @default(STAFF)
+  order       Int                @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  appraisal   Appraisal          @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+
+  @@index([appraisalId])
+}
+
+model AppraisalReviewer {
+  id          String       @id @default(cuid())
+  appraisalId String
+  reviewerId  String
+  role        ReviewerRole
+  submittedAt DateTime?
   createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  giver       Employee     @relation("FeedbackGiver", fields: [giverId], references: [id])
-  receiver    Employee     @relation("FeedbackReceiver", fields: [receiverId], references: [id])
+  appraisal   Appraisal    @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+  reviewer    Employee     @relation("AppraisalReviewerEmp", fields: [reviewerId], references: [id])
+
+  @@unique([appraisalId, role])
+  @@index([reviewerId])
+}
+
+model AppraisalPeer {
+  id          String    @id @default(cuid())
+  appraisalId String
+  peerId      String
+  status      String    @default("PENDING") // PENDING | SUBMITTED
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  appraisal   Appraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+  peer        Employee  @relation("AppraisalPeerEmp", fields: [peerId], references: [id])
+
+  @@unique([appraisalId, peerId])
+  @@index([peerId])
 }
 
 model RentDocument {
@@ -723,23 +882,6 @@ enum AbsenceStatus {
   NEW
   APPROVED
   DECLINED
-}
-
-model FeedbackRequest {
-  id          String                @id @default(cuid())
-  requesterId String
-  targetId    String
-  message     String?
-  status      FeedbackRequestStatus @default(PENDING)
-  createdAt   DateTime              @default(now())
-  updatedAt   DateTime              @updatedAt
-  requester   Employee              @relation("FeedbackRequester", fields: [requesterId], references: [id])
-  target      Employee              @relation("FeedbackTarget", fields: [targetId], references: [id])
-}
-
-enum FeedbackRequestStatus {
-  PENDING
-  FULFILLED
 }
 
 model LeaveBalance {
@@ -1056,31 +1198,7 @@ model SurveyAnswer {
   question   SurveyQuestion  @relation(fields: [questionId], references: [id], onDelete: Cascade)
 }
 
-enum KPIStatus {
-  DRAFT
-  SUBMITTED
-  APPROVED
-  APPROVED_WITH_CORRECTION
-  REJECTED
-  NEEDS_CLARIFICATION
-}
-
-enum KPIProgressStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  COMPLETED
-}
-
 // ── Contractors ───────────────────────────────────────────────────────────────
-
-
-enum FeedbackType {
-  PEER
-  MANAGER
-  SELF
-  THREE_SIXTY
-  KUDOS
-}
 
 
 model Workplace {
@@ -1199,85 +1317,6 @@ model RequestDocumentType {
   updatedAt DateTime @updatedAt
 }
 
-
-model PerformanceGroup {
-  id          String                   @id @default(cuid())
-  name        String
-  description String?
-  isActive    Boolean                  @default(true)
-  createdAt   DateTime                 @default(now())
-  updatedAt   DateTime                 @updatedAt
-  members     PerformanceGroupMember[]
-}
-
-model PerformanceGroupMember {
-  id         String           @id @default(cuid())
-  groupId    String
-  employeeId String
-  createdAt  DateTime         @default(now())
-  group      PerformanceGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-
-  @@unique([groupId, employeeId])
-}
-
-model ConversationSetup {
-  id               String              @id @default(cuid())
-  employeeId       String
-  conversationWith String
-  scheduledDate    DateTime
-  startTime        String
-  endTime          String
-  frequency        String              @default("ONE_OFF")
-  conversationType String              @default("OTHER")
-  createdAt        DateTime            @default(now())
-  updatedAt        DateTime            @updatedAt
-  employee         Employee            @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  rounds           ConversationRound[]
-}
-
-model ConversationRound {
-  id               String               @id @default(cuid())
-  setupId          String
-  scheduledDate    DateTime
-  startTime        String
-  endTime          String
-  conversationType String               @default("OTHER")
-  status           String               @default("OTHER")
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  setup            ConversationSetup    @relation(fields: [setupId], references: [id], onDelete: Cascade)
-  actions          ConversationAction[]
-  notes            ConversationNote[]
-}
-
-model ConversationAction {
-  id        String            @id @default(cuid())
-  roundId   String
-  title     String
-  startDate DateTime
-  endDate   DateTime
-  createdAt DateTime          @default(now())
-  round     ConversationRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
-}
-
-model ConversationNote {
-  id        String            @id @default(cuid())
-  roundId   String
-  content   String
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-  round     ConversationRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
-}
-
-model ConversationPrompt {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  type        String   @default("CHECK_IN")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-}
 
 model AssetType {
   id        String   @id @default(cuid())

@@ -167,54 +167,35 @@ export async function POST(req: NextRequest) {
       if (empType && empType !== "all") employeeFilter.employmentType = empType
       if (status && status !== "all") employeeFilter.employeeStatus = status
 
-      const kpiWhere: any = {
+      const apprWhere: any = {
         ...(employeeId && employeeId !== "all" ? { employeeId } : {}),
         ...(Object.keys(dateFilter).length > 0 ? { createdAt: dateFilter } : {}),
         ...(Object.keys(employeeFilter).length > 0 ? { employee: employeeFilter } : {}),
       }
 
-      if (reportType === "Appraisals Report") {
-        title = "Appraisals Report"; filename = "appraisals_report"
-        const kpis = await prisma.kPI.findMany({
-          where: kpiWhere,
+      {
+        title = reportType === "Appraisals Report" ? "Appraisals Report" : "Appraisal Summary"
+        filename = reportType === "Appraisals Report" ? "appraisals_report" : "appraisal_summary"
+        const appraisals = await prisma.appraisal.findMany({
+          where: apprWhere,
           include: {
             employee: { select: { employeeId: true, firstName: true, lastName: true, department: { select: { name: true } } } },
             cycle: { select: { name: true, year: true, half: true } },
           },
           orderBy: { createdAt: "desc" },
         })
-        headers = ["Employee ID", "Employee Name", "Department", "KPI Title", "Weight", "Self Score", "Manager Score", "Final Score", "Cycle"]
-        rows = kpis.map((k: any) => [
-          k.employee?.employeeId ?? "",
-          `${k.employee?.firstName ?? ""} ${k.employee?.lastName ?? ""}`.trim(),
-          k.employee?.department?.name ?? "",
-          k.title ?? "",
-          k.weight ?? "",
-          k.selfScore ?? "",
-          k.managerScore ?? "",
-          k.finalScore ?? "",
-          k.cycle ? `${k.cycle.name} ${k.cycle.year}` : "",
-        ])
-
-      } else {
-        title = reportType || "KPI Summary"; filename = "kpi_summary"
-        const kpis = await prisma.kPI.findMany({
-          where: kpiWhere,
-          include: {
-            employee: { select: { employeeId: true, firstName: true, lastName: true, department: { select: { name: true } } } },
-          },
-          orderBy: { createdAt: "desc" },
-        })
-        headers = ["Employee ID", "Employee Name", "Department", "KPI Title", "Target", "Achieved", "Score", "Status"]
-        rows = kpis.map((k: any) => [
-          k.employee?.employeeId ?? "",
-          `${k.employee?.firstName ?? ""} ${k.employee?.lastName ?? ""}`.trim(),
-          k.employee?.department?.name ?? "",
-          k.title ?? "",
-          k.target ?? "",
-          k.achieved ?? "",
-          k.score ?? "",
-          k.status ?? "",
+        headers = ["Employee ID", "Employee Name", "Department", "Cycle", "Stage", "360 Behavioural", "Job (Reviewer)", "Core Values (Reviewer)", "Final %", "Team Lead %"]
+        rows = appraisals.map((a: any) => [
+          a.employee?.employeeId ?? "",
+          `${a.employee?.firstName ?? ""} ${a.employee?.lastName ?? ""}`.trim(),
+          a.employee?.department?.name ?? "",
+          a.cycle ? `${a.cycle.name} ${a.cycle.year} H${a.cycle.half}` : "",
+          a.stage ?? "",
+          a.behavioural360Score ?? "",
+          a.jobScoreRev ?? "",
+          a.coreScoreRev ?? "",
+          a.finalPercent ?? "",
+          a.teamLeadPercent ?? "",
         ])
       }
 
