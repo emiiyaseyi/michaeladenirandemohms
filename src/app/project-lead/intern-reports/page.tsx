@@ -449,19 +449,43 @@ export default function PLInternReportsPage() {
                   <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Top Performers</div>
                   <div style={{ fontSize: 14, opacity: 0.9 }}>{leaderboard.length} intern{leaderboard.length !== 1 ? "s" : ""} · {lbMode === "week" ? curLbLabel : lbMode === "month" ? "This Month" : "All Time"}</div>
                 </div>
-                <div style={{ display: "flex", gap: 20, alignItems: "flex-end" }}>
-                  {top3.map((row: any) => (
-                    <div key={row.employeeId} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: avatarColor(row.name), border: `3px solid ${ringColor(row.rank)}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "white" }}>
-                        {lbInitials(row.name)}
-                      </div>
-                      <div style={{ textAlign: "center" }}>
-                        <div style={{ fontSize: 11, fontWeight: 700, maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.name.split(" ")[0]}</div>
-                        <div style={{ fontSize: 10, opacity: 0.8 }}>{isPending(row) ? "pending" : `${totPct(row)}%`}</div>
-                      </div>
+                {/* Podium: #2 left · #1 center+highest · #3 right */}
+                {(() => {
+                  const byRank: Record<number, any> = {}
+                  top3.forEach((r: any) => { byRank[r.rank] = r })
+                  const podiumOrder = [byRank[2], byRank[1], byRank[3]].filter(Boolean)
+                  const cfg: Record<number, { lift: number; size: number; ribbon: string; medal: string; numCol: string }> = {
+                    1: { lift: 36, size: 56, ribbon: "#FCD34D", medal: "#F59E0B", numCol: "#78350F" },
+                    2: { lift: 18, size: 46, ribbon: "#CBD5E1", medal: "#94A3B8", numCol: "#1E293B" },
+                    3: { lift: 0,  size: 40, ribbon: "#C97B3A", medal: "#92400E", numCol: "#FEF3C7" },
+                  }
+                  return (
+                    <div style={{ display: "flex", gap: 18, alignItems: "flex-end", paddingBottom: 4 }}>
+                      {podiumOrder.map((row: any) => {
+                        const c = cfg[row.rank]
+                        return (
+                          <div key={row.employeeId} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, marginBottom: c.lift }}>
+                            {/* Avatar */}
+                            <div style={{ width: c.size, height: c.size, borderRadius: "50%", background: avatarColor(row.name), border: `3px solid ${ringColor(row.rank)}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(c.size * 0.3), fontWeight: 800, color: "white", boxShadow: "0 4px 14px rgba(0,0,0,0.35)", flexShrink: 0 }}>
+                              {lbInitials(row.name)}
+                            </div>
+                            {/* Ribbon stem */}
+                            <div style={{ width: 3, height: 14, background: c.ribbon, marginTop: 2 }} />
+                            {/* Medal circle */}
+                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: c.medal, border: "2px solid rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: c.numCol, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
+                              {row.rank}
+                            </div>
+                            {/* Name + score */}
+                            <div style={{ textAlign: "center", marginTop: 6 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.name.split(" ")[0]}</div>
+                              <div style={{ fontSize: 10, opacity: 0.8 }}>{isPending(row) ? "pending" : `${totPct(row)}%`}</div>
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
-                  ))}
-                </div>
+                  )
+                })()}
               </div>
             )}
 
