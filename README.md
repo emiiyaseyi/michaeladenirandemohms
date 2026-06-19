@@ -7,6 +7,7 @@ Human Resource Management System for Data Science Nigeria — built with Next.js
 - Node.js 18+
 - PostgreSQL database
 - Git
+- Vercel
 
 ## First-time setup guide
 
@@ -41,6 +42,7 @@ Apply the schema and seed initial data:
 ```bash
 npx prisma db push
 npx prisma db seed
+npm run db:seed:test   # optional: add local demo/test users and sample employee data
 npx prisma generate
 ```
 
@@ -65,11 +67,13 @@ npx prisma db push                      # apply any schema changes
 npx prisma db push --force-reset        # this drops all tables and recreates them from your current schema.
 npx prisma db push --accept-data-loss   # apply schema changes that DROP tables/columns (data in dropped objects is lost — data in untouched tables is kept)
 npx prisma db seed                      # re-seed if seed data was updated (optional)
+npm run db:seed:test                   # optional: seed local dev/test demo data
 npx prisma generate                     # regenerate the Prisma client
 npm run dev
 ```
 
-> **Note:** If a pull includes destructive schema changes (dropped columns, renamed fields), use the `--accept-data-loss` variant — it's less aggressive than `--force-reset` because it keeps data in tables you haven't touched.yes but 
+> **Note:** If a pull includes destructive schema changes (dropped columns, renamed fields), use the `--accept-data-loss` variant — it's less aggressive than `--force-reset` because it keeps data in tables you haven't touched.
+
 
 ---
 

@@ -14,6 +14,7 @@ import "dotenv/config"
 import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import { EMAIL_EVENTS } from "../src/lib/email-events"
+import { defaultQuestions, DEFAULT_GLOBAL_KPIS, DEFAULT_WEIGHTS, DEFAULT_QUERY_BANDS, DEFAULT_RECOMMENDATION_BANDS } from "../src/lib/appraisal-defaults"
 
 const prisma = new PrismaClient()
 
@@ -417,7 +418,101 @@ async function main() {
   }
   console.log("  ✓ Company details & workplace")
 
+  // ── Test accounts — one per role, known passwords (all: Test@1234) ─────────
+  {
+    const testDept = await prisma.department.findFirst({ orderBy: { createdAt: "asc" } })
+    const pw = hash("Test@1234")
+    async function ensureTestUser(email: string, role: "SUPER_ADMIN" | "PROJECT_LEAD" | "STAFF", employeeCode: string, fn: string, ln: string, jobTitle: string, extra: Record<string, unknown> = {}) {
+      const existing = await prisma.user.findUnique({ where: { email }, include: { employee: true } })
+      if (existing?.employee) {
+        // keep relationships fresh on reseed
+        if (Object.keys(extra).length) await prisma.employee.update({ where: { id: existing.employee.id }, data: extra as any })
+        return existing.employee
+      }
+      const user = existing ?? await prisma.user.create({ data: { email, name: `${fn} ${ln}`, password: pw, role, mustChangePassword: false } })
+      return prisma.employee.create({
+        data: {
+          userId: user.id, employeeId: employeeCode, firstName: fn, lastName: ln, jobTitle,
+          departmentId: testDept?.id ?? null, employmentType: "FULL_TIME", employeeStatus: "ACTIVE",
+          hireDate: new Date(`${new Date().getFullYear() - 1}-01-15`), ...extra,
+        },
+      })
+    }
+    // Admin test login (in addition to the production edodida account)
+    await ensureTestUser("admin@dsn-hrms.com", "SUPER_ADMIN", "TEST-ADMIN", "Test", "Admin", "HR Administrator")
+    // Project lead — will be the primary reviewer for the test staff
+    const leadEmp = await ensureTestUser("lead@dsn-hrms.com", "PROJECT_LEAD", "TEST-LEAD", "Test", "Lead", "Team Lead")
+    // Staff — reviewed by the test lead (so the lead gets a "To Review" item and the staff can rate their lead)
+    await ensureTestUser("staff@dsn-hrms.com", "STAFF", "TEST-STAFF", "Test", "Staff", "Officer", { projectLeadId: leadEmp.id })
+    // A second staff in the same dept so peer pools are never empty
+    await ensureTestUser("staff2@dsn-hrms.com", "STAFF", "TEST-STAFF2", "Sam", "Peer", "Officer", { projectLeadId: leadEmp.id })
+    console.log("  ✓ Test accounts (admin/lead/staff/staff2 @dsn-hrms.com — Test@1234)")
+  }
+
+  // ── Active appraisal cycle (open) — generation is idempotent (tops up on reseed) ──
+  {
+    const year = new Date().getFullYear()
+    const cycleName = `H1 ${year} Performance Appraisal`
+    let cycle = await prisma.performanceCycle.findFirst({ where: { name: cycleName } })
+    if (!cycle) {
+      cycle = await prisma.performanceCycle.create({
+        data: {
+          name: cycleName, year, half: 1,
+          startDate: new Date(`${year}-01-01`), endDate: new Date(`${year}-06-30`),
+          kpiDeadline: new Date(`${year}-06-15`),
+          isActive: true, stage: "OPEN", peerCount: 3,
+          weights: DEFAULT_WEIGHTS as any,
+          queryBands: DEFAULT_QUERY_BANDS as any,
+          recommendationBands: DEFAULT_RECOMMENDATION_BANDS as any,
+          questions: { create: defaultQuestions().map(q => ({ section: q.section as any, text: q.text, scaleMax: q.scaleMax, order: q.order, adminScored: q.adminScored ?? false })) },
+          globalKpis: { create: DEFAULT_GLOBAL_KPIS.map((k, i) => ({ projectName: k.projectName, deliverable: k.deliverable, kpi: k.kpi, weight: k.weight, order: i })) },
+        },
+      })
+      await prisma.performanceCycle.updateMany({ where: { isActive: true, id: { not: cycle.id } }, data: { isActive: false } })
+    }
+
+    // Top-up: one appraisal per active employee that doesn't have one yet
+    // (primary reviewer = project lead / manager; inject the global KPI rows).
+    const globalKpis = await prisma.appraisalGlobalKpi.findMany({ where: { cycleId: cycle.id }, orderBy: { order: "asc" } })
+    const employees = await prisma.employee.findMany({ where: { employeeStatus: "ACTIVE" }, select: { id: true, projectLeadId: true, managerId: true } })
+    const existing = new Set((await prisma.appraisal.findMany({ where: { cycleId: cycle.id }, select: { employeeId: true } })).map(a => a.employeeId))
+    let created = 0
+    for (const emp of employees) {
+      if (existing.has(emp.id)) continue
+      const primaryReviewerId = emp.projectLeadId ?? emp.managerId ?? null
+      await prisma.appraisal.create({
+        data: {
+          cycleId: cycle.id, employeeId: emp.id, stage: "NOT_STARTED",
+          kpis: { create: globalKpis.map(g => ({ projectName: g.projectName, deliverable: g.deliverable, kpi: g.kpi, weight: g.weight, source: "ADMIN" as const, order: g.order })) },
+          ...(primaryReviewerId && primaryReviewerId !== emp.id ? { reviewers: { create: { reviewerId: primaryReviewerId, role: "PRIMARY" as const } } } : {}),
+        },
+      })
+      created++
+    }
+
+    // Auto-assign peers from the same department (cross-dept fallback), up to peerCount each.
+    const allActive = await prisma.employee.findMany({ where: { employeeStatus: "ACTIVE" }, select: { id: true, departmentId: true } })
+    const subjectDept = new Map(allActive.map(e => [e.id, e.departmentId]))
+    const appraisals = await prisma.appraisal.findMany({ where: { cycleId: cycle.id }, include: { reviewers: true, peers: true } })
+    for (const a of appraisals) {
+      if (a.peers.length >= (cycle.peerCount ?? 3)) continue
+      const myDept = subjectDept.get(a.employeeId) ?? null
+      const excluded = new Set<string>([a.employeeId, ...a.reviewers.map(r => r.reviewerId), ...a.peers.map(p => p.peerId)])
+      const pool = allActive.filter(e => !excluded.has(e.id))
+      const sameDept = pool.filter(e => myDept && e.departmentId === myDept).map(e => e.id)
+      const others = pool.filter(e => !(myDept && e.departmentId === myDept)).map(e => e.id)
+      const pick = [...sameDept, ...others].slice(0, (cycle.peerCount ?? 3) - a.peers.length)
+      for (const peerId of pick) await prisma.appraisalPeer.create({ data: { appraisalId: a.id, peerId } })
+    }
+    console.log(`  ✓ Appraisal cycle "${cycleName}" (OPEN) — ${appraisals.length} appraisals (${created} new this run)`)
+  }
+
   console.log("\n✅ Seed complete.")
+  console.log("\n🔑 Test accounts (password for all: Test@1234):")
+  console.log("   SUPER_ADMIN:   admin@dsn-hrms.com")
+  console.log("   PROJECT_LEAD:  lead@dsn-hrms.com   (primary reviewer for the staff below)")
+  console.log("   STAFF:         staff@dsn-hrms.com  (reviewed by lead@; can rate lead@)")
+  console.log("   STAFF #2:      staff2@dsn-hrms.com")
   console.log("\n🔑 Production accounts:")
   console.log("   HRMS Admin:     edodida@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")
   console.log("   CEO:            olubayo@datasciencenigeria.ai  /  Welcome@DSN1   (SUPER_ADMIN — must change password on first login)")

@@ -89,15 +89,21 @@ export const NAV_ITEMS: NavItem[] = [
 
   // ── PRODUCTIVITY ─────────────────────────────────────────────────────────────
   {
-    label: "Performance", icon: "TrendingUp", roles: ALL_ROLES, section: "PRODUCTIVITY", permission: "canViewPerformance",
+    label: "Performance", icon: "TrendingUp", roles: ["ADMIN"], section: "PRODUCTIVITY", permission: "canViewPerformance",
     children: [
-      { label: "Overview",      href: "/performance", exact: true },
-      { label: "Period",        href: "/performance/period",        excludeRoles: ["STAFF"] },
-      { label: "Objectives",    href: "/performance/objectives" },
-      { label: "Groups",        href: "/performance/groups",        excludeRoles: ["STAFF"] },
-      { label: "Reviews",       href: "/performance/reviews" },
-      { label: "Conversations", href: "/performance/conversations" },
-      { label: "Feedback",      href: "/performance/feedback" },
+      { label: "Overview",         href: "/performance", exact: true },
+      { label: "Cycles",           href: "/performance/cycles",    permission: "canManageAppraisalCycles" },
+      { label: "Assign Reviewers", href: "/performance/reviewers", permission: "canAssignReviewers" },
+      { label: "Appraisals",       href: "/performance/appraisals" },
+    ],
+  },
+  {
+    label: "Performance", icon: "TrendingUp", roles: ["STAFF"], section: "PRODUCTIVITY",
+    children: [
+      { label: "Overview",         href: "/performance", exact: true },
+      { label: "My Appraisal",     href: "/performance/my" },
+      { label: "Peer Reviews",     href: "/performance/peer-reviews" },
+      { label: "Team Lead Review", href: "/performance/team-lead-review" },
     ],
   },
   { label: "Assets",    href: "/assets",    icon: "Package", roles: ["STAFF"] },
@@ -182,11 +188,11 @@ export const NAV_ITEMS: NavItem[] = [
   {
     label: "Performance", icon: "TrendingUp", roles: ["PROJECT_LEAD"],
     children: [
-      { label: "Overview",      href: "/performance", exact: true },
-      { label: "Objectives",    href: "/performance/objectives" },
-      { label: "Reviews",       href: "/performance/reviews" },
-      { label: "Conversations", href: "/performance/conversations" },
-      { label: "Feedback",      href: "/performance/feedback" },
+      { label: "Overview",         href: "/performance", exact: true },
+      { label: "My Appraisal",     href: "/performance/my" },
+      { label: "Peer Reviews",     href: "/performance/peer-reviews" },
+      { label: "Team Lead Review", href: "/performance/team-lead-review" },
+      { label: "To Review",        href: "/performance/to-review" },
     ],
   },
   { label: "Assets",       href: "/assets",                icon: "Package",         roles: ["PROJECT_LEAD"] },
