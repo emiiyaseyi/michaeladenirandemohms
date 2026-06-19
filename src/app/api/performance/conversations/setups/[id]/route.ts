@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canManageConversations")
+  if (perm) return perm
+
   const { id } = await params
   try {
     const setup = await prisma.conversationSetup.findUnique({

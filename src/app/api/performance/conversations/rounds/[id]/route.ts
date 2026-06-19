@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const perm = requirePermission(user, "canManageConversations")
+  if (perm) return perm
+
   const { id } = await params
   try {
     const round = await prisma.conversationRound.findUnique({

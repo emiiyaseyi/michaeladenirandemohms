@@ -7,8 +7,49 @@ import { format } from "date-fns"
 // WAT = UTC+1
 const WAT_OFFSET = 1 * 60 * 60 * 1000
 
+function parseMinutes(raw: string): number {
+  const s = raw.trim().toLowerCase()
+  const colon = s.match(/^(\d+):(\d{1,2})$/)
+  if (colon) return +colon[1] * 60 + +colon[2]
+  const hm = s.match(/(\d+)\s*h(?:our|r)?s?\s*(?:(\d+)\s*m(?:in)?s?)?/)
+  if (hm) return +hm[1] * 60 + (hm[2] ? +hm[2] : 0)
+  const mOnly = s.match(/^(\d+)\s*m(?:in)?s?$/)
+  if (mOnly) return +mOnly[1]
+  return isNaN(+s) ? 0 : +s
+}
+
+// Compute hours for one category from new task-array format.
+// cellEntries: { monday: [{text, minutes}, ...], tuesday: [...], ... }
+// Returns { hours, untimedTask: true|false }
+function computeCategoryHours(cellEntries: unknown): { hours: number; hasUntimed: boolean } {
+  if (!cellEntries || typeof cellEntries !== "object" || Array.isArray(cellEntries)) {
+    return { hours: 0, hasUntimed: false }
+  }
+  let totalMins = 0; let hasUntimed = false
+  for (const rows of Object.values(cellEntries as Record<string, unknown>)) {
+    if (!Array.isArray(rows)) continue
+    for (const row of rows as { text?: string; minutes?: string }[]) {
+      if (!row.text?.trim()) continue
+      const mins = parseMinutes(row.minutes ?? "")
+      if (mins === 0) { hasUntimed = true; continue }
+      totalMins += mins
+    }
+  }
+  return { hours: totalMins / 60, hasUntimed }
+}
+
 function toWAT(date: Date): Date {
   return new Date(date.getTime() + WAT_OFFSET)
+}
+
+// Saturday/Sunday late deductions and the Monday missing-report deduction are always
+// calendar-fixed — they never move even if "Submission Day" (window-open day) is reconfigured.
+// Flat per-week deduction: -missingWeeklyDeduction on every Monday the report stays unsubmitted (no streak/escalation).
+function missedMondaysCount(weekStart: Date, now: Date): number {
+  const firstMissedMonday = new Date(weekStart)
+  firstMissedMonday.setDate(weekStart.getDate() + 7)
+  if (now.getTime() < firstMissedMonday.getTime()) return 0
+  return Math.floor((now.getTime() - firstMissedMonday.getTime()) / (7 * 86400000)) + 1
 }
 
 function getWeekBounds(date: Date) {
@@ -84,11 +125,12 @@ export async function GET(req: NextRequest) {
     where,
     include: {
       employee: { select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true, department: { select: { name: true } } } },
-      tlReviewer: { select: { id: true, firstName: true, lastName: true } },
+      plReviewer: { select: { id: true, firstName: true, lastName: true } },
       attendanceFiller: { select: { id: true, firstName: true, lastName: true } },
       reviewers: {
         select: {
           id: true, reviewerEmployeeId: true, isPrimary: true, comment: true, reviewedAt: true,
+          productivityRating: true, ldRating: true, reflectionsRating: true,
           reviewer: { select: { id: true, firstName: true, lastName: true } },
         },
       },
@@ -110,7 +152,7 @@ export async function POST(req: NextRequest) {
   // Verify this user is an intern
   const emp = await prisma.employee.findUnique({
     where: { id: user.employeeId },
-    select: { id: true, jobTitle: true, employmentType: true, firstName: true, lastName: true, projectLeadId: true },
+    select: { id: true, jobTitle: true, employmentType: true, firstName: true, lastName: true, projectLeadId: true, createdAt: true, internReportStartDate: true },
   })
   if (!emp) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
   const isIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern") || emp.employmentType === "INTERN"
@@ -119,16 +161,51 @@ export async function POST(req: NextRequest) {
   // Parse body up front so content validation (reflections) fires before time-window checks.
   const body = await req.json()
   const {
-    mainProjectHours = 0, consultingHours = 0, specialProjectHours = 0,
-    trainingHours = 0, newBusinessHours = 0, reportingDocHours = 0,
-    operationalHours = 0, researchHours = 0, meetingsHours = 0,
-    communityHours = 0, representationHours = 0, selfDevHours = 0,
     personalReflection = "",
-    taskDescriptions = {},
+    taskDescriptions = {} as Record<string, unknown>,
     dailyReflections = {} as Record<string, string>,
     generalReflection = "",
     extraReviewerIds = [] as string[],
   } = body
+
+  // Compute hours from the task-array format (new) or fall back to client-sent hours (legacy).
+  const CAT_KEYS = [
+    "mainProject","specialProject","training","reportingDoc",
+    "operational","research","meetings","community","representation","selfDev",
+  ] as const
+  const CAT_HOUR_KEYS: Record<string, string> = {
+    mainProject: "mainProjectHours", specialProject: "specialProjectHours",
+    training: "trainingHours", reportingDoc: "reportingDocHours",
+    operational: "operationalHours", research: "researchHours",
+    meetings: "meetingsHours", community: "communityHours",
+    representation: "representationHours", selfDev: "selfDevHours",
+  }
+  const computedHours: Record<string, number> = {}
+  let hasUntimedTasks = false
+  for (const key of CAT_KEYS) {
+    const cellEntries = taskDescriptions[key]
+    // If the cell entries are arrays (new format), compute from minutes
+    const isNewFormat = cellEntries && typeof cellEntries === "object" && !Array.isArray(cellEntries) &&
+      Object.values(cellEntries as object).some(v => Array.isArray(v))
+    if (isNewFormat) {
+      const { hours, hasUntimed } = computeCategoryHours(cellEntries)
+      computedHours[CAT_HOUR_KEYS[key]] = hours
+      if (hasUntimed) hasUntimedTasks = true
+    } else {
+      // Legacy: use client-sent hours
+      computedHours[CAT_HOUR_KEYS[key]] = Number(body[CAT_HOUR_KEYS[key]] ?? 0)
+    }
+  }
+
+  if (hasUntimedTasks) {
+    return NextResponse.json({ error: "Every filled task must have a time entry." }, { status: 400 })
+  }
+
+  const {
+    mainProjectHours, specialProjectHours, trainingHours, reportingDocHours,
+    operationalHours, researchHours, meetingsHours, communityHours,
+    representationHours, selfDevHours,
+  } = computedHours as Record<string, number>
 
   // Compulsory: every Mon-Fri reflection must be non-empty after trim.
   const REFLECTION_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
@@ -150,42 +227,65 @@ export async function POST(req: NextRequest) {
   const lateHour           = cfg?.lateHour             ?? 20
   const lateDeductionSat   = cfg?.lateDeduction        ?? 2
   const lateDeductionSun   = cfg?.lateDeductionSunday  ?? 3
+  const missingWeeklyDeduction = cfg?.missingWeeklyDeduction ?? 10
 
-  // Window is: submissionDay (Fri) openHour → Sunday 23:59 WAT.
-  // Deductions: Fri before lateHour = 0, Fri after lateHour = 0 (LATE flag),
-  // Saturday = lateDeductionSat, Sunday = lateDeductionSun.
   const nowWAT = toWAT(new Date())
-  const dayWAT = nowWAT.getDay() // 0=Sun … 5=Fri … 6=Sat
+  const dayWAT = nowWAT.getDay()
   const hoursWAT = nowWAT.getHours()
 
-  const FRI = submissionDay   // 5
-  const SAT = (submissionDay + 1) % 7  // 6
-  const SUN = (submissionDay + 2) % 7  // 0
-  const isFri = dayWAT === FRI
-  const isSat = dayWAT === SAT
-  const isSun = dayWAT === SUN
+  // Determine which week is being submitted
+  const { weekStart: currentWeekStart } = getWeekBounds(nowWAT)
+  let ws: Date, we: Date
 
-  // ── TESTING (R6): window left permanently open ─────────────────────────────
-  // Both gates below are intentionally skipped while we're still testing.
-  // To restore production behaviour: flip TESTING_ALWAYS_OPEN to false (or
-  // delete the const + restore the `if` blocks below as `return` statements).
-  // Matching client-side override lives in src/app/staff/intern-report/page.tsx
-  // (search for "TESTING_ALWAYS_OPEN"). Also documented in work.md Round 6.
+  if (body.weekStart) {
+    const parsed = getWeekBounds(new Date(body.weekStart))
+    ws = parsed.weekStart; we = parsed.weekEnd
+  } else {
+    ws = currentWeekStart
+    const friday = new Date(ws); friday.setDate(ws.getDate() + 4)
+    we = friday
+  }
+
+  const isPastWeek = ws.getTime() < currentWeekStart.getTime()
+
+  // Eligibility starts from account creation, not hireDate — unless an admin set an
+  // explicit override (internReportStartDate) for this intern.
+  const reportStartDate = emp.internReportStartDate ?? emp.createdAt
+  const { weekStart: earliestWeekStart } = getWeekBounds(reportStartDate)
+  if (ws.getTime() < earliestWeekStart.getTime()) {
+    return NextResponse.json({ error: "You can't submit a report for a week before your reporting start date." }, { status: 400 })
+  }
+
+  // The window-open day is configurable (Mon-Fri). Saturday and Sunday are ALWAYS the
+  // literal calendar days for late submission — they never shift with the open day.
+  const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+  const OPEN_DAY = submissionDay
+  const isOpenDay = dayWAT === OPEN_DAY
+  const isSat = dayWAT === 6
+  const isSun = dayWAT === 0
+
   const TESTING_ALWAYS_OPEN = false
-  if (!TESTING_ALWAYS_OPEN) {
-    if (!isFri && !isSat && !isSun) {
-      return NextResponse.json({ error: `Submission window opens Friday at ${openHour}:00 WAT and closes Sunday at 11:59 PM WAT.` }, { status: 400 })
+
+  // Window check — skipped for past-week submissions
+  if (!isPastWeek && !TESTING_ALWAYS_OPEN) {
+    if (!isOpenDay && !isSat && !isSun) {
+      return NextResponse.json({ error: `Submission window opens ${DAY_NAMES[OPEN_DAY]} at ${openHour}:00 WAT and closes Sunday at 11:59 PM WAT.` }, { status: 400 })
     }
-    if (isFri && hoursWAT < openHour) {
+    if (isOpenDay && hoursWAT < openHour) {
       return NextResponse.json({ error: `Submission opens at ${openHour}:00 WAT today.` }, { status: 400 })
     }
   }
 
-  // Compute status + deduction by day
+  // Compute status + deduction
   let lateFlag = false
   let pointDeduction = 0
   let computedStatus: "SUBMITTED" | "LATE" = "SUBMITTED"
-  if (isFri && hoursWAT >= lateHour) {
+
+  if (isPastWeek) {
+    // Flat per-week deduction: -missingWeeklyDeduction for every Monday this report has been outstanding.
+    lateFlag = true; computedStatus = "LATE"
+    pointDeduction = missedMondaysCount(ws, nowWAT) * missingWeeklyDeduction
+  } else if (isOpenDay && hoursWAT >= lateHour) {
     lateFlag = true; computedStatus = "LATE"; pointDeduction = 0
   } else if (isSat) {
     lateFlag = true; computedStatus = "LATE"; pointDeduction = lateDeductionSat
@@ -193,12 +293,10 @@ export async function POST(req: NextRequest) {
     lateFlag = true; computedStatus = "LATE"; pointDeduction = lateDeductionSun
   }
 
-  const { weekStart: ws, weekEnd: we } = getWeekBounds(new Date())
-
   // Hours cap: base hard cap = 40h, reduced by 8h per public holiday in the week
   const totalHoursRaw = [
-    mainProjectHours, consultingHours, specialProjectHours, trainingHours,
-    newBusinessHours, reportingDocHours, operationalHours, researchHours,
+    mainProjectHours, specialProjectHours, trainingHours,
+    reportingDocHours, operationalHours, researchHours,
     meetingsHours, communityHours, representationHours, selfDevHours,
   ].reduce((a, b) => a + Number(b), 0)
 
@@ -213,14 +311,12 @@ export async function POST(req: NextRequest) {
     }, { status: 400 })
   }
 
-  // Prevent duplicate / block on MISSING placeholder
+  // Check for existing report
   const existing = await prisma.internWeeklyReport.findFirst({
     where: { employeeId: emp.id, weekStart: ws },
   })
-  if (existing && existing.status === "MISSING") {
-    return NextResponse.json({ error: "A missing-report record exists for this week. Ask an admin to clear it before submitting." }, { status: 409 })
-  }
-  if (existing && existing.status !== "DRAFT") {
+  // MISSING records (any week) can always be overwritten by a late submission — no admin gate.
+  if (existing && existing.status !== "DRAFT" && existing.status !== "MISSING") {
     return NextResponse.json({ error: "You have already submitted a report for this week." }, { status: 409 })
   }
 
@@ -231,8 +327,8 @@ export async function POST(req: NextRequest) {
     where: { employeeId_weekStart: { employeeId: emp.id, weekStart: ws } },
     create: {
       employeeId: emp.id, weekStart: ws, weekEnd: we,
-      mainProjectHours, consultingHours, specialProjectHours, trainingHours,
-      newBusinessHours, reportingDocHours, operationalHours, researchHours,
+      mainProjectHours, specialProjectHours, trainingHours,
+      reportingDocHours, operationalHours, researchHours,
       meetingsHours, communityHours, representationHours, selfDevHours,
       totalHours, personalReflection, taskDescriptions, dailyReflections, generalReflection,
       submittedAt: new Date(), lateFlag,
@@ -240,8 +336,8 @@ export async function POST(req: NextRequest) {
       status: computedStatus,
     },
     update: {
-      mainProjectHours, consultingHours, specialProjectHours, trainingHours,
-      newBusinessHours, reportingDocHours, operationalHours, researchHours,
+      mainProjectHours, specialProjectHours, trainingHours,
+      reportingDocHours, operationalHours, researchHours,
       meetingsHours, communityHours, representationHours, selfDevHours,
       totalHours, personalReflection, taskDescriptions, dailyReflections, generalReflection,
       submittedAt: new Date(), lateFlag,

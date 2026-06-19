@@ -59,7 +59,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
     group: "Intern Reports",
     items: [
       { key: "canViewInternReports", label: "View intern weekly reports" },
-      { key: "canReviewInternReports", label: "Fill Team Lead feedback on reports" },
+      { key: "canReviewInternReports", label: "Fill Project Lead feedback on reports" },
       { key: "canFillAttendance", label: "Fill attendance ratings for interns" },
     ],
   },

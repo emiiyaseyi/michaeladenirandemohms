@@ -5,7 +5,7 @@ import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
+  if (!hasCap(user, "canEditEmployee")) return forbidden()
 
   const { id } = await params
 

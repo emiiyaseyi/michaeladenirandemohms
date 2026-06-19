@@ -1,7 +1,9 @@
 "use client"
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, ChevronDown } from "lucide-react"
+import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 
 type SurveyType = "GENERAL" | "CONFIRMATION" | "EXIT"
 
@@ -19,7 +21,7 @@ export default function CreateTemplatePage() {
   const [showTypeDropdown, setShowTypeDropdown] = useState(false)
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const typeRef = useRef<HTMLDivElement>(null)
+  const { ref: typeRef, pos: typePos, recompute: recomputeType } = useDropdownPosition<HTMLDivElement>()
 
   useEffect(() => {
     if (!showTypeDropdown) return
@@ -98,7 +100,7 @@ export default function CreateTemplatePage() {
               <div ref={typeRef} style={{ position: "relative" }}>
                 <button
                   type="button"
-                  onClick={() => setShowTypeDropdown(v => !v)}
+                  onClick={() => { recomputeType(); setShowTypeDropdown(v => !v) }}
                   style={{
                     ...inputStyle(!!errors.type),
                     display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -110,11 +112,11 @@ export default function CreateTemplatePage() {
                   </span>
                   <ChevronDown size={14} style={{ color: "#9CA3AF" }} />
                 </button>
-                {showTypeDropdown && (
+                {showTypeDropdown && typeof document !== "undefined" && createPortal(
                   <div style={{
-                    position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4,
+                    position: "fixed", top: typePos.top, left: typePos.left, width: typePos.width,
                     background: "var(--card)", border: "1px solid var(--border)",
-                    borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 100,
+                    borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 9999,
                   }}>
                     {TYPES.map(t => (
                       <button key={t.value} type="button"
@@ -130,7 +132,8 @@ export default function CreateTemplatePage() {
                         {t.label}
                       </button>
                     ))}
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
               {errors.type && <p style={{ fontSize: 12, color: "#EF4444", marginTop: 4 }}>{errors.type}</p>}

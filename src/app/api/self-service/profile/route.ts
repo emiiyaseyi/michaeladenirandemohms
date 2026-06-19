@@ -6,7 +6,7 @@ import { differenceInMonths, differenceInYears, format } from "date-fns"
 const REQUIRED_FIELDS = [
   "firstName", "lastName", "gender", "dateOfBirth", "maritalStatus",
   "personalEmail", "phone", "address", "city", "state",
-  "profilePhoto", "nokName", "nokPhone",
+  "nokName", "nokPhone",
 ]
 
 function calcCompleteness(emp: any): number {
@@ -60,6 +60,16 @@ export async function GET() {
 
   const inviteCount = await prisma.employeeInvite.count({ where: { employeeId: employee.id } })
   const cameViaInvite = inviteCount > 0
+
+  // Merge any pending ProfileUpdateRequest into completeness so the reminder
+  // disappears while awaiting HR approval — the user has done their part.
+  const pendingRequest = await prisma.profileUpdateRequest.findFirst({
+    where: { employeeId: employee.id, status: "PENDING" },
+    select: { changes: true },
+  })
+  const effectiveEmployee = pendingRequest?.changes
+    ? { ...employee, ...(pendingRequest.changes as Record<string, any>) }
+    : employee
 
   // Step 2: parallel fetch of everything else (no nested async in Promise.all)
   const [leaveTypes, leaveRequests, teamOnLeave, deptMembers] = await Promise.all([
@@ -195,9 +205,11 @@ export async function GET() {
       role: user.role,
       profilePhoto: employee.profilePhoto,
       hireDate: employee.hireDate,
+      internReportStartDate: employee.internReportStartDate,
+      accountCreatedAt: employee.createdAt,
       workAnniversary: workAnniversary(employee.hireDate),
       timeInCompany: timeInCompany(employee.hireDate),
-      completeness: calcCompleteness(employee),
+      completeness: calcCompleteness(effectiveEmployee),
       cameViaInvite,
       employeeStatus: employee.employeeStatus,
       gender: employee.gender,

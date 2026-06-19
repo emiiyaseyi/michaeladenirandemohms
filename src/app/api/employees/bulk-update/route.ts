@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (user.role !== "SUPER_ADMIN" && !user.permissions["canViewAllEmployees"]) return forbidden()
+  if (user.role !== "SUPER_ADMIN" && !user.permissions["canEditEmployee"]) return forbidden()
 
   const formData = await req.formData()
   const file = formData.get("file") as File | null

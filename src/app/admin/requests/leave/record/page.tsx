@@ -1,7 +1,9 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, Loader2, X, Plus, Search } from "lucide-react"
+import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 
 function Field({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
   return (
@@ -21,6 +23,7 @@ function EmpSelect({ employees, value, onChange, placeholder = "Please Select" }
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState("")
   const ref = useRef<HTMLDivElement>(null)
+  const { ref: btnRef, pos, recompute } = useDropdownPosition<HTMLButtonElement>()
   useEffect(() => {
     const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) { setOpen(false); setQ("") } }
     document.addEventListener("mousedown", h)
@@ -30,15 +33,15 @@ function EmpSelect({ employees, value, onChange, placeholder = "Please Select" }
   const fi: React.CSSProperties = { width: "100%", padding: "10px 14px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 14, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box" }
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <button type="button" onClick={() => { setOpen(o => !o); setQ("") }}
+      <button type="button" ref={btnRef} onClick={() => { recompute(); setOpen(o => !o); setQ("") }}
         style={{ ...fi, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", textAlign: "left" }}>
         <span style={{ color: sel ? "var(--foreground)" : "var(--muted-foreground)" }}>
           {sel ? `${sel.firstName} ${sel.lastName}` : placeholder}
         </span>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
       </button>
-      {open && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 100, maxHeight: 240, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+      {open && typeof document !== "undefined" && createPortal(
+        <div style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 9999, maxHeight: 240, overflow: "hidden", display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 6, padding: "6px 10px" }}>
               <Search size={13} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
@@ -55,7 +58,8 @@ function EmpSelect({ employees, value, onChange, placeholder = "Please Select" }
               </button>
             ))}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

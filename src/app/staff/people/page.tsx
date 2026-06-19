@@ -1,6 +1,8 @@
 "use client"
 import { useState, useEffect, useCallback, useRef } from "react"
+import { createPortal } from "react-dom"
 import { Search, Loader2, ChevronDown, Check } from "lucide-react"
+import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 
 const STATUS_OPTS = [
   { value: "", label: "All" },
@@ -39,6 +41,8 @@ export default function StaffPeoplePage() {
   const filterRef = useRef<HTMLDivElement>(null)
   const deptRef = useRef<HTMLDivElement>(null)
   const pageSizeRef = useRef<HTMLDivElement>(null)
+  const { ref: filterBtnRef, pos: filterPos, recompute: recomputeFilterPos } = useDropdownPosition<HTMLButtonElement>()
+  const { ref: deptBtnRef, pos: deptPos, recompute: recomputeDeptPos } = useDropdownPosition<HTMLButtonElement>()
 
   useEffect(() => {
     if (!filterOpen) return
@@ -106,26 +110,27 @@ export default function StaffPeoplePage() {
             />
           </div>
           <div ref={filterRef} style={{ position: "relative" }}>
-            <button onClick={() => setFilterOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
+            <button ref={filterBtnRef} onClick={() => { recomputeFilterPos(); setFilterOpen(o => !o) }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
               {filterLabel} <ChevronDown size={13} />
             </button>
-            {filterOpen && (
-              <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 130, padding: "4px 0" }}>
+            {filterOpen && typeof document !== "undefined" && createPortal(
+              <div style={{ position: "fixed", top: filterPos.top, left: filterPos.left, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 130, padding: "4px 0" }}>
                 {STATUS_OPTS.map(o => (
                   <button key={o.value} onClick={() => { setStatusFilter(o.value); setFilterOpen(false) }}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: statusFilter === o.value ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
                     {o.label} {statusFilter === o.value && <Check size={13} />}
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
           <div ref={deptRef} style={{ position: "relative" }}>
-            <button onClick={() => setDeptOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
+            <button ref={deptBtnRef} onClick={() => { recomputeDeptPos(); setDeptOpen(o => !o) }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
               {deptFilter ? (departments.find(d => d.id === deptFilter)?.name ?? "Department") : "All Departments"} <ChevronDown size={13} />
             </button>
-            {deptOpen && (
-              <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 180, maxWidth: 260, maxHeight: 240, overflowY: "auto", padding: "4px 0" }}>
+            {deptOpen && typeof document !== "undefined" && createPortal(
+              <div style={{ position: "fixed", top: deptPos.top, left: deptPos.left, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 180, maxWidth: 260, maxHeight: 240, overflowY: "auto", padding: "4px 0" }}>
                 <button onClick={() => { setDeptFilter(""); setDeptOpen(false); setPage(1) }}
                   style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: !deptFilter ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
                   <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>All Departments</span>
@@ -138,7 +143,8 @@ export default function StaffPeoplePage() {
                     {deptFilter === d.id && <Check size={13} style={{ flexShrink: 0, marginLeft: 8 }} />}
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>

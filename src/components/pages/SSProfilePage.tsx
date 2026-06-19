@@ -261,7 +261,7 @@ export default function SSProfilePage() {
   const pathname = usePathname()
   const roleSlug = pathname.split("/")[1]
   const editHref = `/${roleSlug}/self-service/edit`
-  const leaveHref = roleSlug === "staff" ? `/${roleSlug}/self-service/leave` : `/${roleSlug}/requests/leave`
+  const leaveHref = `/${roleSlug}/requests/leave`
 
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)

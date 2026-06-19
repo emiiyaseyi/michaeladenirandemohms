@@ -26,10 +26,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   })
   if (!report) return NextResponse.json({ error: "Report not found" }, { status: 404 })
 
-  // No time restriction — admin can fill attendance any time after report is submitted
-  const allowedStatuses = ["SUBMITTED", "LATE", "REVIEWED"]
+  // No time restriction — admin can fill attendance any time after report is submitted or for MISSING records
+  const allowedStatuses = ["SUBMITTED", "LATE", "REVIEWED", "MISSING"]
   if (!allowedStatuses.includes(report.status)) {
-    return NextResponse.json({ error: "Attendance can only be filled on submitted or reviewed reports" }, { status: 400 })
+    return NextResponse.json({ error: "Attendance can only be filled on submitted, reviewed, or missing-record reports" }, { status: 400 })
   }
 
   const { attendanceRating, attendanceComment } = await req.json()

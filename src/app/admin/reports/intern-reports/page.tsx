@@ -12,10 +12,8 @@ const ATTENDANCE_CRITERIA: [number, string][] = [
 
 const CATEGORIES = [
   { key: "mainProject",    hoursKey: "mainProjectHours",    label: "Main Project" },
-  { key: "consulting",     hoursKey: "consultingHours",     label: "Consulting" },
   { key: "specialProject", hoursKey: "specialProjectHours", label: "Special Project" },
   { key: "training",       hoursKey: "trainingHours",       label: "Training" },
-  { key: "newBusiness",    hoursKey: "newBusinessHours",    label: "New Business" },
   { key: "reportingDoc",   hoursKey: "reportingDocHours",   label: "Reporting / Documentation" },
   { key: "operational",    hoursKey: "operationalHours",    label: "Operational Support" },
   { key: "research",       hoursKey: "researchHours",       label: "Research" },
@@ -24,6 +22,38 @@ const CATEGORIES = [
   { key: "representation", hoursKey: "representationHours", label: "Representation" },
   { key: "selfDev",        hoursKey: "selfDevHours",        label: "Self Development" },
 ]
+
+function parseMinutes(raw: string): number {
+  const s = (raw ?? "").trim().toLowerCase()
+  const colon = s.match(/^(\d+):(\d{1,2})$/)
+  if (colon) return +colon[1] * 60 + +colon[2]
+  const hm = s.match(/(\d+)\s*h(?:our|r)?s?\s*(?:(\d+)\s*m(?:in)?s?)?/)
+  if (hm) return +hm[1] * 60 + (hm[2] ? +hm[2] : 0)
+  const mOnly = s.match(/^(\d+)\s*m(?:in)?s?$/)
+  if (mOnly) return +mOnly[1]
+  return isNaN(+s) ? 0 : +s
+}
+
+function fmtMinutes(m: number): string {
+  if (!m) return ""
+  const h = Math.floor(m / 60), min = m % 60
+  return h ? (min ? `${h}h ${min}m` : `${h}h`) : `${min}m`
+}
+
+// Get hours for a category+day from taskDescriptions — handles both old {tasks,hours} and new [{text,minutes}] formats
+function getCellData(td: any, catKey: string, day: string): { tasks: string[]; totalMins: number } {
+  const cell = td?.[catKey]?.[day]
+  if (!cell) return { tasks: [], totalMins: 0 }
+  if (Array.isArray(cell)) {
+    const rows = cell as { text?: string; minutes?: string }[]
+    return {
+      tasks: rows.map(r => r.text?.trim()).filter(Boolean) as string[],
+      totalMins: rows.reduce((s, r) => s + (r.text?.trim() ? parseMinutes(r.minutes ?? "") : 0), 0),
+    }
+  }
+  // Legacy format
+  return { tasks: cell.tasks ? [cell.tasks] : [], totalMins: parseMinutes(cell.hours ?? "0") * 60 || (parseFloat(cell.hours ?? "0") * 60) }
+}
 
 const DAYS_LIST = ["monday","tuesday","wednesday","thursday","friday"] as const
 
@@ -37,6 +67,27 @@ function StatusBadge({ status }: { status: string }) {
   }
   const s = map[status] ?? map.DRAFT
   return <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>{s.label}</span>
+}
+
+const getReviewDeadline = (weekStart: string | Date) => {
+  const d = new Date(weekStart)
+  return new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000 + 7 * 60 * 60 * 1000)
+}
+
+function ReviewDeadlineBadge({ weekStart }: { weekStart: string }) {
+  const deadline = getReviewDeadline(weekStart)
+  const isOverdue = deadline < new Date()
+  const dateStr = deadline.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+      background: isOverdue ? "var(--danger-bg)" : "var(--warning-bg)",
+      color: isOverdue ? "var(--accent)" : "var(--warning)",
+      whiteSpace: "nowrap",
+    }}>
+      {isOverdue ? "OVERDUE" : `Due ${dateStr}`}
+    </span>
+  )
 }
 
 function RatingSelector({ value, onChange, disabled }: { value: number | null; onChange: (v: number) => void; disabled?: boolean }) {
@@ -68,6 +119,13 @@ function lastDayOfMonth(year: number, month: number): Date {
   return new Date(year, month + 1, 0)
 }
 
+const AVATAR_COLORS = ["#E11D48","#7C3AED","#1D4ED8","#0369A1","#0F766E","#15803D","#92400E","#B45309"]
+function avatarColor(name: string) {
+  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length
+  return AVATAR_COLORS[h]
+}
+function lbInitials(name: string) { return name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() }
+
 export default function AdminInternReportsPage() {
   const [reports, setReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -84,6 +142,13 @@ export default function AdminInternReportsPage() {
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [tab, setTab] = useState<"reports" | "leaderboard">("reports")
   const [lbWeekOffset, setLbWeekOffset] = useState(0)
+  const [lbMode, setLbMode] = useState<"week" | "month" | "alltime">("week")
+  const [lbDeptFilter, setLbDeptFilter] = useState("")
+  const [clearingReport, setClearingReport] = useState<{ id: string; name: string; week: string } | null>(null)
+  const [clearing, setClearing] = useState(false)
+  const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set())
+  const [allInterns, setAllInterns] = useState<any[]>([])
+  const [creatingPlaceholder, setCreatingPlaceholder] = useState<string | null>(null)
 
   const now = new Date()
 
@@ -148,18 +213,72 @@ export default function AdminInternReportsPage() {
   useEffect(() => { loadReports() }, [mode, weekOffset, monthOffset, yearOffset])
 
   useEffect(() => {
-    fetch(`/api/intern-reports/leaderboard?week=${encodeURIComponent(lbMonday.toISOString())}`)
-      .then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
-  }, [lbWeekOffset])
+    fetch("/api/employees?search=intern&status=ACTIVE")
+      .then(r => r.json())
+      .then(d => {
+        const interns = (d.employees ?? []).filter((e: any) =>
+          (e.jobTitle ?? "").toLowerCase().includes("intern")
+        )
+        setAllInterns(interns)
+      })
+      .catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    let url = "/api/intern-reports/leaderboard"
+    if (lbMode === "week") {
+      const d = new Date(now); d.setUTCHours(0,0,0,0)
+      const day = d.getUTCDay(); const diff = day === 0 ? -6 : 1 - day
+      d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
+      url += `?week=${encodeURIComponent(d.toISOString())}`
+    } else {
+      url += `?mode=${lbMode}`
+    }
+    fetch(url).then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
+  }, [lbWeekOffset, lbMode])
 
   const departments =[...new Set(reports.map(r => r.employee?.department?.name).filter(Boolean))]
   const filtered = deptFilter ? reports.filter(r => r.employee?.department?.name === deptFilter) : reports
+
+  // In week mode: extend filtered with interns who have no report for the week
+  const reportedEmpIds = new Set(filtered.map(r => r.employee?.id).filter(Boolean))
+  const internsWithoutReport = mode === "week"
+    ? allInterns.filter((e: any) => !reportedEmpIds.has(e.id) && (!deptFilter || e.department?.name === deptFilter))
+    : []
 
   const openAttendance = (id: string) => {
     const r = reports.find(r => r.id === id)
     if (r) {
       setAttForm({ attendanceRating: r.attendanceRating ?? null, attendanceComment: r.attendanceComment ?? "" })
       setAttendanceId(id)
+      setSaveErr("")
+    }
+  }
+
+  const createPlaceholderAndOpenAttendance = async (emp: any) => {
+    setCreatingPlaceholder(emp.id)
+    // Create a MISSING placeholder via the cron-like route or directly via a new endpoint
+    // We'll use the intern-reports DELETE inverse — we need to create a MISSING report
+    // Since there's no direct admin-create endpoint, we'll create the MISSING record server-side
+    // by calling a special admin endpoint. For now, use the cron payload pattern.
+    // Actually: just open the attendance modal — we'll handle the "no report" case in the API
+    // by creating the placeholder there when status check is relaxed.
+    // But the current API requires an existing report ID. So we do need to create one first.
+
+    // Create MISSING placeholder via intern-reports API (admin creates on behalf of intern)
+    const weekIso = currentMonday.toISOString()
+    const res = await fetch("/api/intern-reports/admin-placeholder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ employeeId: emp.id, weekStart: weekIso }),
+    })
+    const d = await res.json()
+    setCreatingPlaceholder(null)
+    if (res.ok && d.report) {
+      // Reload reports and open attendance for the new placeholder
+      await loadReports()
+      setAttForm({ attendanceRating: null, attendanceComment: "" })
+      setAttendanceId(d.report.id)
       setSaveErr("")
     }
   }
@@ -193,7 +312,7 @@ export default function AdminInternReportsPage() {
   ])
 
   const exportCSV = () => {
-    const headers = ["Intern", "Dept", "Hours", "TL Score", "Attendance", "Deduction", "Total Score", "Status", "Late"]
+    const headers = ["Intern", "Dept", "Hours", "PL Score", "Attendance", "Deduction", "Total Score", "Status", "Late"]
     const rows = [headers, ...getExportRows()]
     const csv = rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n")
     const blob = new Blob([csv], { type: "text/csv" })
@@ -205,7 +324,7 @@ export default function AdminInternReportsPage() {
 
   const exportExcel = async () => {
     const { utils, write } = await import("xlsx")
-    const headers = ["Intern", "Dept", "Hours", "TL Score", "Attendance", "Deduction", "Total Score", "Status", "Late"]
+    const headers = ["Intern", "Dept", "Hours", "PL Score", "Attendance", "Deduction", "Total Score", "Status", "Late"]
     const wsData = [headers, ...getExportRows()]
     const ws = utils.aoa_to_sheet(wsData)
     ws["!cols"] = headers.map(() => ({ wch: 18 }))
@@ -244,7 +363,7 @@ export default function AdminInternReportsPage() {
     doc.text(getPeriodLabel(), W - 14, 18, { align: "right" })
     doc.text(`Generated: ${new Date().toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}`, W - 14, 26, { align: "right" })
 
-    const headers = ["Intern", "Dept", "Hours", "TL Score", "Attendance", "Deduction", "Total Score", "Status", "Late"]
+    const headers = ["Intern", "Dept", "Hours", "PL Score", "Attendance", "Deduction", "Total Score", "Status", "Late"]
     autoTable(doc, {
       head: [headers],
       body: getExportRows().map(r => r.map(v => String(v ?? ""))),
@@ -273,8 +392,8 @@ export default function AdminInternReportsPage() {
   const viewingReport = viewingId ? reports.find(r => r.id === viewingId) : null
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1400, margin: "0 auto" }}>
-      <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+    <div className="admin-intern-reports-page" style={{ padding: "28px 32px", maxWidth: 1400, margin: "0 auto" }}>
+      <div style={{ marginBottom: 28, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
             <ClipboardList size={22} style={{ color: "var(--primary)" }} />
@@ -282,7 +401,7 @@ export default function AdminInternReportsPage() {
           </div>
           <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>View all intern reports, fill attendance ratings, and track weekly performance.</p>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button onClick={exportCSV} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
             <Download size={14} /> CSV
           </button>
@@ -328,7 +447,7 @@ export default function AdminInternReportsPage() {
           }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
             <ChevronLeft size={18} />
           </button>
-          <span style={{ fontSize: 13, fontWeight: 700, minWidth: 200, textAlign: "center" }}>{getPeriodLabel()}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, minWidth: "min(200px, 40vw)", textAlign: "center" }}>{getPeriodLabel()}</span>
           <button
             onClick={() => {
               if (mode === "week") setWeekOffset(o => Math.min(o + 1, 0))
@@ -356,7 +475,7 @@ export default function AdminInternReportsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--muted)" }}>
-                {["Intern", "Department", "Hours", "Status", "Late", "TL Score", "Attendance", "Deduction", "Total Score", "Actions"].map(h => (
+                {["Intern", "Department", "Hours", "Status", "Late", "PL Score", "Attendance", "Deduction", "Total Score", "Actions"].map(h => (
                   <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -364,10 +483,11 @@ export default function AdminInternReportsPage() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={10} style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)" }}>Loading…</td></tr>
-              ) : filtered.length === 0 ? (
+              ) : filtered.length === 0 && internsWithoutReport.length === 0 ? (
                 <tr><td colSpan={10} style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)" }}>No intern reports for this period.</td></tr>
-              ) : filtered.map(r => {
-                const tlScore = (r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)
+              ) : (<>
+              {filtered.map(r => {
+                const plScore = (r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)
                 return (
                   <tr key={r.id} style={{ borderTop: "1px solid var(--border)" }}>
                     <td style={{ padding: "12px 16px", fontWeight: 600 }}>
@@ -375,12 +495,19 @@ export default function AdminInternReportsPage() {
                     </td>
                     <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>{r.employee?.department?.name ?? "–"}</td>
                     <td style={{ padding: "12px 16px" }}>{(r.totalHours ?? 0).toFixed(1)}</td>
-                    <td style={{ padding: "12px 16px" }}><StatusBadge status={r.status} /></td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <StatusBadge status={r.status} />
+                        {(r.status === "SUBMITTED" || r.status === "LATE") && r.reviewers?.some((rv: any) => !rv.reviewedAt) && (
+                          <ReviewDeadlineBadge weekStart={r.weekStart} />
+                        )}
+                      </div>
+                    </td>
                     <td style={{ padding: "12px 16px" }}>
                       {r.lateFlag ? <span style={{ color: "#D97706", fontWeight: 700 }}>Yes</span> : <span style={{ color: "var(--muted-foreground)" }}>No</span>}
                     </td>
                     <td style={{ padding: "12px 16px" }}>
-                      {r.productivityRating !== null ? `${Math.round((tlScore / 9) * 100)}%` : "–"}
+                      {r.productivityRating !== null ? `${Math.round((plScore / 9) * 100)}%` : "–"}
                     </td>
                     <td style={{ padding: "12px 16px" }}>
                       {r.attendanceRating !== null ? `${Math.round((r.attendanceRating / 3) * 100)}%` : <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>Pending</span>}
@@ -403,7 +530,7 @@ export default function AdminInternReportsPage() {
                             View
                           </button>
                         )}
-                        {r.status === "REVIEWED" && (
+                        {(r.status === "REVIEWED" || r.status === "MISSING") && (
                           <button onClick={() => openAttendance(r.id)}
                             style={{ padding: "5px 12px", background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
                             {r.attendanceRating !== null ? "Edit Attendance" : "Fill Attendance"}
@@ -414,12 +541,11 @@ export default function AdminInternReportsPage() {
                         )}
                         {r.status === "MISSING" && (
                           <button
-                            onClick={async () => {
-                              if (!confirm(`Clear the missed-report record for ${r.employee?.firstName} ${r.employee?.lastName}? They will be able to submit retroactively.`)) return
-                              const res = await fetch(`/api/intern-reports/${r.id}`, { method: "DELETE" })
-                              if (!res.ok) { alert("Failed to clear record"); return }
-                              setReports(prev => prev.filter(x => x.id !== r.id))
-                            }}
+                            onClick={() => setClearingReport({
+                              id: r.id,
+                              name: `${r.employee?.firstName} ${r.employee?.lastName}`,
+                              week: `${format(new Date(r.weekStart), "MMM d")} – ${format(new Date(r.weekEnd), "MMM d, yyyy")}`,
+                            })}
                             style={{ padding: "5px 12px", background: "#DC2626", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
                             Clear missed record
                           </button>
@@ -429,6 +555,30 @@ export default function AdminInternReportsPage() {
                   </tr>
                 )
               })}
+              {internsWithoutReport.map((emp: any) => (
+                <tr key={`no-report-${emp.id}`} style={{ borderTop: "1px solid var(--border)", opacity: 0.7 }}>
+                  <td style={{ padding: "12px 16px", fontWeight: 600 }}>{emp.firstName} {emp.lastName}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>{emp.department?.name ?? "–"}</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
+                  <td style={{ padding: "12px 16px" }}>
+                    <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#F3F4F6", color: "#6B7280" }}>No report</span>
+                  </td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)", fontStyle: "italic" }}>Pending</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
+                  <td style={{ padding: "12px 16px" }}>
+                    <button
+                      onClick={() => createPlaceholderAndOpenAttendance(emp)}
+                      disabled={creatingPlaceholder === emp.id}
+                      style={{ padding: "5px 12px", background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white", opacity: creatingPlaceholder === emp.id ? 0.6 : 1 }}>
+                      {creatingPlaceholder === emp.id ? "…" : "Fill Attendance"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+              </>)}
             </tbody>
           </table>
         </div>
@@ -436,79 +586,123 @@ export default function AdminInternReportsPage() {
 
       </>)}
 
-      {tab === "leaderboard" && (
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 20px" }}>
-              <button onClick={() => setLbWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
-                <ChevronLeft size={18} />
-              </button>
-              <span style={{ fontSize: 14, fontWeight: 700, minWidth: 200, textAlign: "center" }}>{lbWeekLabel}</span>
-              <button onClick={() => setLbWeekOffset(o => Math.min(o + 1, 0))} disabled={lbWeekOffset === 0}
-                style={{ background: "none", border: "none", cursor: lbWeekOffset === 0 ? "not-allowed" : "pointer", color: lbWeekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}>
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-            {leaderboard.length === 0 ? (
-              <div style={{ padding: "40px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leaderboard data for this week.</div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: "var(--muted)" }}>
-                      {["Rank", "Intern", "Dept", "Hours", "Status", "TL Score", "Attendance", "Deduction", "Total"].map(h => (
-                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboard.map((row: any) => {
-                      const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null
-                      const statusMap: Record<string, { label: string; bg: string; color: string }> = {
-                        SUBMITTED: { label: "Submitted", bg: "#DBEAFE", color: "#1D4ED8" },
-                        LATE:      { label: "Late",      bg: "#FEF3C7", color: "#D97706" },
-                        REVIEWED:  { label: "Reviewed",  bg: "#DCFCE7", color: "#15803D" },
-                        MISSING:   { label: "Missed",    bg: "#FEE2E2", color: "#DC2626" },
-                      }
-                      const s = statusMap[row.status] ?? { label: row.status ?? "–", bg: "#F3F4F6", color: "#6B7280" }
-                      return (
-                        <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)" }}>
-                          <td style={{ padding: "12px 16px", fontWeight: 700 }}>
-                            {medal ? <span style={{ fontSize: 16 }}>{medal}</span> : <span style={{ color: "var(--muted-foreground)" }}>{row.rank}</span>}
-                          </td>
-                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{row.name}</td>
-                          <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>{row.dept}</td>
-                          <td style={{ padding: "12px 16px" }}>{row.totalHours?.toFixed(1)}h</td>
-                          <td style={{ padding: "12px 16px" }}>
-                            {row.status && <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>{s.label}</span>}
-                          </td>
-                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{row.tlScorePct}%</td>
-                          <td style={{ padding: "12px 16px", color: row.attendancePending ? "var(--muted-foreground)" : "inherit" }}>
-                            {row.attendancePending ? "Pending" : `${row.attendanceScorePct}%`}
-                          </td>
-                          <td style={{ padding: "12px 16px", color: row.pointDeduction > 0 ? "#DC2626" : "var(--muted-foreground)" }}>
-                            {row.pointDeduction > 0 ? `-${row.pointDeduction}` : "—"}
-                          </td>
-                          <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--primary)" }}>
-                            {row.attendancePending ? "–" : `${row.totalScorePct}%`}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+      {tab === "leaderboard" && (() => {
+        const top3 = leaderboard.filter((r: any) => r.rank !== null).slice(0, 3)
+        const ringColor = (rank: number) => rank === 1 ? "#F59E0B" : rank === 2 ? "#9CA3AF" : "#CD7C2F"
+        const depts = [...new Set(leaderboard.map((r: any) => r.dept).filter(Boolean))] as string[]
+        const filtered = lbDeptFilter ? leaderboard.filter((r: any) => r.dept === lbDeptFilter) : leaderboard
+        const tlPct = (row: any) => lbMode === "week" ? row.plScorePct : row.avgPlPct
+        const attPct = (row: any) => lbMode === "week" ? row.attendanceScorePct : row.avgAttPct
+        const totPct = (row: any) => lbMode === "week" ? row.totalScorePct : row.avgScorePct
+        const isPending = (row: any) => row.attendancePending
+        const curLbMonday = (() => {
+          const d = new Date(now); d.setUTCHours(0,0,0,0)
+          const day = d.getUTCDay(); const diff = day === 0 ? -6 : 1 - day
+          d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
+          return d
+        })()
+        const curLbFriday = new Date(curLbMonday); curLbFriday.setUTCDate(curLbMonday.getUTCDate() + 4)
+        const curLbLabel = `${format(curLbMonday, "MMM d")} – ${format(curLbFriday, "MMM d, yyyy")}`
+        return (
+          <div>
+            {/* Hero banner — top 3 only for admin */}
+            {top3.length > 0 && (
+              <div style={{ background: "#15803D", borderRadius: 16, padding: "24px 28px", marginBottom: 16, color: "white", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Top Performers</div>
+                  <div style={{ fontSize: 14, opacity: 0.9 }}>{leaderboard.length} intern{leaderboard.length !== 1 ? "s" : ""} · {lbMode === "week" ? curLbLabel : lbMode === "month" ? "This Month" : "All Time"}</div>
+                </div>
+                <div style={{ display: "flex", gap: 20, alignItems: "flex-end" }}>
+                  {top3.map((row: any) => (
+                    <div key={row.employeeId} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: avatarColor(row.name), border: `3px solid ${ringColor(row.rank)}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "white" }}>
+                        {lbInitials(row.name)}
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.name.split(" ")[0]}</div>
+                        <div style={{ fontSize: 10, opacity: 0.8 }}>{isPending(row) ? "pending" : `${totPct(row)}%`}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
+
+            {/* Filter bar */}
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              {depts.length > 1 && (
+                <select value={lbDeptFilter} onChange={e => setLbDeptFilter(e.target.value)} style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", color: "var(--foreground)", cursor: "pointer" }}>
+                  <option value="">All Departments</option>
+                  {depts.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              )}
+              <div style={{ display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
+                {(["week","month","alltime"] as const).map(m => (
+                  <button key={m} onClick={() => { setLbMode(m); setLbWeekOffset(0) }}
+                    style={{ padding: "6px 12px", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer", background: lbMode === m ? "var(--primary)" : "var(--card)", color: lbMode === m ? "white" : "var(--muted-foreground)" }}>
+                    {m === "week" ? "Week" : m === "month" ? "Month" : "All Time"}
+                  </button>
+                ))}
+              </div>
+              {lbMode === "week" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 10px" }}>
+                  <button onClick={() => setLbWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}><ChevronLeft size={15} /></button>
+                  <span style={{ fontSize: 12, fontWeight: 700, minWidth: 130, textAlign: "center" }}>{curLbLabel}</span>
+                  <button onClick={() => setLbWeekOffset(o => Math.min(o + 1, 0))} disabled={lbWeekOffset === 0} style={{ background: "none", border: "none", cursor: lbWeekOffset === 0 ? "not-allowed" : "pointer", color: lbWeekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}><ChevronRight size={15} /></button>
+                </div>
+              )}
+            </div>
+
+            {/* Table */}
+            <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+              {filtered.length === 0 ? (
+                <div style={{ padding: "40px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leaderboard data for this period.</div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: "var(--muted)" }}>
+                        {["Rank", "Member", "Dept", "🔥 Streak", "PL %", "Att %", "Total %"].map(h => (
+                          <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((row: any) => {
+                        const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null
+                        return (
+                          <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)" }}>
+                            <td style={{ padding: "11px 14px", fontWeight: 700 }}>{medal ? <span style={{ fontSize: 15 }}>{medal}</span> : <span style={{ color: "var(--muted-foreground)" }}>{row.rank ?? "–"}</span>}</td>
+                            <td style={{ padding: "11px 14px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                                <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(row.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white", flexShrink: 0 }}>{lbInitials(row.name)}</div>
+                                <span style={{ fontWeight: 500 }}>{row.name}</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: "11px 14px", color: "var(--muted-foreground)", fontSize: 12 }}>{row.dept}</td>
+                            <td style={{ padding: "11px 14px", fontWeight: 600 }}>{row.streak > 0 ? `${row.streak}w` : "–"}</td>
+                            <td style={{ padding: "11px 14px", fontWeight: 600 }}>{tlPct(row) != null ? `${tlPct(row)}%` : "–"}</td>
+                            <td style={{ padding: "11px 14px", color: isPending(row) ? "var(--muted-foreground)" : "inherit" }}>{isPending(row) ? "Pending" : attPct(row) != null ? `${attPct(row)}%` : "–"}</td>
+                            <td style={{ padding: "11px 14px", fontWeight: 700, color: "var(--primary)" }}>{isPending(row) ? "–" : totPct(row) != null ? `${totPct(row)}%` : "–"}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div style={{ padding: "10px 16px", fontSize: 11, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)" }}>
+                Scoring: PL Score (max 9 pts) + Attendance (max 3 pts) − Late deductions
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Attendance Modal */}
       {attendanceId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setAttendanceId(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 500, width: "100%" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 500, width: "100%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <h3 style={{ fontSize: 15, fontWeight: 800 }}>Attendance & Punctuality</h3>
               <button onClick={() => setAttendanceId(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted-foreground)" }}>×</button>
@@ -554,10 +748,47 @@ export default function AdminInternReportsPage() {
         </div>
       )}
 
+      {/* Clear Missed Record Confirmation Modal */}
+      {clearingReport && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => !clearing && setClearingReport(null)}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 440, width: "100%", padding: "28px 28px 24px", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize: 32, marginBottom: 12, textAlign: "center" }}>🗑️</div>
+            <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, textAlign: "center" }}>Clear Missed Record?</h3>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", textAlign: "center", marginBottom: 4 }}>
+              <strong>{clearingReport.name}</strong> — {clearingReport.week}
+            </p>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", textAlign: "center", marginBottom: 20 }}>
+              This will delete the "Missing" placeholder. The intern will be able to submit their report retroactively.
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button onClick={() => setClearingReport(null)} disabled={clearing}
+                style={{ padding: "9px 24px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setClearing(true)
+                  const res = await fetch(`/api/intern-reports/${clearingReport.id}`, { method: "DELETE" })
+                  setClearing(false)
+                  if (res.ok) {
+                    setReports(prev => prev.filter(x => x.id !== clearingReport.id))
+                    setClearingReport(null)
+                  }
+                }}
+                disabled={clearing}
+                style={{ padding: "9px 24px", background: "#DC2626", border: "none", borderRadius: 8, cursor: clearing ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", opacity: clearing ? 0.7 : 1 }}>
+                {clearing ? "Clearing…" : "Clear Record"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* View Report Modal */}
       {viewingReport && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewingId(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: "min(1100px, 95vw)", width: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: "min(1100px, 95vw)", width: "100%", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+            <div style={{ flex: 1, overflow: "auto" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800 }}>{viewingReport.employee?.firstName} {viewingReport.employee?.lastName}</h3>
@@ -567,49 +798,70 @@ export default function AdminInternReportsPage() {
             </div>
             <div style={{ padding: "20px 24px" }}>
               {/* Task breakdown — Days as rows, Categories as columns */}
-              <div style={{ overflowX: "auto", marginBottom: 20 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <div style={{ overflow: "auto", maxHeight: "min(55vh, 440px)", marginBottom: 20, border: "1px solid var(--border)", borderRadius: 8 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "var(--muted)" }}>
-                      <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 80, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Day</th>
+                      <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 95, position: "sticky", left: 0, top: 0, background: "var(--muted)", zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>Day</th>
                       {CATEGORIES.map(cat => (
-                        <th key={cat.key} style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 10, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 90 }}>{cat.label}</th>
+                        <th key={cat.key} style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 130, position: "sticky", top: 0, background: "var(--muted)", zIndex: 2 }}>{cat.label}</th>
                       ))}
-                      <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Daily Total</th>
+                      <th style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 90, position: "sticky", right: 0, top: 0, background: "var(--muted)", zIndex: 3, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>Daily Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {DAYS_LIST.map((day, i) => {
                       const dayLabel = day.charAt(0).toUpperCase() + day.slice(1)
                       const td = viewingReport.taskDescriptions as any
-                      const dayTotal = CATEGORIES.reduce((s, cat) => s + (parseFloat(td?.[cat.key]?.[day]?.hours || "0") || 0), 0)
+                      const dayTotalMins = CATEGORIES.reduce((s, cat) => s + getCellData(td, cat.key, day).totalMins, 0)
+                      const rowBg = i % 2 === 0 ? "var(--card)" : "var(--muted)"
                       return (
                         <tr key={day} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
-                          <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, verticalAlign: "top", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{dayLabel}</td>
+                          <td style={{ padding: "10px 14px", fontWeight: 700, fontSize: 13, verticalAlign: "top", position: "sticky", left: 0, background: rowBg, zIndex: 1, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>{dayLabel}</td>
                           {CATEGORIES.map(cat => {
-                            const cell = td?.[cat.key]?.[day]
+                            const { tasks, totalMins } = getCellData(td, cat.key, day)
+                            const cellKey = `${day}-${cat.key}`
+                            const isExpanded = expandedCells.has(cellKey)
+                            const MAX_TASKS = 2
+                            const visibleTasks = isExpanded ? tasks : tasks.slice(0, MAX_TASKS)
                             return (
-                              <td key={cat.key} style={{ padding: "6px 8px", fontSize: 11, verticalAlign: "top" }}>
-                                {cell?.tasks && <div style={{ marginBottom: 2, color: "var(--foreground)", lineHeight: 1.4 }}>{cell.tasks}</div>}
-                                {cell?.hours && parseFloat(cell.hours) > 0 && <div style={{ fontWeight: 700, color: "var(--primary)" }}>{parseFloat(cell.hours).toFixed(1)}h</div>}
-                                {!cell?.tasks && !cell?.hours && <span style={{ color: "var(--border)" }}>—</span>}
+                              <td key={cat.key} style={{ padding: "8px 10px", fontSize: 12, verticalAlign: "top" }}>
+                                {tasks.length > 0 ? (
+                                  <>
+                                    {visibleTasks.map((t, idx) => (
+                                      <div key={idx} style={{ marginBottom: 3, color: "var(--foreground)", lineHeight: 1.5 }}>{t}</div>
+                                    ))}
+                                    {tasks.length > MAX_TASKS && (
+                                      <button onClick={() => setExpandedCells(s => {
+                                        const next = new Set(s)
+                                        isExpanded ? next.delete(cellKey) : next.add(cellKey)
+                                        return next
+                                      })} style={{ fontSize: 11, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                                        {isExpanded ? "Less" : `+${tasks.length - MAX_TASKS} more`}
+                                      </button>
+                                    )}
+                                    {totalMins > 0 && <div style={{ fontWeight: 700, color: "var(--primary)", marginTop: 3, fontSize: 11 }}>{fmtMinutes(totalMins)}</div>}
+                                  </>
+                                ) : (
+                                  <span style={{ color: "var(--border)" }}>—</span>
+                                )}
                               </td>
                             )
                           })}
-                          <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "middle" }}>
-                            {dayTotal > 0 ? dayTotal.toFixed(1) : "—"}
+                          <td style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--primary)", verticalAlign: "top", position: "sticky", right: 0, background: rowBg, zIndex: 1, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>
+                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "—"}
                           </td>
                         </tr>
                       )
                     })}
-                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total</td>
+                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)", position: "sticky", bottom: 0, zIndex: 2 }}>
+                      <td style={{ padding: "10px 14px", fontWeight: 800, fontSize: 13, position: "sticky", left: 0, background: "var(--muted)", zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>Total</td>
                       {CATEGORIES.map(cat => {
                         const td = viewingReport.taskDescriptions as any
-                        const catTot = DAYS_LIST.reduce((s, d) => s + (parseFloat(td?.[cat.key]?.[d]?.hours || "0") || 0), 0)
-                        return <td key={cat.key} style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)" }}>{catTot > 0 ? catTot.toFixed(1) : "—"}</td>
+                        const catMins = DAYS_LIST.reduce((s, d) => s + getCellData(td, cat.key, d).totalMins, 0)
+                        return <td key={cat.key} style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>{catMins > 0 ? fmtMinutes(catMins) : "—"}</td>
                       })}
-                      <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 900, fontSize: 13, color: "var(--primary)" }}>{(viewingReport.totalHours ?? 0).toFixed(1)}h</td>
+                      <td style={{ padding: "10px 10px", textAlign: "center", fontWeight: 900, fontSize: 13, color: "var(--primary)", position: "sticky", right: 0, background: "var(--muted)", boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>{(viewingReport.totalHours ?? 0).toFixed(1)}h</td>
                     </tr>
                   </tbody>
                 </table>
@@ -646,13 +898,13 @@ export default function AdminInternReportsPage() {
                 <div>
                   <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Reviewer Feedback</p>
                   {viewingReport.reviewers.map((rv: any) => {
-                    const tlScore = (rv.productivityRating ?? 0) + (rv.ldRating ?? 0) + (rv.reflectionsRating ?? 0)
+                    const plScore = (rv.productivityRating ?? 0) + (rv.ldRating ?? 0) + (rv.reflectionsRating ?? 0)
                     return (
                       <div key={rv.id} style={{ background: "var(--muted)", borderRadius: 10, padding: "12px 14px", marginBottom: 8 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
                           <span style={{ fontWeight: 700, fontSize: 13 }}>{rv.reviewer?.firstName} {rv.reviewer?.lastName}</span>
                           {rv.isPrimary && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#EEF2FF", color: "#4338CA", fontWeight: 700 }}>Primary</span>}
-                          {rv.productivityRating !== null && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", marginLeft: "auto" }}>TL: {Math.round((tlScore / 9) * 100)}%</span>}
+                          {rv.productivityRating !== null && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", marginLeft: "auto" }}>PL: {Math.round((plScore / 9) * 100)}%</span>}
                         </div>
                         {rv.productivityRating !== null ? (
                           <div style={{ display: "flex", gap: 14, fontSize: 11, color: "var(--muted-foreground)", marginBottom: rv.comment ? 8 : 0 }}>
@@ -668,9 +920,15 @@ export default function AdminInternReportsPage() {
                 </div>
               )}
             </div>
+            </div>
           </div>
         </div>
       )}
+      <style>{`
+        @media (max-width: 899px) {
+          .admin-intern-reports-page { padding: 16px !important; }
+        }
+      `}</style>
     </div>
   )
 }

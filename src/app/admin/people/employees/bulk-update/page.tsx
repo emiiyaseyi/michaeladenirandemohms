@@ -1,7 +1,9 @@
 "use client"
 import { useState, useRef, useEffect } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import { ChevronLeft, Check, Upload, Download, X, ChevronDown, Loader2 } from "lucide-react"
+import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 
 function Toast({ msg, onClose }: { msg: { text: string; ok: boolean } | null; onClose: () => void }) {
   if (!msg) return null
@@ -31,6 +33,8 @@ export default function BulkUpdateEmployeesPage() {
   const inputRef = useRef<HTMLInputElement>(null)
   const scopeRef = useRef<HTMLDivElement>(null)
   const empRef = useRef<HTMLDivElement>(null)
+  const { ref: scopeTriggerRef, pos: scopePos, recompute: recomputeScope } = useDropdownPosition<HTMLButtonElement>()
+  const { ref: empTriggerRef, pos: empPos, recompute: recomputeEmp } = useDropdownPosition<HTMLDivElement>()
 
   useEffect(() => {
     fetch("/api/employees?status=ACTIVE").then(r => r.json()).then(d => setEmployees(d.employees ?? []))
@@ -185,23 +189,24 @@ export default function BulkUpdateEmployeesPage() {
           <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
             <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 16 }}>1. Choose employees</h3>
             <div ref={scopeRef} style={{ position: "relative", maxWidth: 260, marginBottom: 16 }}>
-              <button onClick={() => setScopeOpen(o => !o)} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", border: "1.5px solid var(--border)", borderRadius: 8, background: "var(--background)", cursor: "pointer", fontSize: 14, color: employeeScope ? "var(--foreground)" : "var(--muted-foreground)" }}>
+              <button ref={scopeTriggerRef} onClick={() => { recomputeScope(); setScopeOpen(o => !o) }} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "10px 14px", border: "1.5px solid var(--border)", borderRadius: 8, background: "var(--background)", cursor: "pointer", fontSize: 14, color: employeeScope ? "var(--foreground)" : "var(--muted-foreground)" }}>
                 {employeeScope || "Choose"} <ChevronDown size={14} />
               </button>
-              {scopeOpen && (
-                <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 50, overflow: "hidden" }}>
+              {scopeOpen && typeof document !== "undefined" && createPortal(
+                <div style={{ position: "fixed", top: scopePos.top, left: scopePos.left, width: scopePos.width, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", zIndex: 9999, overflow: "hidden" }}>
                   {SCOPES.map(s => (
                     <button key={s} onClick={() => { setEmployeeScope(s === "Choose" ? "" : s); setScopeOpen(false) }}
                       style={{ display: "block", width: "100%", padding: "10px 16px", background: employeeScope === s ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 14, textAlign: "left", color: "var(--foreground)", fontWeight: s === "Choose" && !employeeScope ? 700 : 400 }}>
                       {s}
                     </button>
                   ))}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
             {employeeScope === "Specific Employees" && (
               <div ref={empRef} style={{ position: "relative" }}>
-                <div onClick={() => setEmpDropOpen(true)} style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "8px 12px", border: "1.5px solid var(--primary)", borderRadius: 8, background: "var(--background)", cursor: "text", minHeight: 44, alignItems: "center" }}>
+                <div ref={empTriggerRef} onClick={() => { recomputeEmp(); setEmpDropOpen(true) }} style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "8px 12px", border: "1.5px solid var(--primary)", borderRadius: 8, background: "var(--background)", cursor: "text", minHeight: 44, alignItems: "center" }}>
                   {specificEmployees.map(id => {
                     const emp = employees.find(e => e.id === id)
                     return emp ? (
@@ -211,11 +216,11 @@ export default function BulkUpdateEmployeesPage() {
                       </span>
                     ) : null
                   })}
-                  <input value={empSearch} onChange={e => setEmpSearch(e.target.value)} onFocus={() => setEmpDropOpen(true)}
+                  <input value={empSearch} onChange={e => setEmpSearch(e.target.value)} onFocus={() => { recomputeEmp(); setEmpDropOpen(true) }}
                     style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, flex: 1, minWidth: 80, color: "var(--foreground)" }} placeholder={specificEmployees.length === 0 ? "Search employees…" : ""} />
                 </div>
-                {empDropOpen && (
-                  <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 100, maxHeight: 240, overflowY: "auto" }}>
+                {empDropOpen && typeof document !== "undefined" && createPortal(
+                  <div style={{ position: "fixed", top: empPos.top, left: empPos.left, width: empPos.width, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", zIndex: 9999, maxHeight: 240, overflowY: "auto" }}>
                     {filteredEmps.length === 0 ? (
                       <div style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>No results</div>
                     ) : filteredEmps.map(emp => (
@@ -224,7 +229,8 @@ export default function BulkUpdateEmployeesPage() {
                         {emp.firstName} {emp.lastName}
                       </button>
                     ))}
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
             )}

@@ -1,8 +1,10 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ChevronDown, ChevronRight, Search, Upload, X, Loader2 } from "lucide-react"
+import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 
 interface Employee { id: string; firstName: string; lastName: string; employeeId: string }
 interface ViolationType { id: string; name: string }
@@ -13,27 +15,34 @@ function Dropdown({ options, value, onSelect, placeholder }: {
 }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState("")
-  const ref = useRef<HTMLDivElement>(null)
+  const { ref: triggerRef, pos, recompute } = useDropdownPosition<HTMLDivElement>()
 
   useEffect(() => {
     if (!open) return
-    const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
+    const h = (e: MouseEvent) => {
+      if (!triggerRef.current?.contains(e.target as Node)) setOpen(false)
+    }
     document.addEventListener("mousedown", h)
     return () => document.removeEventListener("mousedown", h)
-  }, [open])
+  }, [open, triggerRef])
 
   const filtered = options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()))
   const selected = value ? options.find(o => o.id === value) : null
 
+  function handleOpen() {
+    recompute()
+    setOpen(o => !o)
+  }
+
   return (
-    <div ref={ref} style={{ position: "relative" }}>
-      <button type="button" onClick={() => setOpen(o => !o)}
+    <div ref={triggerRef} style={{ position: "relative" }}>
+      <button type="button" onClick={handleOpen}
         style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", cursor: "pointer", fontSize: 13, color: selected ? "var(--foreground)" : "var(--muted-foreground)", textAlign: "left" }}>
         {selected ? selected.name : placeholder}
         <ChevronDown size={14} style={{ flexShrink: 0, color: "var(--muted-foreground)" }} />
       </button>
-      {open && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 100, maxHeight: 260, display: "flex", flexDirection: "column" }}>
+      {open && typeof document !== "undefined" && createPortal(
+        <div style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 9999, maxHeight: 260, display: "flex", flexDirection: "column" }}>
           <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", gap: 6 }}>
             <Search size={13} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
             <input
@@ -55,7 +64,8 @@ function Dropdown({ options, value, onSelect, placeholder }: {
               <div style={{ padding: "14px", fontSize: 13, color: "var(--muted-foreground)", textAlign: "center" }}>No results</div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

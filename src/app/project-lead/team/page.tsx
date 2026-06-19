@@ -1,6 +1,8 @@
 "use client"
 import { useState, useEffect, useCallback, useRef } from "react"
+import { createPortal } from "react-dom"
 import { Search, Loader2, ChevronDown, Check, Users, UserCheck, CalendarOff, Download } from "lucide-react"
+import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 
 const STATUS_OPTS = [
   { value: "", label: "All Statuses" },
@@ -57,6 +59,9 @@ export default function PLTeamPage() {
   const deptRef = useRef<HTMLDivElement>(null)
   const typeRef = useRef<HTMLDivElement>(null)
   const pageSizeRef = useRef<HTMLDivElement>(null)
+  const { ref: statusBtnRef, pos: statusPos, recompute: recomputeStatus } = useDropdownPosition<HTMLButtonElement>()
+  const { ref: deptBtnRef, pos: deptPos, recompute: recomputeDept } = useDropdownPosition<HTMLButtonElement>()
+  const { ref: typeBtnRef, pos: typePos, recompute: recomputeType } = useDropdownPosition<HTMLButtonElement>()
 
   const closeAll = (except?: string) => {
     if (except !== "status") setStatusOpen(false)
@@ -175,28 +180,29 @@ export default function PLTeamPage() {
           </div>
           {/* Status filter */}
           <div ref={statusRef} style={{ position: "relative" }}>
-            <button onClick={() => { closeAll("status"); setStatusOpen(o => !o) }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: statusFilter ? "rgba(37,99,235,0.08)" : "var(--muted)", border: `1px solid ${statusFilter ? "var(--primary)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: statusFilter ? "var(--primary)" : "var(--foreground)", whiteSpace: "nowrap" }}>
+            <button ref={statusBtnRef} onClick={() => { closeAll("status"); recomputeStatus(); setStatusOpen(o => !o) }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: statusFilter ? "rgba(37,99,235,0.08)" : "var(--muted)", border: `1px solid ${statusFilter ? "var(--primary)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: statusFilter ? "var(--primary)" : "var(--foreground)", whiteSpace: "nowrap" }}>
               {statusLabel} <ChevronDown size={13} />
             </button>
-            {statusOpen && (
-              <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 160, padding: "4px 0" }}>
+            {statusOpen && typeof document !== "undefined" && createPortal(
+              <div style={{ position: "fixed", top: statusPos.top, left: statusPos.left, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 160, padding: "4px 0" }}>
                 {STATUS_OPTS.map(o => (
                   <button key={o.value} onClick={() => { setStatusFilter(o.value); setStatusOpen(false) }}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: statusFilter === o.value ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
                     {o.label} {statusFilter === o.value && <Check size={13} />}
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
           {/* Department filter (only shown if PL has multiple depts) */}
           {departments.length > 1 && (
             <div ref={deptRef} style={{ position: "relative" }}>
-              <button onClick={() => { closeAll("dept"); setDeptOpen(o => !o) }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: deptFilter ? "rgba(37,99,235,0.08)" : "var(--muted)", border: `1px solid ${deptFilter ? "var(--primary)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: deptFilter ? "var(--primary)" : "var(--foreground)", whiteSpace: "nowrap" }}>
+              <button ref={deptBtnRef} onClick={() => { closeAll("dept"); recomputeDept(); setDeptOpen(o => !o) }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: deptFilter ? "rgba(37,99,235,0.08)" : "var(--muted)", border: `1px solid ${deptFilter ? "var(--primary)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: deptFilter ? "var(--primary)" : "var(--foreground)", whiteSpace: "nowrap" }}>
                 {deptLabel} <ChevronDown size={13} />
               </button>
-              {deptOpen && (
-                <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 200, maxHeight: 240, overflowY: "auto", padding: "4px 0" }}>
+              {deptOpen && typeof document !== "undefined" && createPortal(
+                <div style={{ position: "fixed", top: deptPos.top, left: deptPos.left, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 200, maxHeight: 240, overflowY: "auto", padding: "4px 0" }}>
                   <button onClick={() => { setDeptFilter(""); setDeptOpen(false) }}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: !deptFilter ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
                     All Departments {!deptFilter && <Check size={13} />}
@@ -208,24 +214,26 @@ export default function PLTeamPage() {
                       {deptFilter === d.id && <Check size={13} style={{ flexShrink: 0, marginLeft: 8 }} />}
                     </button>
                   ))}
-                </div>
+                </div>,
+                document.body
               )}
             </div>
           )}
           {/* Employment type filter */}
           <div ref={typeRef} style={{ position: "relative" }}>
-            <button onClick={() => { closeAll("type"); setTypeOpen(o => !o) }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: typeFilter ? "rgba(37,99,235,0.08)" : "var(--muted)", border: `1px solid ${typeFilter ? "var(--primary)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: typeFilter ? "var(--primary)" : "var(--foreground)", whiteSpace: "nowrap" }}>
+            <button ref={typeBtnRef} onClick={() => { closeAll("type"); recomputeType(); setTypeOpen(o => !o) }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: typeFilter ? "rgba(37,99,235,0.08)" : "var(--muted)", border: `1px solid ${typeFilter ? "var(--primary)" : "var(--border)"}`, borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: typeFilter ? "var(--primary)" : "var(--foreground)", whiteSpace: "nowrap" }}>
               {typeLabel} <ChevronDown size={13} />
             </button>
-            {typeOpen && (
-              <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 150, padding: "4px 0" }}>
+            {typeOpen && typeof document !== "undefined" && createPortal(
+              <div style={{ position: "fixed", top: typePos.top, left: typePos.left, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 150, padding: "4px 0" }}>
                 {EMP_TYPE_OPTS.map(o => (
                   <button key={o.value} onClick={() => { setTypeFilter(o.value); setTypeOpen(false) }}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: typeFilter === o.value ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)" }}>
                     {o.label} {typeFilter === o.value && <Check size={13} />}
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
           {/* Clear filters */}

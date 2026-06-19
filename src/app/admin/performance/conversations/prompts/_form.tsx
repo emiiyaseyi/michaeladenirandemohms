@@ -1,6 +1,8 @@
 "use client"
 import { useState } from "react"
+import { createPortal } from "react-dom"
 import { useRouter } from "next/navigation"
+import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 
 const PROMPT_TYPES = [
   { value: "CHECK_IN", label: "Check-in" },
@@ -26,6 +28,7 @@ export default function PromptForm({ mode, initial, onSubmit }: Props) {
   const [errors, setErrors] = useState<Partial<Record<keyof Initial, string>>>({})
   const [saving, setSaving] = useState(false)
   const [typeOpen, setTypeOpen] = useState(false)
+  const { ref: typeRef, pos: typePos, recompute: recomputeType } = useDropdownPosition<HTMLButtonElement>()
 
   const set = (k: keyof Initial, v: string) => {
     setForm(f => ({ ...f, [k]: v }))
@@ -83,7 +86,7 @@ export default function PromptForm({ mode, initial, onSubmit }: Props) {
           {/* Type — custom select */}
           <div style={{ position: "relative" }}>
             <label style={lbl}><span style={req}>*</span>Type</label>
-            <button type="button" onClick={() => setTypeOpen(v => !v)}
+            <button ref={typeRef} type="button" onClick={() => { recomputeType(); setTypeOpen(v => !v) }}
               style={{ ...inp(errors.type), display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer", textAlign: "left" }}>
               <span style={{ color: selectedType ? "var(--foreground)" : "var(--muted-foreground)" }}>
                 {selectedType?.label ?? "Please select"}
@@ -91,8 +94,8 @@ export default function PromptForm({ mode, initial, onSubmit }: Props) {
               <span style={{ color: "var(--muted-foreground)", fontSize: 11 }}>▼</span>
             </button>
             {errors.type && <div style={errMsg}>{errors.type}</div>}
-            {typeOpen && (
-              <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.1)", zIndex: 100, overflow: "hidden", marginTop: 4 }}>
+            {typeOpen && typeof document !== "undefined" && createPortal(
+              <div style={{ position: "fixed", top: typePos.top, left: typePos.left, width: typePos.width, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.1)", zIndex: 9999, overflow: "hidden" }}>
                 {PROMPT_TYPES.map(t => (
                   <button key={t.value} type="button" onClick={() => { set("type", t.value); setTypeOpen(false) }}
                     style={{ display: "block", width: "100%", padding: "11px 16px", background: form.type === t.value ? "var(--primary-50)" : "none", border: "none", cursor: "pointer", textAlign: "left", fontSize: 13, color: "var(--foreground)" }}
@@ -101,7 +104,8 @@ export default function PromptForm({ mode, initial, onSubmit }: Props) {
                     {t.label}
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>

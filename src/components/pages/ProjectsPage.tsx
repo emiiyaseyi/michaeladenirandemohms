@@ -1,11 +1,13 @@
 "use client"
 import { useState, useEffect, useCallback, useRef } from "react"
+import { createPortal } from "react-dom"
 import Card from "@/components/ui/Card"
 import Avatar from "@/components/ui/Avatar"
 import Button from "@/components/ui/Button"
 import Modal from "@/components/ui/Modal"
 import EmptyState from "@/components/ui/EmptyState"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
+import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 import PageHeader from "@/components/ui/PageHeader"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import {
@@ -31,25 +33,27 @@ function StatusPill({ status }: { status: string }) {
 
 function MemberSearch({ employees, selected, onChange, exclude }: { employees: any[]; selected: string[]; onChange: (ids: string[]) => void; exclude?: string }) {
   const [q, setQ] = useState(""); const [open, setOpen] = useState(false); const ref = useRef<HTMLDivElement>(null)
+  const { ref: anchorRef, pos: dropPos, recompute: recomputeDropPos } = useDropdownPosition<HTMLDivElement>()
   useEffect(() => {
     const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
     document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h)
   }, [])
+  const openDropdown = () => { recomputeDropPos(); setOpen(true) }
   const filtered = employees.filter(e => e.id !== exclude && !selected.includes(e.id) && `${e.firstName} ${e.lastName}`.toLowerCase().includes(q.toLowerCase()))
   const selectedEmps = employees.filter(e => selected.includes(e.id))
   return (
     <div ref={ref} style={{ position: "relative" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 8, minHeight: 38, cursor: "text", background: "var(--background)" }} onClick={() => setOpen(true)}>
+      <div ref={anchorRef} style={{ display: "flex", flexWrap: "wrap", gap: 6, padding: "6px 8px", border: "1px solid var(--border)", borderRadius: 8, minHeight: 38, cursor: "text", background: "var(--background)" }} onClick={openDropdown}>
         {selectedEmps.map(e => (
           <span key={e.id} style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--primary)", color: "white", borderRadius: 20, padding: "2px 8px 2px 6px", fontSize: 12, fontWeight: 600 }}>
             {e.firstName} {e.lastName}
             <button onClick={(ev) => { ev.stopPropagation(); onChange(selected.filter(x => x !== e.id)) }} style={{ background: "none", border: "none", cursor: "pointer", color: "white", padding: 0, lineHeight: 1, marginLeft: 2 }}><X size={10} /></button>
           </span>
         ))}
-        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true) }} placeholder={selectedEmps.length ? "" : "Search members…"} style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, color: "var(--foreground)", flex: 1, minWidth: 120 }} />
+        <input value={q} onChange={e => { setQ(e.target.value); openDropdown() }} placeholder={selectedEmps.length ? "" : "Search members…"} style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, color: "var(--foreground)", flex: 1, minWidth: 120 }} />
       </div>
-      {open && filtered.length > 0 && (
-        <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 50, maxHeight: 200, overflowY: "auto", marginTop: 4 }}>
+      {open && filtered.length > 0 && typeof document !== "undefined" && createPortal(
+        <div style={{ position: "fixed", top: dropPos.top, left: dropPos.left, width: dropPos.width, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "var(--shadow-lg)", zIndex: 9999, maxHeight: 200, overflowY: "auto" }}>
           {filtered.map(e => (
             <div key={e.id} onClick={() => { onChange([...selected, e.id]); setQ(""); setOpen(false) }} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", cursor: "pointer" }}
               onMouseEnter={ev => (ev.currentTarget as HTMLElement).style.background = "var(--muted)"}
@@ -61,7 +65,8 @@ function MemberSearch({ employees, selected, onChange, exclude }: { employees: a
               </div>
             </div>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )

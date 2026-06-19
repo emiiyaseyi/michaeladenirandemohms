@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
+  if (!hasCap(user, "canManageCustomGroups")) return forbidden()
 
   const { id } = await params
   const { name, description, groupByCurrency, status, memberIds } = await req.json()
@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
+  if (!hasCap(user, "canManageCustomGroups")) return forbidden()
 
   const { id } = await params
   await prisma.customGroup.delete({ where: { id } })

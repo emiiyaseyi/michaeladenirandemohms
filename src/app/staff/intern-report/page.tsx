@@ -1,14 +1,13 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { ClipboardList, Clock, CheckCircle2, AlertCircle, Eye, X, Search, Users, ChevronLeft, ChevronRight } from "lucide-react"
 import { format } from "date-fns"
 
 const CATEGORIES = [
   { key: "mainProject",     hoursKey: "mainProjectHours",    label: "Main Project" },
-  { key: "consulting",      hoursKey: "consultingHours",     label: "Consulting" },
   { key: "specialProject",  hoursKey: "specialProjectHours", label: "Special Project" },
   { key: "training",        hoursKey: "trainingHours",       label: "Training" },
-  { key: "newBusiness",     hoursKey: "newBusinessHours",    label: "New Business" },
   { key: "reportingDoc",    hoursKey: "reportingDocHours",   label: "Reporting / Documentation" },
   { key: "operational",     hoursKey: "operationalHours",    label: "Operational Support" },
   { key: "research",        hoursKey: "researchHours",       label: "Research" },
@@ -29,20 +28,44 @@ const REFLECTION_DAYS = [
   { key: "Fri", label: "Friday" },
 ]
 
-const initEntries = (): Record<string, Record<DayKey, {tasks: string, hours: string}>> =>
+type TaskRow = { text: string; minutes: string }
+type CellEntries = Record<DayKey, TaskRow[]>
+
+function parseMinutes(raw: string): number {
+  const s = raw.trim().toLowerCase()
+  const colon = s.match(/^(\d+):(\d{1,2})$/)
+  if (colon) return +colon[1] * 60 + +colon[2]
+  const hm = s.match(/(\d+)\s*h(?:our|r)?s?\s*(?:(\d+)\s*m(?:in)?s?)?/)
+  if (hm) return +hm[1] * 60 + (hm[2] ? +hm[2] : 0)
+  const mOnly = s.match(/^(\d+)\s*m(?:in)?s?$/)
+  if (mOnly) return +mOnly[1]
+  return isNaN(+s) ? 0 : +s
+}
+
+function fmtMinutes(m: number): string {
+  if (!m) return ""
+  const h = Math.floor(m / 60), min = m % 60
+  return h ? (min ? `${h}h ${min}m` : `${h}h`) : `${min}m`
+}
+
+const emptyTaskRow = (): TaskRow => ({ text: "", minutes: "" })
+
+const initEntries = (): Record<string, CellEntries> =>
   Object.fromEntries(CATEGORIES.map(c => [
     c.key,
-    Object.fromEntries(DAYS_LIST.map(d => [d, { tasks: "", hours: "" }])) as Record<DayKey, {tasks: string, hours: string}>
+    Object.fromEntries(DAYS_LIST.map(d => [d, [emptyTaskRow()]])) as CellEntries
   ]))
 
 type Settings = {
-  submissionDay: number; openHour: number; lateHour: number; closeHour: number;
-  lateDeduction: number; lateDeductionSunday: number; warningThresholdMinutes: number;
+  submissionDay: number; openHour: number; openMinute: number;
+  lateHour: number; lateMinute: number; closeHour: number;
+  lateDeduction: number; lateDeductionSunday: number; missingWeeklyDeduction: number;
+  warningThresholdMinutes: number;
 }
 
 const DEFAULTS: Settings = {
-  submissionDay: 5, openHour: 16, lateHour: 20, closeHour: 24,
-  lateDeduction: 2, lateDeductionSunday: 3, warningThresholdMinutes: 15,
+  submissionDay: 5, openHour: 16, openMinute: 0, lateHour: 20, lateMinute: 0, closeHour: 24,
+  lateDeduction: 2, lateDeductionSunday: 3, missingWeeklyDeduction: 10, warningThresholdMinutes: 15,
 }
 
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -88,48 +111,63 @@ function computePhase(cfg: Settings, nowWat: Date): Phase {
     return { kind: "ontime", ms: fakeLate.getTime() - nowWat.getTime(), label: "Testing — window always open" }
   }
   // nowWat is a Date shifted by +1hr from UTC so that getUTC* methods return WAT values
-  const day = nowWat.getUTCDay() // 0=Sun … 5=Fri … 6=Sat
-  const FRI = cfg.submissionDay
-  const SAT = (FRI + 1) % 7
-  const SUN = (FRI + 2) % 7
+  const day = nowWat.getUTCDay() // 0=Sun … 1=Mon … 6=Sat
+  // Submission Day (open day) is configurable Mon-Fri. Saturday/Sunday are ALWAYS the
+  // literal calendar late days — they never shift with the open day.
+  const OPEN_DAY = cfg.submissionDay
 
-  // Build a Date in WAT-shifted space for today at HH:00 WAT
-  const todayAt = (h: number) => {
+  // Build a Date in WAT-shifted space for today at HH:MM WAT
+  const todayAt = (h: number, m = 0) => {
     const d = new Date(nowWat)
-    d.setUTCHours(h, 0, 0, 0)
+    d.setUTCHours(h, m, 0, 0)
     return d
   }
   const msTo = (target: Date) => target.getTime() - nowWat.getTime()
+  const openM = cfg.openMinute ?? 0
+  const lateM = cfg.lateMinute ?? 0
+  const fmtWAT = (h: number, m: number) =>
+    `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")} WAT`
 
-  if (day === FRI) {
-    const openAt = todayAt(cfg.openHour)
-    const lateAt = todayAt(cfg.lateHour)
-    const closeFridayAt = todayAt(24)
+  if (day === OPEN_DAY) {
+    const openAt = todayAt(cfg.openHour, openM)
+    const lateAt = todayAt(cfg.lateHour, lateM)
+    const closeTodayAt = todayAt(24)
     if (nowWat < openAt) {
-      return { kind: "closed_before", ms: msTo(openAt), label: `Opens at ${hourLabel(cfg.openHour)} WAT` }
+      return { kind: "closed_before", ms: msTo(openAt), label: `Opens at ${fmtWAT(cfg.openHour, openM)}` }
     }
     const warningStart = new Date(lateAt.getTime() - cfg.warningThresholdMinutes * 60 * 1000)
     if (nowWat < warningStart) return { kind: "ontime",  ms: msTo(lateAt), label: "On-time" }
     if (nowWat < lateAt)        return { kind: "warning", ms: msTo(lateAt), label: `Last ${cfg.warningThresholdMinutes} min!` }
-    return { kind: "late_friday", ms: msTo(closeFridayAt) }
+    return { kind: "late_friday", ms: msTo(closeTodayAt) }
   }
 
-  if (day === SAT) {
+  if (day === 6) {
     const tomorrowMidnight = todayAt(24)
     return { kind: "late_saturday", ms: msTo(tomorrowMidnight) }
   }
 
-  if (day === SUN) {
+  if (day === 0) {
     const tomorrowMidnight = todayAt(24)
     return { kind: "late_sunday", ms: msTo(tomorrowMidnight) }
   }
 
-  // Mon-Thu — next Friday at openHour
-  const daysUntilFri = ((FRI - day + 7) % 7) || 7
-  const next = new Date(nowWat)
-  next.setUTCDate(nowWat.getUTCDate() + daysUntilFri)
-  next.setUTCHours(cfg.openHour, 0, 0, 0)
-  return { kind: "closed_before", ms: msTo(next), label: `Next window: ${DAYS[FRI]} ${hourLabel(cfg.openHour)} WAT` }
+  // A Mon-Fri weekday that isn't the open day.
+  if (day < OPEN_DAY) {
+    // Before this week's open day — window hasn't opened yet.
+    const daysUntilOpen = OPEN_DAY - day
+    const next = new Date(nowWat)
+    next.setUTCDate(nowWat.getUTCDate() + daysUntilOpen)
+    next.setUTCHours(cfg.openHour, openM, 0, 0)
+    return { kind: "closed_before", ms: msTo(next), label: `Opens ${DAYS[OPEN_DAY]} ${fmtWAT(cfg.openHour, openM)}` }
+  }
+
+  // After this week's open day but before Saturday — window is closed until Saturday
+  // (Saturday/Sunday late submission is always available regardless of the open day).
+  const daysUntilSat = 6 - day
+  const nextSat = new Date(nowWat)
+  nextSat.setUTCDate(nowWat.getUTCDate() + daysUntilSat)
+  nextSat.setUTCHours(0, 0, 0, 0)
+  return { kind: "closed_before", ms: msTo(nextSat), label: `Window closed — opens again Saturday (late, −${cfg.lateDeduction} pts)` }
 }
 
 function computeWindow(cfg: Settings): { text: string; open: boolean; late: boolean } {
@@ -159,7 +197,7 @@ function CountdownBanner({ cfg }: { cfg: Settings }) {
     case "closed_before":
       bg = "#F3F4F6"; color = "#374151"; icon = "🕒"
       title = phase.label
-      subtitle = `Opens in ${fmtRemaining(phase.ms)}`
+      subtitle = "Submission is not yet open"
       break
     case "ontime":
       bg = "#DCFCE7"; color = "#15803D"; icon = "✓"
@@ -173,18 +211,18 @@ function CountdownBanner({ cfg }: { cfg: Settings }) {
       break
     case "late_friday":
       bg = "#FEE2E2"; color = "#DC2626"; icon = "⏰"
-      title = "LATE — submit before midnight"
-      subtitle = `${fmtRemaining(phase.ms)} left (no deduction yet)`
+      title = "Late submission — no deduction yet"
+      subtitle = "Submit tonight to avoid a point deduction"
       break
     case "late_saturday":
-      bg = "#FEE2E2"; color = "#DC2626"; icon = "⏰"
-      title = `Saturday — −${cfg.lateDeduction} pts`
-      subtitle = `Window closes Sunday midnight • ${fmtRemaining(phase.ms)} left today`
+      bg = "#FEF3C7"; color = "#D97706"; icon = "⏰"
+      title = `Late submission — −${cfg.lateDeduction} pts`
+      subtitle = "Window closes Sunday midnight"
       break
     case "late_sunday":
       bg = "#FEE2E2"; color = "#DC2626"; icon = "🔥"
-      title = `Sunday — −${cfg.lateDeductionSunday} pts • FINAL DAY`
-      subtitle = `${fmtRemaining(phase.ms)} until window closes`
+      title = `Late submission — −${cfg.lateDeductionSunday} pts · Final day`
+      subtitle = "Last chance — window closes at midnight"
       break
     case "closed_after":
       bg = "#F3F4F6"; color = "#374151"; icon = "🕒"
@@ -196,7 +234,7 @@ function CountdownBanner({ cfg }: { cfg: Settings }) {
   return (
     <div style={{
       background: bg, borderRadius: 16, padding: "22px 28px",
-      display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+      display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16,
       marginBottom: 20, border: `2px solid ${color}33`,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
@@ -210,13 +248,12 @@ function CountdownBanner({ cfg }: { cfg: Settings }) {
           </div>
         </div>
       </div>
-      {phase.kind !== "closed_after" && (
+      {(phase.kind === "ontime" || phase.kind === "warning") && (
         <div style={{
           fontSize: 38, fontWeight: 900, color, fontVariantNumeric: "tabular-nums",
           fontFamily: "ui-monospace, 'SF Mono', Menlo, monospace", letterSpacing: "0.02em",
         }}>
-          {phase.kind === "closed_before" ? fmtRemaining(phase.ms)
-            : fmtRemaining(phase.ms)}
+          {fmtRemaining(phase.ms)}
         </div>
       )}
     </div>
@@ -236,13 +273,23 @@ function StatusBadge({ status }: { status: string }) {
   return <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>{s.label}</span>
 }
 
+const AVATAR_COLORS = ["#E11D48","#7C3AED","#1D4ED8","#0369A1","#0F766E","#15803D","#92400E","#B45309"]
+function avatarColor(name: string) {
+  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length
+  return AVATAR_COLORS[h]
+}
+function lbInitials(name: string) { return name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() }
+
 export default function InternReportPage() {
   const [cfg, setCfg] = useState<Settings>(DEFAULTS)
-  const [entries, setEntries] = useState<Record<string, Record<DayKey, {tasks: string, hours: string}>>>(initEntries())
+  const [entries, setEntries] = useState<Record<string, CellEntries>>(initEntries())
   const [dailyReflections, setDailyReflections] = useState<Record<string, string>>({ Mon: "", Tue: "", Wed: "", Thu: "", Fri: "" })
   const [generalReflection, setGeneralReflection] = useState("")
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [lbWeekOffset, setLbWeekOffset] = useState(0)
+  const [lbMode, setLbMode] = useState<"week" | "month" | "alltime">("week")
+  const [lbDeptFilter, setLbDeptFilter] = useState("")
+  const [weekOffset, setWeekOffset] = useState(0) // 0 = current week, negative = past
   const [tab, setTab] = useState<"report" | "leaderboard">("report")
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr] = useState("")
@@ -252,22 +299,38 @@ export default function InternReportPage() {
   const [viewReport, setViewReport] = useState<any | null>(null)
   const [window, setWindow] = useState(() => computeWindow(DEFAULTS))
 
+  const [reportStartDate, setReportStartDate] = useState<Date | null>(null)
   const [projectLead, setProjectLead] = useState<{ id: string; name: string } | null>(null)
   const [allEmployees, setAllEmployees] = useState<any[]>([])
   const [extraReviewerIds, setExtraReviewerIds] = useState<string[]>([])
   const [reviewerSearch, setReviewerSearch] = useState("")
   const [reviewerDropOpen, setReviewerDropOpen] = useState(false)
+  const [reviewerDropPos, setReviewerDropPos] = useState({ top: 0, left: 0, width: 0 })
   const reviewerRef = useRef<HTMLDivElement>(null)
+  const openReviewerDrop = () => {
+    if (reviewerRef.current) {
+      const r = reviewerRef.current.getBoundingClientRect()
+      setReviewerDropPos({ top: r.bottom + 4, left: r.left, width: r.width })
+    }
+    setReviewerDropOpen(true)
+  }
 
   useEffect(() => {
     fetch("/api/settings/intern-reports")
       .then(r => r.json())
-      .then(d => { setCfg(d); setWindow(computeWindow(d)) })
+      .then(d => {
+        const cfg = { ...DEFAULTS, ...d }
+        setCfg(cfg); setWindow(computeWindow(cfg))
+      })
       .catch(() => {})
     fetch("/api/intern-reports").then(r => r.json()).then(d => setReports(d.reports ?? [])).finally(() => setLoading(false))
     fetch("/api/self-service/profile").then(r => r.json()).then(d => {
       const pl = d.profile?.projectLead
       if (pl) setProjectLead({ id: pl.id, name: pl.name })
+      // Eligibility to submit reports starts from account creation, not hireDate —
+      // unless an admin set an explicit override (internReportStartDate) for this intern.
+      const start = d.profile?.internReportStartDate ?? d.profile?.accountCreatedAt
+      if (start) setReportStartDate(new Date(start))
     }).catch(() => {})
     fetch("/api/intern-reports/reviewers").then(r => r.json()).then(d => setAllEmployees(d.employees ?? [])).catch(() => {})
   }, [])
@@ -278,12 +341,17 @@ export default function InternReportPage() {
   }, [cfg])
 
   useEffect(() => {
-    const d = new Date(); d.setUTCHours(0,0,0,0)
-    const dayN = d.getUTCDay(); const diff = dayN === 0 ? -6 : 1 - dayN
-    d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
-    fetch(`/api/intern-reports/leaderboard?week=${encodeURIComponent(d.toISOString())}`)
-      .then(r => r.json()).then(data => setLeaderboard(data.leaderboard ?? [])).catch(() => {})
-  }, [lbWeekOffset])
+    let url = "/api/intern-reports/leaderboard"
+    if (lbMode === "week") {
+      const d = new Date(); d.setUTCHours(0,0,0,0)
+      const dayN = d.getUTCDay(); const diff = dayN === 0 ? -6 : 1 - dayN
+      d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
+      url += `?week=${encodeURIComponent(d.toISOString())}`
+    } else {
+      url += `?mode=${lbMode}`
+    }
+    fetch(url).then(r => r.json()).then(data => setLeaderboard(data.leaderboard ?? [])).catch(() => {})
+  }, [lbWeekOffset, lbMode])
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -293,11 +361,30 @@ export default function InternReportPage() {
     return () => document.removeEventListener("mousedown", handler)
   }, [])
 
-  const setEntry = (catKey: string, day: DayKey, field: "tasks"|"hours", val: string) =>
-    setEntries(e => ({ ...e, [catKey]: { ...e[catKey], [day]: { ...e[catKey][day], [field]: val } } }))
+  const setTaskRow = (catKey: string, day: DayKey, idx: number, field: keyof TaskRow, val: string) =>
+    setEntries(e => {
+      const rows = [...(e[catKey]?.[day] ?? [emptyTaskRow()])]
+      rows[idx] = { ...rows[idx], [field]: val }
+      return { ...e, [catKey]: { ...e[catKey], [day]: rows } }
+    })
+
+  const addTaskRow = (catKey: string, day: DayKey) =>
+    setEntries(e => {
+      const rows = [...(e[catKey]?.[day] ?? [emptyTaskRow()]), emptyTaskRow()]
+      return { ...e, [catKey]: { ...e[catKey], [day]: rows } }
+    })
+
+  const removeTaskRow = (catKey: string, day: DayKey, idx: number) =>
+    setEntries(e => {
+      const rows = (e[catKey]?.[day] ?? [emptyTaskRow()]).filter((_, i) => i !== idx)
+      return { ...e, [catKey]: { ...e[catKey], [day]: rows.length ? rows : [emptyTaskRow()] } }
+    })
+
+  const cellMinutes = (catKey: string, day: DayKey) =>
+    (entries[catKey]?.[day] ?? []).reduce((s, r) => s + parseMinutes(r.minutes), 0)
 
   const catTotal = (catKey: string) =>
-    DAYS_LIST.reduce((s, d) => s + (parseFloat(entries[catKey]?.[d]?.hours || "0") || 0), 0)
+    DAYS_LIST.reduce((s, d) => s + cellMinutes(catKey, d), 0) / 60
 
   const addReviewer = (emp: any) => {
     if (extraReviewerIds.includes(emp.id)) return
@@ -315,12 +402,41 @@ export default function InternReportPage() {
 
   const totalHours = CATEGORIES.reduce((s, c) => s + catTotal(c.key), 0)
 
-  const wat = new Date(new Date().getTime() + 60 * 60 * 1000)
-  const day = wat.getDay()
-  const diffToMonday = day === 0 ? -6 : 1 - day
-  const weekMon = new Date(wat); weekMon.setDate(wat.getDate() + diffToMonday); weekMon.setHours(0,0,0,0)
+  // Current week (WAT) — used as reference for the week navigator
+  const watNow = new Date(new Date().getTime() + 60 * 60 * 1000)
+  const currentDay = watNow.getDay()
+  const diffToCurrentMonday = currentDay === 0 ? -6 : 1 - currentDay
+  const currentWeekMon = new Date(watNow)
+  currentWeekMon.setDate(watNow.getDate() + diffToCurrentMonday)
+  currentWeekMon.setHours(0,0,0,0)
+
+  // Selected week based on weekOffset
+  const weekMon = new Date(currentWeekMon)
+  weekMon.setDate(currentWeekMon.getDate() + weekOffset * 7)
   const weekFri = new Date(weekMon); weekFri.setDate(weekMon.getDate() + 4)
   const weekLabel = `${format(weekMon, "MMM d")} – ${format(weekFri, "MMM d, yyyy")}`
+  const isPastWeek = weekOffset < 0
+
+  // Monday of the intern's earliest reportable week — can't navigate to weeks before this
+  let earliestWeekMon: Date | null = null
+  if (reportStartDate) {
+    const sd = new Date(reportStartDate)
+    const startDay = sd.getDay()
+    const diffToStartMonday = startDay === 0 ? -6 : 1 - startDay
+    earliestWeekMon = new Date(sd)
+    earliestWeekMon.setDate(sd.getDate() + diffToStartMonday)
+    earliestWeekMon.setHours(0, 0, 0, 0)
+  }
+  const atEarliestWeek = !!earliestWeekMon && weekMon <= earliestWeekMon
+
+  // Flat per-week deduction: -missingWeeklyDeduction for every Monday this report has been outstanding (no streak).
+  const missedMondays = (() => {
+    if (!isPastWeek) return 0
+    const firstMissedMonday = new Date(weekMon); firstMissedMonday.setDate(weekMon.getDate() + 7)
+    if (watNow.getTime() < firstMissedMonday.getTime()) return 0
+    return Math.floor((watNow.getTime() - firstMissedMonday.getTime()) / (7 * 86400000)) + 1
+  })()
+  const pastWeekDeduction = missedMondays * (cfg.missingWeeklyDeduction ?? 10)
 
   const lbMonday = (() => {
     const d = new Date(); d.setUTCHours(0,0,0,0)
@@ -331,31 +447,32 @@ export default function InternReportPage() {
   const lbFriday = new Date(lbMonday); lbFriday.setUTCDate(lbMonday.getUTCDate() + 4)
   const lbWeekLabel = `${format(lbMonday, "MMM d")} – ${format(lbFriday, "MMM d, yyyy")}`
 
-  const thisWeekReport = reports.find(r => {
+  const selectedWeekReport = reports.find(r => {
     const ws = new Date(r.weekStart); ws.setHours(0,0,0,0)
     const wm = new Date(weekMon); wm.setHours(0,0,0,0)
     return ws.getTime() === wm.getTime()
   })
+  // Keep thisWeekReport for backward compat (used in alreadySubmitted)
+  const thisWeekReport = selectedWeekReport
 
   const handleSubmit = async () => {
-    if (!window.open) return
+    if (!isPastWeek && !window.open) return
     setSubmitting(true); setSubmitErr("")
-    const hoursPayload = Object.fromEntries(CATEGORIES.map(c => [c.hoursKey, catTotal(c.key)]))
     const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, entries[c.key]]))
     const res = await fetch("/api/intern-reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...hoursPayload, taskDescriptions, dailyReflections, generalReflection, extraReviewerIds }),
+      body: JSON.stringify({ taskDescriptions, dailyReflections, generalReflection, extraReviewerIds, weekStart: weekMon.toISOString() }),
     })
     const d = await res.json()
     setSubmitting(false)
     if (!res.ok) { setSubmitErr(d.error ?? "Failed to submit"); return }
-    setSubmitOk(true)
+    if (weekOffset === 0) setSubmitOk(true)
     setReports(prev => [d.report, ...prev.filter(r => r.id !== d.report.id)])
   }
 
-  const alreadySubmitted = submitOk
-    || ["SUBMITTED","LATE","REVIEWED"].includes(thisWeekReport?.status)
+  const alreadySubmitted = (submitOk && weekOffset === 0)
+    || ["SUBMITTED","LATE","REVIEWED","ATTENDANCE_FILLED"].includes(selectedWeekReport?.status)
 
   // Compulsory: every Mon-Fri daily reflection must be non-empty after trim
   const missingReflectionDays = REFLECTION_DAYS
@@ -364,8 +481,14 @@ export default function InternReportPage() {
   const allReflectionsFilled = missingReflectionDays.length === 0
   const generalReflectionFilled = generalReflection.trim().length > 0
   const hoursOk = totalHours <= 40
+  const hasReviewer = !!projectLead || extraReviewerIds.length > 0
+  const hasUntimedTasks = CATEGORIES.some(c =>
+    DAYS_LIST.some(d =>
+      (entries[c.key]?.[d] ?? []).some(r => r.text.trim() !== "" && parseMinutes(r.minutes) === 0)
+    )
+  )
 
-  const hasMissingPlaceholder = thisWeekReport?.status === "MISSING"
+  const hasMissingPlaceholder = selectedWeekReport?.status === "MISSING"
 
   return (
     <div className="intern-report-page" style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
@@ -393,12 +516,41 @@ export default function InternReportPage() {
 
       {tab === "report" && (<>
 
-      {/* Big live countdown — phase + colour change as Friday → Sat → Sun progresses */}
-      <CountdownBanner cfg={cfg} />
+      {/* Week navigator */}
+      <div style={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
+        <button onClick={() => { if (!atEarliestWeek) { setWeekOffset(o => o - 1); setSubmitErr(""); setSubmitOk(false); setEntries(initEntries()); setDailyReflections({ Mon: "", Tue: "", Wed: "", Thu: "", Fri: "" }); setGeneralReflection("") } }}
+          disabled={atEarliestWeek}
+          title={atEarliestWeek ? "You can't view weeks before your reporting start date" : undefined}
+          style={{ background: "var(--muted)", border: "none", borderRadius: 6, cursor: atEarliestWeek ? "not-allowed" : "pointer", padding: "5px 10px", fontSize: 16, opacity: atEarliestWeek ? 0.4 : 1 }}>
+          <ChevronLeft size={16} />
+        </button>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>
+          {isPastWeek ? `Past: ${weekLabel}` : `Current week: ${weekLabel}`}
+        </span>
+        <button onClick={() => { if (weekOffset < 0) { setWeekOffset(o => o + 1); setSubmitErr(""); setSubmitOk(false); setEntries(initEntries()); setDailyReflections({ Mon: "", Tue: "", Wed: "", Thu: "", Fri: "" }); setGeneralReflection("") } }}
+          disabled={weekOffset >= 0}
+          style={{ background: "var(--muted)", border: "none", borderRadius: 6, cursor: weekOffset >= 0 ? "not-allowed" : "pointer", padding: "5px 10px", opacity: weekOffset >= 0 ? 0.4 : 1 }}>
+          <ChevronRight size={16} />
+        </button>
+      </div>
+
+      {/* Big live countdown — only for current week */}
+      {!isPastWeek && <CountdownBanner cfg={cfg} />}
+
+      {/* Past week notice */}
+      {isPastWeek && (
+        <div style={{ padding: "14px 18px", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, marginBottom: 16, color: "#92400E", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>⏰</span>
+          <div>
+            <strong>Past week submission</strong> — a deduction of <strong>−{pastWeekDeduction} pts</strong> will be applied.
+            Deductions accrue −{cfg.missingWeeklyDeduction} pts every Monday until you submit. Submit as soon as possible.
+          </div>
+        </div>
+      )}
 
       {hasMissingPlaceholder && (
-        <div style={{ padding: "14px 18px", background: "#FEE2E2", border: "1px solid #FECACA", borderRadius: 10, marginBottom: 20, color: "#991B1B", fontSize: 13 }}>
-          <strong>Missed week record on file.</strong> A "Missing" placeholder was auto-created for this week (−3 pts). Ask an admin to clear it before you can submit retroactively.
+        <div style={{ padding: "12px 16px", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 8, marginBottom: 16, color: "#92400E", fontSize: 12 }}>
+          A "Missing" placeholder exists for this week — submitting will replace it.
         </div>
       )}
 
@@ -407,84 +559,114 @@ export default function InternReportPage() {
         {/* Card header */}
         <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>This Week's Report</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>{isPastWeek ? "Past Week Report" : "This Week's Report"}</h2>
             <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{weekLabel}</span>
           </div>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8,
-            background: window.late ? "#FEF3C7" : window.open ? "#DCFCE7" : "#F3F4F6",
-            color: window.late ? "#D97706" : window.open ? "#15803D" : "#6B7280",
-            fontSize: 11, fontWeight: 700,
-          }}>
-            <Clock size={12} />
-            {window.open ? (window.late ? "LATE" : "OPEN") : "CLOSED"}
-          </div>
+          {isPastWeek ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: "#FEF3C7", color: "#D97706", fontSize: 11, fontWeight: 700 }}>
+              <Clock size={12} /> LATE −{pastWeekDeduction}pts
+            </div>
+          ) : (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8,
+              background: window.late ? "#FEF3C7" : window.open ? "#DCFCE7" : "#F3F4F6",
+              color: window.late ? "#D97706" : window.open ? "#15803D" : "#6B7280",
+              fontSize: 11, fontWeight: 700,
+            }}>
+              <Clock size={12} />
+              {window.open ? (window.late ? "LATE" : "OPEN") : "CLOSED"}
+            </div>
+          )}
         </div>
 
         {alreadySubmitted ? (
           <div style={{ padding: "40px 24px", textAlign: "center" }}>
             <CheckCircle2 size={44} style={{ color: "#16a34a", margin: "0 auto 14px" }} />
             <p style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Report Submitted!</p>
-            <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Your report for this week has been submitted. Check Past Reports below for status.</p>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Your report for {weekLabel} has been submitted. Check Past Reports below for status.</p>
           </div>
         ) : (
           <>
             <div style={{ padding: "16px 24px 0" }}>
 
               {/* Task table — Days as rows, Categories as columns */}
-              <div style={{ overflowX: "auto", marginBottom: 12 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <div style={{ overflow: "auto", maxHeight: "min(70vh, 560px)", marginBottom: 12, border: "1px solid var(--border)", borderRadius: 8 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "var(--muted)" }}>
-                      <th style={{ padding: "9px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 80, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Day</th>
+                      <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 95, position: "sticky", left: 0, top: 0, background: "var(--muted)", zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>Day</th>
                       {CATEGORIES.map(cat => (
-                        <th key={cat.key} style={{ padding: "9px 8px", textAlign: "center", fontWeight: 700, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 110 }}>{cat.label}</th>
+                        <th key={cat.key} style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 165, position: "sticky", top: 0, background: "var(--muted)", zIndex: 2 }}>{cat.label}</th>
                       ))}
-                      <th style={{ padding: "9px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Daily Total</th>
+                      <th style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 90, position: "sticky", right: 0, top: 0, background: "var(--muted)", zIndex: 3, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>Daily Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {DAYS_LIST.map((day, i) => {
                       const dayLabel = day.charAt(0).toUpperCase() + day.slice(1)
-                      const dayTotal = CATEGORIES.reduce((s, c) => s + (parseFloat(entries[c.key][day].hours || "0") || 0), 0)
+                      const dayTotalMins = CATEGORIES.reduce((s, c) => s + cellMinutes(c.key, day), 0)
+                      const dayOver = dayTotalMins > 480
+                      const rowBg = i % 2 === 0 ? "var(--card)" : "var(--muted)"
                       return (
                         <tr key={day} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.015)" }}>
-                          <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, color: "var(--foreground)", verticalAlign: "middle", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{dayLabel}</td>
-                          {CATEGORIES.map(cat => (
-                            <td key={cat.key} style={{ padding: "5px 6px", verticalAlign: "top" }}>
-                              <textarea
-                                value={entries[cat.key][day].tasks}
-                                onChange={e => setEntry(cat.key, day, "tasks", e.target.value)}
-                                disabled={!window.open}
-                                placeholder="Tasks…"
-                                rows={2}
-                                style={{ width: "100%", padding: "4px 6px", border: "1px solid var(--border)", borderRadius: 5, fontSize: 10, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, marginBottom: 3 }}
-                              />
-                              <input
-                                type="number" min={0} max={24} step={0.25}
-                                value={entries[cat.key][day].hours}
-                                onChange={e => setEntry(cat.key, day, "hours", e.target.value)}
-                                disabled={!window.open}
-                                placeholder="Hrs"
-                                style={{ width: "100%", padding: "3px 6px", border: "1px solid var(--border)", borderRadius: 5, fontSize: 10, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, textAlign: "center" }}
-                              />
-                            </td>
-                          ))}
-                          <td style={{ padding: "8px 6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "middle" }}>
-                            {dayTotal > 0 ? dayTotal.toFixed(1) : "—"}
+                          <td style={{ padding: "10px 14px", fontWeight: 700, fontSize: 13, color: "var(--foreground)", verticalAlign: "top", position: "sticky", left: 0, background: rowBg, zIndex: 1, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>{dayLabel}</td>
+                          {CATEGORIES.map(cat => {
+                            const rows = entries[cat.key]?.[day] ?? [emptyTaskRow()]
+                            return (
+                              <td key={cat.key} style={{ padding: "8px 8px", verticalAlign: "top" }}>
+                                {rows.map((row, idx) => (
+                                  <div key={idx} style={{ marginBottom: 6 }}>
+                                    <div style={{ display: "flex", gap: 3, alignItems: "flex-start" }}>
+                                      <textarea
+                                        value={row.text}
+                                        onChange={e => setTaskRow(cat.key, day, idx, "text", e.target.value)}
+                                        disabled={!window.open}
+                                        placeholder="Task description…"
+                                        rows={3}
+                                        style={{ flex: 1, padding: "5px 8px", border: "1px solid var(--border)", borderRadius: 5, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "vertical", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, lineHeight: 1.4 }}
+                                      />
+                                      {rows.length > 1 && window.open && (
+                                        <button onClick={() => removeTaskRow(cat.key, day, idx)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", fontSize: 16, lineHeight: 1, padding: "4px 2px", flexShrink: 0 }}>−</button>
+                                      )}
+                                    </div>
+                                    <input
+                                      type="text"
+                                      value={row.minutes}
+                                      onChange={e => setTaskRow(cat.key, day, idx, "minutes", e.target.value)}
+                                      disabled={!window.open}
+                                      placeholder="90 or 1h 30m"
+                                      style={{ width: "100%", padding: "4px 7px", border: `1px solid ${row.text.trim() && !parseMinutes(row.minutes) ? "#FCA5A5" : "var(--border)"}`, borderRadius: 5, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, marginTop: 3 }}
+                                    />
+                                    {parseMinutes(row.minutes) > 0 && (
+                                      <div style={{ fontSize: 10, color: "var(--primary)", marginTop: 2, fontWeight: 600 }}>{fmtMinutes(parseMinutes(row.minutes))}</div>
+                                    )}
+                                  </div>
+                                ))}
+                                {window.open && (
+                                  <button onClick={() => addTaskRow(cat.key, day)} style={{ fontSize: 11, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: "2px 0", fontWeight: 600 }}>+ Task</button>
+                                )}
+                              </td>
+                            )
+                          })}
+                          <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: dayOver ? "#DC2626" : "var(--primary)", verticalAlign: "top", position: "sticky", right: 0, background: rowBg, zIndex: 1, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>
+                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "—"}
+                            {dayOver && <div style={{ fontSize: 10, color: "#DC2626", fontWeight: 600 }}>over 8h</div>}
                           </td>
                         </tr>
                       )
                     })}
                     {/* Category totals row */}
-                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
-                      <td style={{ padding: "10px 12px", fontWeight: 800, fontSize: 12, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total</td>
-                      {CATEGORIES.map(cat => (
-                        <td key={cat.key} style={{ padding: "10px 6px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>
-                          {catTotal(cat.key) > 0 ? catTotal(cat.key).toFixed(1) : "—"}
-                        </td>
-                      ))}
-                      <td style={{ padding: "10px 6px", textAlign: "center", fontWeight: 900, fontSize: 14, color: totalHours > 40 ? "#DC2626" : totalHours > 35 ? "#D97706" : "var(--primary)" }}>
+                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)", position: "sticky", bottom: 0, zIndex: 2 }}>
+                      <td style={{ padding: "11px 14px", fontWeight: 800, fontSize: 13, position: "sticky", left: 0, background: "var(--muted)", zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>Total</td>
+                      {CATEGORIES.map(cat => {
+                        const catMins = DAYS_LIST.reduce((s, d) => s + cellMinutes(cat.key, d), 0)
+                        return (
+                          <td key={cat.key} style={{ padding: "11px 8px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>
+                            {catMins > 0 ? fmtMinutes(catMins) : "—"}
+                          </td>
+                        )
+                      })}
+                      <td style={{ padding: "11px 8px", textAlign: "center", fontWeight: 900, fontSize: 14, color: totalHours > 40 ? "#DC2626" : totalHours > 35 ? "#D97706" : "var(--primary)", position: "sticky", right: 0, background: "var(--muted)", boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>
                         {totalHours.toFixed(1)}h
                       </td>
                     </tr>
@@ -574,10 +756,16 @@ export default function InternReportPage() {
                   <span style={{ fontSize: 13, fontWeight: 700 }}>Who will review this report</span>
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: "#EEF2FF", fontSize: 12, fontWeight: 600, color: "#4338ca" }}>
-                    {projectLead?.name ?? "Your Project Lead"}
-                    <span style={{ fontSize: 10, fontWeight: 400, color: "#6366f1" }}>— required</span>
-                  </div>
+                  {projectLead ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: "#EEF2FF", fontSize: 12, fontWeight: 600, color: "#4338ca" }}>
+                      {projectLead.name}
+                      <span style={{ fontSize: 10, fontWeight: 400, color: "#6366f1" }}>— primary reviewer</span>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: "#D97706", fontStyle: "italic" }}>
+                      No project lead assigned — add at least one reviewer below.
+                    </div>
+                  )}
                   {extraReviewerIds.map(revId => {
                     const emp = allEmployees.find(e => e.id === revId)
                     if (!emp) return null
@@ -594,15 +782,15 @@ export default function InternReportPage() {
                     <Search size={12} style={{ color: "var(--muted-foreground)", flexShrink: 0 }} />
                     <input
                       value={reviewerSearch}
-                      onChange={e => { setReviewerSearch(e.target.value); setReviewerDropOpen(true) }}
-                      onFocus={() => setReviewerDropOpen(true)}
+                      onChange={e => { setReviewerSearch(e.target.value); openReviewerDrop() }}
+                      onFocus={openReviewerDrop}
                       placeholder="Add another reviewer…"
                       style={{ border: "none", background: "transparent", fontSize: 12, outline: "none", flex: 1, color: "var(--foreground)" }}
                       disabled={!window.open}
                     />
                   </div>
-                  {reviewerDropOpen && filteredReviewers.length > 0 && (
-                    <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 50, maxHeight: 180, overflowY: "auto", marginTop: 4 }}>
+                  {reviewerDropOpen && filteredReviewers.length > 0 && typeof document !== "undefined" && createPortal(
+                    <div style={{ position: "fixed", top: reviewerDropPos.top, left: reviewerDropPos.left, width: reviewerDropPos.width, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 9999, maxHeight: 180, overflowY: "auto" }}>
                       {filteredReviewers.slice(0, 20).map(emp => (
                         <div key={emp.id} onClick={() => addReviewer(emp)}
                           style={{ padding: "8px 12px", cursor: "pointer", fontSize: 12 }}
@@ -612,12 +800,13 @@ export default function InternReportPage() {
                           {emp.jobTitle && <span style={{ color: "var(--muted-foreground)", marginLeft: 6 }}>{emp.jobTitle}</span>}
                         </div>
                       ))}
-                    </div>
+                    </div>,
+                    document.body
                   )}
                 </div>
               </div>
 
-              {window.late && (
+              {!isPastWeek && window.late && (
                 <div style={{ padding: "8px 12px", background: "#FEF3C7", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 12 }}>
                   Late submission — {cfg.lateDeduction} point{cfg.lateDeduction !== 1 ? "s" : ""} will be automatically deducted from your score.
                 </div>
@@ -630,34 +819,40 @@ export default function InternReportPage() {
               )}
             </div>
 
-            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 12 }}>
-              {window.open && !allReflectionsFilled && (
+            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              {(isPastWeek || window.open) && !allReflectionsFilled && (
                 <span style={{ fontSize: 12, color: "#DC2626" }}>
                   Fill all 5 daily reflections to submit.
                 </span>
               )}
-              {window.open && hasMissingPlaceholder && (
+              {(isPastWeek || window.open) && !hasReviewer && (
                 <span style={{ fontSize: 12, color: "#DC2626" }}>
-                  Admin must clear the missing-report record first.
+                  Please add at least one reviewer.
+                </span>
+              )}
+              {(isPastWeek || window.open) && hasUntimedTasks && (
+                <span style={{ fontSize: 12, color: "#DC2626" }}>
+                  Enter time for each filled task.
                 </span>
               )}
               <button
                 onClick={handleSubmit}
-                disabled={!window.open || submitting || !allReflectionsFilled || !generalReflectionFilled || !hoursOk || hasMissingPlaceholder}
+                disabled={(!isPastWeek && !window.open) || submitting || !allReflectionsFilled || !generalReflectionFilled || !hoursOk || !hasReviewer || hasUntimedTasks}
                 title={
-                  !window.open ? "Submission window closed"
-                    : hasMissingPlaceholder ? "Ask an admin to clear the missing-report record first"
+                  (!isPastWeek && !window.open) ? "Submission window closed"
+                    : !hasReviewer ? "Add at least one reviewer before submitting"
+                    : hasUntimedTasks ? "Enter time for each filled task"
                     : !allReflectionsFilled ? `Missing: ${missingReflectionDays.join(", ")}`
                     : "Submit Report"
                 }
                 style={{
-                  padding: "10px 32px", background: "var(--primary)", border: "none", borderRadius: 8,
-                  cursor: (window.open && !submitting && allReflectionsFilled && !hasMissingPlaceholder) ? "pointer" : "not-allowed",
+                  padding: "10px 32px", background: isPastWeek ? "#D97706" : "var(--primary)", border: "none", borderRadius: 8,
+                  cursor: ((isPastWeek || window.open) && !submitting && allReflectionsFilled && hasReviewer && !hasUntimedTasks) ? "pointer" : "not-allowed",
                   fontSize: 14, fontWeight: 700, color: "white",
-                  opacity: (!window.open || submitting || !allReflectionsFilled || hasMissingPlaceholder) ? 0.5 : 1,
+                  opacity: ((!isPastWeek && !window.open) || submitting || !allReflectionsFilled || !hasReviewer || hasUntimedTasks) ? 0.5 : 1,
                 }}
               >
-                {submitting ? "Submitting…" : "Submit Report"}
+                {submitting ? "Submitting…" : isPastWeek ? `Submit Late (−${pastWeekDeduction}pts)` : "Submit Report"}
               </button>
             </div>
           </>
@@ -688,7 +883,7 @@ export default function InternReportPage() {
                       <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)" }}>
                         {r.attendanceRating !== null
                           ? `${Math.round((r.totalScore / 12) * 100)}%`
-                          : `TL: ${Math.round(((r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)) / 9 * 100)}% (att. pending)`}
+                          : `PL: ${Math.round(((r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)) / 9 * 100)}% (att. pending)`}
                       </span>
                     ) : null}
                   </div>
@@ -704,68 +899,124 @@ export default function InternReportPage() {
 
       </>)}
 
-      {tab === "leaderboard" && (
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 20px" }}>
-              <button onClick={() => setLbWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
-                <ChevronLeft size={18} />
-              </button>
-              <span style={{ fontSize: 14, fontWeight: 700, minWidth: 200, textAlign: "center" }}>{lbWeekLabel}</span>
-              <button onClick={() => setLbWeekOffset(o => Math.min(o + 1, 0))} disabled={lbWeekOffset === 0}
-                style={{ background: "none", border: "none", cursor: lbWeekOffset === 0 ? "not-allowed" : "pointer", color: lbWeekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}>
-                <ChevronRight size={18} />
-              </button>
+      {tab === "leaderboard" && (() => {
+        const myEntry = leaderboard.find((row: any) => !!reports.find((r: any) => r.employeeId === row.employeeId))
+        const top3 = leaderboard.filter((r: any) => r.rank !== null).slice(0, 3)
+        const ringColor = (rank: number) => rank === 1 ? "#F59E0B" : rank === 2 ? "#9CA3AF" : "#CD7C2F"
+        const depts = [...new Set(leaderboard.map((r: any) => r.dept).filter(Boolean))] as string[]
+        const filtered = lbDeptFilter ? leaderboard.filter((r: any) => r.dept === lbDeptFilter) : leaderboard
+        const totPct = (row: any) => lbMode === "week" ? row.totalScorePct : row.avgScorePct
+        const isPending = (row: any) => row.attendancePending
+        return (
+          <div>
+            {/* Hero banner */}
+            <div style={{ background: "#15803D", borderRadius: 16, padding: "24px 28px", marginBottom: 16, color: "white", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
+              <div>
+                {myEntry ? (
+                  <>
+                    <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.8, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.08em" }}>Your Standing</div>
+                    <div style={{ fontSize: 32, fontWeight: 900 }}>{myEntry.rank ? `#${myEntry.rank}` : "–"} <span style={{ fontSize: 13, fontWeight: 600, opacity: 0.8 }}>of {leaderboard.length}</span></div>
+                    <div style={{ fontSize: 13, marginTop: 4, opacity: 0.85 }}>
+                      Score: {isPending(myEntry) ? "pending" : `${totPct(myEntry)}%`}
+                      {myEntry.streak > 0 && <span style={{ marginLeft: 12 }}>🔥 {myEntry.streak}-week streak</span>}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 16, fontWeight: 700, opacity: 0.9 }}>No submission this week</div>
+                )}
+              </div>
+              {top3.length > 0 && (
+                <div style={{ display: "flex", gap: 20, alignItems: "flex-end" }}>
+                  {top3.map((row: any) => (
+                    <div key={row.employeeId} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                      <div style={{ width: 44, height: 44, borderRadius: "50%", background: avatarColor(row.name), border: `3px solid ${ringColor(row.rank)}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 15, fontWeight: 800, color: "white" }}>
+                        {lbInitials(row.name)}
+                      </div>
+                      <div style={{ textAlign: "center" }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, maxWidth: 64, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.name.split(" ")[0]}</div>
+                        <div style={{ fontSize: 10, opacity: 0.8 }}>{isPending(row) ? "pending" : `${totPct(row)}%`}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Filter bar */}
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              {depts.length > 1 && (
+                <select value={lbDeptFilter} onChange={e => setLbDeptFilter(e.target.value)} style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", color: "var(--foreground)", cursor: "pointer" }}>
+                  <option value="">All Departments</option>
+                  {depts.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              )}
+              <div style={{ display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
+                {(["week","month","alltime"] as const).map(m => (
+                  <button key={m} onClick={() => { setLbMode(m); setLbWeekOffset(0) }}
+                    style={{ padding: "6px 12px", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer", background: lbMode === m ? "var(--primary)" : "var(--card)", color: lbMode === m ? "white" : "var(--muted-foreground)" }}>
+                    {m === "week" ? "Week" : m === "month" ? "Month" : "All Time"}
+                  </button>
+                ))}
+              </div>
+              {lbMode === "week" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 10px" }}>
+                  <button onClick={() => setLbWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}><ChevronLeft size={15} /></button>
+                  <span style={{ fontSize: 12, fontWeight: 700, minWidth: 130, textAlign: "center" }}>{lbWeekLabel}</span>
+                  <button onClick={() => setLbWeekOffset(o => Math.min(o + 1, 0))} disabled={lbWeekOffset === 0} style={{ background: "none", border: "none", cursor: lbWeekOffset === 0 ? "not-allowed" : "pointer", color: lbWeekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}><ChevronRight size={15} /></button>
+                </div>
+              )}
+            </div>
+
+            {/* Table */}
+            <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+              {filtered.length === 0 ? (
+                <div style={{ padding: "40px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leaderboard data for this period.</div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: "var(--muted)" }}>
+                        {["Rank", "Member", "Dept", "🔥 Streak", "Total %"].map(h => (
+                          <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((row: any) => {
+                        const isMe = !!reports.find((r: any) => r.employeeId === row.employeeId)
+                        const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null
+                        return (
+                          <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)", background: isMe ? "rgba(22,163,74,0.06)" : "transparent" }}>
+                            <td style={{ padding: "11px 14px", fontWeight: 700 }}>{medal ? <span style={{ fontSize: 15 }}>{medal}</span> : <span style={{ color: "var(--muted-foreground)" }}>{row.rank ?? "–"}</span>}</td>
+                            <td style={{ padding: "11px 14px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                                <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(row.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white", flexShrink: 0 }}>{lbInitials(row.name)}</div>
+                                <span style={{ fontWeight: isMe ? 700 : 500 }}>{row.name}{isMe && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 12, background: "#DCFCE7", color: "#15803D", fontWeight: 700, marginLeft: 6 }}>You</span>}</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: "11px 14px", color: "var(--muted-foreground)", fontSize: 12 }}>{row.dept}</td>
+                            <td style={{ padding: "11px 14px", fontWeight: 600 }}>{row.streak > 0 ? `${row.streak}w` : "–"}</td>
+                            <td style={{ padding: "11px 14px", fontWeight: 700, color: "var(--primary)" }}>{isPending(row) ? "–" : totPct(row) != null ? `${totPct(row)}%` : "–"}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div style={{ padding: "10px 16px", fontSize: 11, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)" }}>
+                Total % = PL review + attendance − late deductions (max 12 pts)
+              </div>
             </div>
           </div>
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-            {leaderboard.length === 0 ? (
-              <div style={{ padding: "40px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leaderboard data for this week.</div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: "var(--muted)" }}>
-                      {["Rank", "Intern", "Dept", "TL Score", "Attendance", "Total"].map(h => (
-                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboard.map((row: any) => {
-                      const isMe = !!reports.find((r: any) => r.employeeId === row.employeeId)
-                      const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null
-                      return (
-                        <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)", background: isMe ? "rgba(22,163,74,0.06)" : "transparent" }}>
-                          <td style={{ padding: "12px 16px", fontWeight: 700 }}>
-                            {medal ? <span style={{ fontSize: 16 }}>{medal}</span> : <span style={{ color: "var(--muted-foreground)" }}>{row.rank}</span>}
-                          </td>
-                          <td style={{ padding: "12px 16px", fontWeight: isMe ? 700 : 500 }}>
-                            {row.name}{isMe && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 12, background: "#DCFCE7", color: "#15803D", fontWeight: 700, marginLeft: 6 }}>You</span>}
-                          </td>
-                          <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>{row.dept}</td>
-                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{row.tlScorePct}%</td>
-                          <td style={{ padding: "12px 16px", color: row.attendancePending ? "var(--muted-foreground)" : "inherit" }}>
-                            {row.attendancePending ? "Pending" : `${row.attendanceScorePct}%`}
-                          </td>
-                          <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--primary)" }}>
-                            {row.attendancePending ? "–" : `${row.totalScorePct}%`}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* View Report Modal */}
       {viewReport && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewReport(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: "min(1100px, 95vw)", width: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: "min(1100px, 95vw)", width: "100%", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+            <div style={{ flex: 1, overflow: "auto" }}>
             <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--card)", zIndex: 1 }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>
@@ -789,53 +1040,71 @@ export default function InternReportPage() {
                       {CATEGORIES.map(cat => (
                         <th key={cat.key} style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 10, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 90 }}>{cat.label}</th>
                       ))}
-                      <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Daily Total</th>
+                      <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70, position: "sticky", right: 0, background: "var(--muted)", zIndex: 2 }}>Daily Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {DAYS_LIST.map((day, i) => {
                       const dayLabel = day.charAt(0).toUpperCase() + day.slice(1)
                       const td = viewReport.taskDescriptions as any
-                      const isLegacy = typeof td?.[CATEGORIES[0]?.key] === "string"
-                      const dayTotal = CATEGORIES.reduce((s, cat) => {
-                        if (isLegacy) return s + (viewReport[cat.hoursKey] ?? 0)
-                        return s + (parseFloat(td?.[cat.key]?.[day]?.hours || "0") || 0)
-                      }, 0)
+                      const getCellMins = (cat: typeof CATEGORIES[0]) => {
+                        const cell = td?.[cat.key]?.[day]
+                        if (!cell) return 0
+                        if (Array.isArray(cell)) return cell.reduce((s: number, r: any) => s + parseMinutes(r.minutes ?? ""), 0)
+                        return Math.round((parseFloat(cell.hours || "0") || 0) * 60)
+                      }
+                      const dayTotalMins = CATEGORIES.reduce((s, cat) => s + getCellMins(cat), 0)
                       return (
                         <tr key={day} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
                           <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, verticalAlign: "top", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{dayLabel}</td>
                           {CATEGORIES.map(cat => {
-                            const cell = isLegacy ? null : td?.[cat.key]?.[day]
+                            const cell = td?.[cat.key]?.[day]
+                            const mins = getCellMins(cat)
+                            if (Array.isArray(cell)) {
+                              const tasks = cell.filter((r: any) => r.text?.trim())
+                              return (
+                                <td key={cat.key} style={{ padding: "6px 8px", fontSize: 11, verticalAlign: "top" }}>
+                                  {tasks.length > 0 ? (
+                                    <>
+                                      {tasks.map((r: any, idx: number) => <div key={idx} style={{ marginBottom: 2, lineHeight: 1.4 }}>{r.text}</div>)}
+                                      {mins > 0 && <div style={{ fontWeight: 700, color: "var(--primary)", marginTop: 2 }}>{fmtMinutes(mins)}</div>}
+                                    </>
+                                  ) : <span style={{ color: "var(--border)" }}>—</span>}
+                                </td>
+                              )
+                            }
                             return (
                               <td key={cat.key} style={{ padding: "6px 8px", fontSize: 11, verticalAlign: "top" }}>
                                 {cell?.tasks && <div style={{ marginBottom: 2, color: "var(--foreground)", lineHeight: 1.4 }}>{cell.tasks}</div>}
-                                {cell?.hours && parseFloat(cell.hours) > 0 && <div style={{ fontWeight: 700, color: "var(--primary)" }}>{parseFloat(cell.hours).toFixed(1)}h</div>}
-                                {!cell?.tasks && !cell?.hours && <span style={{ color: "var(--border)" }}>—</span>}
+                                {mins > 0 && <div style={{ fontWeight: 700, color: "var(--primary)" }}>{fmtMinutes(mins)}</div>}
+                                {!cell?.tasks && !mins && <span style={{ color: "var(--border)" }}>—</span>}
                               </td>
                             )
                           })}
-                          <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "middle" }}>
-                            {dayTotal > 0 ? dayTotal.toFixed(1) : "—"}
+                          <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "middle", position: "sticky", right: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>
+                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "—"}
                           </td>
                         </tr>
                       )
                     })}
                     {/* Category totals row */}
-                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total</td>
+                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)", position: "sticky", bottom: 0, zIndex: 2 }}>
+                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, position: "sticky", left: 0, background: "var(--muted)", zIndex: 3 }}>Total</td>
                       {CATEGORIES.map(cat => {
                         const td = viewReport.taskDescriptions as any
-                        const isLegacy = typeof td?.[cat.key] === "string"
-                        const catTot = isLegacy
-                          ? viewReport[cat.hoursKey] ?? 0
-                          : DAYS_LIST.reduce((s, d) => s + (parseFloat(td?.[cat.key]?.[d]?.hours || "0") || 0), 0)
+                        const catTotMins = DAYS_LIST.reduce((s, d) => {
+                          const cell = td?.[cat.key]?.[d]
+                          if (!cell) return s
+                          if (Array.isArray(cell)) return s + cell.reduce((cs: number, r: any) => cs + parseMinutes(r.minutes ?? ""), 0)
+                          return s + Math.round((parseFloat(cell.hours || "0") || 0) * 60)
+                        }, 0)
                         return (
                           <td key={cat.key} style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)" }}>
-                            {catTot > 0 ? catTot.toFixed(1) : "—"}
+                            {catTotMins > 0 ? fmtMinutes(catTotMins) : "—"}
                           </td>
                         )
                       })}
-                      <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 900, fontSize: 13, color: "var(--primary)" }}>
+                      <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 900, fontSize: 13, color: "var(--primary)", position: "sticky", right: 0, background: "var(--muted)" }}>
                         {(viewReport.totalHours ?? 0).toFixed(1)}h
                       </td>
                     </tr>
@@ -883,7 +1152,7 @@ export default function InternReportPage() {
                   <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>Reviewer Feedback</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {viewReport.reviewers.map((rv: any) => {
-                      const tlScore = (rv.productivityRating ?? 0) + (rv.ldRating ?? 0) + (rv.reflectionsRating ?? 0)
+                      const plScore = (rv.productivityRating ?? 0) + (rv.ldRating ?? 0) + (rv.reflectionsRating ?? 0)
                       const rated = rv.productivityRating !== null
                       return (
                         <div key={rv.id} style={{ background: "var(--muted)", borderRadius: 10, padding: "12px 14px" }}>
@@ -896,7 +1165,7 @@ export default function InternReportPage() {
                             )}
                             {rated && (
                               <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", marginLeft: "auto" }}>
-                                TL Score: {Math.round((tlScore / 9) * 100)}%
+                                PL Score: {Math.round((plScore / 9) * 100)}%
                               </span>
                             )}
                           </div>
@@ -938,6 +1207,7 @@ export default function InternReportPage() {
                 </div>
               )}
             </div>
+            </div>
           </div>
         </div>
       )}
@@ -953,6 +1223,10 @@ export default function InternReportPage() {
         @media (max-width: 540px) {
           .intern-report-page .reflections-grid {
             grid-template-columns: 1fr !important;
+          }
+          .intern-report-page .tab-bar {
+            max-width: 100% !important;
+            overflow-x: auto !important;
           }
         }
       `}</style>

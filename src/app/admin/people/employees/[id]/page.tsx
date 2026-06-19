@@ -35,19 +35,21 @@ function Modal({ title, onClose, onSave, saving, err, wide, children }: {
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}>
-      <div style={{ background: "var(--card)", borderRadius: 16, width: "100%", maxWidth: wide ? 680 : 520, maxHeight: "90vh", overflow: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{title}</h2>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}><X size={18} /></button>
+      <div style={{ background: "var(--card)", borderRadius: 16, width: "100%", maxWidth: wide ? 680 : 520, maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 24px 64px rgba(0,0,0,0.35)" }}>
+        <div style={{ flex: 1, overflow: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
+            <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>{title}</h2>
+            <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}><X size={18} /></button>
+          </div>
+          <div style={{ padding: "24px" }}>
+            <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
+              This information is used for Benefits and HR, so please make sure it's accurate.
+            </p>
+            {children}
+          </div>
+          {err && <div style={{ margin: "0 24px 16px", padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{err}</div>}
         </div>
-        <div style={{ padding: "24px" }}>
-          <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 20 }}>
-            This information is used for Benefits and HR, so please make sure it's accurate.
-          </p>
-          {children}
-        </div>
-        {err && <div style={{ margin: "0 24px 16px", padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626" }}>{err}</div>}
-        <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <div style={{ padding: "16px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 10, flexShrink: 0 }}>
           <button onClick={onClose} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
           <button onClick={onSave} disabled={saving} style={{ padding: "9px 22px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: saving ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", display: "flex", alignItems: "center", gap: 6 }}>
             {saving && <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} />}
@@ -180,15 +182,17 @@ function PLDepartmentsCard({ emp }: { emp: any }) {
 function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any) => void }) {
   const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"
   const isoDate = (d?: string | null) => d ? d.slice(0, 10) : ""
+  const isIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern") || emp.employmentType === "INTERN"
 
   return (
     <div className="grid-2col" style={{ gap: 20 }}>
       <InfoCard icon={<Briefcase size={16} color="#16a34a" />} iconBg="#DCFCE7" title="Employment Details"
-        onEdit={() => openModal("employment", { departmentId: emp.department?.id ?? "", managerId: emp.manager?.id ?? "", hireDate: isoDate(emp.hireDate) })}>
+        onEdit={() => openModal("employment", { departmentId: emp.department?.id ?? "", managerId: emp.manager?.id ?? "", hireDate: isoDate(emp.hireDate), internReportStartDate: isoDate(emp.internReportStartDate) })}>
         <InfoRow label="Department" value={emp.department?.name} />
         <InfoRow label={emp.user?.role === "PROJECT_LEAD" ? "Manager" : "Project Lead"} value={emp.manager ? `${emp.manager.firstName} ${emp.manager.lastName}` : null} />
         <InfoRow label="Start Date" value={fmtDate(emp.hireDate)} />
         <InfoRow label="Employee No." value={emp.employeeId} />
+        {isIntern && <InfoRow label="Intern Report Start" value={emp.internReportStartDate ? fmtDate(emp.internReportStartDate) : `Account creation (${fmtDate(emp.createdAt)})`} />}
       </InfoCard>
 
       <InfoCard icon={<CreditCard size={16} color="#6b7280" />} iconBg="#F3F4F6" title="Employment Details"
@@ -996,6 +1000,14 @@ export default function EmployeeProfilePage() {
               </select>
             </MF>
             <MF label="Hire Date"><input type="date" value={mf.hireDate ?? ""} onChange={setMF("hireDate")} style={fi} /></MF>
+            {((emp.jobTitle ?? "").toLowerCase().includes("intern") || emp.employmentType === "INTERN") && (
+              <MF label="Intern Report Start Date">
+                <input type="date" value={mf.internReportStartDate ?? ""} onChange={setMF("internReportStartDate")} style={fi} />
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>
+                  First week this intern is required to submit weekly reports. Leave blank to use their account creation date — set this if they shouldn't be on the hook for earlier weeks (e.g. onboarding delay).
+                </div>
+              </MF>
+            )}
           </div>
         ),
       },

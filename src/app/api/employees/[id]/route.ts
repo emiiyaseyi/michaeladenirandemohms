@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     "personalEmail", "phone", "alternatePhone",
     "address", "city", "state", "country", "postalCode",
     "departmentId", "jobTitle", "employmentType", "employeeStatus",
-    "hireDate", "confirmationDate", "endDate",
+    "hireDate", "confirmationDate", "endDate", "internReportStartDate",
     "managerId", "projectLeadId",
     "nin", "aiMembership",
     "onProbation", "probationEndDate",
@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (key in body) {
       let val = body[key]
       if (val === "") val = null
-      if ((key === "dateOfBirth" || key === "hireDate" || key === "confirmationDate" || key === "endDate" || key === "probationEndDate") && val) {
+      if ((key === "dateOfBirth" || key === "hireDate" || key === "confirmationDate" || key === "endDate" || key === "probationEndDate" || key === "internReportStartDate") && val) {
         val = new Date(val)
       }
       if ((key === "annualLeaveBalance" || key === "sickLeaveBalance") && val !== null) {

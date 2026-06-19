@@ -3,10 +3,32 @@ import { useState, useEffect } from "react"
 import { ClipboardList, Save, Loader2 } from "lucide-react"
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+const OPENABLE_DAYS = [1, 2, 3, 4, 5] // Monday–Friday only — weekends are always the late-deduction days
 
 function hourLabel(h: number) {
   const n = h === 24 ? 0 : h
   return `${String(n).padStart(2, "0")}:00`
+}
+
+function fmtDate(d: Date) {
+  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })
+}
+
+// Offset (in days) from this calendar week's Monday for a given day-of-week index (0=Sun..6=Sat)
+function offsetFromMonday(dow: number) {
+  return (dow + 6) % 7
+}
+
+function fmtHHMM(h: number, m: number) {
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`
+}
+
+function parseHHMM(s: string): { h: number; m: number } | null {
+  const match = s.match(/^(\d{1,2}):(\d{2})$/)
+  if (!match) return null
+  const h = parseInt(match[1], 10), m = parseInt(match[2], 10)
+  if (h > 23 || m > 59) return null
+  return { h, m }
 }
 
 const DEFAULT_CRITERIA = [
@@ -19,23 +41,27 @@ const DEFAULT_CRITERIA = [
 export default function InternReportSettingsPage() {
   const [settings, setSettings] = useState<{
     submissionDay: number
-    openHour: number
-    lateHour: number
+    openHour: number; openMinute: number
+    lateHour: number; lateMinute: number
     closeHour: number
     lateDeduction: number
     lateDeductionSunday: number
+    missingWeeklyDeduction: number
     warningThresholdMinutes: number
     attendanceCriteria: { score: number; description: string }[]
   }>({
     submissionDay: 5,
-    openHour: 16,
-    lateHour: 20,
+    openHour: 16, openMinute: 0,
+    lateHour: 20, lateMinute: 0,
     closeHour: 24,
     lateDeduction: 2,
     lateDeductionSunday: 3,
+    missingWeeklyDeduction: 10,
     warningThresholdMinutes: 15,
     attendanceCriteria: DEFAULT_CRITERIA,
   })
+  const [openTimeStr, setOpenTimeStr] = useState("16:00")
+  const [lateTimeStr, setLateTimeStr] = useState("20:00")
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -46,13 +72,18 @@ export default function InternReportSettingsPage() {
     fetch("/api/settings/intern-reports")
       .then(r => r.json())
       .then(d => {
+        const oh = d.openHour ?? 16, om = d.openMinute ?? 0
+        const lh = d.lateHour ?? 20, lm = d.lateMinute ?? 0
+        setOpenTimeStr(fmtHHMM(oh, om))
+        setLateTimeStr(fmtHHMM(lh, lm))
         setSettings({
           submissionDay: d.submissionDay ?? 5,
-          openHour: d.openHour ?? 16,
-          lateHour: d.lateHour ?? 20,
+          openHour: oh, openMinute: om,
+          lateHour: lh, lateMinute: lm,
           closeHour: d.closeHour ?? 24,
           lateDeduction: d.lateDeduction ?? 2,
           lateDeductionSunday: d.lateDeductionSunday ?? 3,
+          missingWeeklyDeduction: d.missingWeeklyDeduction ?? 10,
           warningThresholdMinutes: d.warningThresholdMinutes ?? 15,
           attendanceCriteria: d.attendanceCriteria ?? DEFAULT_CRITERIA,
         })
@@ -64,11 +95,20 @@ export default function InternReportSettingsPage() {
   const set = (key: string, val: number) => setSettings(s => ({ ...s, [key]: val }))
 
   const save = async () => {
+    const openParsed = parseHHMM(openTimeStr)
+    const lateParsed = parseHHMM(lateTimeStr)
+    if (!openParsed) { setErr("Invalid open time — use HH:MM (e.g. 16:00)"); return }
+    if (!lateParsed) { setErr("Invalid late threshold — use HH:MM (e.g. 20:00)"); return }
+    const payload = {
+      ...settings,
+      openHour: openParsed.h, openMinute: openParsed.m,
+      lateHour: lateParsed.h, lateMinute: lateParsed.m,
+    }
     setSaving(true); setErr(""); setSaved(false)
     const res = await fetch("/api/settings/intern-reports", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(settings),
+      body: JSON.stringify(payload),
     })
     setSaving(false)
     if (!res.ok) { setErr("Failed to save settings"); return }
@@ -95,21 +135,21 @@ export default function InternReportSettingsPage() {
       ) : (
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: "8px 24px 20px" }}>
           <div style={{ padding: "12px 14px", background: "#F3F4F6", borderRadius: 8, fontSize: 12, color: "var(--muted-foreground)", marginBottom: 12, lineHeight: 1.6 }}>
-            The submission window opens on the chosen day and stays open through the following two days. Saturday and Sunday submissions incur deductions; non-submission by the day after Sunday becomes a MISSING record.
+            The submission window opens on the chosen day. Saturday and Sunday are always the late-deduction days, no matter which day the window opens on. Still not submitted by Monday — it becomes a MISSING record and loses more points every following Monday until submitted.
           </div>
 
           {/* Submission Day */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Submission Day</div>
-              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Day of the week when the submission window opens</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Day of the week when the submission window opens (Saturday/Sunday are reserved for late deductions, so they're not selectable here)</div>
             </div>
             <select
               value={settings.submissionDay}
               onChange={e => set("submissionDay", Number(e.target.value))}
               style={{ padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", minWidth: 140 }}
             >
-              {DAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+              {OPENABLE_DAYS.map(i => <option key={i} value={i}>{DAYS[i]}</option>)}
             </select>
           </div>
 
@@ -117,18 +157,17 @@ export default function InternReportSettingsPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Window Opens At</div>
-              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>WAT hour when interns can start submitting on the submission day</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>WAT time when interns can start submitting (e.g. 16:00, 13:30)</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <select
-                value={settings.openHour}
-                onChange={e => set("openHour", Number(e.target.value))}
-                style={{ padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", minWidth: 100 }}
-              >
-                {Array.from({ length: 25 }, (_, h) => (
-                  <option key={h} value={h}>{hourLabel(h)} WAT</option>
-                ))}
-              </select>
+              <input
+                type="text"
+                value={openTimeStr}
+                onChange={e => setOpenTimeStr(e.target.value)}
+                placeholder="HH:MM"
+                style={{ width: 90, padding: "8px 12px", border: `1.5px solid ${parseHHMM(openTimeStr) ? "var(--border)" : "#FCA5A5"}`, borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", textAlign: "center" }}
+              />
+              <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>WAT</span>
             </div>
           </div>
 
@@ -136,18 +175,17 @@ export default function InternReportSettingsPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Late Threshold</div>
-              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Submissions after this time on the submission day are flagged LATE</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Submissions after this WAT time on the submission day are flagged LATE (e.g. 20:00)</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <select
-                value={settings.lateHour}
-                onChange={e => set("lateHour", Number(e.target.value))}
-                style={{ padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", minWidth: 100 }}
-              >
-                {Array.from({ length: 25 }, (_, h) => (
-                  <option key={h} value={h}>{hourLabel(h)} WAT</option>
-                ))}
-              </select>
+              <input
+                type="text"
+                value={lateTimeStr}
+                onChange={e => setLateTimeStr(e.target.value)}
+                placeholder="HH:MM"
+                style={{ width: 90, padding: "8px 12px", border: `1.5px solid ${parseHHMM(lateTimeStr) ? "var(--border)" : "#FCA5A5"}`, borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", textAlign: "center" }}
+              />
+              <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>WAT</span>
             </div>
           </div>
 
@@ -183,6 +221,22 @@ export default function InternReportSettingsPage() {
             </div>
           </div>
 
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Missing Report Deduction</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Points deducted on Monday if still not submitted — and again every following Monday until it is</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number" min={0} max={50} step={1}
+                value={settings.missingWeeklyDeduction}
+                onChange={e => set("missingWeeklyDeduction", Number(e.target.value))}
+                style={{ width: 80, padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", textAlign: "center" }}
+              />
+              <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>pts / week</span>
+            </div>
+          </div>
+
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Warning Threshold</div>
@@ -201,29 +255,59 @@ export default function InternReportSettingsPage() {
 
           {/* Preview */}
           <div style={{ background: "var(--muted)", borderRadius: 10, padding: "12px 16px", marginTop: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Preview — current window</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Preview — this week's window</div>
             <div style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.8 }}>
               {(() => {
+                const today = new Date()
+                const dow = today.getDay()
+                const diffToMonday = dow === 0 ? -6 : 1 - dow
+                const thisMonday = new Date(today)
+                thisMonday.setDate(today.getDate() + diffToMonday)
+                thisMonday.setHours(0, 0, 0, 0)
+
+                const addDays = (n: number) => { const d = new Date(thisMonday); d.setDate(thisMonday.getDate() + n); return d }
+                const openDate = addDays(offsetFromMonday(settings.submissionDay))
+                const satDate = addDays(5)
+                const sunDate = addDays(6)
+                const missingMonday = addDays(7)
+
                 const d1 = DAYS[settings.submissionDay]
-                const d2 = DAYS[(settings.submissionDay + 1) % 7]
-                const d3 = DAYS[(settings.submissionDay + 2) % 7]
-                const d4 = DAYS[(settings.submissionDay + 3) % 7]
                 return <>
-                  Window opens <strong>{d1} {hourLabel(settings.openHour)} WAT</strong> and stays open through <strong>{d3} 11:59 PM WAT</strong>.
+                  Window opens <strong>{d1} {fmtDate(openDate)}, {hourLabel(settings.openHour)} WAT</strong>.
                   <br />
                   • <strong>{d1} {hourLabel(settings.openHour)}–{hourLabel(settings.lateHour)}:</strong> on time — 0 pts
                   <br />
                   • <strong>{d1} {hourLabel(settings.lateHour)}–midnight:</strong> LATE flag, 0 pts
                   <br />
-                  • <strong>{d2}:</strong> LATE, <strong>−{settings.lateDeduction} pts</strong>
+                  {settings.submissionDay < 5 && <>
+                    • <strong>{DAYS[settings.submissionDay + 1]}–Friday:</strong> window closed — no submission allowed until Saturday's late window opens
+                    <br />
+                  </>}
+                  • <strong>Saturday {fmtDate(satDate)}:</strong> LATE, <strong>−{settings.lateDeduction} pts</strong>
                   <br />
-                  • <strong>{d3}:</strong> LATE, <strong>−{settings.lateDeductionSunday} pts</strong>
+                  • <strong>Sunday {fmtDate(sunDate)}:</strong> LATE, <strong>−{settings.lateDeductionSunday} pts</strong>
                   <br />
-                  • <strong>{d4} onwards:</strong> window closed. No submission row → auto-created as <strong>MISSING (−{settings.lateDeductionSunday} pts)</strong> by cron.
+                  • <strong>Monday {fmtDate(missingMonday)} onwards:</strong> still not submitted → <strong>MISSING (−{settings.missingWeeklyDeduction} pts)</strong>, and another <strong>−{settings.missingWeeklyDeduction} pts</strong> every following Monday until submitted.
                   <br />
                   Countdown turns red <strong>{settings.warningThresholdMinutes} minutes</strong> before the late threshold.
+                  <br />
+                  <span style={{ color: "var(--muted-foreground)" }}>Saturday and Sunday are always the late days, and Monday is always the missing-deduction day — changing "Submission Day" above only moves when the window opens, not these.</span>
                 </>
               })()}
+            </div>
+          </div>
+
+          {/* Reviewer Deadline */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)", gap: 16, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Reviewer Deadline</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>
+                Fixed at 7 days after the week starts, at 08:00 WAT — the exact moment the weekly cron runs.
+                This isn't adjustable: the cron only runs once a week, so any other time would silently never fire.
+              </div>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
+              Monday · 08:00 WAT
             </div>
           </div>
 

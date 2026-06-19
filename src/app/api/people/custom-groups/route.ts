@@ -18,7 +18,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
+  if (!hasCap(user, "canManageCustomGroups")) return forbidden()
 
   const { name, description, groupByCurrency, memberIds } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })
