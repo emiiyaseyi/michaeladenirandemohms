@@ -26,8 +26,8 @@ function EmpSelect({ employees, value, onChange, placeholder = "Please Select" }
   const { ref: btnRef, pos, recompute } = useDropdownPosition<HTMLButtonElement>()
   useEffect(() => {
     const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) { setOpen(false); setQ("") } }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [])
   const sel = employees.find(e => e.id === value)
   const fi: React.CSSProperties = { width: "100%", padding: "10px 14px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 14, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box" }

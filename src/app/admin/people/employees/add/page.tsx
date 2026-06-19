@@ -19,8 +19,8 @@ function SearchableSelect({ label, value, onChange, options, placeholder, requir
   const { ref, pos, recompute } = useDropdownPosition<HTMLDivElement>()
   useEffect(() => {
     const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) { setOpen(false); setQ("") } }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [])
   const filtered = options.filter(o => o.label.toLowerCase().includes(q.toLowerCase()))
   const selected = options.find(o => o.value === value)

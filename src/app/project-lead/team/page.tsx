@@ -5,11 +5,10 @@ import { Search, Loader2, ChevronDown, Check, Users, UserCheck, CalendarOff, Dow
 import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 
 const STATUS_OPTS = [
-  { value: "", label: "All Statuses" },
+  { value: "", label: "All" },
   { value: "ACTIVE", label: "Active" },
   { value: "ON_LEAVE", label: "On Leave" },
   { value: "TERMINATED", label: "Inactive" },
-  { value: "RESIGNED", label: "Resigned" },
 ]
 
 const EMP_TYPE_OPTS = [
@@ -45,7 +44,7 @@ export default function PLTeamPage() {
   const [employees, setEmployees] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("ACTIVE")
+  const [statusFilter, setStatusFilter] = useState("")
   const [deptFilter, setDeptFilter] = useState("")
   const [typeFilter, setTypeFilter] = useState("")
   const [statusOpen, setStatusOpen] = useState(false)
@@ -75,8 +74,8 @@ export default function PLTeamPage() {
       if (typeRef.current && !typeRef.current.contains(e.target as Node)) setTypeOpen(false)
       if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node)) setPageSizeOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [])
 
   const load = useCallback(async () => {
@@ -236,8 +235,8 @@ export default function PLTeamPage() {
             )}
           </div>
           {/* Clear filters */}
-          {(deptFilter || typeFilter || (statusFilter && statusFilter !== "ACTIVE")) && (
-            <button onClick={() => { setDeptFilter(""); setTypeFilter(""); setStatusFilter("ACTIVE") }}
+          {(deptFilter || typeFilter || statusFilter) && (
+            <button onClick={() => { setDeptFilter(""); setTypeFilter(""); setStatusFilter("") }}
               style={{ padding: "7px 12px", background: "none", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600 }}>
               Clear filters
             </button>

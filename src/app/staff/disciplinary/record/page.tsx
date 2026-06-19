@@ -22,8 +22,8 @@ function Dropdown({ options, value, onSelect, placeholder }: {
     const h = (e: MouseEvent) => {
       if (!triggerRef.current?.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [open, triggerRef])
 
   const filtered = options.filter(o => o.name.toLowerCase().includes(search.toLowerCase()))

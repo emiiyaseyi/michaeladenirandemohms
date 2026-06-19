@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
       department: { select: { id: true, name: true } },
       user: { select: { email: true } },
     },
-    orderBy: { firstName: "asc" },
+    orderBy: { lastName: "asc" },
   })
 
   return NextResponse.json({ employees })

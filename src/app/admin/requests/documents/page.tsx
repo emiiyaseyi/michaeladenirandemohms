@@ -266,8 +266,8 @@ export default function RequestDocumentsPage() {
   useEffect(() => {
     if (!filterOpen) return
     const h = (e: MouseEvent) => { if (!filterRef.current?.contains(e.target as Node)) setFilterOpen(false) }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [filterOpen])
 
   const load = async () => {

@@ -42,14 +42,14 @@ export default function BulkUpdateEmployeesPage() {
 
   useEffect(() => {
     const h = (e: MouseEvent) => { if (!scopeRef.current?.contains(e.target as Node)) setScopeOpen(false) }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [])
 
   useEffect(() => {
     const h = (e: MouseEvent) => { if (!empRef.current?.contains(e.target as Node)) setEmpDropOpen(false) }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [])
 
   const showToast = (text: string, ok: boolean) => {
