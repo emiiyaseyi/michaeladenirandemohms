@@ -58,6 +58,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // caller must be a direct report (manager/projectLead) of the subject
     const me = await prisma.employee.findUnique({ where: { id: eid }, select: { managerId: true, projectLeadId: true } })
     allowed = stage === "OPEN" && !!me && (me.managerId === appraisal.employeeId || me.projectLeadId === appraisal.employeeId)
+    // Team-lead review locks after first submission — no edits.
+    if (allowed) {
+      const already = await prisma.appraisalRating.count({ where: { appraisalId: id, raterId: eid, raterType: "MEMBER" } })
+      if (already > 0) return NextResponse.json({ error: "You have already submitted your team lead review." }, { status: 400 })
+    }
   } else if ((raterType === "PRIMARY_REVIEWER" || raterType === "COUNTER_REVIEWER") && (section === "CORE_VALUE" || section === "BEHAVIOURAL")) {
     // Reviewer fills once the employee has submitted, until finalized.
     allowed = (raterType === "PRIMARY_REVIEWER" ? rel.isPrimary : rel.isCounter) && reviewerCanEdit(appraisal.stage)

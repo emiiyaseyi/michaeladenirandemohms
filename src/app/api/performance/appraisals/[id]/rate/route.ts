@@ -58,10 +58,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { appraisalId: id, raterId: eid, raterType: raterType as any, section: section as any },
   })
 
+  // Team-lead (MEMBER) reviews lock after the first submission.
+  const locked = raterType === "MEMBER" && myRatings.length > 0
+
   return NextResponse.json({
     subject: appraisal.employee,
     cycle: appraisal.cycle,
     section,
+    locked,
     questions,
     myRatings: myRatings.map(r => ({ questionId: r.questionId, score: r.score, comment: r.comment })),
   })

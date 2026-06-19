@@ -57,10 +57,14 @@ export default function RateFormPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [base, setBase] = useState("")
+  const [listSlug, setListSlug] = useState("peer-reviews")
+  const [locked, setLocked] = useState(false)
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setBase(window.location.pathname.split("/performance")[0])
+      const p = window.location.pathname
+      setBase(p.split("/performance")[0])
+      setListSlug(p.includes("team-lead-review") ? "team-lead-review" : "peer-reviews")
     }
     fetch(`/api/performance/appraisals/${id}/rate?raterType=${raterType}`)
       .then(r => {
@@ -70,9 +74,10 @@ export default function RateFormPage() {
         }
         return r.json()
       })
-      .then((d: Data | null) => {
+      .then((d: (Data & { locked?: boolean }) | null) => {
         if (!d) return
         setData(d)
+        setLocked(!!d.locked)
         const map: Record<string, Rating> = {}
         for (const q of d.questions ?? []) {
           const existing = (d.myRatings ?? []).find(r => r.questionId === q.id)
@@ -87,7 +92,7 @@ export default function RateFormPage() {
       .finally(() => setLoading(false))
   }, [id, raterType])
 
-  const listUrl = `${base}/performance/peer-reviews`
+  const listUrl = `${base}/performance/${listSlug}`
 
   function setScore(qid: string, score: number) {
     setRatings(prev => ({ ...prev, [qid]: { ...prev[qid], questionId: qid, score } }))
@@ -98,7 +103,7 @@ export default function RateFormPage() {
   }
 
   async function submit() {
-    if (!data) return
+    if (!data || locked) return
     const rows = data.questions.map(q => ({ score: ratings[q.id]?.score ?? null, comment: ratings[q.id]?.comment ?? "" }))
     const v = validateRatings(rows)
     if (v) { setError(v); return }
@@ -162,6 +167,11 @@ export default function RateFormPage() {
           <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 8 }}>
             Anonymous — only HR can see who submitted this. A comment is required for every item.
           </p>
+          {locked && (
+            <div style={{ marginTop: 12, padding: "10px 14px", background: "#DCFCE7", color: "#15803D", border: "1px solid #86EFAC", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
+              ✓ Submitted — this review is locked and can no longer be edited.
+            </div>
+          )}
 
           <div style={{ marginTop: 16 }}><ScaleLegend scaleMax={data.questions[0]?.scaleMax ?? 5} /></div>
 
@@ -177,17 +187,19 @@ export default function RateFormPage() {
                       return (
                         <button
                           key={n}
-                          onClick={() => setScore(q.id, n)}
+                          disabled={locked}
+                          onClick={() => !locked && setScore(q.id, n)}
                           style={{
                             width: 38,
                             height: 38,
                             borderRadius: 8,
-                            cursor: "pointer",
+                            cursor: locked ? "default" : "pointer",
                             fontSize: 13,
                             fontWeight: 700,
                             border: selected ? "none" : "1px solid var(--border)",
                             background: selected ? "var(--primary)" : "var(--background)",
                             color: selected ? "white" : "var(--foreground)",
+                            opacity: locked && !selected ? 0.5 : 1,
                           }}
                         >
                           {n}
@@ -198,6 +210,7 @@ export default function RateFormPage() {
                   <input
                     value={r?.comment ?? ""}
                     onChange={e => setComment(q.id, e.target.value)}
+                    readOnly={locked}
                     placeholder="Comment (required)"
                     style={{
                       marginTop: 12,
@@ -205,7 +218,7 @@ export default function RateFormPage() {
                       padding: "9px 12px",
                       borderRadius: 8,
                       border: "1px solid var(--border)",
-                      background: "var(--background)",
+                      background: locked ? "var(--muted)" : "var(--background)",
                       color: "var(--foreground)",
                       fontSize: 13,
                     }}
@@ -219,11 +232,13 @@ export default function RateFormPage() {
             <p style={{ marginTop: 16, color: "#DC2626", fontSize: 13 }}>{error}</p>
           )}
 
-          <div style={{ marginTop: 24 }}>
-            <button style={{ ...primaryBtn, opacity: submitting ? 0.6 : 1 }} disabled={submitting} onClick={submit}>
-              {submitting ? "Submitting…" : "Submit review"}
-            </button>
-          </div>
+          {!locked && (
+            <div style={{ marginTop: 24 }}>
+              <button style={{ ...primaryBtn, opacity: submitting ? 0.6 : 1 }} disabled={submitting} onClick={submit}>
+                {submitting ? "Submitting…" : "Submit review"}
+              </button>
+            </div>
+          )}
         </>
       )}
     </div>
