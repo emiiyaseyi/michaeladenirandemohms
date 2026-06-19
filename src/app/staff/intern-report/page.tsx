@@ -357,8 +357,8 @@ export default function InternReportPage() {
     const handler = (e: MouseEvent) => {
       if (!reviewerRef.current?.contains(e.target as Node)) setReviewerDropOpen(false)
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    document.addEventListener("click", handler)
+    return () => document.removeEventListener("click", handler)
   }, [])
 
   const setTaskRow = (catKey: string, day: DayKey, idx: number, field: keyof TaskRow, val: string) =>

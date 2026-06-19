@@ -34,8 +34,8 @@ function StatusDropdown({ value, onChange }: { value: string; onChange: (v: stri
       if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
         btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [open])
 
   const label = STATUS_OPTIONS.find(o => o.value === value)?.label ?? "All"
@@ -85,8 +85,8 @@ function RowMenu({ onEdit, onDelete, canManage }: { onEdit: () => void; onDelete
       if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
         btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [open])
 
   return (

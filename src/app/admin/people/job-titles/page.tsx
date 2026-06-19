@@ -33,8 +33,8 @@ function RowMenu({ onEdit, onDelete, canManage }: { onEdit: () => void; onDelete
       if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
         btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [open])
   if (!canManage) return null
   return (
@@ -124,8 +124,8 @@ export default function JobTitlesPage() {
     const h = (e: MouseEvent) => {
       if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node)) setPageSizeOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [])
 
   const filtered = titles.filter(t => !search || t.name.toLowerCase().includes(search.toLowerCase()))

@@ -54,8 +54,8 @@ function EmployeeSelect({ value, onChange, error }: { value: string; onChange: (
       if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
         btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [open])
 
   const filtered = employees.filter(e =>
