@@ -71,6 +71,7 @@ export default function BulkUploadEmployeesPage() {
     ? [
         "First name, last name, work email",
         "Job title, hire date, date of birth (YYYY-MM-DD), gender (MALE/FEMALE)",
+        "Employment type (FULL_TIME | PART_TIME | CONTRACT | INTERN)",
         "Primary department name (must exist — no Project Lead required)",
         "Primary Project Lead email (optional — leave blank if no PL assigned yet)",
         "Secondary department names (optional, pipe-separated)",
@@ -78,6 +79,7 @@ export default function BulkUploadEmployeesPage() {
     : [
         "First name, last name, work email",
         "Job title, hire date, date of birth (YYYY-MM-DD), gender (MALE/FEMALE)",
+        "Employment type (FULL_TIME | PART_TIME | CONTRACT | INTERN)",
         "Departments to lead (pipe-separated, e.g. Finance|EqualyzAI)",
         "Manager email (optional — leave blank if no manager assigned yet)",
       ]
