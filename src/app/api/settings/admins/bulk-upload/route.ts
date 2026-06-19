@@ -39,7 +39,7 @@ export async function GET() {
     orderBy: [{ isSystem: "desc" }, { name: "asc" }],
   })
 
-  const slugList = roles.map(r => `  ${r.slug} — ${r.name}${r.isSystem ? " (system)" : ""}`).join("\n")
+  const slugList = roles.map(r => `  ${r.slug} - ${r.name}${r.isSystem ? " (system)" : ""}`).join("\n")
 
   const headers = ALL_COLS
   const examples = [
@@ -63,9 +63,9 @@ export async function GET() {
     ...examples.map(r => r.join(",")),
   ].join("\n")
 
-  return new Response(csv, {
+  return new Response("﻿" + csv, {
     headers: {
-      "Content-Type": "text/csv",
+      "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": 'attachment; filename="external_admins_template.csv"',
     },
   })

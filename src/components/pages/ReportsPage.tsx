@@ -411,7 +411,6 @@ export default function ReportsPage() {
                   <option value="PART_TIME">Part-time</option>
                   <option value="CONTRACT">Contract</option>
                   <option value="INTERN">Intern</option>
-                  <option value="NYSC">NYSC</option>
                 </select>
               </div>
               <div>
