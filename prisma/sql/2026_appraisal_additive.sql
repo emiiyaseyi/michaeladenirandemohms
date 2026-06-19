@@ -1,6 +1,6 @@
--- Appraisal module — ADDITIVE ONLY. Creates new tables/enums/columns.
--- Keeps all existing data (old KPI/Feedback/Conversation tables untouched).
--- Apply once to production: psql "$PROD_URL" -f prisma/sql/2026_appraisal_additive.sql
+-- Appraisal module — ADDITIVE ONLY (regenerated 2026-06-18). Run once on production.
+-- Creates all appraisal enums/tables/columns. DROPS NOTHING — existing data (incl. old KPI/Feedback) untouched.
+-- Apply:  psql "$PROD_URL" -f prisma/sql/2026_appraisal_additive.sql
 BEGIN;
 -- CreateEnum
 CREATE TYPE "AppraisalCycleStage" AS ENUM ('CONFIG', 'OPEN', 'REVIEW', 'COMPILING', 'FINALIZED');
@@ -9,10 +9,10 @@ CREATE TYPE "AppraisalCycleStage" AS ENUM ('CONFIG', 'OPEN', 'REVIEW', 'COMPILIN
 CREATE TYPE "AppraisalStage" AS ENUM ('NOT_STARTED', 'DRAFT', 'SUBMITTED', 'LEAD_REVIEWING', 'LEAD_DONE', 'FINALIZED');
 
 -- CreateEnum
-CREATE TYPE "AppraisalSection" AS ENUM ('BEHAVIOURAL', 'CORE_VALUE', 'PEER');
+CREATE TYPE "AppraisalSection" AS ENUM ('BEHAVIOURAL', 'LEADERSHIP', 'CORE_VALUE', 'PEER');
 
 -- CreateEnum
-CREATE TYPE "RaterType" AS ENUM ('SELF', 'PEER', 'MEMBER', 'PRIMARY_REVIEWER', 'COUNTER_REVIEWER');
+CREATE TYPE "RaterType" AS ENUM ('SELF', 'PEER', 'MEMBER', 'PRIMARY_REVIEWER', 'COUNTER_REVIEWER', 'ADMIN');
 
 -- CreateEnum
 CREATE TYPE "ReviewerRole" AS ENUM ('PRIMARY', 'COUNTER');
@@ -61,6 +61,7 @@ CREATE TABLE "AppraisalQuestion" (
     "text" TEXT NOT NULL,
     "scaleMax" INTEGER NOT NULL DEFAULT 5,
     "order" INTEGER NOT NULL DEFAULT 0,
+    "adminScored" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -91,20 +92,26 @@ CREATE TABLE "Appraisal" (
     "areasForImprovement" TEXT,
     "developmentPlan" TEXT,
     "employeeComments" TEXT,
+    "employeeImprovementPlan" TEXT,
     "reviewerComments" TEXT,
     "counterReviewerComments" TEXT,
     "queryWarnings" INTEGER,
     "queryBadges" INTEGER,
+    "queryWarningsHr" INTEGER,
+    "queryBadgesHr" INTEGER,
     "queryEmployeeRating" DOUBLE PRECISION,
     "queryHrRating" DOUBLE PRECISION,
     "queryComment" TEXT,
     "recCount" INTEGER,
+    "recCountHr" INTEGER,
     "recEmployeeRating" DOUBLE PRECISION,
     "recHrRating" DOUBLE PRECISION,
     "recComment" TEXT,
     "meetingEmployeeConfirmed" BOOLEAN NOT NULL DEFAULT false,
     "meetingReviewerConfirmed" BOOLEAN NOT NULL DEFAULT false,
     "behavioural360Score" DOUBLE PRECISION,
+    "behavioural360Emp" DOUBLE PRECISION,
+    "behavioural360Rev" DOUBLE PRECISION,
     "jobScoreEmp" DOUBLE PRECISION,
     "jobScoreRev" DOUBLE PRECISION,
     "coreScoreEmp" DOUBLE PRECISION,
@@ -153,6 +160,8 @@ CREATE TABLE "AppraisalKpi" (
     "evidenceUrl" TEXT,
     "employeeComment" TEXT,
     "reviewerComment" TEXT,
+    "primaryComment" TEXT,
+    "counterComment" TEXT,
     "source" "AppraisalKpiSource" NOT NULL DEFAULT 'STAFF',
     "order" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
