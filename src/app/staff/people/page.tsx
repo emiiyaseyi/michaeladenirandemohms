@@ -31,7 +31,7 @@ export default function StaffPeoplePage() {
   const [departments, setDepartments] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [statusFilter, setStatusFilter] = useState("ACTIVE")
+  const [statusFilter, setStatusFilter] = useState("")
   const [deptFilter, setDeptFilter] = useState("")
   const [filterOpen, setFilterOpen] = useState(false)
   const [deptOpen, setDeptOpen] = useState(false)

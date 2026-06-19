@@ -11,9 +11,7 @@ const STATUS_OPTS = [
   { value: "", label: "All" },
   { value: "ACTIVE", label: "Active" },
   { value: "ON_LEAVE", label: "On Leave" },
-  { value: "SUSPENDED", label: "Suspended" },
-  { value: "TERMINATED", label: "Terminated" },
-  { value: "RESIGNED", label: "Resigned" },
+  { value: "TERMINATED", label: "Inactive" },
 ]
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
