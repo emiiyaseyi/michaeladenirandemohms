@@ -1,6 +1,8 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { Search, MoreHorizontal, Loader2, Plus, ChevronDown, X, Check, FileText } from "lucide-react"
+import { useDropdownPosition } from "@/hooks/useDropdownPosition"
 
 const STATUS_OPTS = [
   { value: "", label: "All" },
@@ -247,6 +249,7 @@ export default function RequestDocumentsPage() {
   const [recordOpen, setRecordOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const filterRef = useRef<HTMLDivElement>(null)
+  const { ref: filterBtnRef, pos: filterPos, recompute: recomputeFilterPos } = useDropdownPosition<HTMLButtonElement>()
   const [summary, setSummary] = useState({ total: 0, pending: 0, ready: 0, declined: 0 })
 
   const loadSummary = async () => {
@@ -329,18 +332,19 @@ export default function RequestDocumentsPage() {
               style={{ border: "none", background: "transparent", fontSize: 13, outline: "none", width: "100%", color: "var(--foreground)" }} />
           </div>
           <div ref={filterRef} style={{ position: "relative" }}>
-            <button onClick={() => setFilterOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
+            <button ref={filterBtnRef} onClick={() => { recomputeFilterPos(); setFilterOpen(o => !o) }} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--foreground)" }}>
               {filterLabel} <ChevronDown size={13} />
             </button>
-            {filterOpen && (
-              <div style={{ position: "absolute", top: "100%", left: 0, marginTop: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 50, minWidth: 130, padding: "4px 0" }}>
+            {filterOpen && typeof document !== "undefined" && createPortal(
+              <div style={{ position: "fixed", top: filterPos.top, left: filterPos.left, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 9999, minWidth: 130, padding: "4px 0" }}>
                 {STATUS_OPTS.map(o => (
                   <button key={o.value} onClick={() => { setStatusFilter(o.value); setPage(1); setFilterOpen(false) }}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", padding: "9px 16px", background: statusFilter === o.value ? "var(--muted)" : "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
                     {o.label} {statusFilter === o.value && <Check size={13} />}
                   </button>
                 ))}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
         </div>

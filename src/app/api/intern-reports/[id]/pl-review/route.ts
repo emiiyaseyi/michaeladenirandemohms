@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const body = await req.json()
-  const { productivityRating, ldRating, reflectionsRating, tlComment, comment } = body
+  const { productivityRating, ldRating, reflectionsRating, plComment, comment } = body
 
   for (const [key, val] of [["productivityRating", productivityRating], ["ldRating", ldRating], ["reflectionsRating", reflectionsRating]] as [string, number][]) {
     if (val !== undefined && (val < 0 || val > 3 || !Number.isInteger(val))) {
@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         productivityRating: productivityRating ?? undefined,
         ldRating: ldRating ?? undefined,
         reflectionsRating: reflectionsRating ?? undefined,
-        comment: comment ?? tlComment ?? undefined,
+        comment: comment ?? plComment ?? undefined,
         reviewedAt: new Date(),
       },
     })
@@ -84,9 +84,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       productivityRating: avgProductivity ?? undefined,
       ldRating: avgLd ?? undefined,
       reflectionsRating: avgReflections ?? undefined,
-      tlComment: isPrimary ? (tlComment ?? comment ?? undefined) : undefined,
-      tlReviewedAt: isPrimary ? new Date() : undefined,
-      tlReviewerId: isPrimary ? user.employeeId : undefined,
+      plComment: isPrimary ? (plComment ?? comment ?? undefined) : undefined,
+      plReviewedAt: isPrimary ? new Date() : undefined,
+      plReviewerId: isPrimary ? user.employeeId : undefined,
       status: allDone && report.status !== "REVIEWED" ? "REVIEWED" : undefined,
     },
   })
@@ -95,19 +95,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     req, actor: user, action: "INTERN_REPORT_REVIEW", entity: "InternWeeklyReport", entityId: id,
     targetUserId: report.employee.userId,
     newValues: { productivityRating, ldRating, reflectionsRating, avgProductivity, avgLd, avgReflections },
-    reason: tlComment ?? comment ?? null,
+    reason: plComment ?? comment ?? null,
   })
 
   const internName = `${report.employee.firstName} ${report.employee.lastName}`
   const weekRange = `${format(report.weekStart, "MMM d")} – ${format(report.weekEnd, "MMM d, yyyy")}`
-  const tlScore = (avgProductivity ?? 0) + (avgLd ?? 0) + (avgReflections ?? 0)
-  const pct = Math.round((tlScore / 9) * 100)
+  const plScore = (avgProductivity ?? 0) + (avgLd ?? 0) + (avgReflections ?? 0)
+  const pct = Math.round((plScore / 9) * 100)
 
   // Notify intern that a reviewer has submitted feedback
   if (report.employee.userId) {
     const msg = allDone
-      ? `Your report for ${weekRange} has been reviewed by all reviewers. TL score so far: ${pct}%.`
-      : `Your report for ${weekRange} has received feedback from a reviewer. Current TL score: ${pct}%.`
+      ? `Your report for ${weekRange} has been reviewed by all reviewers. PL score so far: ${pct}%.`
+      : `Your report for ${weekRange} has received feedback from a reviewer. Current PL score: ${pct}%.`
     await prisma.notification.create({
       data: {
         userId: report.employee.userId,

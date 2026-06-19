@@ -17,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     where: { id },
     include: {
       employee: { select: { id: true, firstName: true, lastName: true, jobTitle: true, profilePhoto: true, projectLeadId: true, department: { select: { name: true } } } },
-      tlReviewer: { select: { id: true, firstName: true, lastName: true } },
+      plReviewer: { select: { id: true, firstName: true, lastName: true } },
       attendanceFiller: { select: { id: true, firstName: true, lastName: true } },
     },
   })

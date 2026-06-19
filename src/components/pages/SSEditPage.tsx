@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Avatar from "@/components/ui/Avatar"
@@ -42,6 +42,9 @@ export default function EditProfilePage() {
   const [error, setError] = useState("")
   const [form, setForm] = useState<Record<string, string>>({})
   const [pendingRequest, setPendingRequest] = useState<any>(null)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoError, setPhotoError] = useState("")
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     fetch("/api/self-service/profile")
@@ -81,6 +84,28 @@ export default function EditProfilePage() {
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [field]: e.target.value }))
+
+  const uploadPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingPhoto(true); setPhotoError("")
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const r = await fetch("/api/self-service/photo", { method: "POST", body: fd })
+      const d = await r.json()
+      if (r.ok) {
+        setProfile((p: any) => ({ ...p, profilePhoto: d.photoUrl }))
+      } else {
+        setPhotoError(d.error ?? "Upload failed")
+      }
+    } catch {
+      setPhotoError("Network error, please try again")
+    } finally {
+      setUploadingPhoto(false)
+      if (photoInputRef.current) photoInputRef.current.value = ""
+    }
+  }
 
   const save = async () => {
     setSaving(true); setError("")
@@ -139,13 +164,20 @@ export default function EditProfilePage() {
         <div style={{ padding: "20px 24px", display: "flex", alignItems: "center", gap: 20 }}>
           <div style={{ position: "relative" }}>
             <Avatar name={profile?.fullName ?? "?"} photo={profile?.profilePhoto} size={72} />
-            <button style={{ position: "absolute", bottom: -2, right: -2, width: 26, height: 26, borderRadius: "50%", background: "var(--primary)", border: "2px solid var(--card)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
-              <Camera size={12} color="white" />
+            <button
+              onClick={() => photoInputRef.current?.click()}
+              disabled={uploadingPhoto}
+              title="Upload photo"
+              style={{ position: "absolute", bottom: -2, right: -2, width: 26, height: 26, borderRadius: "50%", background: "var(--primary)", border: "2px solid var(--card)", display: "flex", alignItems: "center", justifyContent: "center", cursor: uploadingPhoto ? "not-allowed" : "pointer", opacity: uploadingPhoto ? 0.6 : 1 }}
+            >
+              {uploadingPhoto ? <Loader2 size={11} color="white" style={{ animation: "spin .8s linear infinite" }} /> : <Camera size={12} color="white" />}
             </button>
+            <input ref={photoInputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }} onChange={uploadPhoto} />
           </div>
           <div>
             <div style={{ fontSize: 16, fontWeight: 700 }}>{profile?.fullName}</div>
             <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{profile?.jobTitle} · {profile?.department}</div>
+            {photoError && <div style={{ fontSize: 11, color: "var(--accent)", marginTop: 4 }}>{photoError}</div>}
             <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 6, display: "flex", flexWrap: "wrap", gap: 4 }}>
               <span style={{ background: "var(--muted)", borderRadius: 4, padding: "2px 7px" }}>ID: {profile?.employeeId}</span>
               <span style={{ background: "var(--muted)", borderRadius: 4, padding: "2px 7px" }}>{profile?.completeness}% complete</span>

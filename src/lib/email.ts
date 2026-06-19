@@ -86,6 +86,17 @@ export async function sendEmail(opts: SendEmailOpts): Promise<void> {
     }
     if (recipients.length === 0) { console.warn(`[email] SKIP ${opts.eventKey}: all recipients were seeded accounts`); return }
 
+    // ─── CEO / ED permanent block ────────────────────────────────────────────
+    // These two accounts are permanently blocked from receiving system emails
+    // until this list is manually removed from the code.
+    const CEO_ED_BLOCKED = new Set(["olubayo@datasciencenigeria.ai", "toyin@datasciencenigeria.ai"])
+    const blockedCeoed = recipients.filter(r => CEO_ED_BLOCKED.has(r.toLowerCase()))
+    if (blockedCeoed.length > 0) {
+      recipients = recipients.filter(r => !CEO_ED_BLOCKED.has(r.toLowerCase()))
+      console.warn(`[email] BLOCKED ${opts.eventKey} for CEO/ED: ${blockedCeoed.join(", ")}`)
+    }
+    if (recipients.length === 0) { console.warn(`[email] SKIP ${opts.eventKey}: only CEO/ED recipients`); return }
+
     const vars = { ...opts.variables }
 
     const subject = replaceVars(effectiveSubject, vars)

@@ -40,6 +40,7 @@ export default function BusBookingPage() {
   const [booking, setBooking] = useState(false)
   const [bookErr, setBookErr] = useState("")
   const [cancelling, setCancelling] = useState(false)
+  const [cancelErr, setCancelErr] = useState("")
   const [history, setHistory] = useState<any[]>([])
   const [historyTrip, setHistoryTrip] = useState<"" | "MORNING" | "AFTERNOON">("")
 
@@ -86,9 +87,15 @@ export default function BusBookingPage() {
 
   const handleCancel = async (id: string) => {
     setCancelling(true)
-    await fetch(`/api/bus-bookings/${id}`, { method: "DELETE" })
+    setCancelErr("")
+    const res = await fetch(`/api/bus-bookings/${id}`, { method: "DELETE" })
     setCancelling(false)
-    fetchTrip(trip)
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setCancelErr(d.error ?? "Cancel failed — try again.")
+      return
+    }
+    await fetchTrip(trip)
     fetchHistory()
   }
 
@@ -198,6 +205,9 @@ export default function BusBookingPage() {
                           </button>
                         )}
                       </div>
+                      {cancelErr && (
+                        <div style={{ marginTop: 8, fontSize: 11, color: "#DC2626" }}>{cancelErr}</div>
+                      )}
                     </div>
                   )}
                 </div>

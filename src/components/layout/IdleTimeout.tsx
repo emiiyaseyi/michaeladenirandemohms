@@ -15,6 +15,13 @@ export default function IdleTimeout() {
   const idleTimer  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const warnTimer  = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // Uses replace() so the browser back button cannot restore the authenticated page
+  const doSignOut = useCallback(() => {
+    signOut({ redirect: false }).then(() => {
+      window.location.replace("/login")
+    })
+  }, [])
+
   const resetIdle = useCallback(() => {
     if (warned) return   // don't reset once warning shown
     if (idleTimer.current) clearTimeout(idleTimer.current)
@@ -42,7 +49,6 @@ export default function IdleTimeout() {
       setCountdown(c => {
         if (c <= 1) {
           clearInterval(warnTimer.current!)
-          signOut({ callbackUrl: "/login" })
           return 0
         }
         return c - 1
@@ -50,6 +56,11 @@ export default function IdleTimeout() {
     }, 1000)
     return () => { if (warnTimer.current) clearInterval(warnTimer.current) }
   }, [warned])
+
+  // Auto-logout when countdown hits 0 (outside the state updater)
+  useEffect(() => {
+    if (warned && countdown === 0) doSignOut()
+  }, [warned, countdown, doSignOut])
 
   const stayLoggedIn = () => {
     setWarned(false)
@@ -100,7 +111,7 @@ export default function IdleTimeout() {
             Stay Logged In
           </button>
           <button
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={doSignOut}
             style={{
               padding: "10px 20px", background: "var(--muted)", color: "var(--muted-foreground)",
               border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600,

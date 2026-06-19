@@ -158,6 +158,7 @@ model Employee {
   employmentType     EmploymentType       @default(FULL_TIME)
   employeeStatus     EmployeeStatus       @default(ACTIVE)
   hireDate           DateTime?
+  internReportStartDate DateTime? // admin override: first week this intern is required to submit weekly reports (defaults to account creation date)
   confirmationDate   DateTime?
   convertedAt        DateTime?
   endDate            DateTime?
@@ -217,7 +218,7 @@ model Employee {
   managerEntry           Manager?
   departmentMemberships  EmployeeDepartment[]
   departmentsLed         Department[]              @relation("DepartmentLead")
-  tlReviews           InternWeeklyReport[] @relation("TLReviews")
+  plReviews           InternWeeklyReport[] @relation("PLReviews")
   attendanceFills     InternWeeklyReport[] @relation("AttendanceFills")
   internReportReviews InternReportReviewer[] @relation("InternReportReviews")
   projectsLed         Project[]             @relation("ProjectLead")
@@ -1497,9 +1498,9 @@ model InternWeeklyReport {
   productivityRating   Int?
   ldRating             Int?
   reflectionsRating    Int?
-  tlComment            String?
-  tlReviewedAt         DateTime?
-  tlReviewerId         String?
+  plComment            String?
+  plReviewedAt         DateTime?
+  plReviewerId         String?
   attendanceRating     Int?
   attendanceComment    String?
   attendanceFilledAt   DateTime?
@@ -1509,7 +1510,7 @@ model InternWeeklyReport {
   updatedAt            DateTime           @updatedAt
 
   employee         Employee  @relation("InternReports", fields: [employeeId], references: [id], onDelete: Cascade)
-  tlReviewer       Employee? @relation("TLReviews", fields: [tlReviewerId], references: [id])
+  plReviewer       Employee? @relation("PLReviews", fields: [plReviewerId], references: [id])
   attendanceFiller Employee? @relation("AttendanceFills", fields: [attendanceFilledById], references: [id])
   reviewers        InternReportReviewer[]
 
@@ -1608,11 +1609,17 @@ model InternReportSettings {
   id                       String   @id @default("singleton")
   submissionDay            Int      @default(5)   // 0=Sun … 5=Fri … 6=Sat
   openHour                 Int      @default(16)  // WAT hour when window opens on submissionDay
+  openMinute               Int      @default(0)   // WAT minute (0-59)
   lateHour                 Int      @default(20)  // WAT hour after which Friday submission is LATE
+  lateMinute               Int      @default(0)   // WAT minute (0-59)
   closeHour                Int      @default(24)  // legacy — no longer used (window now closes Sun 23:59)
   lateDeduction            Int      @default(2)   // points deducted for Saturday submissions
   lateDeductionSunday      Int      @default(3)   // points deducted for Sunday submissions
+  missingWeeklyDeduction   Int      @default(10)  // points deducted per week a report remains unsubmitted, applied every Monday
   warningThresholdMinutes  Int      @default(15)  // minutes before lateHour that the countdown turns red
+  reviewerDeadlineDay      Int      @default(7)   // days after weekStart for reviewer deadline
+  reviewerDeadlineHour     Int      @default(8)   // WAT hour of reviewer deadline
+  reviewerDeadlineMinute   Int      @default(0)   // WAT minute of reviewer deadline
   attendanceCriteria       Json?
   updatedAt                DateTime @updatedAt
 }

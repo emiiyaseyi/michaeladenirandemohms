@@ -12,6 +12,11 @@ export async function GET() {
       employeeStatus: "ACTIVE",
       id: { not: user.employeeId },
       user: { role: { not: "SUPER_ADMIN" } },
+      NOT: [
+        { jobTitle: { contains: "intern", mode: "insensitive" } },
+        { jobTitle: { contains: "associate", mode: "insensitive" } },
+        { employmentType: "INTERN" },
+      ],
     },
     select: {
       id: true,

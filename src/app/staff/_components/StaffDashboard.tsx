@@ -74,7 +74,7 @@ const TOUR_STEPS = [
     icon: Zap,
     color: "#F59E0B",
     title: "Quick Actions",
-    body: "The quick action bar lets you jump straight to common tasks — request leave, view your payslip, set KPI goals, access your documents, and more. Scroll sideways if more actions exist.",
+    body: "The quick action bar lets you jump straight to common tasks — request leave, set KPI goals, take your appraisal, access your documents, and more. Scroll sideways if more actions exist.",
     hint: "Find it just below your hero card",
   },
   {
@@ -102,7 +102,7 @@ const TOUR_STEPS = [
     icon: UserCheck,
     color: "#10B981",
     title: "Self Service",
-    body: "The Self Service section is your personal hub: update your profile, submit and track leave, log grievances, and access your documents — all in one place.",
+    body: "The Self Service section is your personal hub: update your profile, submit and track leave, and access your documents — all in one place.",
     hint: "Click 'Self Service' in the left sidebar",
   },
   {

@@ -7,7 +7,7 @@ import bcrypt from "bcryptjs"
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canManageSettings") && !hasCap(user, "canViewAllEmployees")) return forbidden()
+  if (!hasCap(user, "canManageSettings") && !hasCap(user, "canEditEmployee")) return forbidden()
 
   const { employeeIds } = await req.json()
   if (!Array.isArray(employeeIds) || employeeIds.length === 0) {

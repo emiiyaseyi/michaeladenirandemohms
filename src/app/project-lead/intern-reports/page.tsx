@@ -6,10 +6,8 @@ import { format } from "date-fns"
 
 const CATEGORIES = [
   { key: "mainProject",    hoursKey: "mainProjectHours",    label: "Main Project" },
-  { key: "consulting",     hoursKey: "consultingHours",     label: "Consulting" },
   { key: "specialProject", hoursKey: "specialProjectHours", label: "Special Project" },
   { key: "training",       hoursKey: "trainingHours",       label: "Training" },
-  { key: "newBusiness",    hoursKey: "newBusinessHours",    label: "New Business" },
   { key: "reportingDoc",   hoursKey: "reportingDocHours",   label: "Reporting / Documentation" },
   { key: "operational",    hoursKey: "operationalHours",    label: "Operational Support" },
   { key: "research",       hoursKey: "researchHours",       label: "Research" },
@@ -18,6 +16,34 @@ const CATEGORIES = [
   { key: "representation", hoursKey: "representationHours", label: "Representation" },
   { key: "selfDev",        hoursKey: "selfDevHours",        label: "Self Development" },
 ]
+
+function parseMinutes(raw: string): number {
+  const s = (raw ?? "").trim().toLowerCase()
+  const colon = s.match(/^(\d+):(\d{1,2})$/)
+  if (colon) return +colon[1] * 60 + +colon[2]
+  const hm = s.match(/(\d+)\s*h(?:our|r)?s?\s*(?:(\d+)\s*m(?:in)?s?)?/)
+  if (hm) return +hm[1] * 60 + (hm[2] ? +hm[2] : 0)
+  const mOnly = s.match(/^(\d+)\s*m(?:in)?s?$/)
+  if (mOnly) return +mOnly[1]
+  return isNaN(+s) ? 0 : +s
+}
+function fmtMinutes(m: number): string {
+  if (!m) return ""
+  const h = Math.floor(m / 60), min = m % 60
+  return h ? (min ? `${h}h ${min}m` : `${h}h`) : `${min}m`
+}
+function getCellData(td: any, catKey: string, day: string): { tasks: string[]; totalMins: number } {
+  const cell = td?.[catKey]?.[day]
+  if (!cell) return { tasks: [], totalMins: 0 }
+  if (Array.isArray(cell)) {
+    const rows = cell as { text?: string; minutes?: string }[]
+    return {
+      tasks: rows.map(r => r.text?.trim()).filter(Boolean) as string[],
+      totalMins: rows.reduce((s, r) => s + (r.text?.trim() ? parseMinutes(r.minutes ?? "") : 0), 0),
+    }
+  }
+  return { tasks: cell.tasks ? [cell.tasks] : [], totalMins: parseFloat(cell.hours ?? "0") * 60 || 0 }
+}
 
 const DAYS_LIST = ["monday","tuesday","wednesday","thursday","friday"] as const
 
@@ -63,6 +89,27 @@ function StatusBadge({ status }: { status: string }) {
   return <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>{s.label}</span>
 }
 
+const getReviewDeadline = (weekStart: string | Date) => {
+  const d = new Date(weekStart)
+  return new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000 + 7 * 60 * 60 * 1000)
+}
+
+function ReviewDeadlineBadge({ weekStart }: { weekStart: string }) {
+  const deadline = getReviewDeadline(weekStart)
+  const isOverdue = deadline < new Date()
+  const dateStr = deadline.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+      background: isOverdue ? "var(--danger-bg)" : "var(--warning-bg)",
+      color: isOverdue ? "var(--accent)" : "var(--warning)",
+      whiteSpace: "nowrap",
+    }}>
+      {isOverdue ? "OVERDUE" : `Due ${dateStr}`}
+    </span>
+  )
+}
+
 function RatingSelector({ value, onChange, disabled }: { value: number | null; onChange: (v: number) => void; disabled?: boolean }) {
   return (
     <div style={{ display: "flex", gap: 8 }}>
@@ -92,6 +139,13 @@ function lastDayOfMonth(year: number, month: number): Date {
   return new Date(year, month + 1, 0)
 }
 
+const AVATAR_COLORS = ["#E11D48","#7C3AED","#1D4ED8","#0369A1","#0F766E","#15803D","#92400E","#B45309"]
+function avatarColor(name: string) {
+  let h = 0; for (const c of name) h = (h * 31 + c.charCodeAt(0)) % AVATAR_COLORS.length
+  return AVATAR_COLORS[h]
+}
+function lbInitials(name: string) { return name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() }
+
 export default function PLInternReportsPage() {
   const { data: session } = useSession()
   const currentEmployeeId = (session?.user as any)?.employeeId ?? ""
@@ -104,12 +158,15 @@ export default function PLInternReportsPage() {
   const [yearOffset, setYearOffset] = useState(0)
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [viewingId, setViewingId] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState({ productivityRating: null as number | null, ldRating: null as number | null, reflectionsRating: null as number | null, tlComment: "" })
+  const [feedback, setFeedback] = useState({ productivityRating: null as number | null, ldRating: null as number | null, reflectionsRating: null as number | null, plComment: "" })
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState("")
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [tab, setTab] = useState<"reports" | "leaderboard">("reports")
   const [lbWeekOffset, setLbWeekOffset] = useState(0)
+  const [lbMode, setLbMode] = useState<"week" | "month" | "alltime">("week")
+  const [lbDeptFilter, setLbDeptFilter] = useState("")
+  const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set())
 
   const now = new Date()
 
@@ -174,9 +231,17 @@ export default function PLInternReportsPage() {
   useEffect(() => { loadReports() }, [mode, weekOffset, monthOffset, yearOffset])
 
   useEffect(() => {
-    fetch(`/api/intern-reports/leaderboard?week=${encodeURIComponent(lbMonday.toISOString())}`)
-      .then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
-  }, [lbWeekOffset])
+    let url = "/api/intern-reports/leaderboard"
+    if (lbMode === "week") {
+      const d = new Date(now); d.setUTCHours(0,0,0,0)
+      const day = d.getUTCDay(); const diff = day === 0 ? -6 : 1 - day
+      d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
+      url += `?week=${encodeURIComponent(d.toISOString())}`
+    } else {
+      url += `?mode=${lbMode}`
+    }
+    fetch(url).then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
+  }, [lbWeekOffset, lbMode])
 
   const openReview = (id: string) => {
     const r = reports.find(r => r.id === id)
@@ -187,7 +252,7 @@ export default function PLInternReportsPage() {
         productivityRating: myRecord?.productivityRating ?? r.productivityRating ?? null,
         ldRating: myRecord?.ldRating ?? r.ldRating ?? null,
         reflectionsRating: myRecord?.reflectionsRating ?? r.reflectionsRating ?? null,
-        tlComment: myRecord?.comment ?? r.tlComment ?? "",
+        plComment: myRecord?.comment ?? r.plComment ?? "",
       })
       setReviewingId(id)
       setSaveErr("")
@@ -200,7 +265,7 @@ export default function PLInternReportsPage() {
       setSaveErr("Please provide all three ratings before submitting."); return
     }
     setSaving(true); setSaveErr("")
-    const res = await fetch(`/api/intern-reports/${reviewingId}/tl-review`, {
+    const res = await fetch(`/api/intern-reports/${reviewingId}/pl-review`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(feedback),
@@ -215,7 +280,7 @@ export default function PLInternReportsPage() {
   const viewingReport = viewingId ? reports.find(r => r.id === viewingId) : null
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
+    <div className="pl-intern-reports-page" style={{ padding: "28px 32px", maxWidth: 1200, margin: "0 auto" }}>
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
           <ClipboardList size={22} style={{ color: "var(--primary)" }} />
@@ -257,7 +322,7 @@ export default function PLInternReportsPage() {
           }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
             <ChevronLeft size={18} />
           </button>
-          <span style={{ fontSize: 14, fontWeight: 700, minWidth: 200, textAlign: "center" }}>{getPeriodLabel()}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, minWidth: "min(200px, 40vw)", textAlign: "center" }}>{getPeriodLabel()}</span>
           <button
             onClick={() => {
               if (mode === "week") setWeekOffset(o => Math.min(o + 1, 0))
@@ -277,7 +342,7 @@ export default function PLInternReportsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--muted)" }}>
-                {["Intern", "Job Title", "Total Hours", "Status", "Reviews", "TL Score", "Attendance", "Total Score", "Actions"].map(h => (
+                {["Intern", "Job Title", "Total Hours", "Status", "Reviews", "PL Score", "Attendance", "Total Score", "Actions"].map(h => (
                   <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
@@ -288,7 +353,7 @@ export default function PLInternReportsPage() {
               ) : reports.length === 0 ? (
                 <tr><td colSpan={9} style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)" }}>No reports for this period.</td></tr>
               ) : reports.map(r => {
-                const tlScore = (r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)
+                const plScore = (r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)
                 const reviewers: any[] = r.reviewers ?? []
                 const total = reviewers.length
                 const done = reviewers.filter((rv: any) => rv.reviewedAt).length
@@ -303,7 +368,14 @@ export default function PLInternReportsPage() {
                     </td>
                     <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>{r.employee?.jobTitle}</td>
                     <td style={{ padding: "12px 16px" }}>{(r.totalHours ?? 0).toFixed(1)}</td>
-                    <td style={{ padding: "12px 16px" }}><StatusBadge status={r.status} /></td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <StatusBadge status={r.status} />
+                        {!iHaveReviewed && (r.status === "SUBMITTED" || r.status === "LATE") && (total === 0 || !!myRecord) && (
+                          <ReviewDeadlineBadge weekStart={r.weekStart} />
+                        )}
+                      </div>
+                    </td>
                     <td style={{ padding: "12px 16px" }}>
                       {total > 0 ? (
                         <span style={{ fontSize: 12, fontWeight: 600, color: done === total ? "#15803d" : "var(--muted-foreground)" }}>
@@ -312,7 +384,7 @@ export default function PLInternReportsPage() {
                       ) : "–"}
                     </td>
                     <td style={{ padding: "12px 16px" }}>
-                      {r.productivityRating !== null ? `${Math.round((tlScore / 9) * 100)}%` : "–"}
+                      {r.productivityRating !== null ? `${Math.round((plScore / 9) * 100)}%` : "–"}
                     </td>
                     <td style={{ padding: "12px 16px" }}>
                       {r.attendanceRating !== null ? `${Math.round((r.attendanceRating / 3) * 100)}%` : <span style={{ color: "var(--muted-foreground)", fontSize: 11 }}>Pending</span>}
@@ -351,71 +423,150 @@ export default function PLInternReportsPage() {
 
       </>)}
 
-      {tab === "leaderboard" && (
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 20px" }}>
-              <button onClick={() => setLbWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
-                <ChevronLeft size={18} />
-              </button>
-              <span style={{ fontSize: 14, fontWeight: 700, minWidth: 200, textAlign: "center" }}>{lbWeekLabel}</span>
-              <button onClick={() => setLbWeekOffset(o => Math.min(o + 1, 0))} disabled={lbWeekOffset === 0}
-                style={{ background: "none", border: "none", cursor: lbWeekOffset === 0 ? "not-allowed" : "pointer", color: lbWeekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}>
-                <ChevronRight size={18} />
-              </button>
-            </div>
-          </div>
-          <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-            {leaderboard.length === 0 ? (
-              <div style={{ padding: "40px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leaderboard data for this week.</div>
-            ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                  <thead>
-                    <tr style={{ background: "var(--muted)" }}>
-                      {["Rank", "Intern", "Dept", "Hours", "TL Score", "Attendance", "Deduction", "Total"].map(h => (
-                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderboard.map((row: any) => {
-                      const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null
-                      return (
-                        <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)" }}>
-                          <td style={{ padding: "12px 16px", fontWeight: 700 }}>
-                            {medal ? <span style={{ fontSize: 16 }}>{medal}</span> : <span style={{ color: "var(--muted-foreground)" }}>{row.rank}</span>}
-                          </td>
-                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{row.name}</td>
-                          <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>{row.dept}</td>
-                          <td style={{ padding: "12px 16px" }}>{row.totalHours?.toFixed(1)}h</td>
-                          <td style={{ padding: "12px 16px", fontWeight: 600 }}>{row.tlScorePct}%</td>
-                          <td style={{ padding: "12px 16px", color: row.attendancePending ? "var(--muted-foreground)" : "inherit" }}>
-                            {row.attendancePending ? "Pending" : `${row.attendanceScorePct}%`}
-                          </td>
-                          <td style={{ padding: "12px 16px", color: row.pointDeduction > 0 ? "#DC2626" : "var(--muted-foreground)" }}>
-                            {row.pointDeduction > 0 ? `-${row.pointDeduction}` : "—"}
-                          </td>
-                          <td style={{ padding: "12px 16px", fontWeight: 700, color: "var(--primary)" }}>
-                            {row.attendancePending ? "–" : `${row.totalScorePct}%`}
-                          </td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
+      {tab === "leaderboard" && (() => {
+        const top3 = leaderboard.filter((r: any) => r.rank !== null).slice(0, 3)
+        const ringColor = (rank: number) => rank === 1 ? "#F59E0B" : rank === 2 ? "#9CA3AF" : "#CD7C2F"
+        const depts = [...new Set(leaderboard.map((r: any) => r.dept).filter(Boolean))] as string[]
+        const filtered = lbDeptFilter ? leaderboard.filter((r: any) => r.dept === lbDeptFilter) : leaderboard
+        const tlPct = (row: any) => lbMode === "week" ? row.plScorePct : row.avgPlPct
+        const attPct = (row: any) => lbMode === "week" ? row.attendanceScorePct : row.avgAttPct
+        const totPct = (row: any) => lbMode === "week" ? row.totalScorePct : row.avgScorePct
+        const isPending = (row: any) => row.attendancePending
+        const curLbMonday = (() => {
+          const d = new Date(now); d.setUTCHours(0,0,0,0)
+          const day = d.getUTCDay(); const diff = day === 0 ? -6 : 1 - day
+          d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
+          return d
+        })()
+        const curLbFriday = new Date(curLbMonday); curLbFriday.setUTCDate(curLbMonday.getUTCDate() + 4)
+        const curLbLabel = `${format(curLbMonday, "MMM d")} – ${format(curLbFriday, "MMM d, yyyy")}`
+        return (
+          <div>
+            {/* Hero banner */}
+            {top3.length > 0 && (
+              <div style={{ background: "#15803D", borderRadius: 16, padding: "24px 28px", marginBottom: 16, color: "white", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Top Performers</div>
+                  <div style={{ fontSize: 14, opacity: 0.9 }}>{leaderboard.length} intern{leaderboard.length !== 1 ? "s" : ""} · {lbMode === "week" ? curLbLabel : lbMode === "month" ? "This Month" : "All Time"}</div>
+                </div>
+                {/* Podium: #2 left · #1 center+highest · #3 right */}
+                {(() => {
+                  const byRank: Record<number, any> = {}
+                  top3.forEach((r: any) => { byRank[r.rank] = r })
+                  const podiumOrder = [byRank[2], byRank[1], byRank[3]].filter(Boolean)
+                  const cfg: Record<number, { lift: number; size: number; ribbon: string; medal: string; numCol: string }> = {
+                    1: { lift: 36, size: 56, ribbon: "#FCD34D", medal: "#F59E0B", numCol: "#78350F" },
+                    2: { lift: 18, size: 46, ribbon: "#CBD5E1", medal: "#94A3B8", numCol: "#1E293B" },
+                    3: { lift: 0,  size: 40, ribbon: "#C97B3A", medal: "#92400E", numCol: "#FEF3C7" },
+                  }
+                  return (
+                    <div style={{ display: "flex", gap: 18, alignItems: "flex-end", paddingBottom: 4 }}>
+                      {podiumOrder.map((row: any) => {
+                        const c = cfg[row.rank]
+                        return (
+                          <div key={row.employeeId} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, marginBottom: c.lift }}>
+                            {/* Avatar */}
+                            <div style={{ width: c.size, height: c.size, borderRadius: "50%", background: avatarColor(row.name), border: `3px solid ${ringColor(row.rank)}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(c.size * 0.3), fontWeight: 800, color: "white", boxShadow: "0 4px 14px rgba(0,0,0,0.35)", flexShrink: 0 }}>
+                              {lbInitials(row.name)}
+                            </div>
+                            {/* Ribbon stem */}
+                            <div style={{ width: 3, height: 14, background: c.ribbon, marginTop: 2 }} />
+                            {/* Medal circle */}
+                            <div style={{ width: 26, height: 26, borderRadius: "50%", background: c.medal, border: "2px solid rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: c.numCol, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
+                              {row.rank}
+                            </div>
+                            {/* Name + score */}
+                            <div style={{ textAlign: "center", marginTop: 6 }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.name.split(" ")[0]}</div>
+                              <div style={{ fontSize: 10, opacity: 0.8 }}>{isPending(row) ? "pending" : `${totPct(row)}%`}</div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })()}
               </div>
             )}
+
+            {/* Filter bar */}
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              {depts.length > 1 && (
+                <select value={lbDeptFilter} onChange={e => setLbDeptFilter(e.target.value)} style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", color: "var(--foreground)", cursor: "pointer" }}>
+                  <option value="">All Departments</option>
+                  {depts.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              )}
+              <div style={{ display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
+                {(["week","month","alltime"] as const).map(m => (
+                  <button key={m} onClick={() => { setLbMode(m); setLbWeekOffset(0) }}
+                    style={{ padding: "6px 12px", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer", background: lbMode === m ? "var(--primary)" : "var(--card)", color: lbMode === m ? "white" : "var(--muted-foreground)" }}>
+                    {m === "week" ? "Week" : m === "month" ? "Month" : "All Time"}
+                  </button>
+                ))}
+              </div>
+              {lbMode === "week" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 10px" }}>
+                  <button onClick={() => setLbWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}><ChevronLeft size={15} /></button>
+                  <span style={{ fontSize: 12, fontWeight: 700, minWidth: 130, textAlign: "center" }}>{curLbLabel}</span>
+                  <button onClick={() => setLbWeekOffset(o => Math.min(o + 1, 0))} disabled={lbWeekOffset === 0} style={{ background: "none", border: "none", cursor: lbWeekOffset === 0 ? "not-allowed" : "pointer", color: lbWeekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}><ChevronRight size={15} /></button>
+                </div>
+              )}
+            </div>
+
+            {/* Table */}
+            <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
+              {filtered.length === 0 ? (
+                <div style={{ padding: "40px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No leaderboard data for this period.</div>
+              ) : (
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <thead>
+                      <tr style={{ background: "var(--muted)" }}>
+                        {["Rank", "Member", "Dept", "🔥 Streak", "PL %", "Att %", "Total %"].map(h => (
+                          <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((row: any) => {
+                        const medal = row.rank === 1 ? "🥇" : row.rank === 2 ? "🥈" : row.rank === 3 ? "🥉" : null
+                        return (
+                          <tr key={row.employeeId} style={{ borderTop: "1px solid var(--border)" }}>
+                            <td style={{ padding: "11px 14px", fontWeight: 700 }}>{medal ? <span style={{ fontSize: 15 }}>{medal}</span> : <span style={{ color: "var(--muted-foreground)" }}>{row.rank ?? "–"}</span>}</td>
+                            <td style={{ padding: "11px 14px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                                <div style={{ width: 30, height: 30, borderRadius: "50%", background: avatarColor(row.name), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, color: "white", flexShrink: 0 }}>{lbInitials(row.name)}</div>
+                                <span style={{ fontWeight: 500 }}>{row.name}</span>
+                              </div>
+                            </td>
+                            <td style={{ padding: "11px 14px", color: "var(--muted-foreground)", fontSize: 12 }}>{row.dept}</td>
+                            <td style={{ padding: "11px 14px", fontWeight: 600 }}>{row.streak > 0 ? `${row.streak}w` : "–"}</td>
+                            <td style={{ padding: "11px 14px", fontWeight: 600 }}>{tlPct(row) != null ? `${tlPct(row)}%` : "–"}</td>
+                            <td style={{ padding: "11px 14px", color: isPending(row) ? "var(--muted-foreground)" : "inherit" }}>{isPending(row) ? "Pending" : attPct(row) != null ? `${attPct(row)}%` : "–"}</td>
+                            <td style={{ padding: "11px 14px", fontWeight: 700, color: "var(--primary)" }}>{isPending(row) ? "–" : totPct(row) != null ? `${totPct(row)}%` : "–"}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div style={{ padding: "10px 16px", fontSize: 11, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)" }}>
+                Scoring: PL Score (max 9 pts) + Attendance (max 3 pts) − Late deductions
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
 
       {/* Review Modal */}
       {reviewingId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setReviewingId(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 560, width: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 560, width: "100%", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+            <div style={{ flex: 1, overflow: "auto" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h3 style={{ fontSize: 15, fontWeight: 800 }}>Team Lead Feedback</h3>
+              <h3 style={{ fontSize: 15, fontWeight: 800 }}>Project Lead Feedback</h3>
               <button onClick={() => setReviewingId(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted-foreground)" }}>×</button>
             </div>
             <div style={{ padding: "20px 24px" }}>
@@ -439,8 +590,8 @@ export default function PLInternReportsPage() {
               <div style={{ marginBottom: 16 }}>
                 <label style={{ display: "block", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>Overall Comments and Feedback</label>
                 <textarea
-                  value={feedback.tlComment}
-                  onChange={e => setFeedback(f => ({ ...f, tlComment: e.target.value }))}
+                  value={feedback.plComment}
+                  onChange={e => setFeedback(f => ({ ...f, plComment: e.target.value }))}
                   rows={4}
                   placeholder="Write your overall feedback for the intern this week…"
                   style={{ width: "100%", padding: "10px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", resize: "vertical", boxSizing: "border-box" }}
@@ -449,7 +600,8 @@ export default function PLInternReportsPage() {
 
               {saveErr && <div style={{ padding: "8px 12px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626", marginBottom: 12 }}>{saveErr}</div>}
             </div>
-            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            </div>
+            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", gap: 8, flexShrink: 0 }}>
               <button onClick={() => setReviewingId(null)} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Cancel</button>
               <button onClick={submitFeedback} disabled={saving}
                 style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 24px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: saving ? "wait" : "pointer", fontSize: 13, fontWeight: 700, color: "white", opacity: saving ? 0.7 : 1 }}>
@@ -463,7 +615,8 @@ export default function PLInternReportsPage() {
       {/* View Report Modal */}
       {viewingReport && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewingId(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: "min(1100px, 95vw)", width: "100%", maxHeight: "90vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: "min(1100px, 95vw)", width: "100%", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+            <div style={{ flex: 1, overflow: "auto" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800 }}>{viewingReport.employee?.firstName} {viewingReport.employee?.lastName}</h3>
@@ -473,54 +626,62 @@ export default function PLInternReportsPage() {
             </div>
             <div style={{ padding: "20px 24px" }}>
               {/* Task breakdown — Days as rows, Categories as columns */}
-              <div style={{ overflowX: "auto", marginBottom: 20 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+              <div style={{ overflow: "auto", maxHeight: "min(55vh, 440px)", marginBottom: 20, border: "1px solid var(--border)", borderRadius: 8 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "var(--muted)" }}>
-                      <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 80, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Day</th>
+                      <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 95, position: "sticky", left: 0, top: 0, background: "var(--muted)", zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>Day</th>
                       {CATEGORIES.map(cat => (
-                        <th key={cat.key} style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 10, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 90 }}>{cat.label}</th>
+                        <th key={cat.key} style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 130, position: "sticky", top: 0, background: "var(--muted)", zIndex: 2 }}>{cat.label}</th>
                       ))}
-                      <th style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 70 }}>Daily Total</th>
+                      <th style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 90, position: "sticky", right: 0, top: 0, background: "var(--muted)", zIndex: 3, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>Daily Total</th>
                     </tr>
                   </thead>
                   <tbody>
                     {DAYS_LIST.map((day, i) => {
                       const dayLabel = day.charAt(0).toUpperCase() + day.slice(1)
                       const td = viewingReport.taskDescriptions as any
-                      const isLegacy = typeof td?.[CATEGORIES[0]?.key] === "string"
-                      const dayTotal = CATEGORIES.reduce((s, cat) => s + (parseFloat(td?.[cat.key]?.[day]?.hours || "0") || 0), 0)
+                      const dayTotalMins = CATEGORIES.reduce((s, cat) => s + getCellData(td, cat.key, day).totalMins, 0)
+                      const rowBg = i % 2 === 0 ? "var(--card)" : "var(--muted)"
                       return (
                         <tr key={day} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
-                          <td style={{ padding: "8px 12px", fontWeight: 700, fontSize: 12, verticalAlign: "top", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{dayLabel}</td>
+                          <td style={{ padding: "10px 14px", fontWeight: 700, fontSize: 13, verticalAlign: "top", position: "sticky", left: 0, background: rowBg, zIndex: 1, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>{dayLabel}</td>
                           {CATEGORIES.map(cat => {
-                            const cell = isLegacy ? null : td?.[cat.key]?.[day]
+                            const { tasks, totalMins } = getCellData(td, cat.key, day)
+                            const cellKey = `${cat.key}-${day}`
+                            const isExpanded = expandedCells.has(cellKey)
+                            const MAX_TASKS = 2
+                            const visibleTasks = isExpanded ? tasks : tasks.slice(0, MAX_TASKS)
                             return (
-                              <td key={cat.key} style={{ padding: "6px 8px", fontSize: 11, verticalAlign: "top" }}>
-                                {cell?.tasks && <div style={{ marginBottom: 2, color: "var(--foreground)", lineHeight: 1.4 }}>{cell.tasks}</div>}
-                                {cell?.hours && parseFloat(cell.hours) > 0 && <div style={{ fontWeight: 700, color: "var(--primary)" }}>{parseFloat(cell.hours).toFixed(1)}h</div>}
-                                {!cell?.tasks && !cell?.hours && <span style={{ color: "var(--border)" }}>—</span>}
+                              <td key={cat.key} style={{ padding: "8px 10px", fontSize: 12, verticalAlign: "top" }}>
+                                {tasks.length > 0 ? (
+                                  <>
+                                    {visibleTasks.map((t, idx) => <div key={idx} style={{ marginBottom: 3, lineHeight: 1.5 }}>{t}</div>)}
+                                    {tasks.length > MAX_TASKS && (
+                                      <button onClick={() => setExpandedCells(s => { const next = new Set(s); isExpanded ? next.delete(cellKey) : next.add(cellKey); return next })} style={{ fontSize: 11, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                                        {isExpanded ? "Less" : `+${tasks.length - MAX_TASKS} more`}
+                                      </button>
+                                    )}
+                                    {totalMins > 0 && <div style={{ fontWeight: 700, color: "var(--primary)", marginTop: 3, fontSize: 11 }}>{fmtMinutes(totalMins)}</div>}
+                                  </>
+                                ) : <span style={{ color: "var(--border)" }}>—</span>}
                               </td>
                             )
                           })}
-                          <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "middle" }}>
-                            {dayTotal > 0 ? dayTotal.toFixed(1) : "—"}
+                          <td style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--primary)", verticalAlign: "top", position: "sticky", right: 0, background: rowBg, zIndex: 1, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>
+                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "—"}
                           </td>
                         </tr>
                       )
                     })}
-                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total</td>
+                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)", position: "sticky", bottom: 0, zIndex: 2 }}>
+                      <td style={{ padding: "10px 14px", fontWeight: 800, fontSize: 13, position: "sticky", left: 0, background: "var(--muted)", zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>Total</td>
                       {CATEGORIES.map(cat => {
                         const td = viewingReport.taskDescriptions as any
-                        const catTot = DAYS_LIST.reduce((s, d) => s + (parseFloat(td?.[cat.key]?.[d]?.hours || "0") || 0), 0)
-                        return (
-                          <td key={cat.key} style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)" }}>
-                            {catTot > 0 ? catTot.toFixed(1) : "—"}
-                          </td>
-                        )
+                        const catMins = DAYS_LIST.reduce((s, d) => s + getCellData(td, cat.key, d).totalMins, 0)
+                        return <td key={cat.key} style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>{catMins > 0 ? fmtMinutes(catMins) : "—"}</td>
                       })}
-                      <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 900, fontSize: 13, color: "var(--primary)" }}>{(viewingReport.totalHours ?? 0).toFixed(1)}h</td>
+                      <td style={{ padding: "10px 10px", textAlign: "center", fontWeight: 900, fontSize: 13, color: "var(--primary)", position: "sticky", right: 0, background: "var(--muted)", boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>{(viewingReport.totalHours ?? 0).toFixed(1)}h</td>
                     </tr>
                   </tbody>
                 </table>
@@ -558,7 +719,7 @@ export default function PLInternReportsPage() {
                   <p style={{ fontSize: 12, fontWeight: 700, marginBottom: 10, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em" }}>All Reviewer Feedback</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                     {viewingReport.reviewers.map((rv: any) => {
-                      const tlScore = (rv.productivityRating ?? 0) + (rv.ldRating ?? 0) + (rv.reflectionsRating ?? 0)
+                      const plScore = (rv.productivityRating ?? 0) + (rv.ldRating ?? 0) + (rv.reflectionsRating ?? 0)
                       const rated = rv.productivityRating !== null
                       const isMe = rv.reviewerEmployeeId === currentEmployeeId
                       return (
@@ -567,7 +728,7 @@ export default function PLInternReportsPage() {
                             <span style={{ fontWeight: 700, fontSize: 13 }}>{rv.reviewer?.firstName} {rv.reviewer?.lastName}</span>
                             {rv.isPrimary && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#EEF2FF", color: "#4338CA", fontWeight: 700 }}>Primary</span>}
                             {isMe && <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: "#DCFCE7", color: "#15803D", fontWeight: 700 }}>You</span>}
-                            {rated && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", marginLeft: "auto" }}>TL: {Math.round((tlScore / 9) * 100)}%</span>}
+                            {rated && <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)", marginLeft: "auto" }}>PL: {Math.round((plScore / 9) * 100)}%</span>}
                           </div>
                           {rated ? (
                             <div style={{ display: "flex", gap: 14, fontSize: 11, color: "var(--muted-foreground)", marginBottom: rv.comment ? 8 : 0 }}>
@@ -586,9 +747,15 @@ export default function PLInternReportsPage() {
                 </div>
               )}
             </div>
+            </div>
           </div>
         </div>
       )}
+      <style>{`
+        @media (max-width: 899px) {
+          .pl-intern-reports-page { padding: 16px !important; }
+        }
+      `}</style>
     </div>
   )
 }

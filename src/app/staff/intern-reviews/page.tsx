@@ -6,10 +6,8 @@ import { format } from "date-fns"
 
 const CATEGORIES = [
   { key: "mainProject",    hoursKey: "mainProjectHours",    label: "Main Project" },
-  { key: "consulting",     hoursKey: "consultingHours",     label: "Consulting" },
   { key: "specialProject", hoursKey: "specialProjectHours", label: "Special Project" },
   { key: "training",       hoursKey: "trainingHours",       label: "Training" },
-  { key: "newBusiness",    hoursKey: "newBusinessHours",    label: "New Business" },
   { key: "reportingDoc",   hoursKey: "reportingDocHours",   label: "Reporting / Documentation" },
   { key: "operational",    hoursKey: "operationalHours",    label: "Operational Support" },
   { key: "research",       hoursKey: "researchHours",       label: "Research" },
@@ -18,6 +16,34 @@ const CATEGORIES = [
   { key: "representation", hoursKey: "representationHours", label: "Representation" },
   { key: "selfDev",        hoursKey: "selfDevHours",        label: "Self Development" },
 ]
+
+function parseMins(raw: string): number {
+  const s = (raw ?? "").trim().toLowerCase()
+  const colon = s.match(/^(\d+):(\d{1,2})$/)
+  if (colon) return +colon[1] * 60 + +colon[2]
+  const hm = s.match(/(\d+)\s*h(?:our|r)?s?\s*(?:(\d+)\s*m(?:in)?s?)?/)
+  if (hm) return +hm[1] * 60 + (hm[2] ? +hm[2] : 0)
+  const mOnly = s.match(/^(\d+)\s*m(?:in)?s?$/)
+  if (mOnly) return +mOnly[1]
+  return isNaN(+s) ? 0 : +s
+}
+function fmtMins(m: number): string {
+  if (!m) return ""
+  const h = Math.floor(m / 60), min = m % 60
+  return h ? (min ? `${h}h ${min}m` : `${h}h`) : `${min}m`
+}
+function getCellRows(dayData: any, day: string): { tasks: string[]; totalMins: number } {
+  const cell = dayData?.[day]
+  if (!cell) return { tasks: [], totalMins: 0 }
+  if (Array.isArray(cell)) {
+    const rows = cell as { text?: string; minutes?: string }[]
+    return {
+      tasks: rows.map(r => r.text?.trim()).filter(Boolean) as string[],
+      totalMins: rows.reduce((s, r) => s + (r.text?.trim() ? parseMins(r.minutes ?? "") : 0), 0),
+    }
+  }
+  return { tasks: cell.tasks ? [cell.tasks] : [], totalMins: parseFloat(cell.hours ?? "0") * 60 || 0 }
+}
 
 const DAYS_LIST = ["monday", "tuesday", "wednesday", "thursday", "friday"] as const
 
@@ -32,6 +58,27 @@ function StatusBadge({ status }: { status: string }) {
   return <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: s.bg, color: s.color }}>{s.label}</span>
 }
 
+const getReviewDeadline = (weekStart: string | Date) => {
+  const d = new Date(weekStart)
+  return new Date(d.getTime() + 7 * 24 * 60 * 60 * 1000 + 7 * 60 * 60 * 1000)
+}
+
+function ReviewDeadlineBadge({ weekStart }: { weekStart: string }) {
+  const deadline = getReviewDeadline(weekStart)
+  const isOverdue = deadline < new Date()
+  const dateStr = deadline.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 20,
+      background: isOverdue ? "var(--danger-bg)" : "var(--warning-bg)",
+      color: isOverdue ? "var(--accent)" : "var(--warning)",
+      whiteSpace: "nowrap",
+    }}>
+      {isOverdue ? "OVERDUE" : `Due ${dateStr}`}
+    </span>
+  )
+}
+
 export default function StaffInternReviewsPage() {
   const { data: session } = useSession()
   const currentEmployeeId = (session?.user as any)?.employeeId ?? ""
@@ -43,6 +90,7 @@ export default function StaffInternReviewsPage() {
   const [comment, setComment] = useState("")
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState("")
+  const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set())
 
   const loadReports = async () => {
     setLoading(true)
@@ -64,7 +112,7 @@ export default function StaffInternReviewsPage() {
   const submitComment = async () => {
     if (!commentingId) return
     setSaving(true); setSaveErr("")
-    const res = await fetch(`/api/intern-reports/${commentingId}/tl-review`, {
+    const res = await fetch(`/api/intern-reports/${commentingId}/pl-review`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ comment }),
@@ -103,7 +151,14 @@ export default function StaffInternReviewsPage() {
           {format(new Date(r.weekStart), "MMM d")} – {format(new Date(r.weekEnd), "MMM d, yyyy")}
         </td>
         <td style={{ padding: "12px 16px" }}>{(r.totalHours ?? 0).toFixed(1)}</td>
-        <td style={{ padding: "12px 16px" }}><StatusBadge status={r.status} /></td>
+        <td style={{ padding: "12px 16px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <StatusBadge status={r.status} />
+            {!iHaveReviewed && (r.status === "SUBMITTED" || r.status === "LATE") && (
+              <ReviewDeadlineBadge weekStart={r.weekStart} />
+            )}
+          </div>
+        </td>
         <td style={{ padding: "12px 16px" }}>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <button onClick={() => setViewingId(r.id)}
@@ -125,7 +180,7 @@ export default function StaffInternReviewsPage() {
   }
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1100, margin: "0 auto" }}>
+    <div className="staff-intern-reviews-page" style={{ padding: "28px 32px", maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 6 }}>
           <ClipboardCheck size={22} style={{ color: "var(--primary)" }} />
@@ -195,7 +250,7 @@ export default function StaffInternReviewsPage() {
       {/* Comment Modal */}
       {commentingId && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setCommentingId(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 500, width: "100%" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 500, width: "100%", maxHeight: "90vh", overflowY: "auto" }} onClick={e => e.stopPropagation()}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800 }}>Leave Your Comment</h3>
@@ -230,7 +285,8 @@ export default function StaffInternReviewsPage() {
       {/* View Report Modal */}
       {viewingReport && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }} onClick={() => setViewingId(null)}>
-          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: 700, width: "100%", maxHeight: "85vh", overflow: "auto" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: "min(900px, 95vw)", width: "100%", maxHeight: "85vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
+            <div style={{ flex: 1, overflow: "auto" }}>
             <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800 }}>{viewingReport.employee?.firstName} {viewingReport.employee?.lastName}</h3>
@@ -240,15 +296,15 @@ export default function StaffInternReviewsPage() {
             </div>
             <div style={{ padding: "20px 24px" }}>
               {/* Task breakdown table */}
-              <div style={{ overflowX: "auto", marginBottom: 20 }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 700, fontSize: 12 }}>
+              <div style={{ overflow: "auto", maxHeight: "min(55vh, 440px)", marginBottom: 20, border: "1px solid var(--border)", borderRadius: 8 }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
                     <tr style={{ background: "var(--muted)" }}>
-                      <th style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 130, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Category</th>
+                      <th style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 140, position: "sticky", left: 0, top: 0, background: "var(--muted)", zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>Category</th>
                       {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map(d => (
-                        <th key={d} style={{ padding: "8px 12px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 130 }}>{d}</th>
+                        <th key={d} style={{ padding: "10px 14px", textAlign: "left", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 160, position: "sticky", top: 0, background: "var(--muted)", zIndex: 2 }}>{d}</th>
                       ))}
-                      <th style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 55 }}>Total</th>
+                      <th style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, fontSize: 11, textTransform: "uppercase", color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)", minWidth: 80, position: "sticky", right: 0, top: 0, background: "var(--muted)", zIndex: 3, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>Total</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -256,29 +312,49 @@ export default function StaffInternReviewsPage() {
                       const dayData = (viewingReport.taskDescriptions as any)?.[cat.key]
                       const isLegacy = typeof dayData === "string"
                       const legacyHrs = viewingReport[cat.hoursKey] ?? 0
-                      const weekTotal = isLegacy ? legacyHrs : DAYS_LIST.reduce((s, d) => s + (parseFloat(dayData?.[d]?.hours || "0") || 0), 0)
-                      const hasData = isLegacy ? legacyHrs > 0 : DAYS_LIST.some(d => dayData?.[d]?.tasks || dayData?.[d]?.hours)
+                      const weekTotalMins = isLegacy ? legacyHrs * 60 : DAYS_LIST.reduce((s, d) => s + getCellRows(dayData, d).totalMins, 0)
+                      const hasData = isLegacy ? legacyHrs > 0 : DAYS_LIST.some(d => getCellRows(dayData, d).tasks.length > 0)
                       if (!hasData) return null
+                      const rowBg = i % 2 === 0 ? "var(--card)" : "var(--muted)"
                       return (
                         <tr key={cat.key} style={{ borderBottom: "1px solid var(--border)", background: i % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
-                          <td style={{ padding: "8px 12px", fontWeight: 600, fontSize: 12, verticalAlign: "top", position: "sticky", left: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>{cat.label}</td>
+                          <td style={{ padding: "10px 14px", fontWeight: 600, fontSize: 13, verticalAlign: "top", position: "sticky", left: 0, background: rowBg, zIndex: 1, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>{cat.label}</td>
                           {isLegacy ? (
                             <>
-                              <td colSpan={5} style={{ padding: "8px 12px", color: "var(--muted-foreground)", fontStyle: "italic" }}>{dayData || "—"}</td>
-                              <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700 }}>{legacyHrs}</td>
+                              <td colSpan={5} style={{ padding: "10px 14px", color: "var(--muted-foreground)", fontStyle: "italic" }}>{dayData || "—"}</td>
+                              <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, position: "sticky", right: 0, background: rowBg, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>{legacyHrs}</td>
                             </>
                           ) : (
                             <>
                               {DAYS_LIST.map(d => {
-                                const cell = dayData?.[d]
+                                const { tasks, totalMins } = getCellRows(dayData, d)
+                                const cellKey = `${cat.key}-${d}`
+                                const isExpanded = expandedCells.has(cellKey)
+                                const MAX_TASKS = 2
+                                const visibleTasks = isExpanded ? tasks : tasks.slice(0, MAX_TASKS)
                                 return (
-                                  <td key={d} style={{ padding: "8px 12px", verticalAlign: "top" }}>
-                                    {cell?.tasks ? <div style={{ fontSize: 12, marginBottom: 3 }}>{cell.tasks}</div> : null}
-                                    {cell?.hours ? <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700 }}>{cell.hours}h</div> : <div style={{ fontSize: 11, color: "var(--border)" }}>—</div>}
+                                  <td key={d} style={{ padding: "10px 14px", verticalAlign: "top" }}>
+                                    {tasks.length > 0 ? (
+                                      <>
+                                        {visibleTasks.map((t, idx) => <div key={idx} style={{ fontSize: 12, marginBottom: 3, lineHeight: 1.5 }}>{t}</div>)}
+                                        {tasks.length > MAX_TASKS && (
+                                          <button onClick={() => setExpandedCells(s => {
+                                            const next = new Set(s)
+                                            isExpanded ? next.delete(cellKey) : next.add(cellKey)
+                                            return next
+                                          })} style={{ fontSize: 11, color: "var(--primary)", background: "none", border: "none", cursor: "pointer", padding: 0, fontWeight: 600 }}>
+                                            {isExpanded ? "Less" : `+${tasks.length - MAX_TASKS} more`}
+                                          </button>
+                                        )}
+                                        {totalMins > 0 && <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, marginTop: 3 }}>{fmtMins(totalMins)}</div>}
+                                      </>
+                                    ) : (
+                                      <div style={{ fontSize: 11, color: "var(--border)" }}>—</div>
+                                    )}
                                   </td>
                                 )
                               })}
-                              <td style={{ padding: "8px 12px", textAlign: "center", fontWeight: 700, verticalAlign: "top" }}>{weekTotal > 0 ? weekTotal.toFixed(1) : "—"}</td>
+                              <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, fontSize: 13, verticalAlign: "top", position: "sticky", right: 0, background: rowBg, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>{weekTotalMins > 0 ? fmtMins(weekTotalMins) : "—"}</td>
                             </>
                           )}
                         </tr>
@@ -310,12 +386,18 @@ export default function StaffInternReviewsPage() {
                 )}
               </div>
             </div>
-            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end" }}>
+            </div>
+            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", flexShrink: 0 }}>
               <button onClick={() => setViewingId(null)} style={{ padding: "9px 20px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>Close</button>
             </div>
           </div>
         </div>
       )}
+      <style>{`
+        @media (max-width: 899px) {
+          .staff-intern-reviews-page { padding: 16px !important; }
+        }
+      `}</style>
     </div>
   )
 }

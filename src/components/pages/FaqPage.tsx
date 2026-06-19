@@ -39,7 +39,7 @@ export default function FAQPage() {
         <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>Find answers to common questions about the HRMS</p>
       </div>
 
-      <Card style={{ padding: "14px 20px", marginBottom: 20, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+      <Card style={{ padding: "14px 20px", marginBottom: 32, display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "7px 12px", flex: 1, minWidth: 200 }}>
           <Search size={14} style={{ color: "var(--muted-foreground)" }} />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search questions…" style={{ border: "none", background: "transparent", fontSize: 13, outline: "none", flex: 1, color: "var(--foreground)" }} />
