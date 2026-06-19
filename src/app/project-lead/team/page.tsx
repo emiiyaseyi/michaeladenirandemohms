@@ -75,8 +75,8 @@ export default function PLTeamPage() {
       if (typeRef.current && !typeRef.current.contains(e.target as Node)) setTypeOpen(false)
       if (pageSizeRef.current && !pageSizeRef.current.contains(e.target as Node)) setPageSizeOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [])
 
   const load = useCallback(async () => {

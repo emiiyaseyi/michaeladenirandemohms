@@ -103,8 +103,8 @@ function RowMenu({ onView, onReset, onDelete, onChangeRole }: {
       if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
         btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [open])
   return (
     <>
@@ -181,29 +181,29 @@ export default function EmployeesPage() {
   useEffect(() => {
     if (!manageOpen) return
     const h = (e: MouseEvent) => { if (!manageRef.current?.contains(e.target as Node)) setManageOpen(false) }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [manageOpen])
 
   useEffect(() => {
     if (!filterOpen) return
     const h = (e: MouseEvent) => { if (!filterRef.current?.contains(e.target as Node)) setFilterOpen(false) }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [filterOpen])
 
   useEffect(() => {
     if (!deptOpen) return
     const h = (e: MouseEvent) => { if (!deptRef.current?.contains(e.target as Node)) setDeptOpen(false) }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [deptOpen])
 
   useEffect(() => {
     if (!pageSizeOpen) return
     const h = (e: MouseEvent) => { if (!pageSizeRef.current?.contains(e.target as Node)) setPageSizeOpen(false) }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [pageSizeOpen])
 
   useEffect(() => {

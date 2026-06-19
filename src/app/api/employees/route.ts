@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
           managerId: true, projectLeadId: true, employmentType: true,
           user: { select: { role: true, email: true } },
         },
-        orderBy: { firstName: "asc" },
+        orderBy: { lastName: "asc" },
       })
       const departments = await prisma.department.findMany({ orderBy: { name: "asc" } })
       return NextResponse.json({ employees, departments })
@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
           manager: { select: { firstName: true, lastName: true } },
           user: { select: { role: true, email: true } },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { lastName: "asc" },
       }),
       prisma.department.findMany({ orderBy: { name: "asc" } }),
     ])

@@ -28,8 +28,8 @@ export default function CreateTemplatePage() {
     const handler = (e: MouseEvent) => {
       if (typeRef.current && !typeRef.current.contains(e.target as Node)) setShowTypeDropdown(false)
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    document.addEventListener("click", handler)
+    return () => document.removeEventListener("click", handler)
   }, [showTypeDropdown])
 
   const validate = () => {

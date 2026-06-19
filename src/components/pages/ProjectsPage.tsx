@@ -36,7 +36,7 @@ function MemberSearch({ employees, selected, onChange, exclude }: { employees: a
   const { ref: anchorRef, pos: dropPos, recompute: recomputeDropPos } = useDropdownPosition<HTMLDivElement>()
   useEffect(() => {
     const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h); return () => document.removeEventListener("click", h)
   }, [])
   const openDropdown = () => { recomputeDropPos(); setOpen(true) }
   const filtered = employees.filter(e => e.id !== exclude && !selected.includes(e.id) && `${e.firstName} ${e.lastName}`.toLowerCase().includes(q.toLowerCase()))

@@ -32,8 +32,8 @@ export default function CreateSurveyPage() {
         setTypeSearch("")
       }
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    document.addEventListener("click", handler)
+    return () => document.removeEventListener("click", handler)
   }, [showTypeDropdown])
 
   const filteredTypes = TYPES.filter(t => t.label.toLowerCase().includes(typeSearch.toLowerCase()))
