@@ -30,8 +30,8 @@ function RowMenu({ onHire, onEdit, onDelete }: { onHire: () => void; onEdit: () 
     const h = (e: MouseEvent) => {
       if (!menuRef.current?.contains(e.target as Node) && !btnRef.current?.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [open])
 
   const toggle = (e: React.MouseEvent) => {

@@ -73,8 +73,8 @@ function RowMenu({ onEdit, onDelete, canEdit, canDelete }: { onEdit: () => void;
         setOpen(false)
       }
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    document.addEventListener("click", handler)
+    return () => document.removeEventListener("click", handler)
   }, [open])
 
   return (
@@ -164,8 +164,8 @@ export default function SurveysPage() {
     const handler = (e: MouseEvent) => {
       if (typeRef.current && !typeRef.current.contains(e.target as Node)) setShowTypeDropdown(false)
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    document.addEventListener("click", handler)
+    return () => document.removeEventListener("click", handler)
   }, [showTypeDropdown])
 
   const [delDialog, setDelDialog] = useState<{ kind: "survey" | "template"; id: string } | null>(null)

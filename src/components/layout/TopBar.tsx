@@ -128,8 +128,8 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
     const handler = (e: MouseEvent) => {
       if (!userRef.current?.contains(e.target as Node)) setUserOpen(false)
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    document.addEventListener("click", handler)
+    return () => document.removeEventListener("click", handler)
   }, [])
 
   const markRead = async (id: string) => {
@@ -178,8 +178,8 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
     const handler = (e: MouseEvent) => {
       if (!containerRef.current?.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", handler)
-    return () => document.removeEventListener("mousedown", handler)
+    document.addEventListener("click", handler)
+    return () => document.removeEventListener("click", handler)
   }, [])
 
   const navigate = useCallback((href: string) => {

@@ -44,8 +44,8 @@ function StatusDropdown({ value, onChange }: { value: string; onChange: (v: stri
       if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
         btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [open])
 
   const label = value === "ALL" ? "All" : value.charAt(0) + value.slice(1).toLowerCase()
@@ -108,8 +108,8 @@ function RowMenu({ onDelete }: { onDelete: () => void }) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node) &&
         btnRef.current && !btnRef.current.contains(e.target as Node)) setOpen(false)
     }
-    document.addEventListener("mousedown", h)
-    return () => document.removeEventListener("mousedown", h)
+    document.addEventListener("click", h)
+    return () => document.removeEventListener("click", h)
   }, [open])
 
   return (
