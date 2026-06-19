@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { ClipboardList, ChevronLeft, ChevronRight, Download } from "lucide-react"
 import { format } from "date-fns"
+import { generateInternReportExcel } from "@/lib/intern-report-excel"
 
 const ATTENDANCE_CRITERIA: [number, string][] = [
   [3, "Present 3 days with NO lateness"],
@@ -149,6 +150,8 @@ export default function AdminInternReportsPage() {
   const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set())
   const [allInterns, setAllInterns] = useState<any[]>([])
   const [creatingPlaceholder, setCreatingPlaceholder] = useState<string | null>(null)
+  const [nameSearch, setNameSearch] = useState("")
+  const [statusFilter, setStatusFilter] = useState("")
 
   const now = new Date()
 
@@ -238,12 +241,29 @@ export default function AdminInternReportsPage() {
   }, [lbWeekOffset, lbMode])
 
   const departments =[...new Set(reports.map(r => r.employee?.department?.name).filter(Boolean))]
-  const filtered = deptFilter ? reports.filter(r => r.employee?.department?.name === deptFilter) : reports
+  const filtered = reports.filter(r => {
+    if (deptFilter && r.employee?.department?.name !== deptFilter) return false
+    if (statusFilter && r.status !== statusFilter) return false
+    if (nameSearch) {
+      const q = nameSearch.toLowerCase()
+      const name = `${r.employee?.firstName ?? ""} ${r.employee?.lastName ?? ""}`.toLowerCase()
+      if (!name.includes(q)) return false
+    }
+    return true
+  })
 
   // In week mode: extend filtered with interns who have no report for the week
-  const reportedEmpIds = new Set(filtered.map(r => r.employee?.id).filter(Boolean))
-  const internsWithoutReport = mode === "week"
-    ? allInterns.filter((e: any) => !reportedEmpIds.has(e.id) && (!deptFilter || e.department?.name === deptFilter))
+  const reportedEmpIds = new Set(reports.map(r => r.employee?.id).filter(Boolean))
+  const internsWithoutReport = (mode === "week" && !statusFilter)
+    ? allInterns.filter((e: any) => {
+        if (reportedEmpIds.has(e.id)) return false
+        if (deptFilter && e.department?.name !== deptFilter) return false
+        if (nameSearch) {
+          const q = nameSearch.toLowerCase()
+          if (!`${e.firstName} ${e.lastName}`.toLowerCase().includes(q)) return false
+        }
+        return true
+      })
     : []
 
   const openAttendance = (id: string) => {
@@ -389,6 +409,44 @@ export default function AdminInternReportsPage() {
     doc.save(`intern-reports-${getPeriodLabel().replace(/[^a-zA-Z0-9]/g, "-")}.pdf`)
   }
 
+  const downloadSingleReport = (r: any) => {
+    const { blob, filename } = generateInternReportExcel({
+      firstName: r.employee?.firstName ?? "",
+      lastName:  r.employee?.lastName  ?? "",
+      weekNumber: r.weekNumber,
+      weekStart: r.weekStart,
+      weekEnd:   r.weekEnd,
+      taskDescriptions: r.taskDescriptions,
+      dailyReflections: r.dailyReflections,
+      generalReflection: r.generalReflection,
+    })
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click()
+  }
+
+  const exportAllZip = async () => {
+    const JSZip = (await import("jszip")).default
+    const zip = new JSZip()
+    for (const r of reports) {
+      if (!["SUBMITTED","LATE","REVIEWED"].includes(r.status)) continue
+      const { blob, filename } = generateInternReportExcel({
+        firstName: r.employee?.firstName ?? "",
+        lastName:  r.employee?.lastName  ?? "",
+        weekNumber: r.weekNumber,
+        weekStart: r.weekStart,
+        weekEnd:   r.weekEnd,
+        taskDescriptions: r.taskDescriptions,
+        dailyReflections: r.dailyReflections,
+        generalReflection: r.generalReflection,
+      })
+      zip.file(filename, await blob.arrayBuffer())
+    }
+    const zipBlob = await zip.generateAsync({ type: "blob" })
+    const a = document.createElement("a")
+    a.href = URL.createObjectURL(zipBlob)
+    a.download = `intern-reports-${getPeriodLabel().replace(/[^a-zA-Z0-9]/g, "-")}.zip`
+    a.click()
+  }
+
   const viewingReport = viewingId ? reports.find(r => r.id === viewingId) : null
 
   return (
@@ -410,6 +468,9 @@ export default function AdminInternReportsPage() {
           </button>
           <button onClick={exportPDF} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
             <Download size={14} /> PDF
+          </button>
+          <button onClick={exportAllZip} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "white" }}>
+            <Download size={14} /> Download All (.zip)
           </button>
         </div>
       </div>
@@ -467,6 +528,19 @@ export default function AdminInternReportsPage() {
             {departments.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
         )}
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          style={{ padding: "9px 14px", border: "1px solid var(--border)", borderRadius: 10, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none" }}>
+          <option value="">All</option>
+          <option value="SUBMITTED">Submitted</option>
+          <option value="LATE">Late</option>
+          <option value="REVIEWED">Reviewed</option>
+          <option value="MISSING">Missed</option>
+        </select>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 14px", border: "1px solid var(--border)", borderRadius: 10, background: "var(--background)" }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--muted-foreground)", flexShrink: 0 }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input value={nameSearch} onChange={e => setNameSearch(e.target.value)} placeholder="Search intern name…"
+            style={{ border: "none", background: "transparent", fontSize: 13, outline: "none", color: "var(--foreground)", width: 160 }} />
+        </div>
       </div>
 
       {/* Table */}
@@ -538,6 +612,12 @@ export default function AdminInternReportsPage() {
                         )}
                         {(r.status === "SUBMITTED" || r.status === "LATE") && (
                           <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Awaiting review</span>
+                        )}
+                        {["SUBMITTED","LATE","REVIEWED"].includes(r.status) && (
+                          <button onClick={() => downloadSingleReport(r)}
+                            style={{ padding: "5px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                            <Download size={12} /> Download
+                          </button>
                         )}
                         {r.status === "MISSING" && (
                           <button

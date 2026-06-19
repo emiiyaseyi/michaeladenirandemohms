@@ -1,8 +1,9 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
-import { ClipboardList, Clock, CheckCircle2, AlertCircle, Eye, X, Search, Users, ChevronLeft, ChevronRight } from "lucide-react"
+import { ClipboardList, Clock, CheckCircle2, AlertCircle, Eye, X, Search, Users, ChevronLeft, ChevronRight, Download } from "lucide-react"
 import { format } from "date-fns"
+import { generateInternReportExcel } from "@/lib/intern-report-excel"
 
 const CATEGORIES = [
   { key: "mainProject",     hoursKey: "mainProjectHours",    label: "Main Project" },
@@ -291,6 +292,7 @@ export default function InternReportPage() {
   const [lbDeptFilter, setLbDeptFilter] = useState("")
   const [weekOffset, setWeekOffset] = useState(0) // 0 = current week, negative = past
   const [tab, setTab] = useState<"report" | "leaderboard">("report")
+  const [weekNumber, setWeekNumber] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr] = useState("")
   const [submitOk, setSubmitOk] = useState(false)
@@ -298,6 +300,7 @@ export default function InternReportPage() {
   const [loading, setLoading] = useState(true)
   const [viewReport, setViewReport] = useState<any | null>(null)
   const [window, setWindow] = useState(() => computeWindow(DEFAULTS))
+  const [pastStatusFilter, setPastStatusFilter] = useState("")
 
   const [reportStartDate, setReportStartDate] = useState<Date | null>(null)
   const [projectLead, setProjectLead] = useState<{ id: string; name: string } | null>(null)
@@ -462,7 +465,7 @@ export default function InternReportPage() {
     const res = await fetch("/api/intern-reports", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskDescriptions, dailyReflections, generalReflection, extraReviewerIds, weekStart: weekMon.toISOString() }),
+      body: JSON.stringify({ taskDescriptions, dailyReflections, generalReflection, extraReviewerIds, weekStart: `${weekMon.getFullYear()}-${String(weekMon.getMonth()+1).padStart(2,"0")}-${String(weekMon.getDate()).padStart(2,"0")}`, weekNumber: weekNumber ? parseInt(weekNumber) : null }),
     })
     const d = await res.json()
     setSubmitting(false)
@@ -561,6 +564,17 @@ export default function InternReportPage() {
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>{isPastWeek ? "Past Week Report" : "This Week's Report"}</h2>
             <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{weekLabel}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>Week —</label>
+            <input
+              type="number"
+              min={1}
+              value={weekNumber}
+              onChange={e => setWeekNumber(e.target.value)}
+              placeholder="e.g. 1"
+              style={{ width: 70, padding: "5px 8px", border: "1.5px solid var(--border)", borderRadius: 6, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none" }}
+            />
           </div>
           {isPastWeek ? (
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: "#FEF3C7", color: "#D97706", fontSize: 11, fontWeight: 700 }}>
@@ -861,16 +875,26 @@ export default function InternReportPage() {
 
       {/* Past Reports — below the form */}
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
-        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)" }}>
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <h2 style={{ fontSize: 15, fontWeight: 800 }}>Past Reports</h2>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {[["", "All"], ["SUBMITTED", "Submitted"], ["LATE", "Late"], ["REVIEWED", "Reviewed"], ["MISSING", "Missed"]].map(([val, label]) => (
+              <button key={val} onClick={() => setPastStatusFilter(val)}
+                style={{ padding: "4px 12px", borderRadius: 20, border: `1.5px solid ${pastStatusFilter === val ? "var(--primary)" : "var(--border)"}`, background: pastStatusFilter === val ? "var(--primary)" : "transparent", color: pastStatusFilter === val ? "white" : "var(--muted-foreground)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
-        {loading ? (
+        {(() => {
+          const visibleReports = pastStatusFilter ? reports.filter(r => r.status === pastStatusFilter) : reports
+          return loading ? (
           <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
-        ) : reports.length === 0 ? (
-          <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No reports submitted yet.</div>
+        ) : visibleReports.length === 0 ? (
+          <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>{reports.length === 0 ? "No reports submitted yet." : "No reports match this filter."}</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 0 }}>
-            {reports.map(r => (
+            {visibleReports.map(r => (
               <div key={r.id} style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", borderRight: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>
@@ -888,13 +912,33 @@ export default function InternReportPage() {
                     ) : null}
                   </div>
                 </div>
-                <button onClick={() => setViewReport(r)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", color: "var(--primary)", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px", flexShrink: 0 }}>
-                  <Eye size={12} /> View
-                </button>
+                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                  <button onClick={() => setViewReport(r)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", color: "var(--primary)", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px" }}>
+                    <Eye size={12} /> View
+                  </button>
+                  {["SUBMITTED","LATE","REVIEWED"].includes(r.status) && (
+                    <button onClick={() => {
+                      const { blob, filename } = generateInternReportExcel({
+                        firstName: r.employee?.firstName ?? "",
+                        lastName:  r.employee?.lastName  ?? "",
+                        weekNumber: r.weekNumber,
+                        weekStart: r.weekStart,
+                        weekEnd:   r.weekEnd,
+                        taskDescriptions: r.taskDescriptions,
+                        dailyReflections: r.dailyReflections,
+                        generalReflection: r.generalReflection,
+                      })
+                      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click()
+                    }} style={{ background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", color: "white", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px" }}>
+                      <Download size={12} /> Download
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
-        )}
+        )
+        })()}
       </div>
 
       </>)}
