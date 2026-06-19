@@ -164,7 +164,6 @@ export default function RecruitmentOverviewPage() {
                     <option value="FULL_TIME">Full Time</option>
                     <option value="CONTRACT">Contract</option>
                     <option value="STAFF">Intern</option>
-                    <option value="NYSC">NYSC</option>
                   </select>
                 </div>
               </div>

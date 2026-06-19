@@ -18,7 +18,6 @@ const EMP_TYPE_OPTS = [
   { value: "PART_TIME", label: "Part-time" },
   { value: "CONTRACT", label: "Contract" },
   { value: "INTERN", label: "Intern" },
-  { value: "NYSC", label: "NYSC" },
 ]
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
@@ -31,7 +30,7 @@ const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }>
 
 const EMP_TYPE_LABEL: Record<string, string> = {
   FULL_TIME: "Full-time", PART_TIME: "Part-time",
-  CONTRACT: "Contract", INTERN: "Intern", NYSC: "NYSC",
+  CONTRACT: "Contract", INTERN: "Intern",
 }
 
 const PAGE_SIZES = [10, 20, 50, 100]

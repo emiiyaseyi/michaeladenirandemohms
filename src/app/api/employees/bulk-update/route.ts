@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
   ])
 
   const notes = [
-    `# Bulk update — ${role === "STAFF" ? "Staff" : "Project Lead"} role only.`,
+    `# Bulk update - ${role === "STAFF" ? "Staff" : "Project Lead"} role only.`,
     "# The 'role' column is read-only; changing it has no effect (use the role-change UI to switch a person's role).",
     "# Match rows by 'employeeId'. Edit any other column to update that field on the matched employee.",
   ]
@@ -74,9 +74,9 @@ export async function GET(req: NextRequest) {
     ...rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")),
   ].join("\n")
 
-  return new Response(csv, {
+  return new Response("﻿" + csv, {
     headers: {
-      "Content-Type": "text/csv",
+      "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="employees_bulk_update_${role.toLowerCase()}.csv"`,
     },
   })

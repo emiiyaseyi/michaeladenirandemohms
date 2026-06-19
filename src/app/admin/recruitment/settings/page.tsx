@@ -139,7 +139,6 @@ export default function RecruitmentSettingsPage() {
             <option value="PART_TIME">Part Time</option>
             <option value="CONTRACT">Contract</option>
             <option value="INTERN">Intern</option>
-            <option value="NYSC">NYSC</option>
           </select>
         </SettingRow>
         <SettingRow label="Auto-close jobs after (days)" description="Automatically close a job posting after this many days. Set to 0 to disable.">

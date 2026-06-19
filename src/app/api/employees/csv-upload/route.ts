@@ -8,11 +8,11 @@ import bcrypt from "bcryptjs"
 const COMMON_COLS = ["firstName", "middleName", "lastName", "email", "phone", "jobTitle", "hireDate", "dateOfBirth", "gender", "employmentType"]
 const STAFF_COLS = [...COMMON_COLS, "primaryDepartment", "primaryProjectLeadEmail", "secondaryDepartments"]
 const PL_COLS    = [...COMMON_COLS, "departments", "managerEmail"]
-const REQUIRED_COMMON = ["firstName", "lastName", "email", "jobTitle", "hireDate", "dateOfBirth", "gender"]
+const REQUIRED_COMMON = ["firstName", "lastName", "email", "jobTitle", "hireDate", "dateOfBirth", "gender", "employmentType"]
 const REQUIRED_STAFF = [...REQUIRED_COMMON, "primaryDepartment"]
 const REQUIRED_PL    = [...REQUIRED_COMMON, "departments"]
 const VALID_GENDERS = ["MALE", "FEMALE"]
-const VALID_EMP_TYPES = ["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN", "NYSC"]
+const VALID_EMP_TYPES = ["FULL_TIME", "PART_TIME", "CONTRACT", "INTERN"]
 
 function parseCSV(text: string): Record<string, string>[] {
   // Strip leading comment lines (start with #) so the header row is found
@@ -297,20 +297,20 @@ export async function GET(req: NextRequest) {
       "EqualyzAI", "lead1@dsn-hrms.com", "Finance|Brand and Comms",
     ]
     const notes = [
-      "# Staff template — for adding STAFF role members.",
-      "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, primaryDepartment",
-      "# Optional: middleName, phone, employmentType, primaryProjectLeadEmail, secondaryDepartments",
+      "# Staff template - for adding STAFF role members.",
+      "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, employmentType, primaryDepartment",
+      "# Optional: middleName, phone, primaryProjectLeadEmail, secondaryDepartments",
       "# email must end with @datasciencenigeria.ai",
       "# gender: MALE or FEMALE",
-      "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN | NYSC (default: FULL_TIME)",
+      "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN",
       "# hireDate / dateOfBirth: YYYY-MM-DD format",
       "# primaryDepartment: must match an existing department exactly (case-insensitive)",
-      "# primaryProjectLeadEmail: optional — if provided, must be a PROJECT_LEAD assigned to the primary department",
+      "# primaryProjectLeadEmail: optional - if provided, must be a PROJECT_LEAD assigned to the primary department",
       "# secondaryDepartments: optional, pipe-separated, e.g. Finance|Brand and Comms",
     ]
     const csv = [notes.join("\n"), headers.join(","), example.join(",")].join("\n")
-    return new Response(csv, {
-      headers: { "Content-Type": "text/csv", "Content-Disposition": 'attachment; filename="staff_upload_template.csv"' },
+    return new Response("﻿" + csv, {
+      headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="staff_upload_template.csv"' },
     })
   }
 
@@ -318,22 +318,22 @@ export async function GET(req: NextRequest) {
   const headers = PL_COLS
   const example = [
     "Jane", "", "Smith", "jane.smith@datasciencenigeria.ai", "08087654321",
-    "Team Lead — Technology", "2023-03-01", "1988-09-12", "FEMALE", "FULL_TIME",
+    "Team Lead - Technology", "2023-03-01", "1988-09-12", "FEMALE", "FULL_TIME",
     "EqualyzAI|Technical Delivery (Service & Consulting)", "manager1@datasciencenigeria.ai",
   ]
   const notes = [
-    "# Project Lead template — for adding PROJECT_LEAD role members.",
-    "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, departments",
-    "# Optional: middleName, phone, employmentType, managerEmail",
+    "# Project Lead template - for adding PROJECT_LEAD role members.",
+    "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, employmentType, departments",
+    "# Optional: middleName, phone, managerEmail",
     "# email must end with @datasciencenigeria.ai",
     "# gender: MALE or FEMALE",
-    "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN | NYSC (default: FULL_TIME)",
+    "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN",
     "# hireDate / dateOfBirth: YYYY-MM-DD format",
     "# departments: pipe-separated list of departments they will lead, e.g. EqualyzAI|Finance",
-    "# managerEmail: optional — if provided, must be a Manager (CEO/Executive Director or added via /admin/people/managers)",
+    "# managerEmail: optional - if provided, must be a Manager (CEO/Executive Director or added via /admin/people/managers)",
   ]
   const csv = [notes.join("\n"), headers.join(","), example.join(",")].join("\n")
-  return new Response(csv, {
-    headers: { "Content-Type": "text/csv", "Content-Disposition": 'attachment; filename="project_lead_upload_template.csv"' },
+  return new Response("﻿" + csv, {
+    headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": 'attachment; filename="project_lead_upload_template.csv"' },
   })
 }

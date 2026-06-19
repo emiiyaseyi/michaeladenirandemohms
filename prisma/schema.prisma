@@ -1020,7 +1020,6 @@ enum EmploymentType {
   PART_TIME
   CONTRACT
   INTERN
-  NYSC
 }
 
 enum EmployeeStatus {

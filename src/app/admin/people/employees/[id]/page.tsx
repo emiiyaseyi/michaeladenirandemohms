@@ -20,7 +20,7 @@ const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }>
 
 const EMP_TYPE_LABEL: Record<string, string> = {
   FULL_TIME: "Full-time", PART_TIME: "Part-time",
-  CONTRACT: "Contract", INTERN: "Intern", NYSC: "NYSC",
+  CONTRACT: "Contract", INTERN: "Intern",
 }
 
 const fi: React.CSSProperties = {
@@ -1022,7 +1022,6 @@ export default function EmployeeProfilePage() {
                 <option value="PART_TIME">Part-time</option>
                 <option value="CONTRACT">Contract</option>
                 <option value="INTERN">Intern</option>
-                <option value="NYSC">NYSC</option>
               </select>
             </MF>
             <MF label="Job Title"><input value={mf.jobTitle ?? ""} onChange={setMF("jobTitle")} style={fi} placeholder="e.g. Senior Engineer" /></MF>
@@ -1039,7 +1038,6 @@ export default function EmployeeProfilePage() {
                 <option value="PART_TIME">Part-time</option>
                 <option value="CONTRACT">Contract</option>
                 <option value="INTERN">Intern</option>
-                <option value="NYSC">NYSC</option>
               </select>
             </MF>
             <MF label="Probation">
