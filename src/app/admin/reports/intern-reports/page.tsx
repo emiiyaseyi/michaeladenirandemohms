@@ -549,9 +549,10 @@ export default function AdminInternReportsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--muted)" }}>
-                {["Intern", "Department", "Hours", "Status", "Late", "PL Score", "Attendance", "Deduction", "Total Score", "Actions"].map(h => (
+                {["Intern", "Department", "Hours", "Status", "Late", "PL Score", "Attendance", "Deduction", "Total Score"].map(h => (
                   <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
+                <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap", position: "sticky", right: 0, background: "var(--muted)", zIndex: 1 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -596,7 +597,7 @@ export default function AdminInternReportsPage() {
                         </strong>
                       ) : "–"}
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
+                    <td style={{ padding: "12px 16px", position: "sticky", right: 0, background: "var(--background)", zIndex: 1, borderLeft: "1px solid var(--border)" }}>
                       <div style={{ display: "flex", gap: 8 }}>
                         {r.status !== "MISSING" && (
                           <button onClick={() => setViewingId(r.id)}
@@ -648,7 +649,7 @@ export default function AdminInternReportsPage() {
                   <td style={{ padding: "12px 16px", color: "var(--muted-foreground)", fontStyle: "italic" }}>Pending</td>
                   <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
                   <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
-                  <td style={{ padding: "12px 16px" }}>
+                  <td style={{ padding: "12px 16px", position: "sticky", right: 0, background: "var(--background)", zIndex: 1, borderLeft: "1px solid var(--border)" }}>
                     <button
                       onClick={() => createPlaceholderAndOpenAttendance(emp)}
                       disabled={creatingPlaceholder === emp.id}
