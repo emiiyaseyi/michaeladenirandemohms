@@ -296,6 +296,8 @@ export default function InternReportPage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitErr, setSubmitErr] = useState("")
   const [submitOk, setSubmitOk] = useState(false)
+  const [savingDraft, setSavingDraft] = useState(false)
+  const [draftSaved, setDraftSaved] = useState(false)
   const [reports, setReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [viewReport, setViewReport] = useState<any | null>(null)
@@ -458,6 +460,29 @@ export default function InternReportPage() {
   // Keep thisWeekReport for backward compat (used in alreadySubmitted)
   const thisWeekReport = selectedWeekReport
 
+  // Pre-fill form when navigating to a week that has a saved draft
+  useEffect(() => {
+    if (selectedWeekReport?.status !== "DRAFT") return
+    const td = selectedWeekReport.taskDescriptions
+    if (td && typeof td === "object") {
+      const loaded = initEntries()
+      for (const cat of CATEGORIES) {
+        const catData = (td as any)[cat.key]
+        if (catData && typeof catData === "object") {
+          for (const day of DAYS_LIST) {
+            const rows = (catData as any)[day]
+            if (Array.isArray(rows) && rows.length > 0) loaded[cat.key][day] = rows
+          }
+        }
+      }
+      setEntries(loaded)
+    }
+    const dr = selectedWeekReport.dailyReflections
+    if (dr && typeof dr === "object") setDailyReflections(dr as any)
+    if (selectedWeekReport.generalReflection) setGeneralReflection(selectedWeekReport.generalReflection)
+    if (selectedWeekReport.weekNumber) setWeekNumber(String(selectedWeekReport.weekNumber))
+  }, [selectedWeekReport?.id])
+
   const handleSubmit = async () => {
     if (!isPastWeek && !window.open) return
     setSubmitting(true); setSubmitErr("")
@@ -472,6 +497,23 @@ export default function InternReportPage() {
     if (!res.ok) { setSubmitErr(d.error ?? "Failed to submit"); return }
     if (weekOffset === 0) setSubmitOk(true)
     setReports(prev => [d.report, ...prev.filter(r => r.id !== d.report.id)])
+  }
+
+  const handleSaveDraft = async () => {
+    setSavingDraft(true); setDraftSaved(false)
+    const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, entries[c.key]]))
+    const res = await fetch("/api/intern-reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isDraft: true, taskDescriptions, dailyReflections, generalReflection, extraReviewerIds, weekStart: `${weekMon.getFullYear()}-${String(weekMon.getMonth()+1).padStart(2,"0")}-${String(weekMon.getDate()).padStart(2,"0")}`, weekNumber: weekNumber ? parseInt(weekNumber) : null }),
+    })
+    setSavingDraft(false)
+    if (res.ok) {
+      const d = await res.json()
+      setReports(prev => [d.report, ...prev.filter(r => r.id !== d.report.id)])
+      setDraftSaved(true)
+      setTimeout(() => setDraftSaved(false), 3000)
+    }
   }
 
   const alreadySubmitted = (submitOk && weekOffset === 0)
@@ -834,6 +876,16 @@ export default function InternReportPage() {
             </div>
 
             <div style={{ padding: "14px 24px", borderTop: "1px solid var(--border)", display: "flex", justifyContent: "flex-end", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+              {draftSaved && (
+                <span style={{ fontSize: 12, color: "#16a34a", fontWeight: 600 }}>✓ Draft saved</span>
+              )}
+              <button
+                onClick={handleSaveDraft}
+                disabled={savingDraft}
+                style={{ padding: "10px 24px", background: "transparent", border: "1.5px solid var(--border)", borderRadius: 8, cursor: savingDraft ? "not-allowed" : "pointer", fontSize: 14, fontWeight: 600, color: "var(--foreground)", opacity: savingDraft ? 0.6 : 1 }}
+              >
+                {savingDraft ? "Saving…" : "Save Draft"}
+              </button>
               {(isPastWeek || window.open) && !allReflectionsFilled && (
                 <span style={{ fontSize: 12, color: "#DC2626" }}>
                   Fill all 5 daily reflections to submit.
@@ -878,7 +930,7 @@ export default function InternReportPage() {
         <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <h2 style={{ fontSize: 15, fontWeight: 800 }}>Past Reports</h2>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {[["", "All"], ["SUBMITTED", "Submitted"], ["LATE", "Late"], ["REVIEWED", "Reviewed"], ["MISSING", "Missed"]].map(([val, label]) => (
+            {[["", "All"], ["DRAFT", "Draft"], ["SUBMITTED", "Submitted"], ["LATE", "Late"], ["REVIEWED", "Reviewed"], ["MISSING", "Missed"]].map(([val, label]) => (
               <button key={val} onClick={() => setPastStatusFilter(val)}
                 style={{ padding: "4px 12px", borderRadius: 20, border: `1.5px solid ${pastStatusFilter === val ? "var(--primary)" : "var(--border)"}`, background: pastStatusFilter === val ? "var(--primary)" : "transparent", color: pastStatusFilter === val ? "white" : "var(--muted-foreground)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                 {label}

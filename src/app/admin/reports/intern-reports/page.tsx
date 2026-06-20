@@ -549,9 +549,10 @@ export default function AdminInternReportsPage() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--muted)" }}>
-                {["Intern", "Department", "Hours", "Status", "Late", "PL Score", "Attendance", "Deduction", "Total Score", "Actions"].map(h => (
+                {["Intern", "Department", "Hours", "Status", "Late", "PL Score", "Attendance", "Deduction", "Total Score"].map(h => (
                   <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
+                <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap", position: "sticky", right: 0, background: "var(--muted)", zIndex: 1 }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -596,27 +597,24 @@ export default function AdminInternReportsPage() {
                         </strong>
                       ) : "–"}
                     </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <div style={{ display: "flex", gap: 8 }}>
+                    <td style={{ padding: "12px 16px", position: "sticky", right: 0, background: "var(--background)", zIndex: 1, borderLeft: "1px solid var(--border)" }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {r.status !== "MISSING" && (
                           <button onClick={() => setViewingId(r.id)}
                             style={{ padding: "5px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                             View
                           </button>
                         )}
-                        {(r.status === "REVIEWED" || r.status === "MISSING") && (
-                          <button onClick={() => openAttendance(r.id)}
-                            style={{ padding: "5px 12px", background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
-                            {r.attendanceRating !== null ? "Edit Attendance" : "Fill Attendance"}
-                          </button>
-                        )}
-                        {(r.status === "SUBMITTED" || r.status === "LATE") && (
-                          <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Awaiting review</span>
-                        )}
                         {["SUBMITTED","LATE","REVIEWED"].includes(r.status) && (
                           <button onClick={() => downloadSingleReport(r)}
                             style={{ padding: "5px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                             <Download size={12} /> Download
+                          </button>
+                        )}
+                        {(r.status === "REVIEWED" || r.status === "MISSING" || r.status === "SUBMITTED" || r.status === "LATE") && (
+                          <button onClick={() => openAttendance(r.id)}
+                            style={{ padding: "5px 12px", background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
+                            {r.attendanceRating !== null ? "Edit Attendance" : "Fill Attendance"}
                           </button>
                         )}
                         {r.status === "MISSING" && (
@@ -629,6 +627,9 @@ export default function AdminInternReportsPage() {
                             style={{ padding: "5px 12px", background: "#DC2626", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
                             Clear missed record
                           </button>
+                        )}
+                        {(r.status === "SUBMITTED" || r.status === "LATE") && (
+                          <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Awaiting review</span>
                         )}
                       </div>
                     </td>
@@ -648,7 +649,7 @@ export default function AdminInternReportsPage() {
                   <td style={{ padding: "12px 16px", color: "var(--muted-foreground)", fontStyle: "italic" }}>Pending</td>
                   <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
                   <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
-                  <td style={{ padding: "12px 16px" }}>
+                  <td style={{ padding: "12px 16px", position: "sticky", right: 0, background: "var(--background)", zIndex: 1, borderLeft: "1px solid var(--border)" }}>
                     <button
                       onClick={() => createPlaceholderAndOpenAttendance(emp)}
                       disabled={creatingPlaceholder === emp.id}
