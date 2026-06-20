@@ -598,26 +598,23 @@ export default function AdminInternReportsPage() {
                       ) : "–"}
                     </td>
                     <td style={{ padding: "12px 16px", position: "sticky", right: 0, background: "var(--background)", zIndex: 1, borderLeft: "1px solid var(--border)" }}>
-                      <div style={{ display: "flex", gap: 8 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         {r.status !== "MISSING" && (
                           <button onClick={() => setViewingId(r.id)}
                             style={{ padding: "5px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
                             View
                           </button>
                         )}
-                        {(r.status === "REVIEWED" || r.status === "MISSING") && (
-                          <button onClick={() => openAttendance(r.id)}
-                            style={{ padding: "5px 12px", background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
-                            {r.attendanceRating !== null ? "Edit Attendance" : "Fill Attendance"}
-                          </button>
-                        )}
-                        {(r.status === "SUBMITTED" || r.status === "LATE") && (
-                          <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Awaiting review</span>
-                        )}
                         {["SUBMITTED","LATE","REVIEWED"].includes(r.status) && (
                           <button onClick={() => downloadSingleReport(r)}
                             style={{ padding: "5px 12px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                             <Download size={12} /> Download
+                          </button>
+                        )}
+                        {(r.status === "REVIEWED" || r.status === "MISSING" || r.status === "SUBMITTED" || r.status === "LATE") && (
+                          <button onClick={() => openAttendance(r.id)}
+                            style={{ padding: "5px 12px", background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
+                            {r.attendanceRating !== null ? "Edit Attendance" : "Fill Attendance"}
                           </button>
                         )}
                         {r.status === "MISSING" && (
@@ -630,6 +627,9 @@ export default function AdminInternReportsPage() {
                             style={{ padding: "5px 12px", background: "#DC2626", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 700, color: "white" }}>
                             Clear missed record
                           </button>
+                        )}
+                        {(r.status === "SUBMITTED" || r.status === "LATE") && (
+                          <span style={{ fontSize: 11, color: "var(--muted-foreground)", fontStyle: "italic" }}>Awaiting review</span>
                         )}
                       </div>
                     </td>
