@@ -89,8 +89,8 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
   const filteredNav: NavItem[] = []
   for (const item of nav) {
     if (item.spacer) { filteredNav.push(item); continue }
-    if (item.requiresIntern && !user?.isIntern) continue
-    if (item.hideForIntern && user?.isIntern) continue
+    if (item.requiresIntern && !user?.isIntern && !(user as any)?.isAssociate) continue
+    if (item.hideForIntern && (user?.isIntern || (user as any)?.isAssociate)) continue
     if (item.children) {
       if (!hasPermission(item.permission)) continue
       const visibleChildren = item.children.filter(c =>
@@ -295,7 +295,7 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
               {user?.name ?? "User"}
             </div>
             <div style={{ color: "var(--sidebar-fg)", fontSize: 10 }}>
-              {roleLabel(user?.role ?? "")}
+              {(user as any)?.isIntern ? "Intern" : (user as any)?.isAssociate ? "Associate" : roleLabel(user?.role ?? "")}
             </div>
           </div>
           <button
