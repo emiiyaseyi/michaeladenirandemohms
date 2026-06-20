@@ -167,6 +167,7 @@ export async function POST(req: NextRequest) {
     generalReflection = "",
     extraReviewerIds = [] as string[],
     weekNumber,
+    isDraft = false,
   } = body
 
   // Compute hours from the task-array format (new) or fall back to client-sent hours (legacy).
@@ -198,7 +199,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  if (hasUntimedTasks) {
+  if (hasUntimedTasks && !isDraft) {
     return NextResponse.json({ error: "Every filled task must have a time entry." }, { status: 400 })
   }
 
@@ -319,6 +320,45 @@ export async function POST(req: NextRequest) {
   // MISSING records (any week) can always be overwritten by a late submission — no admin gate.
   if (existing && existing.status !== "DRAFT" && existing.status !== "MISSING") {
     return NextResponse.json({ error: "You have already submitted a report for this week." }, { status: 409 })
+  }
+
+  // Draft path — skip all validation, save as DRAFT and return early
+  if (isDraft) {
+    const report = await prisma.internWeeklyReport.upsert({
+      where: { employeeId_weekStart: { employeeId: emp.id, weekStart: ws } },
+      create: {
+        employeeId: emp.id, weekStart: ws, weekEnd: we,
+        mainProjectHours: computedHours.mainProjectHours ?? 0,
+        specialProjectHours: computedHours.specialProjectHours ?? 0,
+        trainingHours: computedHours.trainingHours ?? 0,
+        reportingDocHours: computedHours.reportingDocHours ?? 0,
+        operationalHours: computedHours.operationalHours ?? 0,
+        researchHours: computedHours.researchHours ?? 0,
+        meetingsHours: computedHours.meetingsHours ?? 0,
+        communityHours: computedHours.communityHours ?? 0,
+        representationHours: computedHours.representationHours ?? 0,
+        selfDevHours: computedHours.selfDevHours ?? 0,
+        totalHours: totalHoursRaw, personalReflection, taskDescriptions, dailyReflections, generalReflection,
+        lateFlag: false, pointDeduction: 0, status: "DRAFT",
+        weekNumber: typeof weekNumber === "number" ? weekNumber : null,
+      },
+      update: {
+        mainProjectHours: computedHours.mainProjectHours ?? 0,
+        specialProjectHours: computedHours.specialProjectHours ?? 0,
+        trainingHours: computedHours.trainingHours ?? 0,
+        reportingDocHours: computedHours.reportingDocHours ?? 0,
+        operationalHours: computedHours.operationalHours ?? 0,
+        researchHours: computedHours.researchHours ?? 0,
+        meetingsHours: computedHours.meetingsHours ?? 0,
+        communityHours: computedHours.communityHours ?? 0,
+        representationHours: computedHours.representationHours ?? 0,
+        selfDevHours: computedHours.selfDevHours ?? 0,
+        totalHours: totalHoursRaw, personalReflection, taskDescriptions, dailyReflections, generalReflection,
+        status: "DRAFT",
+        weekNumber: typeof weekNumber === "number" ? weekNumber : undefined,
+      },
+    })
+    return NextResponse.json({ report }, { status: 200 })
   }
 
   const totalHours = totalHoursRaw
