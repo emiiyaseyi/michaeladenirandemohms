@@ -166,6 +166,7 @@ export async function POST(req: NextRequest) {
     dailyReflections = {} as Record<string, string>,
     generalReflection = "",
     extraReviewerIds = [] as string[],
+    weekNumber,
   } = body
 
   // Compute hours from the task-array format (new) or fall back to client-sent hours (legacy).
@@ -334,6 +335,7 @@ export async function POST(req: NextRequest) {
       submittedAt: new Date(), lateFlag,
       pointDeduction,
       status: computedStatus,
+      weekNumber: typeof weekNumber === "number" ? weekNumber : null,
     },
     update: {
       mainProjectHours, specialProjectHours, trainingHours,
@@ -343,6 +345,7 @@ export async function POST(req: NextRequest) {
       submittedAt: new Date(), lateFlag,
       pointDeduction,
       status: computedStatus,
+      weekNumber: typeof weekNumber === "number" ? weekNumber : undefined,
     },
   })
 
