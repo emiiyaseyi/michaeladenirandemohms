@@ -209,6 +209,71 @@ export async function POST(req: NextRequest) {
     representationHours, selfDevHours,
   } = computedHours as Record<string, number>
 
+  // Compute week bounds early — needed by both draft and submit paths.
+  const nowWAT = toWAT(new Date())
+  const { weekStart: currentWeekStart } = getWeekBounds(nowWAT)
+  let ws: Date, we: Date
+  if (body.weekStart) {
+    const parsed = getWeekBounds(new Date(body.weekStart))
+    ws = parsed.weekStart; we = parsed.weekEnd
+  } else {
+    ws = currentWeekStart
+    const friday = new Date(ws); friday.setDate(ws.getDate() + 4)
+    we = friday
+  }
+
+  // Check for existing report (shared by draft + submit paths)
+  const existing = await prisma.internWeeklyReport.findFirst({
+    where: { employeeId: emp.id, weekStart: ws },
+  })
+  if (existing && existing.status !== "DRAFT" && existing.status !== "MISSING") {
+    return NextResponse.json({ error: "You have already submitted a report for this week." }, { status: 409 })
+  }
+
+  // Draft path — skip reflections, window, and hours-cap validation entirely
+  if (isDraft) {
+    const draftTotalHours = [
+      mainProjectHours, specialProjectHours, trainingHours, reportingDocHours,
+      operationalHours, researchHours, meetingsHours, communityHours,
+      representationHours, selfDevHours,
+    ].reduce((a, b) => a + Number(b), 0)
+    const report = await prisma.internWeeklyReport.upsert({
+      where: { employeeId_weekStart: { employeeId: emp.id, weekStart: ws } },
+      create: {
+        employeeId: emp.id, weekStart: ws, weekEnd: we,
+        mainProjectHours: mainProjectHours ?? 0,
+        specialProjectHours: specialProjectHours ?? 0,
+        trainingHours: trainingHours ?? 0,
+        reportingDocHours: reportingDocHours ?? 0,
+        operationalHours: operationalHours ?? 0,
+        researchHours: researchHours ?? 0,
+        meetingsHours: meetingsHours ?? 0,
+        communityHours: communityHours ?? 0,
+        representationHours: representationHours ?? 0,
+        selfDevHours: selfDevHours ?? 0,
+        totalHours: draftTotalHours, personalReflection, taskDescriptions, dailyReflections, generalReflection,
+        lateFlag: false, pointDeduction: 0, status: "DRAFT",
+        weekNumber: typeof weekNumber === "number" ? weekNumber : null,
+      },
+      update: {
+        mainProjectHours: mainProjectHours ?? 0,
+        specialProjectHours: specialProjectHours ?? 0,
+        trainingHours: trainingHours ?? 0,
+        reportingDocHours: reportingDocHours ?? 0,
+        operationalHours: operationalHours ?? 0,
+        researchHours: researchHours ?? 0,
+        meetingsHours: meetingsHours ?? 0,
+        communityHours: communityHours ?? 0,
+        representationHours: representationHours ?? 0,
+        selfDevHours: selfDevHours ?? 0,
+        totalHours: draftTotalHours, personalReflection, taskDescriptions, dailyReflections, generalReflection,
+        status: "DRAFT",
+        weekNumber: typeof weekNumber === "number" ? weekNumber : undefined,
+      },
+    })
+    return NextResponse.json({ report }, { status: 200 })
+  }
+
   // Compulsory: every Mon-Fri reflection must be non-empty after trim.
   const REFLECTION_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
   for (const key of REFLECTION_KEYS) {
@@ -231,35 +296,18 @@ export async function POST(req: NextRequest) {
   const lateDeductionSun   = cfg?.lateDeductionSunday  ?? 3
   const missingWeeklyDeduction = cfg?.missingWeeklyDeduction ?? 10
 
-  const nowWAT = toWAT(new Date())
   const dayWAT = nowWAT.getDay()
   const hoursWAT = nowWAT.getHours()
 
-  // Determine which week is being submitted
-  const { weekStart: currentWeekStart } = getWeekBounds(nowWAT)
-  let ws: Date, we: Date
-
-  if (body.weekStart) {
-    const parsed = getWeekBounds(new Date(body.weekStart))
-    ws = parsed.weekStart; we = parsed.weekEnd
-  } else {
-    ws = currentWeekStart
-    const friday = new Date(ws); friday.setDate(ws.getDate() + 4)
-    we = friday
-  }
-
   const isPastWeek = ws.getTime() < currentWeekStart.getTime()
 
-  // Eligibility starts from account creation, not hireDate — unless an admin set an
-  // explicit override (internReportStartDate) for this intern.
+  // Eligibility starts from account creation, not hireDate
   const reportStartDate = emp.internReportStartDate ?? emp.createdAt
   const { weekStart: earliestWeekStart } = getWeekBounds(reportStartDate)
   if (ws.getTime() < earliestWeekStart.getTime()) {
     return NextResponse.json({ error: "You can't submit a report for a week before your reporting start date." }, { status: 400 })
   }
 
-  // The window-open day is configurable (Mon-Fri). Saturday and Sunday are ALWAYS the
-  // literal calendar days for late submission — they never shift with the open day.
   const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
   const OPEN_DAY = submissionDay
   const isOpenDay = dayWAT === OPEN_DAY
@@ -284,7 +332,6 @@ export async function POST(req: NextRequest) {
   let computedStatus: "SUBMITTED" | "LATE" = "SUBMITTED"
 
   if (isPastWeek) {
-    // Flat per-week deduction: -missingWeeklyDeduction for every Monday this report has been outstanding.
     lateFlag = true; computedStatus = "LATE"
     pointDeduction = missedMondaysCount(ws, nowWAT) * missingWeeklyDeduction
   } else if (isOpenDay && hoursWAT >= lateHour) {
@@ -311,54 +358,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       error: `Total hours (${totalHoursRaw.toFixed(1)}h) exceed the weekly limit of ${hardCap}h${holidaysThisWeek > 0 ? ` (adjusted for ${holidaysThisWeek} public holiday${holidaysThisWeek > 1 ? "s" : ""} this week)` : ""}.`,
     }, { status: 400 })
-  }
-
-  // Check for existing report
-  const existing = await prisma.internWeeklyReport.findFirst({
-    where: { employeeId: emp.id, weekStart: ws },
-  })
-  // MISSING records (any week) can always be overwritten by a late submission — no admin gate.
-  if (existing && existing.status !== "DRAFT" && existing.status !== "MISSING") {
-    return NextResponse.json({ error: "You have already submitted a report for this week." }, { status: 409 })
-  }
-
-  // Draft path — skip all validation, save as DRAFT and return early
-  if (isDraft) {
-    const report = await prisma.internWeeklyReport.upsert({
-      where: { employeeId_weekStart: { employeeId: emp.id, weekStart: ws } },
-      create: {
-        employeeId: emp.id, weekStart: ws, weekEnd: we,
-        mainProjectHours: computedHours.mainProjectHours ?? 0,
-        specialProjectHours: computedHours.specialProjectHours ?? 0,
-        trainingHours: computedHours.trainingHours ?? 0,
-        reportingDocHours: computedHours.reportingDocHours ?? 0,
-        operationalHours: computedHours.operationalHours ?? 0,
-        researchHours: computedHours.researchHours ?? 0,
-        meetingsHours: computedHours.meetingsHours ?? 0,
-        communityHours: computedHours.communityHours ?? 0,
-        representationHours: computedHours.representationHours ?? 0,
-        selfDevHours: computedHours.selfDevHours ?? 0,
-        totalHours: totalHoursRaw, personalReflection, taskDescriptions, dailyReflections, generalReflection,
-        lateFlag: false, pointDeduction: 0, status: "DRAFT",
-        weekNumber: typeof weekNumber === "number" ? weekNumber : null,
-      },
-      update: {
-        mainProjectHours: computedHours.mainProjectHours ?? 0,
-        specialProjectHours: computedHours.specialProjectHours ?? 0,
-        trainingHours: computedHours.trainingHours ?? 0,
-        reportingDocHours: computedHours.reportingDocHours ?? 0,
-        operationalHours: computedHours.operationalHours ?? 0,
-        researchHours: computedHours.researchHours ?? 0,
-        meetingsHours: computedHours.meetingsHours ?? 0,
-        communityHours: computedHours.communityHours ?? 0,
-        representationHours: computedHours.representationHours ?? 0,
-        selfDevHours: computedHours.selfDevHours ?? 0,
-        totalHours: totalHoursRaw, personalReflection, taskDescriptions, dailyReflections, generalReflection,
-        status: "DRAFT",
-        weekNumber: typeof weekNumber === "number" ? weekNumber : undefined,
-      },
-    })
-    return NextResponse.json({ report }, { status: 200 })
   }
 
   const totalHours = totalHoursRaw
