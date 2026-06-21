@@ -27,7 +27,7 @@ export default function CustomizationSettingsPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
       <Section title="Branding" description="Upload your organisation logo, set your primary brand colour, and configure the dashboard wallpaper." />
-      <Section title="Theme" description="Customise the appearance of the HRMS interface — colours, fonts, and layout preferences for your team." />
+      <Section title="Theme" description="Customise the appearance of the HRMS interface - colours, fonts, and layout preferences for your team." />
       <EmailConfigSection />
     </div>
   )

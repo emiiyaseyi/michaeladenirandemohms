@@ -169,7 +169,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "canManageDepartmentSettings", label: "Manage department settings" },
       { key: "canManageLeaveTypeSettings", label: "Manage leave type settings" },
       { key: "canManageHolidaySettings", label: "Manage holiday settings" },
-      { key: "canManageApprovalWorkflows", label: "Manage approval workflows" },
       { key: "canManageCustomization", label: "Manage customization" },
 
     ],

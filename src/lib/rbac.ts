@@ -133,7 +133,6 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Departments",         href: "/settings/departments" },
       { label: "Leave Types",         href: "/settings/leave-types" },
       { label: "Public Holidays",     href: "/settings/public-holidays" },
-      { label: "Approval Workflows",  href: "/settings/approval-workflows" },
       { label: "Customization",       href: "/settings/customization" },
       { label: "Intern Reports",      href: "/settings/intern-reports" },
       { label: "Roles & Permissions", href: "/settings/roles-permissions" },

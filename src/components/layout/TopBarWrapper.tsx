@@ -26,7 +26,6 @@ const SECTION_TITLES: Record<string, string> = {
   "settings/departments":      "Departments",
   "settings/leave-types":      "Leave Types",
   "settings/public-holidays":  "Public Holidays",
-  "settings/approval-workflows": "Approval Workflows",
   "settings/customization":    "Customization",
 
   "settings/roles-permissions":"Roles & Permissions",
