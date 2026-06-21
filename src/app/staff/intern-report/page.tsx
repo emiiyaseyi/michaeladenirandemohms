@@ -171,17 +171,17 @@ function computePhase(cfg: Settings, nowWat: Date): Phase {
   return { kind: "closed_before", ms: msTo(nextSat), label: `Window closed — opens again Saturday (late, −${cfg.lateDeduction} pts)` }
 }
 
-function computeWindow(cfg: Settings): { text: string; open: boolean; late: boolean } {
+function computeWindow(cfg: Settings): { text: string; open: boolean; late: boolean; deduction: number } {
   const nowWat = new Date(Date.now() + 60 * 60 * 1000)
   const phase = computePhase(cfg, nowWat)
   switch (phase.kind) {
-    case "closed_before": return { text: phase.label, open: false, late: false }
-    case "closed_after":  return { text: "Submission window closed. Next opens Friday.", open: false, late: false }
-    case "ontime":        return { text: `On-time window`, open: true, late: false }
-    case "warning":       return { text: phase.label, open: true, late: false }
-    case "late_friday":   return { text: `LATE — submit before midnight (0 pt deduction so far)`, open: true, late: true }
-    case "late_saturday": return { text: `Saturday submission — −${cfg.lateDeduction} pts`, open: true, late: true }
-    case "late_sunday":   return { text: `Sunday submission — −${cfg.lateDeductionSunday} pts (final day)`, open: true, late: true }
+    case "closed_before": return { text: phase.label, open: false, late: false, deduction: 0 }
+    case "closed_after":  return { text: "Submission window closed. Next opens Friday.", open: false, late: false, deduction: 0 }
+    case "ontime":        return { text: `On-time window`, open: true, late: false, deduction: 0 }
+    case "warning":       return { text: phase.label, open: true, late: false, deduction: 0 }
+    case "late_friday":   return { text: `LATE — submit before midnight (0 pt deduction so far)`, open: true, late: true, deduction: 0 }
+    case "late_saturday": return { text: `Saturday submission — −${cfg.lateDeduction} pts`, open: true, late: true, deduction: cfg.lateDeduction }
+    case "late_sunday":   return { text: `Sunday submission — −${cfg.lateDeductionSunday} pts (final day)`, open: true, late: true, deduction: cfg.lateDeductionSunday }
   }
 }
 
@@ -485,6 +485,7 @@ export default function InternReportPage() {
 
   const handleSubmit = async () => {
     if (!isPastWeek && !window.open) return
+    if (!weekNumber || !parseInt(weekNumber)) { setSubmitErr("Please enter your week number before submitting."); return }
     setSubmitting(true); setSubmitErr("")
     const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, entries[c.key]]))
     const res = await fetch("/api/intern-reports", {
@@ -608,14 +609,14 @@ export default function InternReportPage() {
             <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{weekLabel}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>Week —</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>Week <span style={{ color: "#EF4444" }}>*</span></label>
             <input
               type="number"
               min={1}
               value={weekNumber}
-              onChange={e => setWeekNumber(e.target.value)}
+              onChange={e => { setWeekNumber(e.target.value); if (submitErr === "Please enter your week number before submitting.") setSubmitErr("") }}
               placeholder="e.g. 1"
-              style={{ width: 70, padding: "5px 8px", border: "1.5px solid var(--border)", borderRadius: 6, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none" }}
+              style={{ width: 70, padding: "5px 8px", border: `1.5px solid ${submitErr === "Please enter your week number before submitting." ? "#EF4444" : "var(--border)"}`, borderRadius: 6, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none" }}
             />
           </div>
           {isPastWeek ? (
@@ -862,9 +863,9 @@ export default function InternReportPage() {
                 </div>
               </div>
 
-              {!isPastWeek && window.late && (
+              {!isPastWeek && window.late && window.deduction > 0 && (
                 <div style={{ padding: "8px 12px", background: "#FEF3C7", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 12 }}>
-                  Late submission — {cfg.lateDeduction} point{cfg.lateDeduction !== 1 ? "s" : ""} will be automatically deducted from your score.
+                  Late submission — {window.deduction} point{window.deduction !== 1 ? "s" : ""} will be automatically deducted from your score.
                 </div>
               )}
 

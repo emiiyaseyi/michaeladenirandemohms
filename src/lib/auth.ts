@@ -52,6 +52,7 @@ export const authOptions: NextAuthOptions = {
         }
         const isIntern = (user.employee?.jobTitle ?? "").toLowerCase().includes("intern")
                || user.employee?.employmentType === "INTERN"
+        const isAssociate = (user.employee?.jobTitle ?? "").toLowerCase().includes("associate")
         return {
           id: user.id, email: user.email, name: user.name, role: user.role,
           employeeId: user.employee?.id, image: user.employee?.profilePhoto ?? user.image,
@@ -60,6 +61,7 @@ export const authOptions: NextAuthOptions = {
           isElevated,
           permissions,
           isIntern,
+          isAssociate,
         }
       },
     }),
@@ -74,6 +76,7 @@ export const authOptions: NextAuthOptions = {
         token.isElevated = (user as any).isElevated ?? false
         token.permissions = (user as any).permissions ?? {}
         token.isIntern = (user as any).isIntern ?? false
+        token.isAssociate = (user as any).isAssociate ?? false
       }
       return token
     },
@@ -87,6 +90,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).isElevated = token.isElevated ?? false
         ;(session.user as any).permissions = token.permissions ?? {}
         ;(session.user as any).isIntern = token.isIntern ?? false
+        ;(session.user as any).isAssociate = token.isAssociate ?? false
       }
       return session
     },

@@ -6,7 +6,6 @@ const TABS = [
   { label: "Departments",        href: "/admin/settings/departments" },
   { label: "Leave Types",        href: "/admin/settings/leave-types" },
   { label: "Public Holidays",    href: "/admin/settings/public-holidays" },
-  { label: "Approval Workflows", href: "/admin/settings/approval-workflows" },
   { label: "Customization",      href: "/admin/settings/customization" },
   { label: "Intern Reports",     href: "/admin/settings/intern-reports" },
 ]

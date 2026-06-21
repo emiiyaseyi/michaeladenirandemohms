@@ -19,8 +19,8 @@ const ACCENTS = ["#6366F1", "#10B981", "#F59E0B", "#EC4899", "#0EA5E9", "#8B5CF6
 
 const QUICK_ACTIONS = [
   { label: "Request Leave",  href: "/project-lead/requests/leave",        color: "#6366F1", icon: CalendarDays },
-  { label: "Set KPI Goals",  href: "/project-lead/performance/objectives", color: "#F59E0B", icon: Target },
-  { label: "Appraisals",     href: "/project-lead/performance/reviews",   color: "#EC4899", icon: TrendingUp },
+  { label: "Set KPI Goals",  href: "/project-lead/performance/my",         color: "#F59E0B", icon: Target },
+  { label: "Appraisals",     href: "/project-lead/performance/peer-reviews", color: "#EC4899", icon: TrendingUp },
   { label: "My Documents",   href: "/project-lead/documents",             color: "#8B5CF6", icon: ClipboardList },
   { label: "My Team",        href: "/project-lead/team",                  color: "#0EA5E9", icon: Users },
 ]
