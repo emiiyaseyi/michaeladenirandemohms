@@ -455,7 +455,7 @@ function ProfileInfoCard({ profile }: { profile: any }) {
     { icon:UserCheck,    label:"Manager",              value:profile.supervisor?.name },
     { icon:CalendarDays, label:"Work Anniversary",     value:profile.workAnniversary },
     { icon:Clock,        label:"Time in Company",      value:profile.timeInCompany },
-    { icon:Briefcase,    label:"Role",                 value:roleLabel(profile.role) },
+    { icon:Briefcase,    label:"Role",                 value:(profile.jobTitle?.toLowerCase().includes("intern") ? "Intern" : profile.jobTitle?.toLowerCase().includes("associate") ? "Associate" : roleLabel(profile.role)) },
   ].filter(i => i.value)
 
   return (
