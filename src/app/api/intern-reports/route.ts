@@ -417,7 +417,7 @@ export async function POST(req: NextRequest) {
   // Notification copy
   const internName = `${emp.firstName} ${emp.lastName}`
 
-  // Notify ALL assigned reviewers (primary PL + extras) with in-app notification + email
+  // Notify ALL assigned reviewers (primary PL + extras) with in-app notification
   const weekRange = `${format(ws, "MMM d")} – ${format(we, "MMM d, yyyy")}`
   const reviewLink = `${process.env.NEXTAUTH_URL ?? ""}/project-lead/intern-reports`
 
