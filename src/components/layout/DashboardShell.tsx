@@ -24,7 +24,7 @@ export default function DashboardShell({ user, nav, homeUrl = "/", children }: P
         </main>
       </SidebarAwareLayout>
       <IdleTimeout />
-      <ProfileCompletionReminder rolePath={rolePath} />
+      {user?.role !== "SUPER_ADMIN" && <ProfileCompletionReminder rolePath={rolePath} />}
     </div>
   )
 }

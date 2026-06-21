@@ -19,7 +19,7 @@ export default function ProfileCompletionReminder({ rolePath }: { rolePath: stri
       .then(r => r.ok ? r.json() : null)
       .then(d => {
         if (cancelled || !d?.profile) return
-        if (d.profile.cameViaInvite && d.profile.completeness < 100) {
+        if (d.profile.completeness < 100) {
           setShow(true)
         }
       })
