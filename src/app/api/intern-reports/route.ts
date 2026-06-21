@@ -455,5 +455,32 @@ export async function POST(req: NextRequest) {
 
   }
 
+  // Notify admins who can fill attendance (SUPER_ADMIN or canFillAttendance permission)
+  const alreadyNotifiedUserIds = new Set(
+    (await prisma.employee.findMany({
+      where: { id: { in: allReviewerEmpIds } },
+      select: { userId: true },
+    })).map(e => e.userId).filter(Boolean) as string[]
+  )
+
+  const superAdmins = await prisma.user.findMany({ where: { role: "SUPER_ADMIN" }, select: { id: true } })
+  const permUsers = await prisma.$queryRaw<{ id: string }[]>`
+    SELECT id FROM "User" WHERE permissions->>'canFillAttendance' = 'true'
+  `
+  const attendanceAdminIds = new Set([...superAdmins.map(u => u.id), ...permUsers.map(u => u.id)])
+
+  for (const adminId of attendanceAdminIds) {
+    if (alreadyNotifiedUserIds.has(adminId)) continue
+    await prisma.notification.create({
+      data: {
+        userId: adminId,
+        title: "Intern Weekly Report Submitted",
+        message: `${internName} submitted their weekly report for ${weekRange}.${lateFlag ? " (Late submission)" : ""} Please fill their attendance`,
+        type: lateFlag ? "WARNING" : "INFO",
+        link: "/admin/reports/intern-reports",
+      },
+    }).catch(() => {})
+  }
+
   return NextResponse.json({ report }, { status: 201 })
 }
