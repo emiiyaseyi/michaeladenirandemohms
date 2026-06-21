@@ -274,6 +274,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ report }, { status: 200 })
   }
 
+  // Compulsory: week number
+  if (weekNumber === undefined || weekNumber === null || typeof weekNumber !== "number") {
+    return NextResponse.json({ error: "Week number is required." }, { status: 400 })
+  }
+
   // Compulsory: every Mon-Fri reflection must be non-empty after trim.
   const REFLECTION_KEYS = ["Mon", "Tue", "Wed", "Thu", "Fri"] as const
   for (const key of REFLECTION_KEYS) {
