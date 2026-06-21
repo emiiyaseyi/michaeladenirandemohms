@@ -485,6 +485,7 @@ export default function InternReportPage() {
 
   const handleSubmit = async () => {
     if (!isPastWeek && !window.open) return
+    if (!weekNumber || !parseInt(weekNumber)) { setSubmitErr("Please enter your week number before submitting."); return }
     setSubmitting(true); setSubmitErr("")
     const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, entries[c.key]]))
     const res = await fetch("/api/intern-reports", {
@@ -608,14 +609,14 @@ export default function InternReportPage() {
             <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{weekLabel}</span>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>Week —</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>Week <span style={{ color: "#EF4444" }}>*</span></label>
             <input
               type="number"
               min={1}
               value={weekNumber}
-              onChange={e => setWeekNumber(e.target.value)}
+              onChange={e => { setWeekNumber(e.target.value); if (submitErr === "Please enter your week number before submitting.") setSubmitErr("") }}
               placeholder="e.g. 1"
-              style={{ width: 70, padding: "5px 8px", border: "1.5px solid var(--border)", borderRadius: 6, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none" }}
+              style={{ width: 70, padding: "5px 8px", border: `1.5px solid ${submitErr === "Please enter your week number before submitting." ? "#EF4444" : "var(--border)"}`, borderRadius: 6, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none" }}
             />
           </div>
           {isPastWeek ? (
