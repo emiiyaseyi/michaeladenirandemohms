@@ -3,62 +3,100 @@ import { usePathname } from "next/navigation"
 import TopBar from "./TopBar"
 
 const SECTION_TITLES: Record<string, string> = {
-  "":                          "Dashboard",
-  "employees":                 "Employees",
-  "employees/profile-requests":"Profile Update Requests",
-  "leave":                     "Leave Management",
-  "recruitment":               "Recruitment & ATS",
-  "performance":               "Performance Management",
-  "projects":                  "Projects",
-  "departments":               "Departments",
-  "documents":                 "Documents",
-  "documents/new":             "Create new document",
-  "documents/create-employee": "Create Employee Document",
-  "documents/offer-template/new": "Offer Template",
-  "announcements":             "Announcements",
-  "faq":                       "FAQ",
-  "org-chart":                 "Organisation Chart",
-  "analytics":                 "Analytics & Reports",
-  "reports":                   "Reports",
-  "trash":                     "Trash",
-  "settings":                  "Settings",
-  "settings/admins":           "Admins",
-  "settings/departments":      "Departments",
-  "settings/leave-types":      "Leave Types",
-  "settings/public-holidays":  "Public Holidays",
-  "settings/customization":    "Customization",
-
-  "settings/roles-permissions":"Roles & Permissions",
-  "self-service":              "Self Service",
-  "self-service/profile":      "My Profile",
-  "self-service/leave":        "My Leave",
-  "self-service/surveys":      "Surveys",
-  "performance/groups":        "Performance Groups",
-  "performance/conversations": "Conversations",
-  "performance/feedback":      "Feedback",
-  "disciplinary/policies":         "Policies",
-  "disciplinary/policies/new":     "Record New Policy",
-  "disciplinary/violation-types": "Violation Types",
-  "disciplinary/triggers":        "Triggers",
-  "disciplinary/violations":      "Violations",
-  "disciplinary/violations/new":  "Record Violation",
-  "rent-documents":               "Rent Documents",
-  "rent-documents/new":           "Add Rent Document",
-  "performance/conversations/setup/new":    "Schedule Conversation",
-  "performance/conversations/prompts/new":  "Add Prompt",
-  "disciplinary/suspensions":              "Suspensions",
-  "disciplinary/suspensions/new":          "Record Suspension",
-  "disciplinary/suspensions/bulk-upload":  "Bulk Upload Suspensions",
-  "time-tracking/absence":                 "Absence Batches",
-  "surveys":                   "Surveys",
-  "surveys/new":               "Create Survey",
-  "surveys/templates/new":     "Survey Template",
-  "self-service/edit":         "Edit Profile",
-  "self-service/preferences":  "Preferences",
-  "assets/overview":           "Assets",
-  "assets/overview/new":       "Create New Asset",
-  "assets/assignments":        "Assignments",
-  "assets/assignments/new":    "Assign Asset",
+  "":                                   "Dashboard",
+  "recruitment":                        "Recruitment & ATS",
+  "recruitment/jobs":                   "Jobs",
+  "recruitment/applicants":             "Applicants",
+  "recruitment/settings":               "Recruitment Settings",
+  "performance":                        "Performance Management",
+  "performance/appraisals":             "Appraisals",
+  "performance/cycles":                 "Performance Cycles",
+  "performance/reviewers":              "Reviewers",
+  "performance/my":                     "My Performance",
+  "performance/peer-reviews":           "Peer Reviews",
+  "performance/team-lead-review":       "Team Lead Review",
+  "performance/to-review":              "To Review",
+  "projects":                           "Projects",
+  "documents":                          "Documents",
+  "documents/new":                      "Create New Document",
+  "documents/create-employee":          "Create Employee Document",
+  "documents/offer-template/new":       "Offer Template",
+  "announcements":                      "Announcements",
+  "faq":                                "FAQ",
+  "analytics":                          "Analytics & Reports",
+  "reports":                            "Reports",
+  "reports/intern-reports":             "Intern Reports",
+  "audit-log":                          "Audit Log",
+  "benefits":                           "Benefits",
+  "calendar":                           "Calendar",
+  "trash":                              "Trash",
+  "preferences":                        "Preferences",
+  "company-details":                    "Company Details",
+  "company-details/workplaces":         "Workplaces",
+  "company-details/workplaces/add":     "Add Workplace",
+  "people":                             "People",
+  "people/employees":                   "Employees",
+  "people/employees/add":               "Add Employee",
+  "people/employees/bulk-upload":       "Bulk Upload Employees",
+  "people/employees/bulk-update":       "Bulk Update Employees",
+  "people/confirmation":                "Confirmation",
+  "people/custom-groups":               "Custom Groups",
+  "people/custom-groups/new":           "New Custom Group",
+  "people/departments":                 "Departments",
+  "people/external-admins":             "External Admins",
+  "people/job-titles":                  "Job Titles",
+  "people/managers":                    "Managers",
+  "people/offers":                      "Offers",
+  "people/offers/new":                  "New Offer",
+  "people/org-chart":                   "Organisation Chart",
+  "people/personal-docs":               "Personal Documents",
+  "people/profile-requests":            "Profile Update Requests",
+  "people/documents":                   "Team Documents",
+  "requests":                           "Requests",
+  "requests/bus":                       "Bus Requests",
+  "requests/documents":                 "Document Requests",
+  "requests/leave":                     "Leave Requests",
+  "requests/leave/record":              "Record Leave",
+  "requests/leave/apply":               "Apply for Leave",
+  "settings":                           "Settings",
+  "settings/admins":                    "Admins",
+  "settings/admins/new":                "Add Admin",
+  "settings/admins/bulk-upload":        "Bulk Upload Admins",
+  "settings/departments":               "Departments",
+  "settings/leave-types":               "Leave Types",
+  "settings/public-holidays":           "Public Holidays",
+  "settings/customization":             "Customization",
+  "settings/intern-reports":            "Intern Report Settings",
+  "settings/roles-permissions":         "Roles & Permissions",
+  "self-service":                       "Self Service",
+  "self-service/profile":               "My Profile",
+  "self-service/edit":                  "Edit Profile",
+  "self-service/change-password":       "Change Password",
+  "disciplinary":                       "Disciplinary",
+  "disciplinary/policies":              "Policies",
+  "disciplinary/policies/new":          "Record New Policy",
+  "disciplinary/violation-types":       "Violation Types",
+  "disciplinary/triggers":              "Triggers",
+  "disciplinary/violations":            "Violations",
+  "disciplinary/violations/new":        "Record Violation",
+  "disciplinary/suspensions":           "Suspensions",
+  "disciplinary/suspensions/new":       "Record Suspension",
+  "disciplinary/suspensions/bulk-upload": "Bulk Upload Suspensions",
+  "disciplinary/record":                "Disciplinary Record",
+  "rent-documents":                     "Rent Documents",
+  "rent-documents/new":                 "Add Rent Document",
+  "time-tracking/absence":              "Absence Batches",
+  "surveys":                            "Surveys",
+  "surveys/new":                        "Create Survey",
+  "surveys/templates/new":              "Survey Template",
+  "assets/overview":                    "Assets",
+  "assets/overview/new":                "Create New Asset",
+  "assets/assignments":                 "Assignments",
+  "assets/assignments/new":             "Assign Asset",
+  "team":                               "Team",
+  "intern-report":                      "Weekly Report",
+  "intern-reports":                     "Intern Reports",
+  "intern-reviews":                     "Intern Reviews",
 }
 
 const ROLE_SLUGS = ["admin", "project-lead", "staff"]
@@ -76,25 +114,38 @@ export default function TopBarWrapper({ user }: { user: any }) {
 
   let title = SECTION_TITLES[section]
   if (!title) {
-    // Dynamic segment patterns
     const segs = section.split("/")
-    if (segs[0] === "documents" && segs.length === 2) title = "View Employee Document"
-    else if (segs[0] === "documents" && segs[1] === "offer-template" && segs[3] === "edit") title = "Offer Template"
-    else if (segs[0] === "performance" && segs[1] === "groups" && segs[2] === "new") title = "Create Group"
-    else if (segs[0] === "performance" && segs[1] === "groups" && segs.length === 3) title = "View Group"
-    else if (segs[0] === "performance" && segs[1] === "groups" && segs[3] === "edit") title = "Edit Group"
-    else if (segs[0] === "performance" && segs[1] === "conversations" && segs[2] === "setup" && segs[4] === "edit") title = "Edit Conversation Setup"
-    else if (segs[0] === "performance" && segs[1] === "conversations" && segs[2] === "prompts" && segs[4] === "edit") title = "Edit Prompt"
+    if (segs[0] === "people" && segs[1] === "employees" && segs.length === 3) title = "Employee Profile"
+    else if (segs[0] === "people" && segs[1] === "custom-groups" && segs.length === 3) title = "Custom Group"
+    else if (segs[0] === "people" && segs[1] === "custom-groups" && segs[3] === "edit") title = "Edit Custom Group"
+    else if (segs[0] === "people" && segs[1] === "offers" && segs[3] === "edit") title = "Edit Offer"
+    else if (segs[0] === "documents" && segs.length === 2) title = "View Document"
+    else if (segs[0] === "documents" && segs[1] === "offer-template" && segs[3] === "edit") title = "Edit Offer Template"
+    else if (segs[0] === "performance" && segs[1] === "appraisals" && segs.length === 3) title = "Appraisal"
+    else if (segs[0] === "performance" && segs[1] === "cycles" && segs.length === 3) title = "Performance Cycle"
+    else if (segs[0] === "performance" && segs[1] === "peer-reviews" && segs.length === 3) title = "Peer Review"
+    else if (segs[0] === "performance" && segs[1] === "team-lead-review" && segs.length === 3) title = "Team Lead Review"
+    else if (segs[0] === "performance" && segs[1] === "to-review" && segs.length === 3) title = "To Review"
+    else if (segs[0] === "projects" && segs.length === 2) title = "Project"
+    else if (segs[0] === "surveys" && segs.length === 2) title = "Survey"
+    else if (segs[0] === "surveys" && segs[2] === "edit") title = "Edit Survey"
+    else if (segs[0] === "surveys" && segs[1] === "templates" && segs[3] === "edit") title = "Edit Survey Template"
+    else if (segs[0] === "benefits" && segs.length === 2) title = "Benefit"
+    else if (segs[0] === "benefits" && segs[2] === "edit") title = "Edit Benefit"
+    else if (segs[0] === "benefits" && segs[2] === "enroll") title = "Enroll in Benefit"
     else if (segs[0] === "disciplinary" && segs[1] === "policies" && segs.length === 3) title = "View Policy"
     else if (segs[0] === "rent-documents" && segs[2] === "edit") title = "Edit Rent Document"
     else if (segs[0] === "assets" && segs[1] === "overview" && segs.length === 3) title = "View Asset"
     else if (segs[0] === "assets" && segs[1] === "overview" && segs[3] === "edit") title = "Edit Asset"
-    else if (segs[0] === "assets" && segs[1] === "overview" && segs[3] === "employees") title = "Remove or Add Employees"
-    else if (segs[0] === "assets" && segs[1] === "assignments" && segs.length === 3) title = "Employee Asset"
-    else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs.length === 3) title = "Absence"
-    else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs[3] === "new") title = "Record Employee Absence"
-    else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs[3] === "bulk-upload") title = "Bulk Upload Absent Days"
+    else if (segs[0] === "assets" && segs[1] === "overview" && segs[3] === "employees") title = "Asset Employees"
+    else if (segs[0] === "assets" && segs[1] === "assignments" && segs.length === 3) title = "Employee Assets"
+    else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs.length === 3) title = "Absence Batch"
+    else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs[3] === "new") title = "Record Absence"
+    else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs[3] === "bulk-upload") title = "Bulk Upload Absences"
+    else if (segs[0] === "company-details" && segs[1] === "workplaces" && segs[3] === "edit") title = "Edit Workplace"
+    else if (segs[0] === "settings" && segs[1] === "roles-permissions" && segs.length === 3) title = "Role Details"
     else title = "DSN HRMS"
   }
+
   return <TopBar title={title} user={user} />
 }

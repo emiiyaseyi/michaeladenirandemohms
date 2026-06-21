@@ -65,7 +65,6 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
 }) {
   const path = usePathname()
   const { confirmLogout, modal: logoutModal } = useLogoutConfirm()
-
   const nav = [...baseNav]
   for (const item of extraNav) {
     if (!nav.find(n => (n.href ?? n.label) === (item.href ?? item.label))) {
