@@ -1636,6 +1636,7 @@ model InternReportSettings {
   lateHour                 Int      @default(20)  // WAT hour after which Friday submission is LATE
   lateMinute               Int      @default(0)   // WAT minute (0-59)
   closeHour                Int      @default(24)  // legacy — no longer used (window now closes Sun 23:59)
+  lateDeductionSameDay     Int      @default(1)   // points deducted for late submissions still on submissionDay
   lateDeduction            Int      @default(2)   // points deducted for Saturday submissions
   lateDeductionSunday      Int      @default(3)   // points deducted for Sunday submissions
   missingWeeklyDeduction   Int      @default(10)  // points deducted per week a report remains unsubmitted, applied every Monday

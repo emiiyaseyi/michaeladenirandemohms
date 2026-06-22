@@ -227,13 +227,13 @@ async function parseTemplateFile(file: File): Promise<{
 type Settings = {
   submissionDay: number; openHour: number; openMinute: number;
   lateHour: number; lateMinute: number; closeHour: number;
-  lateDeduction: number; lateDeductionSunday: number; missingWeeklyDeduction: number;
+  lateDeductionSameDay: number; lateDeduction: number; lateDeductionSunday: number; missingWeeklyDeduction: number;
   warningThresholdMinutes: number;
 }
 
 const DEFAULTS: Settings = {
   submissionDay: 5, openHour: 16, openMinute: 0, lateHour: 20, lateMinute: 0, closeHour: 24,
-  lateDeduction: 2, lateDeductionSunday: 3, missingWeeklyDeduction: 10, warningThresholdMinutes: 15,
+  lateDeductionSameDay: 1, lateDeduction: 2, lateDeductionSunday: 3, missingWeeklyDeduction: 10, warningThresholdMinutes: 15,
 }
 
 const DAYS = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"]
@@ -309,12 +309,13 @@ function computePhase(cfg: Settings, nowWat: Date): Phase {
     return { kind: "late_friday", ms: msTo(closeTodayAt) }
   }
 
-  if (day === 6) {
+  // TEMP TEST: late-deduction days shifted from Sat/Sun to Tue/Wed — revert to 6/0 when done testing
+  if (day === 2) {
     const tomorrowMidnight = todayAt(24)
     return { kind: "late_saturday", ms: msTo(tomorrowMidnight) }
   }
 
-  if (day === 0) {
+  if (day === 3) {
     const tomorrowMidnight = todayAt(24)
     return { kind: "late_sunday", ms: msTo(tomorrowMidnight) }
   }
@@ -346,7 +347,7 @@ function computeWindow(cfg: Settings): { text: string; open: boolean; late: bool
     case "closed_after":  return { text: "Submission window closed. Next opens Friday.", open: false, late: false, deduction: 0 }
     case "ontime":        return { text: `On-time window`, open: true, late: false, deduction: 0 }
     case "warning":       return { text: phase.label, open: true, late: false, deduction: 0 }
-    case "late_friday":   return { text: `LATE — submit before midnight (0 pt deduction so far)`, open: true, late: true, deduction: 0 }
+    case "late_friday":   return { text: `LATE — submit before midnight (−${cfg.lateDeductionSameDay} pt deduction)`, open: true, late: true, deduction: cfg.lateDeductionSameDay }
     case "late_saturday": return { text: `Saturday submission — −${cfg.lateDeduction} pts`, open: true, late: true, deduction: cfg.lateDeduction }
     case "late_sunday":   return { text: `Sunday submission — −${cfg.lateDeductionSunday} pts (final day)`, open: true, late: true, deduction: cfg.lateDeductionSunday }
   }
@@ -379,8 +380,8 @@ function CountdownBanner({ cfg }: { cfg: Settings }) {
       break
     case "late_friday":
       bg = "#FEE2E2"; color = "#DC2626"; icon = "⏰"
-      title = "Late submission — no deduction yet"
-      subtitle = "Submit tonight to avoid a point deduction"
+      title = `Late submission — −${cfg.lateDeductionSameDay} pt${cfg.lateDeductionSameDay !== 1 ? "s" : ""}`
+      subtitle = "Submit tonight before midnight"
       break
     case "late_saturday":
       bg = "#FEF3C7"; color = "#D97706"; icon = "⏰"
@@ -675,33 +676,41 @@ export default function InternReportPage() {
     if (!isPastWeek && !window.open) return
     if (!weekNumber || !parseInt(weekNumber)) { setSubmitErr("Please enter your week number before submitting."); return }
     setSubmitting(true); setSubmitErr("")
-    const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, entries[c.key]]))
-    const res = await fetch("/api/intern-reports", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskDescriptions, dailyReflections, generalReflection, extraReviewerIds, weekStart: `${weekMon.getFullYear()}-${String(weekMon.getMonth()+1).padStart(2,"0")}-${String(weekMon.getDate()).padStart(2,"0")}`, weekNumber: weekNumber ? parseInt(weekNumber) : null }),
-    })
-    const d = await res.json()
-    setSubmitting(false)
-    if (!res.ok) { setSubmitErr(d.error ?? "Failed to submit"); return }
-    if (weekOffset === 0) setSubmitOk(true)
-    setReports(prev => [d.report, ...prev.filter(r => r.id !== d.report.id)])
+    try {
+      const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, entries[c.key]]))
+      const res = await fetch("/api/intern-reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskDescriptions, dailyReflections, generalReflection, extraReviewerIds, weekStart: `${weekMon.getFullYear()}-${String(weekMon.getMonth()+1).padStart(2,"0")}-${String(weekMon.getDate()).padStart(2,"0")}`, weekNumber: weekNumber ? parseInt(weekNumber) : null }),
+      })
+      const d = await res.json()
+      if (!res.ok) { setSubmitErr(d.error ?? "Failed to submit"); return }
+      if (weekOffset === 0) setSubmitOk(true)
+      setReports(prev => [d.report, ...prev.filter(r => r.id !== d.report.id)])
+    } catch {
+      setSubmitErr("Connection issue — your report may have still gone through. Refresh the page to check before submitting again.")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   const handleSaveDraft = async () => {
     setSavingDraft(true); setDraftSaved(false)
-    const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, entries[c.key]]))
-    const res = await fetch("/api/intern-reports", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isDraft: true, taskDescriptions, dailyReflections, generalReflection, extraReviewerIds, weekStart: `${weekMon.getFullYear()}-${String(weekMon.getMonth()+1).padStart(2,"0")}-${String(weekMon.getDate()).padStart(2,"0")}`, weekNumber: weekNumber ? parseInt(weekNumber) : null }),
-    })
-    setSavingDraft(false)
-    if (res.ok) {
-      const d = await res.json()
-      setReports(prev => [d.report, ...prev.filter(r => r.id !== d.report.id)])
-      setDraftSaved(true)
-      setTimeout(() => setDraftSaved(false), 3000)
+    try {
+      const taskDescriptions = Object.fromEntries(CATEGORIES.map(c => [c.key, entries[c.key]]))
+      const res = await fetch("/api/intern-reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isDraft: true, taskDescriptions, dailyReflections, generalReflection, extraReviewerIds, weekStart: `${weekMon.getFullYear()}-${String(weekMon.getMonth()+1).padStart(2,"0")}-${String(weekMon.getDate()).padStart(2,"0")}`, weekNumber: weekNumber ? parseInt(weekNumber) : null }),
+      })
+      if (res.ok) {
+        const d = await res.json()
+        setReports(prev => [d.report, ...prev.filter(r => r.id !== d.report.id)])
+        setDraftSaved(true)
+        setTimeout(() => setDraftSaved(false), 3000)
+      }
+    } finally {
+      setSavingDraft(false)
     }
   }
 
@@ -734,7 +743,7 @@ export default function InternReportPage() {
         </div>
         <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
           Window: {DAYS[cfg.submissionDay]} {hourLabel(cfg.openHour)} → Sunday 11:59 PM WAT.
-          On time: 0 pts • Sat: −{cfg.lateDeduction} pts • Sun: −{cfg.lateDeductionSunday} pts.
+          On time: 0 pts • Late same day: −{cfg.lateDeductionSameDay} pt{cfg.lateDeductionSameDay !== 1 ? "s" : ""} • Sat: −{cfg.lateDeduction} pts • Sun: −{cfg.lateDeductionSunday} pts.
         </p>
       </div>
 
@@ -849,6 +858,9 @@ export default function InternReportPage() {
         ) : (
           <>
             <div style={{ padding: "16px 24px 0" }}>
+              <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 10 }}>
+                Time per task: enter minutes (e.g. <strong>90</strong>) or hours/mins in any format or case — <strong>1h 30m</strong>, <strong>1HR 30MIN</strong>, <strong>1:30</strong> all work.
+              </p>
 
               {/* Task table — Days as rows, Categories as columns */}
               <div style={{ overflow: "auto", maxHeight: "min(70vh, 560px)", marginBottom: 12, border: "1px solid var(--border)", borderRadius: 8 }}>
@@ -895,7 +907,7 @@ export default function InternReportPage() {
                                       value={row.minutes}
                                       onChange={e => setTaskRow(cat.key, day, idx, "minutes", e.target.value)}
                                       disabled={!window.open}
-                                      placeholder="90 or 1h 30m"
+                                      placeholder="90 or 1h 30m (any case)"
                                       style={{ width: "100%", padding: "4px 7px", border: `1px solid ${row.text.trim() && !parseMinutes(row.minutes) ? "#FCA5A5" : "var(--border)"}`, borderRadius: 5, fontSize: 11, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box", opacity: !window.open ? 0.6 : 1, marginTop: 3 }}
                                     />
                                     {parseMinutes(row.minutes) > 0 && (
