@@ -54,8 +54,8 @@ const EMPLOYEE_FIELDS = ["employeeComments", "employeeImprovementPlan", "queryWa
 // Reviewer-side fields (team lead / counter). Query & Recommendation HR scores are NOT here —
 // those are admin-only (HR_FIELDS).
 const REVIEWER_FIELDS = ["keyAchievements", "areasForImprovement", "developmentPlan", "reviewerComments", "meetingReviewerConfirmed"]
-// Admin/HR-only fields — Query (V) & Recommendation (VI) HR counts.
-const HR_FIELDS = ["queryWarningsHr", "queryBadgesHr", "recCountHr"]
+// Admin/HR-only fields — Query (V) & Recommendation (VI) HR counts + management comment.
+const HR_FIELDS = ["queryWarningsHr", "queryBadgesHr", "recCountHr", "managementComment"]
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()

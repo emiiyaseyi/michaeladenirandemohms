@@ -203,6 +203,7 @@ model Employee {
   appraisalRatings            AppraisalRating[]        @relation("AppraisalRater")
   appraisalReviews            AppraisalReviewer[]      @relation("AppraisalReviewerEmp")
   appraisalPeerReviews        AppraisalPeer[]          @relation("AppraisalPeerEmp")
+  leaderboardEntries          LeaderboardEntry[]
   rentDocuments               RentDocument[]
   disciplinaryTriggers        DisciplinaryTrigger[]
   violationsReceived          Violation[]              @relation("ViolationEmployee")
@@ -522,6 +523,7 @@ model PerformanceCycle {
   endDate     DateTime
   kpiDeadline DateTime?
   isActive    Boolean     @default(false)
+  closedAt    DateTime?   // set when admin closes the cycle; gates send-once of final report emails
   // ── Appraisal configuration ──
   stage               AppraisalCycleStage @default(CONFIG)
   peerCount           Int                 @default(3)
@@ -533,6 +535,26 @@ model PerformanceCycle {
   questions   AppraisalQuestion[]
   appraisals  Appraisal[]
   globalKpis  AppraisalGlobalKpi[]
+  leaderboard LeaderboardEntry[]
+}
+
+// Admin-imported leaderboard for org-wide admin-scored items (Brand, Learning, Attendance).
+// Drives the ADMIN-source scores in each appraisal AND is shown on the Leaderboards page so
+// staff can see where those numbers came from and validate them.
+model LeaderboardEntry {
+  id         String   @id @default(cuid())
+  cycleId    String
+  category   String   // "BRAND" | "LEARNING" | "ATTENDANCE"
+  employeeId String
+  score      Float
+  note       String?
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  cycle      PerformanceCycle @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  employee   Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([cycleId, category, employeeId])
+  @@index([cycleId])
 }
 
 // ─── Half-Year Performance Appraisal ─────────────────────────────────────────
@@ -623,6 +645,7 @@ model Appraisal {
   employeeImprovementPlan String?   // staff's own improvement plan (Section VII)
   reviewerComments        String?
   counterReviewerComments String?
+  managementComment       String?   // admin/management final comment per staff (Section VII) — admin-only, survives reopen
   // Section V — Query (negative points). Counts entered by staff (self) + HR; points auto-derived from bands.
   queryWarnings      Int?      // staff self count
   queryBadges        Int?

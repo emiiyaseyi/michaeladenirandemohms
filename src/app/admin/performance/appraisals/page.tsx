@@ -52,6 +52,8 @@ export default function AppraisalsListPage() {
   const [appraisals, setAppraisals] = useState<Appraisal[]>([])
   const [loadingCycles, setLoadingCycles] = useState(true)
   const [loading, setLoading] = useState(false)
+  const [stageFilter, setStageFilter] = useState<string>("")
+  const [sort, setSort] = useState<{ key: "finalPercent" | "teamLeadPercent"; dir: "asc" | "desc" } | null>(null)
 
   useEffect(() => {
     (async () => {
@@ -86,6 +88,26 @@ export default function AppraisalsListPage() {
   const counts: Record<string, number> = {}
   for (const a of appraisals) counts[a.stage] = (counts[a.stage] ?? 0) + 1
 
+  // Stage filter + optional sort by a results column (nulls always last).
+  const rows = (() => {
+    const list = stageFilter ? appraisals.filter(a => a.stage === stageFilter) : appraisals.slice()
+    if (sort) {
+      const { key, dir } = sort
+      list.sort((a, b) => {
+        const av = a[key], bv = b[key]
+        if (av == null && bv == null) return 0
+        if (av == null) return 1
+        if (bv == null) return -1
+        return dir === "asc" ? av - bv : bv - av
+      })
+    }
+    return list
+  })()
+
+  const toggleSort = (key: "finalPercent" | "teamLeadPercent") =>
+    setSort(s => (s?.key === key ? { key, dir: s.dir === "desc" ? "asc" : "desc" } : { key, dir: "desc" }))
+  const sortArrow = (key: "finalPercent" | "teamLeadPercent") => (sort?.key === key ? (sort.dir === "desc" ? " ↓" : " ↑") : " ⇅")
+
   const th: React.CSSProperties = { textAlign: "left", padding: "10px 12px", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)" }
   const td: React.CSSProperties = { padding: "12px", fontSize: 13, color: "var(--foreground)", borderBottom: "1px solid var(--border)", verticalAlign: "middle" }
   const num = (v: number | null) => (v === null || v === undefined ? "—" : `${v}%`)
@@ -114,14 +136,28 @@ export default function AppraisalsListPage() {
         </select>
       </div>
 
-      {/* Summary strip */}
+      {/* Summary strip — click a card to filter by that stage */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18 }}>
-        {STAGE_ORDER.map(s => (
-          <div key={s} style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 14px", minWidth: 110 }}>
-            <div style={{ fontSize: 20, fontWeight: 800, color: "var(--foreground)" }}>{counts[s] ?? 0}</div>
-            <div style={{ fontSize: 11.5, color: "var(--muted-foreground)", fontWeight: 600 }}>{STAGE_LABELS[s]}</div>
-          </div>
-        ))}
+        <button
+          onClick={() => setStageFilter("")}
+          style={{ textAlign: "left", cursor: "pointer", background: stageFilter === "" ? "var(--primary)" : "var(--card)", border: `1px solid ${stageFilter === "" ? "var(--primary)" : "var(--border)"}`, borderRadius: 10, padding: "10px 14px", minWidth: 110 }}
+        >
+          <div style={{ fontSize: 20, fontWeight: 800, color: stageFilter === "" ? "white" : "var(--foreground)" }}>{appraisals.length}</div>
+          <div style={{ fontSize: 11.5, color: stageFilter === "" ? "rgba(255,255,255,0.85)" : "var(--muted-foreground)", fontWeight: 600 }}>All</div>
+        </button>
+        {STAGE_ORDER.map(s => {
+          const active = stageFilter === s
+          return (
+            <button
+              key={s}
+              onClick={() => setStageFilter(active ? "" : s)}
+              style={{ textAlign: "left", cursor: "pointer", background: active ? "var(--primary)" : "var(--card)", border: `1px solid ${active ? "var(--primary)" : "var(--border)"}`, borderRadius: 10, padding: "10px 14px", minWidth: 110 }}
+            >
+              <div style={{ fontSize: 20, fontWeight: 800, color: active ? "white" : "var(--foreground)" }}>{counts[s] ?? 0}</div>
+              <div style={{ fontSize: 11.5, color: active ? "rgba(255,255,255,0.85)" : "var(--muted-foreground)", fontWeight: 600 }}>{STAGE_LABELS[s]}</div>
+            </button>
+          )
+        })}
       </div>
 
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
@@ -140,13 +176,13 @@ export default function AppraisalsListPage() {
                 <th style={th}>Primary reviewer</th>
                 <th style={th}>Counter reviewer</th>
                 <th style={{ ...th, textAlign: "right" }}>Peers</th>
-                <th style={{ ...th, textAlign: "right" }}>Final %</th>
-                <th style={{ ...th, textAlign: "right" }}>Team Lead %</th>
+                <th style={{ ...th, textAlign: "right", cursor: "pointer", userSelect: "none" }} onClick={() => toggleSort("finalPercent")}>Final %{sortArrow("finalPercent")}</th>
+                <th style={{ ...th, textAlign: "right", cursor: "pointer", userSelect: "none" }} onClick={() => toggleSort("teamLeadPercent")}>Team Lead %{sortArrow("teamLeadPercent")}</th>
                 <th style={{ ...th, textAlign: "right" }}>Action</th>
               </tr>
             </thead>
             <tbody>
-              {appraisals.map(a => (
+              {rows.map(a => (
                 <tr key={a.id}>
                   <td style={td}>
                     <div style={{ fontWeight: 700 }}>{fullName(a.employee)}</div>
@@ -165,6 +201,9 @@ export default function AppraisalsListPage() {
                   </td>
                 </tr>
               ))}
+              {rows.length === 0 && (
+                <tr><td style={{ ...td, textAlign: "center", color: "var(--muted-foreground)" }} colSpan={8}>No appraisals at the “{STAGE_LABELS[stageFilter] ?? stageFilter}” stage.</td></tr>
+              )}
             </tbody>
           </table>
         )}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { ClipboardList, Plus, Trash2, Loader2, CheckCircle2 } from "lucide-react"
+import { ClipboardList, Loader2, CheckCircle2 } from "lucide-react"
 import { format } from "date-fns"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import { ScaleLegend, validateRatings } from "@/components/performance/scale"
@@ -142,58 +142,19 @@ function Editable({ cycle, appraisal, refetch }: { cycle: Cycle; appraisal: Appr
   const emp = appraisal.employee
 
   // ---- helpers ----
+  // KPI rows are admin-assigned (uploaded by HR). Staff edit only score / comment / evidence link.
   const patchKpi = (kpiId: string, field: string, value: unknown) =>
     fetch(`/api/performance/appraisals/${aid}/kpis/${kpiId}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ [field]: value }),
     })
-
-  const addKpi = async () => {
-    await fetch(`/api/performance/appraisals/${aid}/kpis`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ projectName: "", deliverable: "", kpi: "", weight: 0 }),
-    })
-    await refetch()
-  }
-  const deleteKpi = async (kpiId: string) => {
-    await fetch(`/api/performance/appraisals/${aid}/kpis/${kpiId}`, { method: "DELETE" })
-    await refetch()
-  }
-  const uploadEvidence = async (kpiId: string, file: File): Promise<string | null> => {
-    const fd = new FormData()
-    fd.append("file", file)
-    const res = await fetch(`/api/performance/appraisals/${aid}/kpis/${kpiId}/evidence`, { method: "POST", body: fd })
-    const d = await res.json().catch(() => ({}))
-    if (!res.ok) { alert(d.error ?? "Upload failed"); return null }
-    await refetch()
-    return d.url ?? null
-  }
 
   const patchAppraisal = (payload: Record<string, unknown>) =>
     fetch(`/api/performance/appraisals/${aid}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     })
 
-  // ---- live job-specific weight tracking (cap at 100) ----
-  const [weights, setWeights] = useState<Record<string, number>>(
-    Object.fromEntries(appraisal.kpis.map(k => [k.id, k.weight ?? 0])),
-  )
-  useEffect(() => {
-    setWeights(Object.fromEntries(appraisal.kpis.map(k => [k.id, k.weight ?? 0])))
-  }, [appraisal.kpis])
-  const totalWeight = Object.values(weights).reduce((s, w) => s + (Number(w) || 0), 0)
-  const overWeight = totalWeight > 100
-
-  const onWeightChange = (kpiId: string, val: number) => setWeights(w => ({ ...w, [kpiId]: val }))
-  // Commit on blur — block if it would push the total over 100 (revert to saved value).
-  const onWeightCommit = async (kpiId: string, val: number) => {
-    const others = Object.entries(weights).reduce((s, [id, w]) => s + (id === kpiId ? 0 : Number(w) || 0), 0)
-    if (others + val > 100) {
-      const saved = appraisal.kpis.find(k => k.id === kpiId)?.weight ?? 0
-      setWeights(w => ({ ...w, [kpiId]: saved }))
-      return
-    }
-    await patchKpi(kpiId, "weight", val)
-  }
+  // Weights are fixed by HR — informational total only.
+  const totalWeight = appraisal.kpis.reduce((s, k) => s + (Number(k.weight) || 0), 0)
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 24 }}>
@@ -221,7 +182,7 @@ function Editable({ cycle, appraisal, refetch }: { cycle: Cycle; appraisal: Appr
       {/* 3. Job-Specific Performance */}
       <section style={card}>
         <div style={sectionTitle}>Job-Specific Performance</div>
-        <div style={sectionSub}>Section III — your projects, deliverables &amp; KPIs</div>
+        <div style={sectionSub}>Section III — projects, deliverables &amp; KPIs assigned by HR. Score yourself, comment, and add an evidence link for each.</div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
             <thead>
@@ -232,30 +193,23 @@ function Editable({ cycle, appraisal, refetch }: { cycle: Cycle; appraisal: Appr
                 <th style={{ ...th, width: 70 }}>Weight</th>
                 <th style={{ ...th, width: 90 }}>Score (/ weight)</th>
                 <th style={th}>Comment</th>
-                <th style={th}>Evidence URL</th>
-                <th style={{ ...th, width: 40 }}></th>
+                <th style={th}>Evidence link</th>
               </tr>
             </thead>
             <tbody>
               {appraisal.kpis.map(k => (
-                <KpiRow key={k.id} kpi={k} patchKpi={patchKpi} deleteKpi={deleteKpi} refetch={refetch} uploadEvidence={uploadEvidence}
-                  weightVal={weights[k.id] ?? 0} onWeightChange={onWeightChange} onWeightCommit={onWeightCommit} />
+                <KpiRow key={k.id} kpi={k} patchKpi={patchKpi} />
               ))}
               {appraisal.kpis.length === 0 && (
-                <tr><td style={{ ...td, color: "var(--muted-foreground)", fontSize: 13 }} colSpan={8}>No KPI rows yet.</td></tr>
+                <tr><td style={{ ...td, color: "var(--muted-foreground)", fontSize: 13 }} colSpan={7}>No projects assigned yet — HR will upload your KPIs for this cycle.</td></tr>
               )}
             </tbody>
           </table>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 14, flexWrap: "wrap", gap: 10 }}>
-          <button onClick={addKpi} style={{ ...primaryBtn, display: "inline-flex", alignItems: "center", gap: 6 }}>
-            <Plus size={14} /> Add KPI row
-          </button>
-          <div style={{ fontSize: 13, fontWeight: 700, color: overWeight ? "#EF4444" : "var(--foreground)" }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginTop: 14, flexWrap: "wrap", gap: 10 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>
             Total weight: {totalWeight} / 100
-            <span style={{ fontWeight: 500, color: overWeight ? "#EF4444" : "var(--muted-foreground)", marginLeft: 6 }}>
-              {overWeight ? "— cannot exceed 100" : "(should total 100)"}
-            </span>
+            <span style={{ fontWeight: 500, color: "var(--muted-foreground)", marginLeft: 6 }}>(set by HR)</span>
           </div>
         </div>
         <SaveRow onSave={() => refetch()} />
@@ -284,75 +238,47 @@ function Editable({ cycle, appraisal, refetch }: { cycle: Cycle; appraisal: Appr
   )
 }
 
-function KpiRow({ kpi, patchKpi, deleteKpi, refetch, uploadEvidence, weightVal, onWeightChange, onWeightCommit }: {
+function KpiRow({ kpi, patchKpi }: {
   kpi: Kpi
   patchKpi: (id: string, field: string, value: unknown) => Promise<unknown>
-  deleteKpi: (id: string) => Promise<unknown>
-  refetch: () => Promise<unknown>
-  uploadEvidence: (kpiId: string, file: File) => Promise<string | null>
-  weightVal: number
-  onWeightChange: (id: string, val: number) => void
-  onWeightCommit: (id: string, val: number) => void
 }) {
+  // ADMIN-source rows (Brand, L&D) are fully read-only to staff; their score comes from the leaderboard.
   const admin = kpi.source === "ADMIN"
+  const weightVal = Number(kpi.weight) || 0
 
   const onBlurText = (field: string) => (e: React.FocusEvent<HTMLInputElement>) => {
     const raw = e.target.value
-    void patchKpi(kpi.id, field, raw === "" ? null : raw)
-  }
-  const onBlurNum = (field: string) => (e: React.FocusEvent<HTMLInputElement>) => {
-    const raw = e.target.value
-    void patchKpi(kpi.id, field, raw === "" ? null : Number(raw))
-  }
-
-  if (admin) {
-    return (
-      <tr>
-        <td style={td}><RoCell value={kpi.projectName} badge="Admin" /></td>
-        <td style={td}><RoCell value={kpi.deliverable} /></td>
-        <td style={td}><RoCell value={kpi.kpi} /></td>
-        <td style={td}><RoCell value={kpi.weight} /></td>
-        <td style={td}><RoCell value={kpi.employeeScore} /></td>
-        <td style={td}><RoCell value={kpi.employeeComment} /></td>
-        <td style={td}><RoCell value={kpi.evidenceUrl} /></td>
-        <td style={td}></td>
-      </tr>
-    )
+    void patchKpi(kpi.id, field, raw.trim() === "" ? null : raw.trim())
   }
 
   return (
     <tr>
-      <td style={td}><input defaultValue={kpi.projectName ?? ""} onBlur={onBlurText("projectName")} style={fi} /></td>
-      <td style={td}><input defaultValue={kpi.deliverable ?? ""} onBlur={onBlurText("deliverable")} style={fi} /></td>
-      <td style={td}><input defaultValue={kpi.kpi ?? ""} onBlur={onBlurText("kpi")} style={fi} /></td>
-      <td style={td}><input type="number" min={0} max={100} value={weightVal} onChange={e => onWeightChange(kpi.id, e.target.value === "" ? 0 : Number(e.target.value))} onBlur={e => onWeightCommit(kpi.id, e.target.value === "" ? 0 : Number(e.target.value))} style={fi} /></td>
+      <td style={td}><RoCell value={kpi.projectName} badge={admin ? "Admin" : undefined} /></td>
+      <td style={td}><RoCell value={kpi.deliverable} /></td>
+      <td style={td}><RoCell value={kpi.kpi} /></td>
+      <td style={td}><RoCell value={kpi.weight} /></td>
       <td style={td}>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <input type="number" min={0} max={weightVal} defaultValue={kpi.employeeScore ?? ""} onBlur={e => { const raw = e.target.value; const v = raw === "" ? null : Math.max(0, Math.min(weightVal, Number(raw))); if (v !== null) e.target.value = String(v); void patchKpi(kpi.id, "employeeScore", v) }} style={{ ...fi, width: 56 }} />
-          <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>/ {weightVal}</span>
-        </div>
+        {admin ? <RoCell value={kpi.employeeScore} /> : (
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <input type="number" min={0} max={weightVal} defaultValue={kpi.employeeScore ?? ""} onBlur={e => { const raw = e.target.value; const v = raw === "" ? null : Math.max(0, Math.min(weightVal, Number(raw))); if (v !== null) e.target.value = String(v); void patchKpi(kpi.id, "employeeScore", v) }} style={{ ...fi, width: 56 }} />
+            <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>/ {weightVal}</span>
+          </div>
+        )}
       </td>
-      <td style={td}><input defaultValue={kpi.employeeComment ?? ""} onBlur={onBlurText("employeeComment")} style={fi} /></td>
+      <td style={td}>{admin ? <RoCell value={kpi.employeeComment} /> : <input defaultValue={kpi.employeeComment ?? ""} onBlur={onBlurText("employeeComment")} style={fi} />}</td>
       <td style={td}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          {kpi.evidenceUrl && (
-            <a href={kpi.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "var(--primary)", textDecoration: "underline" }}>View file</a>
-          )}
-          <label style={{ fontSize: 11, color: "var(--muted-foreground)", cursor: "pointer", textDecoration: "underline" }}>
-            {kpi.evidenceUrl ? "Replace" : "Upload"}
-            <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }}
-              onChange={async e => { const f = e.target.files?.[0]; if (f) await uploadEvidence(kpi.id, f); e.target.value = "" }} />
-          </label>
-        </div>
-      </td>
-      <td style={td}>
-        <button
-          onClick={async () => { await deleteKpi(kpi.id); await refetch() }}
-          title="Delete row"
-          style={{ background: "none", border: "none", cursor: "pointer", color: "#DC2626", padding: 6 }}
-        >
-          <Trash2 size={15} />
-        </button>
+        {admin ? (
+          kpi.evidenceUrl
+            ? <a href={kpi.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "var(--primary)", textDecoration: "underline" }}>Open link</a>
+            : <RoCell value={null} />
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <input defaultValue={kpi.evidenceUrl ?? ""} onBlur={onBlurText("evidenceUrl")} placeholder="https://…" style={fi} />
+            {kpi.evidenceUrl && (
+              <a href={kpi.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "var(--primary)", textDecoration: "underline" }}>Open link</a>
+            )}
+          </div>
+        )}
       </td>
     </tr>
   )
@@ -442,7 +368,7 @@ function SelfRatingSection({ cycle, appraisal, aid, refetch, section, title, sub
       <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 10 }}>
         <button onClick={save} disabled={saving} style={{ ...primaryBtn, display: "inline-flex", alignItems: "center", gap: 6, opacity: saving ? 0.6 : 1 }}>
           {saving && <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} />}
-          Save core values
+          {section === "BEHAVIOURAL" ? "Save Behavioural section" : "Save core values"}
         </button>
         {saved && !saving && <span style={{ fontSize: 12, color: "var(--primary)", display: "inline-flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={14} /> Saved</span>}
       </div>
@@ -792,6 +718,7 @@ function ReadOnly({ cycle, appraisal }: { cycle: Cycle; appraisal: Appraisal }) 
                 <th style={{ ...th, width: 90 }}>Your score</th>
                 <th style={{ ...th, width: 90 }}>Reviewer</th>
                 <th style={th}>Comment</th>
+                <th style={th}>Evidence</th>
               </tr>
             </thead>
             <tbody>
@@ -804,10 +731,11 @@ function ReadOnly({ cycle, appraisal }: { cycle: Cycle; appraisal: Appraisal }) 
                   <td style={td}><RoCell value={k.employeeScore} /></td>
                   <td style={td}><RoCell value={k.reviewerScore} /></td>
                   <td style={td}><RoCell value={k.employeeComment} /></td>
+                  <td style={td}>{k.evidenceUrl ? <a href={k.evidenceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "var(--primary)", textDecoration: "underline" }}>Open link</a> : <RoCell value={null} />}</td>
                 </tr>
               ))}
               {appraisal.kpis.length === 0 && (
-                <tr><td style={{ ...td, color: "var(--muted-foreground)", fontSize: 13 }} colSpan={7}>No KPI rows.</td></tr>
+                <tr><td style={{ ...td, color: "var(--muted-foreground)", fontSize: 13 }} colSpan={8}>No KPI rows.</td></tr>
               )}
             </tbody>
           </table>

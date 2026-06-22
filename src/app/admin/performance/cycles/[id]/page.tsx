@@ -5,6 +5,7 @@ import Link from "next/link"
 import {
   ArrowLeft, SlidersHorizontal, ListChecks, Target, Scale, Gavel,
   Plus, Trash2, Pencil, Check, X, Users, Wand2, Loader2, FileStack,
+  Upload,
 } from "lucide-react"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
 
@@ -13,7 +14,7 @@ const STAGE_LABELS: Record<string, string> = {
   CONFIG: "Setup", OPEN: "Open", REVIEW: "Under review", COMPILING: "Compiling", FINALIZED: "Finalized",
 }
 const QUESTION_GROUPS: { section: string; label: string; scaleMax: number }[] = [
-  { section: "BEHAVIOURAL", label: "Team-lead behavioural (scale 5)", scaleMax: 5 },
+  { section: "BEHAVIOURAL", label: "Behavioural (scale 5)", scaleMax: 5 },
   { section: "PEER", label: "Peer review (scale 5)", scaleMax: 5 },
   { section: "CORE_VALUE", label: "Core values (scale 3)", scaleMax: 3 },
 ]
@@ -356,7 +357,7 @@ function GlobalKpis({ cycle, refetch, onDelete }: { cycle: Cycle; refetch: () =>
   }
 
   return (
-    <SectionCard icon={<Target size={17} />} title="Admin-filled global KPIs" subtitle="Learning & Development, Brand and other org-wide KPIs.">
+    <SectionCard icon={<Target size={17} />} title="Job Specific KPIs" subtitle="Learning & Development, Brand and other org-wide KPIs.">
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr><th style={th}>Project</th><th style={th}>Deliverable</th><th style={th}>KPI</th><th style={{ ...th, width: 80 }}>Weight</th><th style={{ ...th, width: 90, textAlign: "right" }}>Actions</th></tr>
@@ -427,6 +428,81 @@ function BandsEditor({ cycle, refetch }: { cycle: Cycle; refetch: () => Promise<
         </div>
       </div>
       {err && <div style={{ marginTop: 10, fontSize: 12, color: "#DC2626" }}>{err}</div>}
+    </SectionCard>
+  )
+}
+
+// ---- CSV imports (projects, per-staff KPIs, leaderboard) ----
+function CsvUploader({ title, desc, endpoint, sample, summarize, refetch }: {
+  title: string
+  desc: string
+  endpoint: string
+  sample: string
+  summarize: (d: any) => string
+  refetch: () => Promise<void>
+}) {
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+
+  async function upload(file: File) {
+    setBusy(true); setMsg(null); setErr(null)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      const res = await fetch(endpoint, { method: "POST", body: fd })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { setErr(d.error ?? "Upload failed"); return }
+      setMsg(summarize(d))
+      await refetch()
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14, marginBottom: 12 }}>
+      <div style={{ fontSize: 13.5, fontWeight: 700 }}>{title}</div>
+      <div style={{ fontSize: 12, color: "var(--muted-foreground)", margin: "4px 0 6px" }}>{desc}</div>
+      <code style={{ display: "block", fontSize: 11, color: "var(--muted-foreground)", background: "var(--muted)", padding: "6px 8px", borderRadius: 6, marginBottom: 10, overflowX: "auto" }}>{sample}</code>
+      <label style={{ ...ghostBtn, opacity: busy ? 0.6 : 1 }}>
+        {busy ? <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> : <Upload size={14} />} {busy ? "Uploading…" : "Upload CSV"}
+        <input type="file" accept=".csv" style={{ display: "none" }} disabled={busy}
+          onChange={async e => { const f = e.target.files?.[0]; if (f) await upload(f); e.target.value = "" }} />
+      </label>
+      {msg && <div style={{ fontSize: 12, color: "var(--primary)", marginTop: 8 }}>{msg}</div>}
+      {err && <div style={{ fontSize: 12, color: "#DC2626", marginTop: 8 }}>{err}</div>}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
+}
+
+function ImportsCard({ cycle, refetch }: { cycle: Cycle; refetch: () => Promise<void> }) {
+  return (
+    <SectionCard icon={<FileStack size={17} />} title="CSV Imports"
+      subtitle="Upload org data for this cycle. Projects drive peer matching; KPIs are assigned per staff; the leaderboard drives the admin-scored items (Brand, Learning, Attendance).">
+      <CsvUploader
+        title="Projects (peer-matching source)"
+        desc="Project lead + team members. Members of the same project become each other's peer candidates. Run “Auto-assign peers” after uploading."
+        endpoint="/api/performance/projects/import"
+        sample="projectName,department,leadEmail,memberEmail"
+        summarize={d => `Imported — ${d.projectsCreated} project(s) created, ${d.membersAdded} member(s) added${d.skipped?.length ? `, ${d.skipped.length} skipped` : ""}.`}
+        refetch={refetch}
+      />
+      <CsvUploader
+        title="Job-specific KPIs (per staff)"
+        desc="Projects, deliverables, KPIs and weights assigned to each staff member. Replaces their existing staff KPI rows. Staff then self-score; reviewers score."
+        endpoint={`/api/performance/cycles/${cycle.id}/import-kpis`}
+        sample="email,projectName,deliverable,kpi,weight"
+        summarize={d => `Imported for ${d.matched} staff${d.skipped?.length ? `, ${d.skipped.length} skipped` : ""}${d.warnings?.length ? `. ${d.warnings.length} weight warning(s).` : "."}`}
+        refetch={refetch}
+      />
+      <CsvUploader
+        title="Leaderboard (admin scores)"
+        desc="Scores for Brand, Learning and Attendance. Drives each staff appraisal's admin scores and shows on the Leaderboards page so everyone can validate."
+        endpoint={`/api/performance/cycles/${cycle.id}/import-leaderboard`}
+        sample="email,category,score,note   (category = BRAND | LEARNING | ATTENDANCE)"
+        summarize={d => `Imported ${d.matched} score(s)${d.skipped?.length ? `, ${d.skipped.length} skipped` : ""}.`}
+        refetch={refetch}
+      />
     </SectionCard>
   )
 }
@@ -504,6 +580,7 @@ export default function CycleConfigPage() {
       </div>
 
       <StageControls cycle={cycle} refetch={refetch} />
+      <ImportsCard cycle={cycle} refetch={refetch} />
       <WeightsEditor cycle={cycle} refetch={refetch} />
 
       <SectionCard icon={<ListChecks size={17} />} title="Questions" subtitle="Define rating questions per section.">

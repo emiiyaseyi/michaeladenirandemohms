@@ -92,7 +92,7 @@ export default function TeamLeadReviewPage() {
                   style={primaryBtn}
                   onClick={() => router.push(`${base}/performance/team-lead-review/${leadTask.appraisalId}?type=MEMBER`)}
                 >
-                  {leadTask.submitted ? "Edit" : "Rate"}
+                  {leadTask.submitted ? "View" : "Rate"}
                 </button>
               </div>
             </div>
