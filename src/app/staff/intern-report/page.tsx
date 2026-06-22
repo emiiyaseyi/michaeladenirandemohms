@@ -142,18 +142,51 @@ async function parseTemplateFile(file: File): Promise<{
 
   const reflectionCol = colMeta.findIndex(m => m.type === "reflection")
 
+  // The template merges the "Personal Reflections" cell across each day's row range.
+  // The day-name text typed in dayCol isn't always at the top of that range — interns
+  // sometimes add extra task rows above it (e.g. Meetings/Self Development) before
+  // typing the next day's name, which would otherwise misattribute that range's
+  // reflection (and tasks) to the previous day. Use the merge ranges as the
+  // authoritative day boundaries when available (.xlsx only — .csv has no merges).
+  type DayInfo = { dayKey: DayKey; refKey: string }
+  type Block = { start: number; end: number; day: DayInfo | null }
+  let blocks: Block[] = []
+  const merges = (ws as { "!merges"?: { s: { r: number; c: number }; e: { r: number; c: number } }[] })["!merges"] ?? []
+  if (reflectionCol !== -1 && merges.length) {
+    blocks = merges
+      .filter(m => m.s.c === reflectionCol && m.e.c === reflectionCol && m.s.r > hdrIdx)
+      .sort((a, b) => a.s.r - b.s.r)
+      .map(m => {
+        let day: DayInfo | null = null
+        for (let r = m.s.r; r <= m.e.r; r++) {
+          const cell = String(rows[r]?.[dayCol] ?? "").trim().toLowerCase()
+          if (TEMPLATE_DAY_MAP[cell]) { day = TEMPLATE_DAY_MAP[cell]; break }
+        }
+        return { start: m.s.r, end: m.e.r, day }
+      })
+  }
+  const useBlocks = blocks.length > 0 && blocks.every(b => b.day)
+
   // Parse data rows
-  let currentDay: { dayKey: DayKey; refKey: string } | null = null
+  let currentDay: DayInfo | null = null
   let dayRefTaken = false
 
   for (let i = hdrIdx + 1; i < rows.length; i++) {
     const row = rows[i]
-    // Day name is in dayCol — trim and lowercase to match map keys
-    const dayCell = String(row[dayCol] ?? "").trim().toLowerCase()
 
-    if (TEMPLATE_DAY_MAP[dayCell]) {
-      currentDay = TEMPLATE_DAY_MAP[dayCell]
-      dayRefTaken = false
+    if (useBlocks) {
+      const block = blocks.find(b => i >= b.start && i <= b.end)
+      if (block && block.day !== currentDay) {
+        currentDay = block.day
+        dayRefTaken = false
+      }
+    } else {
+      // Day name is in dayCol — trim and lowercase to match map keys
+      const dayCell = String(row[dayCol] ?? "").trim().toLowerCase()
+      if (TEMPLATE_DAY_MAP[dayCell]) {
+        currentDay = TEMPLATE_DAY_MAP[dayCell]
+        dayRefTaken = false
+      }
     }
     if (!currentDay) continue
 
