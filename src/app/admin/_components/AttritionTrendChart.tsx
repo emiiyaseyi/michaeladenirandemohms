@@ -56,7 +56,7 @@ export default function AttritionTrendChart({ data }: { data: DataPoint[] }) {
 
       {/* Chart */}
       <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barSize={22}>
+        <BarChart data={data} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} maxBarSize={48}>
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="label"
