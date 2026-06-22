@@ -37,7 +37,7 @@ export default function AnalyticsPage() {
         <StatCard label="Open Positions" value={data.openJobs ?? 0} icon={Briefcase} color="var(--accent)" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 480px))", gap: 20, marginBottom: 20, justifyContent: "center" }}>
         {/* Headcount by dept */}
         <Card style={{ padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Headcount by Department</h3>
@@ -66,7 +66,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 480px))", gap: 20, justifyContent: "center" }}>
         {/* Leave trends */}
         <Card style={{ padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Leave Requests (Last 6 Months)</h3>
