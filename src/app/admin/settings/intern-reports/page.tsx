@@ -44,6 +44,7 @@ export default function InternReportSettingsPage() {
     openHour: number; openMinute: number
     lateHour: number; lateMinute: number
     closeHour: number
+    lateDeductionSameDay: number
     lateDeduction: number
     lateDeductionSunday: number
     missingWeeklyDeduction: number
@@ -54,6 +55,7 @@ export default function InternReportSettingsPage() {
     openHour: 16, openMinute: 0,
     lateHour: 20, lateMinute: 0,
     closeHour: 24,
+    lateDeductionSameDay: 1,
     lateDeduction: 2,
     lateDeductionSunday: 3,
     missingWeeklyDeduction: 10,
@@ -81,6 +83,7 @@ export default function InternReportSettingsPage() {
           openHour: oh, openMinute: om,
           lateHour: lh, lateMinute: lm,
           closeHour: d.closeHour ?? 24,
+          lateDeductionSameDay: d.lateDeductionSameDay ?? 1,
           lateDeduction: d.lateDeduction ?? 2,
           lateDeductionSunday: d.lateDeductionSunday ?? 3,
           missingWeeklyDeduction: d.missingWeeklyDeduction ?? 10,
@@ -191,6 +194,22 @@ export default function InternReportSettingsPage() {
 
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
             <div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>Same-Day Late Deduction</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Points deducted for submissions made after the late threshold but still on the submission day</div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <input
+                type="number" min={0} max={10} step={1}
+                value={settings.lateDeductionSameDay}
+                onChange={e => set("lateDeductionSameDay", Number(e.target.value))}
+                style={{ width: 80, padding: "8px 12px", border: "1.5px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", outline: "none", textAlign: "center" }}
+              />
+              <span style={{ fontSize: 13, color: "var(--muted-foreground)" }}>pts</span>
+            </div>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+            <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Saturday Deduction</div>
               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Points deducted for submissions made on Saturday</div>
             </div>
@@ -277,7 +296,7 @@ export default function InternReportSettingsPage() {
                   <br />
                   • <strong>{d1} {hourLabel(settings.openHour)}–{hourLabel(settings.lateHour)}:</strong> on time — 0 pts
                   <br />
-                  • <strong>{d1} {hourLabel(settings.lateHour)}–midnight:</strong> LATE flag, 0 pts
+                  • <strong>{d1} {hourLabel(settings.lateHour)}–midnight:</strong> LATE flag, <strong>−{settings.lateDeductionSameDay} pts</strong>
                   <br />
                   {settings.submissionDay < 5 && <>
                     • <strong>{DAYS[settings.submissionDay + 1]}–Friday:</strong> window closed — no submission allowed until Saturday's late window opens

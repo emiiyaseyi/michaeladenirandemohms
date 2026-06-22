@@ -76,21 +76,27 @@ export async function GET(req: NextRequest) {
   const empParam = url.searchParams.get("employeeId")
 
   let where: any = {}
+  let isOwnReportsView = false
+  const asReviewer = url.searchParams.get("asReviewer") === "1"
 
-  if (user.role === "STAFF" && !user.permissions?.["canViewInternReports"]) {
-    const asReviewer = url.searchParams.get("asReviewer") === "1"
-    if (asReviewer) {
-      // Return reports this staff member has been assigned to review (not their own)
-      where = {
-        reviewers: { some: { reviewerEmployeeId: user.employeeId } },
-        NOT: { employeeId: user.employeeId },
-      }
-    } else {
-      // Interns (without elevated permission) see only their own reports
-      where = { employeeId: user.employeeId }
+  if (asReviewer) {
+    // Explicit reviewer-scoped request: always restrict to reports this person was
+    // personally chosen to review, even if they separately hold canViewInternReports
+    // (e.g. a PL or staff member with broader access). Otherwise that permission would
+    // silently bypass the scope and leak every intern's submission status to them.
+    where = {
+      reviewers: { some: { reviewerEmployeeId: user.employeeId } },
+      NOT: { employeeId: user.employeeId },
     }
+  } else if (user.role === "STAFF" && !user.permissions?.["canViewInternReports"]) {
+    // Interns (without elevated permission) see only their own reports
+    where = { employeeId: user.employeeId }
+    isOwnReportsView = true
   } else if (user.role === "PROJECT_LEAD" && !user.permissions?.["canViewInternReports"]) {
-    // Project leads see reports of interns who report to them
+    // Project leads see reports of interns who report to them via the org chart,
+    // PLUS any report where they were personally chosen as a reviewer — interns often
+    // add their actual PL as an "extra reviewer" because Employee.projectLeadId/managerId
+    // isn't populated for most interns, so the org-chart match alone misses them.
     const team = await prisma.employee.findMany({
       where: {
         OR: [{ managerId: user.employeeId }, { projectLeadId: user.employeeId }],
@@ -99,12 +105,23 @@ export async function GET(req: NextRequest) {
       select: { id: true },
     })
     const teamIds = team.map(e => e.id)
-    where = { employeeId: { in: teamIds } }
-    if (empParam) where.employeeId = empParam
+    where = {
+      OR: [
+        { employeeId: { in: teamIds } },
+        { reviewers: { some: { reviewerEmployeeId: user.employeeId } } },
+      ],
+    }
+    // AND-in the employeeId filter rather than overwriting `where`, so a PL can't use
+    // ?employeeId= to fetch a report outside their team/reviewer scope.
+    if (empParam) where = { AND: [where, { employeeId: empParam }] }
   } else {
     // SUPER_ADMIN or has canViewInternReports permission — sees all
     if (empParam) where.employeeId = empParam
   }
+
+  // Drafts are personal — only the intern who owns them sees their own draft.
+  // Reviewers, PLs, and admins should never see a report until it's actually submitted.
+  if (!isOwnReportsView) where.status = { not: "DRAFT" }
 
   if (weekParam) {
     const d = new Date(weekParam)
@@ -296,13 +313,21 @@ export async function POST(req: NextRequest) {
   const cfg = await prisma.internReportSettings.findUnique({ where: { id: "singleton" } })
   const submissionDay      = cfg?.submissionDay        ?? 5
   const openHour           = cfg?.openHour             ?? 16
+  const openMinute         = cfg?.openMinute           ?? 0
   const lateHour           = cfg?.lateHour             ?? 20
+  const lateMinute         = cfg?.lateMinute           ?? 0
+  const lateDeductionSameDay = cfg?.lateDeductionSameDay ?? 1
   const lateDeductionSat   = cfg?.lateDeduction        ?? 2
   const lateDeductionSun   = cfg?.lateDeductionSunday  ?? 3
   const missingWeeklyDeduction = cfg?.missingWeeklyDeduction ?? 10
 
   const dayWAT = nowWAT.getDay()
-  const hoursWAT = nowWAT.getHours()
+  // Minute-of-day so the open/late cutoffs respect the configured minute, not just the hour
+  // (e.g. a 13:50 late cutoff must not trip at 13:00).
+  const minutesWAT = nowWAT.getHours() * 60 + nowWAT.getMinutes()
+  const openThresholdMin = openHour * 60 + openMinute
+  const lateThresholdMin = lateHour * 60 + lateMinute
+  const pad2 = (n: number) => String(n).padStart(2, "0")
 
   const isPastWeek = ws.getTime() < currentWeekStart.getTime()
 
@@ -316,18 +341,19 @@ export async function POST(req: NextRequest) {
   const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
   const OPEN_DAY = submissionDay
   const isOpenDay = dayWAT === OPEN_DAY
-  const isSat = dayWAT === 6
-  const isSun = dayWAT === 0
+  // TEMP TEST: late-deduction days shifted from Sat/Sun to Tue/Wed — revert to 6/0 when done testing
+  const isSat = dayWAT === 2
+  const isSun = dayWAT === 3
 
   const TESTING_ALWAYS_OPEN = false
 
   // Window check — skipped for past-week submissions
   if (!isPastWeek && !TESTING_ALWAYS_OPEN) {
     if (!isOpenDay && !isSat && !isSun) {
-      return NextResponse.json({ error: `Submission window opens ${DAY_NAMES[OPEN_DAY]} at ${openHour}:00 WAT and closes Sunday at 11:59 PM WAT.` }, { status: 400 })
+      return NextResponse.json({ error: `Submission window opens ${DAY_NAMES[OPEN_DAY]} at ${openHour}:${pad2(openMinute)} WAT and closes Sunday at 11:59 PM WAT.` }, { status: 400 })
     }
-    if (isOpenDay && hoursWAT < openHour) {
-      return NextResponse.json({ error: `Submission opens at ${openHour}:00 WAT today.` }, { status: 400 })
+    if (isOpenDay && minutesWAT < openThresholdMin) {
+      return NextResponse.json({ error: `Submission opens at ${openHour}:${pad2(openMinute)} WAT today.` }, { status: 400 })
     }
   }
 
@@ -339,8 +365,8 @@ export async function POST(req: NextRequest) {
   if (isPastWeek) {
     lateFlag = true; computedStatus = "LATE"
     pointDeduction = missedMondaysCount(ws, nowWAT) * missingWeeklyDeduction
-  } else if (isOpenDay && hoursWAT >= lateHour) {
-    lateFlag = true; computedStatus = "LATE"; pointDeduction = 0
+  } else if (isOpenDay && minutesWAT >= lateThresholdMin) {
+    lateFlag = true; computedStatus = "LATE"; pointDeduction = lateDeductionSameDay
   } else if (isSat) {
     lateFlag = true; computedStatus = "LATE"; pointDeduction = lateDeductionSat
   } else if (isSun) {

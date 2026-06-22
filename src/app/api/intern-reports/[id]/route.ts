@@ -31,6 +31,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!isOwn && !isAdmin && !isPL) return forbidden()
 
+  // Drafts are personal — block everyone but the owning intern, even if they'd
+  // otherwise qualify as admin/PL for this report once it's actually submitted.
+  if (report.status === "DRAFT" && !isOwn) {
+    return NextResponse.json({ error: "Report not found" }, { status: 404 })
+  }
+
   return NextResponse.json({ report: { ...report, totalScore: computeScore(report) } })
 }
 

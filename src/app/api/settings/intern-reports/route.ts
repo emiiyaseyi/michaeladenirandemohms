@@ -7,6 +7,7 @@ const DEFAULTS = {
   openHour: 16, openMinute: 0,
   lateHour: 20, lateMinute: 0,
   closeHour: 24,
+  lateDeductionSameDay: 1,
   lateDeduction: 2,
   lateDeductionSunday: 3,
   missingWeeklyDeduction: 10,
@@ -42,7 +43,7 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json()
   const {
     submissionDay, openHour, openMinute, lateHour, lateMinute,
-    lateDeduction, lateDeductionSunday, missingWeeklyDeduction, warningThresholdMinutes,
+    lateDeductionSameDay, lateDeduction, lateDeductionSunday, missingWeeklyDeduction, warningThresholdMinutes,
     reviewerDeadlineDay, reviewerDeadlineHour, reviewerDeadlineMinute,
     attendanceCriteria,
   } = body
@@ -58,6 +59,7 @@ export async function PATCH(req: NextRequest) {
       ...(openMinute !== undefined && { openMinute: Number(openMinute) }),
       ...(lateHour !== undefined && { lateHour: Number(lateHour) }),
       ...(lateMinute !== undefined && { lateMinute: Number(lateMinute) }),
+      ...(lateDeductionSameDay !== undefined && { lateDeductionSameDay: Number(lateDeductionSameDay) }),
       ...(lateDeduction !== undefined && { lateDeduction: Number(lateDeduction) }),
       ...(lateDeductionSunday !== undefined && { lateDeductionSunday: Number(lateDeductionSunday) }),
       ...(missingWeeklyDeduction !== undefined && { missingWeeklyDeduction: Number(missingWeeklyDeduction) }),
@@ -75,6 +77,7 @@ export async function PATCH(req: NextRequest) {
       lateHour: n(lateHour, DEFAULTS.lateHour),
       lateMinute: n(lateMinute, DEFAULTS.lateMinute),
       closeHour: DEFAULTS.closeHour,
+      lateDeductionSameDay: n(lateDeductionSameDay, DEFAULTS.lateDeductionSameDay),
       lateDeduction: n(lateDeduction, DEFAULTS.lateDeduction),
       lateDeductionSunday: n(lateDeductionSunday, DEFAULTS.lateDeductionSunday),
       missingWeeklyDeduction: n(missingWeeklyDeduction, DEFAULTS.missingWeeklyDeduction),
