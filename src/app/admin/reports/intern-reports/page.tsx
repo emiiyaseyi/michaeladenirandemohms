@@ -1,6 +1,7 @@
 "use client"
 import { useState, useEffect } from "react"
-import { ClipboardList, ChevronLeft, ChevronRight, Download } from "lucide-react"
+import { useSession } from "next-auth/react"
+import { ClipboardList, ChevronLeft, ChevronRight, Download, Users, AlertTriangle } from "lucide-react"
 import { format } from "date-fns"
 import { generateInternReportExcel } from "@/lib/intern-report-excel"
 
@@ -128,6 +129,10 @@ function avatarColor(name: string) {
 function lbInitials(name: string) { return name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() }
 
 export default function AdminInternReportsPage() {
+  const { data: session } = useSession()
+  const isSuperAdmin = (session?.user as any)?.role === "SUPER_ADMIN"
+  const canViewAnalytics = isSuperAdmin || !!(session?.user as any)?.permissions?.canViewAnalytics
+
   const [reports, setReports] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [mode, setMode] = useState<"week" | "month" | "year">("week")
@@ -141,7 +146,15 @@ export default function AdminInternReportsPage() {
   const [saving, setSaving] = useState(false)
   const [saveErr, setSaveErr] = useState("")
   const [leaderboard, setLeaderboard] = useState<any[]>([])
-  const [tab, setTab] = useState<"reports" | "leaderboard">("reports")
+  const [tab, setTab] = useState<"overview" | "reports" | "leaderboard">("reports")
+  const [overview, setOverview] = useState<any>(null)
+  const [overviewLoading, setOverviewLoading] = useState(true)
+  const [ovMode, setOvMode] = useState<"week" | "month" | "year" | "custom">("week")
+  const [ovWeekOffset, setOvWeekOffset] = useState(0)
+  const [ovMonthOffset, setOvMonthOffset] = useState(0)
+  const [ovYearOffset, setOvYearOffset] = useState(0)
+  const [ovCustomFrom, setOvCustomFrom] = useState("")
+  const [ovCustomTo, setOvCustomTo] = useState("")
   const [lbWeekOffset, setLbWeekOffset] = useState(0)
   const [lbMode, setLbMode] = useState<"week" | "month" | "alltime">("week")
   const [lbDeptFilter, setLbDeptFilter] = useState("")
@@ -240,6 +253,66 @@ export default function AdminInternReportsPage() {
     fetch(url).then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
   }, [lbWeekOffset, lbMode])
 
+  const ovMonday = (() => {
+    const d = new Date(now); d.setUTCHours(0,0,0,0)
+    const day = d.getUTCDay(); const diff = day === 0 ? -6 : 1 - day
+    d.setUTCDate(d.getUTCDate() + diff + ovWeekOffset * 7)
+    return d
+  })()
+  const ovFriday = new Date(ovMonday); ovFriday.setUTCDate(ovMonday.getUTCDate() + 4)
+  const ovWeekLabel = `${format(ovMonday, "MMM d")} – ${format(ovFriday, "MMM d, yyyy")}`
+
+  const ovTargetMonthDate = new Date(now.getFullYear(), now.getMonth() - ovMonthOffset, 1)
+  const ovTargetYear = ovTargetMonthDate.getFullYear()
+  const ovTargetMonth = ovTargetMonthDate.getMonth()
+  const ovMonthLabel = format(ovTargetMonthDate, "MMMM yyyy")
+
+  const ovTargetYearNum = now.getFullYear() - ovYearOffset
+  const ovYearLabel = String(ovTargetYearNum)
+
+  const ovCustomRange = (() => {
+    if (!ovCustomFrom || !ovCustomTo) return null
+    const from = new Date(ovCustomFrom)
+    const to = new Date(ovCustomTo)
+    if (isNaN(from.getTime()) || isNaN(to.getTime()) || from > to) return null
+    return { from, to }
+  })()
+
+  const getOvPeriodLabel = () => {
+    if (ovMode === "week") return ovWeekLabel
+    if (ovMode === "month") return ovMonthLabel
+    if (ovMode === "year") return ovYearLabel
+    if (ovCustomRange) return `${format(ovCustomRange.from, "MMM d, yyyy")} – ${format(ovCustomRange.to, "MMM d, yyyy")}`
+    return "Select a date range"
+  }
+
+  const buildOvFetchParams = (): URLSearchParams | null => {
+    if (ovMode === "week") return new URLSearchParams({ week: ovMonday.toISOString() })
+    if (ovMode === "month") {
+      const from = firstMondayOfMonth(ovTargetYear, ovTargetMonth)
+      const to = lastDayOfMonth(ovTargetYear, ovTargetMonth)
+      return new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
+    }
+    if (ovMode === "year") {
+      const from = new Date(ovTargetYearNum, 0, 1)
+      const to = new Date(ovTargetYearNum, 11, 31)
+      return new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
+    }
+    if (!ovCustomRange) return null
+    return new URLSearchParams({ from: ovCustomRange.from.toISOString(), to: ovCustomRange.to.toISOString() })
+  }
+
+  useEffect(() => {
+    if (!canViewAnalytics) return
+    const params = buildOvFetchParams()
+    if (!params) { setOverview(null); setOverviewLoading(false); return }
+    setOverviewLoading(true)
+    fetch(`/api/intern-reports/overview?${params}`)
+      .then(r => r.json())
+      .then(d => setOverview(d))
+      .finally(() => setOverviewLoading(false))
+  }, [ovMode, ovWeekOffset, ovMonthOffset, ovYearOffset, ovCustomFrom, ovCustomTo, canViewAnalytics])
+
   const departments =[...new Set(reports.map(r => r.employee?.department?.name).filter(Boolean))]
   const filtered = reports.filter(r => {
     if (deptFilter && r.employee?.department?.name !== deptFilter) return false
@@ -335,7 +408,7 @@ export default function AdminInternReportsPage() {
     const headers = ["Intern", "Dept", "Hours", "PL Score", "Attendance", "Deduction", "Total Score", "Status", "Late"]
     const rows = [headers, ...getExportRows()]
     const csv = rows.map(r => r.map(c => `"${c}"`).join(",")).join("\n")
-    const blob = new Blob([csv], { type: "text/csv" })
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" })
     const a = document.createElement("a")
     a.href = URL.createObjectURL(blob)
     a.download = `intern-reports-${getPeriodLabel().replace(/[^a-zA-Z0-9]/g, "-")}.csv`
@@ -489,6 +562,140 @@ export default function AdminInternReportsPage() {
     a.click()
   }
 
+  const ovFilenameStem = () => {
+    if (!overview) return "intern-report-overview"
+    const from = format(new Date(overview.rangeStart), "MMM-d-yyyy")
+    const to = format(new Date(overview.rangeEnd), "MMM-d-yyyy")
+    return `intern-report-overview-${from}-to-${to}`.replace(/[^a-zA-Z0-9-]+/g, "-")
+  }
+
+  const exportOverviewCSV = () => {
+    if (!overview) return
+    const ov = overview
+    const periodFrom = format(new Date(ov.rangeStart), "MMM d, yyyy")
+    const periodTo = format(new Date(ov.rangeEnd), "MMM d, yyyy")
+    const lines: string[] = []
+    lines.push(`"Intern Report Overview for ${periodFrom} to ${periodTo}"`)
+    lines.push("")
+    lines.push('"Metric","Value"')
+    const metricRows: [string, string | number][] = [
+      [ovMode === "week" ? "Active Interns" : "Expected Reports", ov.totalInterns],
+      ["On Time", ov.onTime],
+      ["Late", ov.late],
+      ["Missing", ov.missing],
+      ["Avg TL Score", ov.avgTLPct != null ? `${ov.avgTLPct}%` : "–"],
+      ["Avg Attendance Score", ov.avgAttPct != null ? `${ov.avgAttPct}%` : "–"],
+      ["Avg Total Score", ov.avgTotalPct != null ? `${ov.avgTotalPct}%` : "–"],
+      ["Total Deductions", `-${ov.totalDeductions}`],
+      ["Pending PL/TL Reviews", ov.pendingReviews],
+      ["Pending Attendance", ov.pendingAttendance],
+    ]
+    for (const [k, v] of metricRows) lines.push(`"${k}","${v}"`)
+    lines.push("")
+    lines.push('"Score Distribution"')
+    lines.push('"Band","Count"')
+    for (const d of ov.distribution) lines.push(`"${d.label}","${d.count}"`)
+    lines.push("")
+    lines.push('"Team Lead Review Activity"')
+    lines.push('"Team Lead","Assigned","Reviewed","Overdue","Avg Score Given"')
+    for (const t of ov.teamLeads) {
+      lines.push(`"${t.name}","${t.assigned}","${t.reviewed}","${t.overdue}","${t.avgScoreGivenPct != null ? t.avgScoreGivenPct + "%" : "–"}"`)
+    }
+    const csv = lines.join("\n")
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" })
+    const a = document.createElement("a")
+    a.href = URL.createObjectURL(blob)
+    a.download = `${ovFilenameStem()}.csv`
+    a.click()
+  }
+
+  const exportOverviewPDF = async () => {
+    if (!overview) return
+    const ov = overview
+    const { jsPDF } = await import("jspdf")
+    const { default: autoTable } = await import("jspdf-autotable")
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" })
+    const W = doc.internal.pageSize.width
+    const H = doc.internal.pageSize.height
+    const green: [number, number, number] = [22, 163, 74]
+    const white: [number, number, number] = [255, 255, 255]
+    const lightGreen: [number, number, number] = [240, 253, 244]
+    const HEADER_H = 36
+    const periodFrom = format(new Date(ov.rangeStart), "MMM d, yyyy")
+    const periodTo = format(new Date(ov.rangeEnd), "MMM d, yyyy")
+
+    doc.setFillColor(...green)
+    doc.rect(0, 0, W, HEADER_H, "F")
+    doc.setTextColor(...white)
+    doc.setFontSize(8)
+    doc.setFont("helvetica", "normal")
+    doc.text("DATA SCIENCE NIGERIA — HRMS", 14, 11)
+    doc.setFontSize(16)
+    doc.setFont("helvetica", "bold")
+    doc.text("Intern Report Overview", 14, 25)
+    doc.setFontSize(8)
+    doc.setFont("helvetica", "normal")
+    doc.text(`${periodFrom} – ${periodTo}`, W - 14, 18, { align: "right" })
+    doc.text(`Generated: ${new Date().toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}`, W - 14, 26, { align: "right" })
+
+    autoTable(doc, {
+      head: [["Metric", "Value"]],
+      body: [
+        [ovMode === "week" ? "Active Interns" : "Expected Reports", String(ov.totalInterns)],
+        ["On Time", String(ov.onTime)],
+        ["Late", String(ov.late)],
+        ["Missing", String(ov.missing)],
+        ["Avg TL Score", ov.avgTLPct != null ? `${ov.avgTLPct}%` : "–"],
+        ["Avg Attendance Score", ov.avgAttPct != null ? `${ov.avgAttPct}%` : "–"],
+        ["Avg Total Score", ov.avgTotalPct != null ? `${ov.avgTotalPct}%` : "–"],
+        ["Total Deductions", `-${ov.totalDeductions}`],
+        ["Pending PL/TL Reviews", String(ov.pendingReviews)],
+        ["Pending Attendance", String(ov.pendingAttendance)],
+      ],
+      startY: HEADER_H + 6,
+      theme: "grid",
+      styles: { fontSize: 9, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 } },
+      headStyles: { fillColor: green, textColor: white, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: lightGreen },
+      margin: { left: 12, right: 12 },
+    })
+
+    autoTable(doc, {
+      head: [["Score Distribution", "Count"]],
+      body: ov.distribution.map((d: any) => [d.label, String(d.count)]),
+      startY: (doc as any).lastAutoTable.finalY + 10,
+      theme: "grid",
+      styles: { fontSize: 9, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 } },
+      headStyles: { fillColor: green, textColor: white, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: lightGreen },
+      margin: { left: 12, right: 12 },
+    })
+
+    autoTable(doc, {
+      head: [["Team Lead", "Assigned", "Reviewed", "Overdue", "Avg Score Given"]],
+      body: ov.teamLeads.map((t: any) => [t.name, String(t.assigned), String(t.reviewed), String(t.overdue), t.avgScoreGivenPct != null ? `${t.avgScoreGivenPct}%` : "–"]),
+      startY: (doc as any).lastAutoTable.finalY + 10,
+      theme: "grid",
+      styles: { fontSize: 9, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 } },
+      headStyles: { fillColor: green, textColor: white, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: lightGreen },
+      margin: { left: 12, right: 12 },
+    })
+
+    const totalPages = (doc as any).internal.getNumberOfPages()
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i)
+      doc.setFillColor(248, 250, 248)
+      doc.rect(0, H - 12, W, 12, "F")
+      doc.setFontSize(7)
+      doc.setTextColor(80, 80, 80)
+      doc.text("Confidential — Data Science Nigeria HRMS", 12, H - 5)
+      doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 5, { align: "center" })
+    }
+
+    doc.save(`${ovFilenameStem()}.pdf`)
+  }
+
   const viewingReport = viewingId ? reports.find(r => r.id === viewingId) : null
 
   return (
@@ -501,29 +708,202 @@ export default function AdminInternReportsPage() {
           </div>
           <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>View all intern reports, fill attendance ratings, and track weekly performance.</p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-          <button onClick={exportCSV} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-            <Download size={14} /> CSV
-          </button>
-          <button onClick={exportPDF} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-            <Download size={14} /> PDF
-          </button>
-          <div style={{ width: 1, height: 28, background: "var(--border)" }} />
-          <button onClick={exportAllZip} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "white" }}>
-            <Download size={14} /> All Reports (.zip)
-          </button>
-        </div>
+        {tab === "reports" && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button onClick={exportCSV} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+              <Download size={14} /> CSV
+            </button>
+            <button onClick={exportPDF} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
+              <Download size={14} /> PDF
+            </button>
+            <div style={{ width: 1, height: 28, background: "var(--border)" }} />
+            <button onClick={exportAllZip} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "white" }}>
+              <Download size={14} /> All Reports (.zip)
+            </button>
+          </div>
+        )}
+        {tab === "overview" && canViewAnalytics && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <button onClick={exportOverviewCSV} disabled={!overview} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: overview ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600, opacity: overview ? 1 : 0.5 }}>
+              <Download size={14} /> CSV
+            </button>
+            <button onClick={exportOverviewPDF} disabled={!overview} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: overview ? "pointer" : "not-allowed", fontSize: 13, fontWeight: 600, opacity: overview ? 1 : 0.5 }}>
+              <Download size={14} /> PDF
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tab bar */}
       <div style={{ display: "flex", background: "var(--muted)", borderRadius: 10, padding: 3, gap: 2, marginBottom: 24, width: "fit-content" }}>
-        {(["reports", "leaderboard"] as const).map(t => (
+        {(canViewAnalytics ? (["overview", "reports", "leaderboard"] as const) : (["reports", "leaderboard"] as const)).map(t => (
           <button key={t} onClick={() => setTab(t)}
             style={{ padding: "7px 20px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: tab === t ? "var(--card)" : "transparent", color: tab === t ? "var(--foreground)" : "var(--muted-foreground)", boxShadow: tab === t ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
       </div>
+
+      {tab === "overview" && (() => {
+        const ov = overview
+        const card: React.CSSProperties = { background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: 18 }
+        const caption: React.CSSProperties = { fontSize: 11, color: "var(--muted-foreground)", marginTop: 6, lineHeight: 1.5 }
+        const StatCard = ({ label, value, note }: { label: string; value: React.ReactNode; note: string }) => (
+          <div style={card}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</div>
+            <div style={{ marginTop: 6, fontSize: 26, fontWeight: 800 }}>{value}</div>
+            <div style={caption}>{note}</div>
+          </div>
+        )
+        const ovPeriodPhrase = ovMode === "week" ? "this week" : "this period"
+        const ovStatLabel = ovMode === "week" ? "Active Interns" : "Expected Reports"
+        return (
+          <div>
+            {/* Period selector + navigator */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", background: "var(--muted)", borderRadius: 10, padding: 3, gap: 2 }}>
+                {(["week", "month", "year", "custom"] as const).map(m => (
+                  <button key={m} onClick={() => setOvMode(m)}
+                    style={{ padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, background: ovMode === m ? "var(--card)" : "transparent", color: ovMode === m ? "var(--foreground)" : "var(--muted-foreground)", boxShadow: ovMode === m ? "0 1px 4px rgba(0,0,0,0.08)" : "none" }}>
+                    {m.charAt(0).toUpperCase() + m.slice(1)}
+                  </button>
+                ))}
+              </div>
+
+              {ovMode === "custom" ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "8px 14px" }}>
+                  <input type="date" value={ovCustomFrom} onChange={e => setOvCustomFrom(e.target.value)}
+                    style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", fontSize: 13, background: "var(--background)", color: "var(--foreground)" }} />
+                  <span style={{ color: "var(--muted-foreground)", fontSize: 13 }}>to</span>
+                  <input type="date" value={ovCustomTo} onChange={e => setOvCustomTo(e.target.value)}
+                    style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "6px 10px", fontSize: 13, background: "var(--background)", color: "var(--foreground)" }} />
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "10px 16px" }}>
+                  <button onClick={() => {
+                    if (ovMode === "week") setOvWeekOffset(o => o - 1)
+                    else if (ovMode === "month") setOvMonthOffset(o => o + 1)
+                    else setOvYearOffset(o => o + 1)
+                  }} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}>
+                    <ChevronLeft size={18} />
+                  </button>
+                  <span style={{ fontSize: 13, fontWeight: 700, minWidth: "min(200px, 40vw)", textAlign: "center" }}>{getOvPeriodLabel()}</span>
+                  <button
+                    onClick={() => {
+                      if (ovMode === "week") setOvWeekOffset(o => Math.min(o + 1, 0))
+                      else if (ovMode === "month") setOvMonthOffset(o => Math.max(o - 1, 0))
+                      else setOvYearOffset(o => Math.max(o - 1, 0))
+                    }}
+                    disabled={(ovMode === "week" && ovWeekOffset === 0) || (ovMode === "month" && ovMonthOffset === 0) || (ovMode === "year" && ovYearOffset === 0)}
+                    style={{ background: "none", border: "none", cursor: ((ovMode === "week" && ovWeekOffset === 0) || (ovMode === "month" && ovMonthOffset === 0) || (ovMode === "year" && ovYearOffset === 0)) ? "not-allowed" : "pointer", color: ((ovMode === "week" && ovWeekOffset === 0) || (ovMode === "month" && ovMonthOffset === 0) || (ovMode === "year" && ovYearOffset === 0)) ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}>
+                    <ChevronRight size={18} />
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {ovMode === "custom" && !ovCustomRange ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>Select a start and end date to view this period.</div>
+            ) : overviewLoading || !ov ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>Loading overview…</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                {/* Compliance */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 14 }}>
+                  <StatCard label={ovStatLabel} value={ov.totalInterns}
+                    note={ovMode === "week"
+                      ? "Count of ACTIVE employees with “intern” in their job title, eligible for this week (their intern report start date, if set, is on or before this week)."
+                      : `Sum of eligible intern report-slots across every week in ${getOvPeriodLabel()} - each active intern is counted once per week they were eligible.`} />
+                  <StatCard label="On Time" value={ov.onTime}
+                    note={`Reports submitted by the deadline ${ovPeriodPhrase} - status is Submitted/Late/Reviewed and the lateFlag on the report is false.`} />
+                  <StatCard label="Late" value={ov.late}
+                    note="Reports with lateFlag = true - submitted after the late threshold but still counted (same-day, Saturday, or Sunday tiers)." />
+                  <StatCard label="Missing" value={ov.missing} note={`${ovStatLabel} minus reports actually submitted ${ovPeriodPhrase} - covers both auto-created MISSING placeholders and interns with no row at all yet.`} />
+                </div>
+
+                {/* Scores */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 14 }}>
+                  <StatCard label="Avg TL Score" value={ov.avgTLPct != null ? `${ov.avgTLPct}%` : "–"}
+                    note="Average of (productivity + L&D + reflections ratings) ÷ 9, across reports a Team Lead has already rated. Reports awaiting review are excluded, not counted as 0." />
+                  <StatCard label="Avg Attendance Score" value={ov.avgAttPct != null ? `${ov.avgAttPct}%` : "–"}
+                    note="Average attendance rating ÷ 3, across reports that have an attendance rating filled in by an admin." />
+                  <StatCard label="Avg Total Score" value={ov.avgTotalPct != null ? `${ov.avgTotalPct}%` : "–"}
+                    note="Average of (TL score + attendance score − deductions) ÷ 12, only for reports that have both a TL rating and an attendance rating." />
+                  <StatCard label="Total Deductions" value={`-${ov.totalDeductions}`}
+                    note={`Sum of pointDeduction across every report ${ovPeriodPhrase}, including late submissions and the flat weekly penalty on MISSING placeholders.`} />
+                </div>
+
+                {/* Review backlog */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(190px,1fr))", gap: 14 }}>
+                  <StatCard label="Pending PL/TL Reviews" value={ov.pendingReviews}
+                    note="Submitted reports where at least one assigned reviewer has not yet filled their rating (reviewedAt is still null)." />
+                  <StatCard label="Pending Attendance" value={ov.pendingAttendance}
+                    note="Submitted reports where no admin has filled an attendance rating yet." />
+                </div>
+
+                {/* Score distribution */}
+                <div style={card}>
+                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>Score Distribution</div>
+                  <div style={caption}>Buckets the Total Score % (see “Avg Total Score” above) of every fully-scored report {ovPeriodPhrase} into bands.</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 14 }}>
+                    {ov.distribution.map((d: { label: string; count: number }) => {
+                      const max = Math.max(1, ...ov.distribution.map((x: { count: number }) => x.count))
+                      return (
+                        <div key={d.label}>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--muted-foreground)", marginBottom: 4 }}>
+                            <span>{d.label}</span>
+                            <span style={{ fontWeight: 700, color: "var(--foreground)" }}>{d.count}</span>
+                          </div>
+                          <div style={{ height: 10, background: "var(--muted)", borderRadius: 999, overflow: "hidden" }}>
+                            <div style={{ height: "100%", width: `${(d.count / max) * 100}%`, background: "var(--primary)", borderRadius: 999 }} />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Per-TL review breakdown */}
+                <div style={card}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, marginBottom: 4 }}>
+                    <Users size={16} color="var(--primary)" /> Team Lead Review Activity
+                  </div>
+                  <div style={caption}>One row per person assigned as a reviewer on any report {ovPeriodPhrase}. “Overdue” counts reports they still haven't rated, past the reviewer deadline configured in Settings.</div>
+                  {ov.teamLeads.length === 0 ? (
+                    <div style={{ marginTop: 14, fontSize: 13, color: "var(--muted-foreground)" }}>No reviewers assigned {ovPeriodPhrase}.</div>
+                  ) : (
+                    <div style={{ overflowX: "auto", marginTop: 14 }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                        <thead>
+                          <tr style={{ background: "var(--muted)" }}>
+                            {["Team Lead", "Assigned", "Reviewed", "Overdue", "Avg Score Given"].map(h => (
+                              <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {ov.teamLeads.map((t: any) => (
+                            <tr key={t.employeeId} style={{ borderTop: "1px solid var(--border)" }}>
+                              <td style={{ padding: "10px 14px", fontWeight: 600 }}>{t.name}</td>
+                              <td style={{ padding: "10px 14px" }}>{t.assigned}</td>
+                              <td style={{ padding: "10px 14px" }}>{t.reviewed}</td>
+                              <td style={{ padding: "10px 14px" }}>
+                                {t.overdue > 0 ? <span style={{ color: "#DC2626", fontWeight: 700, display: "flex", alignItems: "center", gap: 4 }}><AlertTriangle size={13} />{t.overdue}</span> : <span style={{ color: "var(--muted-foreground)" }}>0</span>}
+                              </td>
+                              <td style={{ padding: "10px 14px" }}>{t.avgScoreGivenPct != null ? `${t.avgScoreGivenPct}%` : "–"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      <div style={{ ...caption, marginTop: 10 }}>“Avg Score Given” is each Team Lead's own ratings only (productivity + L&D + reflections ÷ 9) — kept separate from the report-level average so a TL who always rates very high or very low stands out.</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {tab === "reports" && (<>
 
