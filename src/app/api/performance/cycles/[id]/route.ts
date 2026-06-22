@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
-import { notifyReviewStageOpened } from "@/lib/appraisal-notify"
+import { notifyReviewStageOpened, notifyFinalReport } from "@/lib/appraisal-notify"
 
 const STAGE_ORDER = ["CONFIG", "OPEN", "REVIEW", "COMPILING", "FINALIZED"] as const
 
@@ -41,9 +41,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ cycle: updated })
   }
   if (body.action === "close") {
-    const updated = await prisma.performanceCycle.update({ where: { id }, data: { isActive: false } })
-    await logAudit({ req, actor: user, action: "APPRAISAL_CYCLE_CLOSE", entity: "PerformanceCycle", entityId: id })
-    return NextResponse.json({ cycle: updated })
+    // Closing the cycle sends the final report email to every staff member with a
+    // finalized appraisal. The cycle must be at the FINALIZED stage first. closedAt
+    // guards send-once: re-closing an already-closed cycle does not re-send.
+    if (cycle.stage !== "FINALIZED") {
+      return NextResponse.json({ error: "Move the cycle to the Finalized stage before closing — final report emails go out on close." }, { status: 400 })
+    }
+    const alreadyClosed = !!cycle.closedAt
+    const updated = await prisma.performanceCycle.update({ where: { id }, data: { isActive: false, closedAt: cycle.closedAt ?? new Date() } })
+    if (!alreadyClosed) await notifyFinalReport(id)
+    await logAudit({ req, actor: user, action: "APPRAISAL_CYCLE_CLOSE", entity: "PerformanceCycle", entityId: id, newValues: { emailsSent: !alreadyClosed } })
+    return NextResponse.json({ cycle: updated, emailsSent: !alreadyClosed })
   }
   if (body.action === "setStage") {
     const stage = body.stage as string

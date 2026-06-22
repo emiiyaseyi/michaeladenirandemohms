@@ -1,0 +1,9 @@
+# category must be one of: BRAND | LEARNING | ATTENDANCE
+# BRAND/LEARNING scores feed the matching admin KPI row; ATTENDANCE feeds the admin-scored attendance core value.
+email,category,score,note
+member1@example.com,BRAND,6,92% of posts engaged
+member1@example.com,LEARNING,3,3 of 3 courses completed
+member1@example.com,ATTENDANCE,3,Perfect attendance
+member2@example.com,BRAND,5,78% of posts engaged
+member2@example.com,LEARNING,4,3 of 3 courses completed
+member2@example.com,ATTENDANCE,2,1 lateness

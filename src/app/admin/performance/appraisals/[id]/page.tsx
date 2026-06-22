@@ -40,6 +40,7 @@ type Kpi = {
   employeeScore: number | null; primaryScore: number | null; counterScore: number | null
   reviewerScore: number | null; reviewerComment: string | null; employeeComment: string | null
   primaryComment: string | null; counterComment: string | null; source: string
+  evidenceUrl: string | null
 }
 type Appraisal = {
   id: string; stage: string
@@ -50,7 +51,7 @@ type Appraisal = {
   reviewers: { role: string; reviewer: Person }[]
   peers: { id: string; peerId: string; status: string; peer: Person }[]
   keyAchievements: string | null; areasForImprovement: string | null; developmentPlan: string | null
-  employeeComments: string | null; reviewerComments: string | null; counterReviewerComments: string | null
+  employeeComments: string | null; reviewerComments: string | null; counterReviewerComments: string | null; managementComment: string | null
   queryWarnings: number | null; queryBadges: number | null; queryEmployeeRating: number | null; queryHrRating: number | null; queryComment: string | null
   queryWarningsHr: number | null; queryBadgesHr: number | null; recCountHr: number | null
   recCount: number | null; recEmployeeRating: number | null; recHrRating: number | null; recComment: string | null
@@ -216,6 +217,7 @@ function KpisCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<void> }
           questionText={`${k.projectName} — ${k.kpi ?? k.deliverable ?? ""} (weight ${k.weight ?? "—"}) · ${k.source}`}
           rows={rowsFor(k)}
           onChange={(_raterType, patch) => onChange(k.id, patch)}
+          footer={k.evidenceUrl ? <span style={{ fontSize: 12 }}>Evidence: <a href={k.evidenceUrl} target="_blank" rel="noreferrer" style={{ color: "var(--primary)", textDecoration: "underline" }}>Open link</a></span> : undefined}
         />
       ))}
       {adminKpis.length > 0 && editable && (
@@ -225,6 +227,47 @@ function KpisCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<void> }
           </button>
           {saved && !saving && <span style={{ fontSize: 12, color: "var(--primary)", display: "inline-flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={14} /> Saved</span>}
         </div>
+      )}
+    </SectionCard>
+  )
+}
+
+// ---- Management (admin) final comment per staff ----
+// Added by Management after viewing the appraisal, before finalizing. Editable until the
+// appraisal is finalized (reopen to edit again). Included in the final report email.
+function ManagementCommentCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<void> }) {
+  const editable = a.stage !== "FINALIZED"
+  const [value, setValue] = useState(a.managementComment ?? "")
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useEffect(() => { setValue(a.managementComment ?? "") }, [a.managementComment])
+
+  async function save() {
+    setSaving(true); setSaved(false)
+    try {
+      await jpatch(`/api/performance/appraisals/${a.id}`, { managementComment: value.trim() || null })
+      await refetch()
+      setSaved(true)
+    } finally { setSaving(false) }
+  }
+
+  const ta: React.CSSProperties = { ...fi, minHeight: 90, resize: "vertical" }
+  return (
+    <SectionCard icon={<MessageSquare size={17} />} title="Management Comment"
+      subtitle="Management's final note for this staff member — included in the final report email.">
+      {editable ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <textarea style={ta} value={value} placeholder="Add a management comment for this staff member…" onChange={e => { setValue(e.target.value); setSaved(false) }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <button onClick={save} disabled={saving} style={{ ...primaryBtn, display: "inline-flex", alignItems: "center", gap: 6, opacity: saving ? 0.6 : 1 }}>
+              {saving && <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} />} Save comment
+            </button>
+            {saved && !saving && <span style={{ fontSize: 12, color: "var(--primary)", display: "inline-flex", alignItems: "center", gap: 4 }}><CheckCircle2 size={14} /> Saved</span>}
+          </div>
+        </div>
+      ) : (
+        <ReadField label="Management comment" value={a.managementComment} />
       )}
     </SectionCard>
   )
@@ -721,6 +764,7 @@ export default function AppraisalDetailPage() {
       <StackedReviewsCard a={a} questions={questions} refetch={refetch} />
       <KpisCard a={a} refetch={refetch} />
       <CommentsCard a={a} refetch={refetch} />
+      <ManagementCommentCard a={a} refetch={refetch} />
       <ActionBar a={a} refetch={refetch} />
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
