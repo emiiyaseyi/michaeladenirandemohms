@@ -258,7 +258,11 @@ function QuestionGroup({ cycle, section, label, scaleMax, refetch, onDelete }: {
 }) {
   const [text, setText] = useState("")
   const [adding, setAdding] = useState(false)
-  const items = cycle.questions.filter(q => q.section === section).sort((a, b) => a.order - b.order)
+  // Peers rate the SAME Behavioural items (the 360). The PEER group mirrors the
+  // Behavioural questions read-only instead of being a separate, editable list.
+  const mirror = section === "PEER"
+  const sourceSection = mirror ? "BEHAVIOURAL" : section
+  const items = cycle.questions.filter(q => q.section === sourceSection).sort((a, b) => a.order - b.order)
 
   async function add() {
     if (!text.trim()) return
@@ -272,22 +276,33 @@ function QuestionGroup({ cycle, section, label, scaleMax, refetch, onDelete }: {
 
   return (
     <div style={{ marginBottom: 18 }}>
-      <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{label}</h3>
+      <h3 style={{ fontSize: 13, fontWeight: 700, marginBottom: mirror ? 4 : 8 }}>{label}</h3>
+      {mirror && (
+        <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 8 }}>
+          Peers rate the same Behavioural questions above, on the same 0–5 scale. Edit them in the Behavioural section.
+        </p>
+      )}
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr><th style={th}>Question</th><th style={{ ...th, width: 80 }}>Scale</th><th style={{ ...th, width: 90, textAlign: "right" }}>Actions</th></tr>
         </thead>
         <tbody>
           {items.length === 0 && <tr><td style={{ ...td, color: "var(--muted-foreground)" }} colSpan={3}>No questions yet.</td></tr>}
-          {items.map(q => <QuestionRow key={q.id} q={q} onSaved={refetch} onDelete={onDelete} />)}
+          {items.map(q => (
+            mirror
+              ? <tr key={q.id}><td style={td}>{q.text}</td><td style={{ ...td, width: 80 }}>{q.scaleMax}</td><td style={{ ...td, width: 90, textAlign: "right", color: "var(--muted-foreground)" }}>—</td></tr>
+              : <QuestionRow key={q.id} q={q} onSaved={refetch} onDelete={onDelete} />
+          ))}
         </tbody>
       </table>
-      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-        <input style={fi} placeholder="Add a question…" value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === "Enter" && add()} />
-        <button onClick={add} disabled={adding} style={{ ...ghostBtn, whiteSpace: "nowrap", opacity: adding ? 0.6 : 1 }}>
-          {adding ? <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> : <Plus size={14} />} Add
-        </button>
-      </div>
+      {!mirror && (
+        <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+          <input style={fi} placeholder="Add a question…" value={text} onChange={e => setText(e.target.value)} onKeyDown={e => e.key === "Enter" && add()} />
+          <button onClick={add} disabled={adding} style={{ ...ghostBtn, whiteSpace: "nowrap", opacity: adding ? 0.6 : 1 }}>
+            {adding ? <Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> : <Plus size={14} />} Add
+          </button>
+        </div>
+      )}
     </div>
   )
 }
