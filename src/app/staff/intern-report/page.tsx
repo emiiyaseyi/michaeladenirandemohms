@@ -1,7 +1,7 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
 import { createPortal } from "react-dom"
-import { ClipboardList, Clock, CheckCircle2, AlertCircle, Eye, X, Search, Users, ChevronLeft, ChevronRight, Download } from "lucide-react"
+import { ClipboardList, Clock, CheckCircle2, AlertCircle, Eye, X, Search, Users, ChevronLeft, ChevronRight, Download, Upload } from "lucide-react"
 import { format } from "date-fns"
 import { generateInternReportExcel } from "@/lib/intern-report-excel"
 
@@ -56,6 +56,140 @@ const initEntries = (): Record<string, CellEntries> =>
     c.key,
     Object.fromEntries(DAYS_LIST.map(d => [d, [emptyTaskRow()]])) as CellEntries
   ]))
+
+const LABEL_TO_CAT: Record<string, string> = {
+  "main project": "mainProject",
+  "special project": "specialProject",
+  "training": "training",
+  "reporting/documentation": "reportingDoc",
+  "reporting / documentation": "reportingDoc",
+  "operational support": "operational",
+  "research": "research",
+  "meetings": "meetings",
+  "community": "community",
+  "representation": "representation",
+  "self development": "selfDev",
+}
+
+const TEMPLATE_DAY_MAP: Record<string, { dayKey: DayKey; refKey: string }> = {
+  "monday":    { dayKey: "monday",    refKey: "Mon" },
+  "tuesday":   { dayKey: "tuesday",   refKey: "Tue" },
+  "wednesday": { dayKey: "wednesday", refKey: "Wed" },
+  "thursday":  { dayKey: "thursday",  refKey: "Thu" },
+  "friday":    { dayKey: "friday",    refKey: "Fri" },
+}
+
+async function parseTemplateFile(file: File): Promise<{
+  entries: Record<string, CellEntries>
+  dailyReflections: Record<string, string>
+  warnings: string[]
+}> {
+  const { read, utils } = await import("xlsx")
+  const buf = await file.arrayBuffer()
+  const wb = read(buf, { type: "array", raw: false })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const rows: string[][] = utils.sheet_to_json(ws, { header: 1, defval: "", raw: false })
+
+  const warnings: string[] = []
+  const newEntries = initEntries()
+  const newRef: Record<string, string> = { Mon: "", Tue: "", Wed: "", Thu: "", Fri: "" }
+
+  // The template has a blank col 0 — "Day of the week" is in col 1.
+  // Find the header row by scanning any column for "day of the week".
+  let hdrIdx = -1
+  let dayCol = -1
+  for (let i = 0; i < Math.min(rows.length, 6); i++) {
+    const colIdx = rows[i].findIndex(c => String(c ?? "").toLowerCase().includes("day of the week"))
+    if (colIdx !== -1) { hdrIdx = i; dayCol = colIdx; break }
+  }
+  if (hdrIdx === -1) {
+    warnings.push("Could not find the header row — make sure you're using the standard template.")
+    return { entries: newEntries, dailyReflections: newRef, warnings }
+  }
+
+  const headers = rows[hdrIdx].map(h => String(h ?? "").trim().toLowerCase())
+
+  // Build column map. After finding a category text column, the NEXT column is always hours
+  // (regardless of whether its header says "hours" or is blank — e.g. Research).
+  // Unknown categories (Consulting, New Business) are silently skipped.
+  type ColMeta = { type: "text"; catKey: string } | { type: "hours"; catKey: string } | { type: "reflection" } | { type: "skip" }
+  const colMeta: ColMeta[] = headers.map(() => ({ type: "skip" } as ColMeta))
+  let expectHoursForCat: string | null = null
+  let foundCats = 0
+
+  for (let i = 0; i < headers.length; i++) {
+    const h = headers[i].trim()
+    if (h.includes("personal reflections")) { colMeta[i] = { type: "reflection" }; expectHoursForCat = null; continue }
+    if (h === "total hours") { expectHoursForCat = null; continue }
+    // If we just saw a category text col, this col is its hours col
+    if (expectHoursForCat) {
+      colMeta[i] = { type: "hours", catKey: expectHoursForCat }
+      expectHoursForCat = null
+      continue
+    }
+    const catKey = LABEL_TO_CAT[h]
+    if (catKey) {
+      colMeta[i] = { type: "text", catKey }
+      expectHoursForCat = catKey
+      foundCats++
+    }
+  }
+
+  if (foundCats === 0) {
+    warnings.push("No category columns found — make sure you're using the standard template.")
+    return { entries: newEntries, dailyReflections: newRef, warnings }
+  }
+
+  const reflectionCol = colMeta.findIndex(m => m.type === "reflection")
+
+  // Parse data rows
+  let currentDay: { dayKey: DayKey; refKey: string } | null = null
+  let dayRefTaken = false
+
+  for (let i = hdrIdx + 1; i < rows.length; i++) {
+    const row = rows[i]
+    // Day name is in dayCol — trim and lowercase to match map keys
+    const dayCell = String(row[dayCol] ?? "").trim().toLowerCase()
+
+    if (TEMPLATE_DAY_MAP[dayCell]) {
+      currentDay = TEMPLATE_DAY_MAP[dayCell]
+      dayRefTaken = false
+    }
+    if (!currentDay) continue
+
+    // Parse task cells — only import rows where the text cell is non-empty
+    let rowHasData = false
+    for (let c = 0; c < colMeta.length; c++) {
+      const meta = colMeta[c]
+      if (meta.type !== "text") continue
+      const text = String(row[c] ?? "").trim()
+      if (!text) continue
+      rowHasData = true
+
+      // Hours are always the next col after text
+      const hoursRaw = String(row[c + 1] ?? "").trim()
+      // Use parseMinutes so "2hrs", "1h 30m", "90" all work
+      const mins = parseMinutes(hoursRaw)
+
+      const cell = newEntries[meta.catKey][currentDay.dayKey]
+      const newRow: TaskRow = { text, minutes: mins ? String(mins) : "" }
+      if (cell.length === 1 && !cell[0].text && !cell[0].minutes) {
+        newEntries[meta.catKey][currentDay.dayKey] = [newRow]
+      } else {
+        cell.push(newRow)
+      }
+    }
+
+    // Personal reflection — take from first row of each day that has any content
+    if (!dayRefTaken && reflectionCol !== -1) {
+      const ref = String(row[reflectionCol] ?? "").trim()
+      if (ref) { newRef[currentDay.refKey] = ref; dayRefTaken = true }
+    }
+    if (rowHasData) dayRefTaken = dayRefTaken || false
+  }
+
+  return { entries: newEntries, dailyReflections: newRef, warnings }
+}
 
 type Settings = {
   submissionDay: number; openHour: number; openMinute: number;
@@ -311,6 +445,27 @@ export default function InternReportPage() {
   const [reviewerSearch, setReviewerSearch] = useState("")
   const [reviewerDropOpen, setReviewerDropOpen] = useState(false)
   const [reviewerDropPos, setReviewerDropPos] = useState({ top: 0, left: 0, width: 0 })
+  const [uploadMsg, setUploadMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const uploadRef = useRef<HTMLInputElement>(null)
+
+  const handleTemplateUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ""
+    setUploadMsg(null)
+    try {
+      const { entries: parsed, dailyReflections: parsedRef, warnings } = await parseTemplateFile(file)
+      setEntries(parsed)
+      setDailyReflections(parsedRef)
+      if (warnings.length > 0) {
+        setUploadMsg({ ok: false, text: warnings.join(" ") })
+      } else {
+        setUploadMsg({ ok: true, text: "Template imported — review your entries, fill in general reflection and week number, then submit." })
+      }
+    } catch {
+      setUploadMsg({ ok: false, text: "Could not read the file. Make sure it is a valid .xlsx or .csv file." })
+    }
+  }
   const reviewerRef = useRef<HTMLDivElement>(null)
   const openReviewerDrop = () => {
     if (reviewerRef.current) {
@@ -603,7 +758,7 @@ export default function InternReportPage() {
       {/* Submission Form — full width */}
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginBottom: 24 }}>
         {/* Card header */}
-        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
           <div>
             <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 2 }}>{isPastWeek ? "Past Week Report" : "This Week's Report"}</h2>
             <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{weekLabel}</span>
@@ -618,6 +773,14 @@ export default function InternReportPage() {
               placeholder="e.g. 1"
               style={{ width: 70, padding: "5px 8px", border: `1.5px solid ${submitErr === "Please enter your week number before submitting." ? "#EF4444" : "var(--border)"}`, borderRadius: 6, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none" }}
             />
+            <input ref={uploadRef} type="file" accept=".xlsx,.csv" style={{ display: "none" }} onChange={handleTemplateUpload} />
+            <button
+              onClick={() => uploadRef.current?.click()}
+              title="Import from template (.xlsx or .csv)"
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", border: "1.5px solid var(--border)", borderRadius: 6, background: "var(--muted)", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}
+            >
+              <Upload size={13} /> Import Template
+            </button>
           </div>
           {isPastWeek ? (
             <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 8, background: "#FEF3C7", color: "#D97706", fontSize: 11, fontWeight: 700 }}>
@@ -635,6 +798,14 @@ export default function InternReportPage() {
             </div>
           )}
         </div>
+
+        {uploadMsg && (
+          <div style={{ margin: "12px 24px 0", padding: "10px 14px", borderRadius: 8, background: uploadMsg.ok ? "#DCFCE7" : "#FEF3C7", color: uploadMsg.ok ? "#15803D" : "#92400E", fontSize: 12, fontWeight: 500, display: "flex", alignItems: "flex-start", gap: 8 }}>
+            {uploadMsg.ok ? <CheckCircle2 size={14} style={{ flexShrink: 0, marginTop: 1 }} /> : <AlertCircle size={14} style={{ flexShrink: 0, marginTop: 1 }} />}
+            <span>{uploadMsg.text}</span>
+            <button onClick={() => setUploadMsg(null)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", padding: 0, color: "inherit", flexShrink: 0 }}><X size={13} /></button>
+          </div>
+        )}
 
         {alreadySubmitted ? (
           <div style={{ padding: "40px 24px", textAlign: "center" }}>
