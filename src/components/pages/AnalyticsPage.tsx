@@ -37,7 +37,7 @@ export default function AnalyticsPage() {
         <StatCard label="Open Positions" value={data.openJobs ?? 0} icon={Briefcase} color="var(--accent)" />
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 480px))", gap: 20, marginBottom: 20, justifyContent: "center" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20, marginBottom: 20 }}>
         {/* Headcount by dept */}
         <Card style={{ padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Headcount by Department</h3>
@@ -55,9 +55,9 @@ export default function AnalyticsPage() {
         {/* Employment type distribution */}
         <Card style={{ padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Employment Types</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <PieChart>
-              <Pie data={data.byType ?? []} dataKey="count" nameKey="type" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }: any) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+          <ResponsiveContainer width="100%" height={240}>
+            <PieChart margin={{ top: 20, right: 0, bottom: 0, left: 0 }}>
+              <Pie data={data.byType ?? []} dataKey="count" nameKey="type" cx="50%" cy="58%" outerRadius={75} label={({ name, percent }: any) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
                 {(data.byType ?? []).map((_: any, i: number) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Pie>
               <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid var(--border)", fontSize: 12 }} />
@@ -66,7 +66,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 480px))", gap: 20, justifyContent: "center" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 20 }}>
         {/* Leave trends */}
         <Card style={{ padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, marginBottom: 16 }}>Leave Requests (Last 6 Months)</h3>
