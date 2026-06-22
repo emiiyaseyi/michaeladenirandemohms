@@ -154,12 +154,17 @@ export async function GET(req: NextRequest) {
 
     const attendanceAdmins = await prisma.user.findMany({
       where: {
-        adminRoles: {
-          some: {
-            adminRole: { permissions: { path: ["canFillAttendance"], equals: true } },
-          },
-        },
         isActive: true,
+        OR: [
+          { role: "SUPER_ADMIN" },
+          {
+            adminRoles: {
+              some: {
+                adminRole: { permissions: { path: ["canFillAttendance"], equals: true } },
+              },
+            },
+          },
+        ],
       },
       select: { id: true },
     })
@@ -221,10 +226,15 @@ export async function GET(req: NextRequest) {
   if (reportsWithPendingReviews.length > 0) {
     const digestAdmins = await prisma.user.findMany({
       where: {
-        adminRoles: {
-          some: { adminRole: { permissions: { path: ["canFillAttendance"], equals: true } } },
-        },
         isActive: true,
+        OR: [
+          { role: "SUPER_ADMIN" },
+          {
+            adminRoles: {
+              some: { adminRole: { permissions: { path: ["canFillAttendance"], equals: true } } },
+            },
+          },
+        ],
       },
       select: { id: true },
     })

@@ -33,11 +33,16 @@ export async function GET(req: NextRequest) {
   const hrAdmins = await prisma.user.findMany({
     where: {
       isActive: true,
-      adminRoles: {
-        some: {
-          adminRole: { permissions: { path: ["canEditEmployee"], equals: true } },
+      OR: [
+        { role: "SUPER_ADMIN" },
+        {
+          adminRoles: {
+            some: {
+              adminRole: { permissions: { path: ["canEditEmployee"], equals: true } },
+            },
+          },
         },
-      },
+      ],
     },
     select: { id: true },
   })
