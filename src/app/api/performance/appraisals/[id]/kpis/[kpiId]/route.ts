@@ -21,12 +21,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const data: any = {}
 
-  // Subject: edit description + own score, while OPEN, on STAFF rows only.
+  // Subject: KPI rows are admin-assigned (uploaded by HR). The subject may only self-score,
+  // comment, and add an evidence link on their own STAFF rows, while OPEN. Project/deliverable/
+  // KPI text and weight are locked. ADMIN rows (Brand, L&D) are fully read-only to staff.
   if (rel.isSubject && stage === "OPEN" && (appraisal.stage === "NOT_STARTED" || appraisal.stage === "DRAFT")) {
-    if (row.source === "STAFF") {
-      for (const f of ["projectName", "deliverable", "kpi"]) if (body[f] !== undefined) data[f] = body[f]
-      if (body.weight !== undefined) data.weight = Number(body.weight)
-    }
+    if (row.source !== "STAFF") return NextResponse.json({ error: "This row is scored by admin only" }, { status: 400 })
     if (body.employeeScore !== undefined) data.employeeScore = body.employeeScore === null ? null : Number(body.employeeScore)
     if (body.employeeComment !== undefined) data.employeeComment = body.employeeComment
     if (body.evidenceUrl !== undefined) data.evidenceUrl = body.evidenceUrl
@@ -84,8 +83,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { appraisal, row } = await loadCtx(id, kpiId)
   if (!appraisal || !row || row.appraisalId !== id) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const rel = relationshipTo(user, appraisal)
-  const canDelete = (rel.isSubject && appraisal.cycle?.stage === "OPEN" && (appraisal.stage === "NOT_STARTED" || appraisal.stage === "DRAFT") && row.source === "STAFF") || rel.isAdmin
-  if (!canDelete) return NextResponse.json({ error: "Cannot delete this KPI" }, { status: 400 })
+  // KPI rows are admin-assigned — only admins may delete them.
+  if (!rel.isAdmin) return NextResponse.json({ error: "KPI rows are managed by HR" }, { status: 400 })
   await prisma.appraisalKpi.delete({ where: { id: kpiId } })
   await recomputeAndPersist(id)
   await logAudit({ req, actor: user, action: "APPRAISAL_KPI_DELETE", entity: "AppraisalKpi", entityId: kpiId })

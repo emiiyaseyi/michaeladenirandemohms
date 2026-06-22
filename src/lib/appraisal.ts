@@ -104,12 +104,31 @@ export function isAdminLike(user: SessionUser) {
 // safe when a department lacks enough people). Excludes the subject. Caller slices
 // to the needed count, so the department-priority order must be preserved (do NOT
 // re-sort the result).
+// Priority order (preserved — do NOT re-sort):
+//   1. Co-members of any shared project (uploaded by HR — the main matching source)
+//   2. Same-department employees (fallback / top-up)
+//   3. Everyone else (cross-dept fallback so autofill never runs dry)
 export async function peerCandidatesOf(employeeId: string): Promise<string[]> {
   const me = await prisma.employee.findUnique({
     where: { id: employeeId },
     select: { departmentId: true, secondaryDepartmentIds: true },
   })
   if (!me) return []
+
+  // 1) Project co-members.
+  const myMemberships = await prisma.projectMember.findMany({ where: { employeeId }, select: { projectId: true } })
+  const projectIds = myMemberships.map(m => m.projectId)
+  let projectMates: string[] = []
+  if (projectIds.length) {
+    const mates = await prisma.projectMember.findMany({
+      where: { projectId: { in: projectIds }, employeeId: { not: employeeId }, employee: { employeeStatus: "ACTIVE" } },
+      select: { employeeId: true },
+      orderBy: { assignedAt: "asc" },
+    })
+    projectMates = mates.map(m => m.employeeId)
+  }
+
+  // 2 + 3) Department-based.
   const deptIds = [me.departmentId, ...(me.secondaryDepartmentIds ?? [])].filter(Boolean) as string[]
   const all = await prisma.employee.findMany({
     where: { employeeStatus: "ACTIVE", id: { not: employeeId } },
@@ -119,7 +138,16 @@ export async function peerCandidatesOf(employeeId: string): Promise<string[]> {
   const inDept = (e: { departmentId: string | null }) => !!e.departmentId && deptIds.includes(e.departmentId)
   const sameDept = all.filter(inDept).map(e => e.id)
   const others = all.filter(e => !inDept(e)).map(e => e.id)
-  return [...sameDept, ...others]
+
+  // Merge, deduped, preserving priority order.
+  const seen = new Set<string>()
+  const out: string[] = []
+  for (const pid of [...projectMates, ...sameDept, ...others]) {
+    if (seen.has(pid)) continue
+    seen.add(pid)
+    out.push(pid)
+  }
+  return out
 }
 
 export interface Relationship {

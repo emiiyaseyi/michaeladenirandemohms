@@ -121,13 +121,22 @@ export default function CyclesListPage() {
   }
 
   async function act(c: Cycle, action: "activate" | "close") {
+    if (action === "close") {
+      const ok = window.confirm(
+        `Close "${c.name}"?\n\nThis ends the cycle and sends the FINAL REPORT EMAIL from HR to every staff member with a finalized appraisal (their score breakdown + management comment).\n\nThe cycle must be at the Finalized stage. This cannot be undone.`,
+      )
+      if (!ok) return
+    }
     setBusyId(c.id)
     try {
-      await fetch(`/api/performance/cycles/${c.id}`, {
+      const res = await fetch(`/api/performance/cycles/${c.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       })
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(d.error ?? "Action failed"); return }
+      if (action === "close" && d.emailsSent) alert("Cycle closed. Final report emails have been sent to staff.")
       await load()
     } finally {
       setBusyId(null)

@@ -462,6 +462,29 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       `<div style="text-align:center;margin:24px 0;"><a href="{{profileLink}}" style="display:inline-block;padding:12px 32px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">View Profile</a></div>` +
       NOTE("This is an automated reminder from the HRMS."),
   },
+
+  // ── Performance ──────────────────────────────────────────────────────────────
+
+  appraisal_final_report: {
+    name: "Appraisal Final Report",
+    category: "People",
+    description: "Sent to each staff member from HR when an appraisal cycle is closed — their final score and management comment.",
+    variables: ["employeeName", "cycleName", "finalPercent", "behaviouralScore", "jobScore", "coreScore", "managementComment"],
+    defaultSubject: "Your {{cycleName}} performance appraisal result",
+    defaultBody:
+
+      H("Your Performance Appraisal Result") +
+      P("Hi <strong>{{employeeName}}</strong>, your performance appraisal for <strong>{{cycleName}}</strong> has been finalized. Here is your result.") +
+      TABLE(
+        ROW("Final score", "{{finalPercent}}%"),
+        ROW("Behavioural (360)", "{{behaviouralScore}}"),
+        ROW("Job-specific", "{{jobScore}}"),
+        ROW("Core values", "{{coreScore}}"),
+      ) +
+      H("Management comment") +
+      P("{{managementComment}}") +
+      NOTE("Log in to your HRMS portal to view the full appraisal breakdown."),
+  },
 }
 
 export const EVENT_CATEGORIES = ["Leave", "Documents", "People", "Admin"] as const

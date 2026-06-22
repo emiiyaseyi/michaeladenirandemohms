@@ -483,6 +483,11 @@ export default function ReviewDetailPage() {
                   setKpiEdits(s => ({ ...s, [k.id]: { score: s[k.id]?.score ?? null, comment: s[k.id]?.comment ?? "", ...patch } }))
                 }}
               />
+              {k.evidenceUrl && (
+                <div style={{ fontSize: 12, margin: "-6px 0 12px 2px" }}>
+                  Evidence: <a href={k.evidenceUrl} target="_blank" rel="noreferrer" style={{ color: "var(--primary)", textDecoration: "underline" }}>Open link</a>
+                </div>
+              )}
               {k.source === "ADMIN" && (
                 <div style={{ fontSize: 11, color: "var(--muted-foreground)", margin: "-6px 0 12px 2px" }}>
                   Admin-scored — reviewers cannot rate this item.

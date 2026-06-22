@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/api-auth"
 import { relationshipTo, recomputeAndPersist } from "@/lib/appraisal"
 import { logAudit } from "@/lib/audit"
 
-// Add a job-specific (STAFF) KPI row. Subject only, while their appraisal is editable.
+// Add a job-specific KPI row. KPI rows are admin-assigned (uploaded by HR) — only admins may add.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -13,8 +13,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!appraisal) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const rel = relationshipTo(user, appraisal)
 
-  const editableBySubject = rel.isSubject && appraisal.cycle?.stage === "OPEN" && (appraisal.stage === "NOT_STARTED" || appraisal.stage === "DRAFT")
-  if (!editableBySubject && !rel.isAdmin) return NextResponse.json({ error: "Cannot add KPI rows now" }, { status: 400 })
+  if (!rel.isAdmin) return NextResponse.json({ error: "KPI rows are managed by HR" }, { status: 400 })
 
   const { projectName, deliverable, kpi, weight } = await req.json()
   const sum = await prisma.appraisalKpi.aggregate({ where: { appraisalId: id }, _sum: { weight: true } })

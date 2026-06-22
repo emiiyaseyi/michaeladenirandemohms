@@ -1,0 +1,6 @@
+email,projectName,deliverable,kpi,weight
+member1@example.com,Customer Data Platform,Ship v2 pipeline,Deliver ingestion + dashboards by Q2,40
+member1@example.com,Model Monitoring,Drift alerts in prod,Alerting live for 5 models,29
+member1@example.com,Internal Training,Run 2 workshops,2 sessions with >80% satisfaction,20
+member2@example.com,Customer Data Platform,Data quality checks,Automated checks on 10 datasets,50
+member2@example.com,Documentation,Runbooks,Publish 5 runbooks,39

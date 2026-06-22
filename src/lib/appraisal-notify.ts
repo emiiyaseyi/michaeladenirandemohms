@@ -2,6 +2,7 @@
 // All helpers are best-effort (never throw into the request path).
 import { prisma } from "@/lib/prisma"
 import { roleBasePath } from "@/lib/api-auth"
+import { sendEmail } from "@/lib/email"
 
 type NotifType = "INFO" | "SUCCESS" | "WARNING" | "DANGER"
 
@@ -76,4 +77,42 @@ export async function notifyFinalized(employeeId: string) {
     link: `${base}/performance/my`,
     type: "SUCCESS",
   }))
+}
+
+// Cycle closed → email every staff member with a finalized appraisal their final report
+// (score breakdown + management comment), plus an in-app notification. Best-effort.
+export async function notifyFinalReport(cycleId: string) {
+  try {
+    const cycle = await prisma.performanceCycle.findUnique({ where: { id: cycleId }, select: { name: true } })
+    const appraisals = await prisma.appraisal.findMany({
+      where: { cycleId, stage: "FINALIZED" },
+      select: {
+        employeeId: true, finalPercent: true, behavioural360Rev: true, jobScoreRev: true, coreScoreRev: true, managementComment: true,
+        employee: { select: { firstName: true, lastName: true, userId: true } },
+      },
+    })
+    const fmt = (v: number | null) => (v === null || v === undefined ? "—" : Math.round(v * 10) / 10 + "")
+    for (const a of appraisals) {
+      if (!a.employee?.userId) continue
+      await sendEmail({
+        eventKey: "appraisal_final_report",
+        toUserId: a.employee.userId,
+        variables: {
+          employeeName: `${a.employee.firstName} ${a.employee.lastName}`,
+          cycleName: cycle?.name ?? "the cycle",
+          finalPercent: fmt(a.finalPercent),
+          behaviouralScore: fmt(a.behavioural360Rev),
+          jobScore: fmt(a.jobScoreRev),
+          coreScore: fmt(a.coreScoreRev),
+          managementComment: a.managementComment?.trim() || "—",
+        },
+      })
+    }
+    await notifyEmployees(appraisals.map(a => a.employeeId), base => ({
+      title: "Appraisal result ready",
+      message: "Your performance appraisal cycle is closed. Your final report has been emailed to you.",
+      link: `${base}/performance/my`,
+      type: "SUCCESS",
+    }))
+  } catch { /* best-effort */ }
 }

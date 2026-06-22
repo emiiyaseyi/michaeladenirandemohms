@@ -95,6 +95,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Cycles",           href: "/performance/cycles",    permission: "canManageAppraisalCycles" },
       { label: "Assign Reviewers", href: "/performance/reviewers", permission: "canAssignReviewers" },
       { label: "Appraisals",       href: "/performance/appraisals" },
+      { label: "Leaderboards",     href: "/performance/leaderboards" },
     ],
   },
   {
@@ -104,6 +105,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "My Appraisal",     href: "/performance/my" },
       { label: "Peer Reviews",     href: "/performance/peer-reviews" },
       { label: "Team Lead Review", href: "/performance/team-lead-review" },
+      { label: "Leaderboards",     href: "/performance/leaderboards" },
     ],
   },
   { label: "Assets",    href: "/assets",    icon: "Package", roles: ["STAFF"] },
@@ -192,6 +194,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Peer Reviews",     href: "/performance/peer-reviews" },
       { label: "Team Lead Review", href: "/performance/team-lead-review" },
       { label: "To Review",        href: "/performance/to-review" },
+      { label: "Leaderboards",     href: "/performance/leaderboards" },
     ],
   },
   { label: "Assets",       href: "/assets",                icon: "Package",         roles: ["PROJECT_LEAD"] },

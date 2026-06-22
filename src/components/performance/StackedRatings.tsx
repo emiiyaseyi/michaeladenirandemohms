@@ -18,13 +18,14 @@ const cellInput: React.CSSProperties = { padding: "8px 10px", border: "1.5px sol
 // selector; the comment box takes the remaining (wider) space. Non-editable rows render
 // read-only. `onChange` fires for the viewer's editable row.
 export function StackedRatings({
-  questionText, scaleMax, rows, onChange, mode = "select",
+  questionText, scaleMax, rows, onChange, mode = "select", footer,
 }: {
   questionText: string
   scaleMax: number                // for "select" the top button; for "number" the max (e.g. KPI weight)
   rows: RaterRow[]
   onChange: (raterType: RaterRow["raterType"], patch: { score?: number | null; comment?: string }) => void
   mode?: "select" | "number"      // "number" = free score 0..scaleMax (e.g. KPI out of its weight)
+  footer?: React.ReactNode        // optional content under the rows (e.g. evidence link)
 }) {
   return (
     <div style={{ border: "1px solid var(--border)", borderRadius: 12, padding: 14, marginBottom: 12 }}>
@@ -74,6 +75,7 @@ export function StackedRatings({
           </div>
         ))}
       </div>
+      {footer && <div style={{ marginTop: 10 }}>{footer}</div>}
     </div>
   )
 }
