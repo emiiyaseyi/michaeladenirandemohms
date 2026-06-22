@@ -25,6 +25,7 @@ const STATUS_META = {
 const RESET_STATUS_META = {
   PENDING:  { bg: "#FFFBEB", color: "#B45309",  label: "Pending"  },
   RESOLVED: { bg: "var(--success-bg,#E6F4EA)", color: "var(--success,#1A7336)", label: "Resolved" },
+  REJECTED: { bg: "var(--danger-bg,#FEE2E2)", color: "#DC2626", label: "Dismissed" },
 }
 
 const ROLE_LABELS: Record<string, string> = { SUPER_ADMIN: "Super Admin", ADMIN: "Admin", STAFF: "Staff" }
@@ -51,6 +52,8 @@ export default function ProfileRequestsPage() {
   const [showTempPw, setShowTempPw] = useState(false)
   const [submittingR, setSubmittingR] = useState(false)
   const [resetError, setResetError] = useState("")
+  const [rejecting, setRejecting] = useState<any | null>(null)
+  const [submittingReject, setSubmittingReject] = useState(false)
 
   const loadProfile = useCallback(async () => {
     setLoadingP(true)
@@ -108,6 +111,20 @@ export default function ProfileRequestsPage() {
     setResolving(null)
     setTempPw("")
     setResetError("")
+    await loadResets()
+  }
+
+  async function rejectReset() {
+    if (!rejecting) return
+    setSubmittingReject(true)
+    const res = await fetch(`/api/auth/forgot-password/${rejecting.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "reject" }),
+    })
+    setSubmittingReject(false)
+    if (!res.ok) return
+    setRejecting(null)
     await loadResets()
   }
 
@@ -301,9 +318,14 @@ export default function ProfileRequestsPage() {
                         </div>
                       </div>
                       {r.status === "PENDING" && (
-                        <Button onClick={() => { setResolving(r); setTempPw(""); setResetError("") }} style={{ flexShrink: 0 }}>
-                          Reset Password
-                        </Button>
+                        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                          <Button variant="secondary" onClick={() => setRejecting(r)}>
+                            Dismiss
+                          </Button>
+                          <Button onClick={() => { setResolving(r); setTempPw(""); setResetError("") }}>
+                            Reset Password
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </Card>
@@ -350,6 +372,26 @@ export default function ProfileRequestsPage() {
                   <Button variant="secondary" onClick={() => setResolving(null)}>Cancel</Button>
                   <Button onClick={resolveReset} disabled={submittingR}>
                     <KeyRound size={13} /> Set Password
+                  </Button>
+                </div>
+              </div>
+            </Modal>
+          )}
+
+          {rejecting && (
+            <Modal open onClose={() => setRejecting(null)} title="Dismiss Reset Request" width={440}>
+              <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14 }}>{rejecting.user?.name ?? rejecting.email}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{rejecting.email}</div>
+                </div>
+                <p style={{ fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.6 }}>
+                  This closes the request without changing the employee's password — use this if they remembered it or the request was a mistake. They can submit a new request anytime.
+                </p>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+                  <Button variant="secondary" onClick={() => setRejecting(null)}>Cancel</Button>
+                  <Button onClick={rejectReset} disabled={submittingReject} style={{ background: "#EF4444", borderColor: "#EF4444" }}>
+                    <XCircle size={13} /> {submittingReject ? "Dismissing…" : "Dismiss Request"}
                   </Button>
                 </div>
               </div>
