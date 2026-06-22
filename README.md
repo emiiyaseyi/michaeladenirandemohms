@@ -72,7 +72,7 @@ npx prisma generate                     # regenerate the Prisma client
 npm run dev
 ```
 
-> **Note:** If a pull includes destructive schema changes (dropped columns, renamed fields), use the `--accept-data-loss` variant — it's less aggressive than `--force-reset` because it keeps data in tables you haven't touched.
+> **Note:** If a pull includes destructive schema changes (dropped columns, renamed fields), use the `--accept-data-loss` variant — it's less aggressive than `--force-reset` because it keeps data in tables you haven't touched
 
 
 ---
