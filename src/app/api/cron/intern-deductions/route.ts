@@ -59,27 +59,41 @@ export async function GET(req: NextRequest) {
   for (const intern of interns) {
     // Eligibility starts from account creation, not hireDate — unless an admin set an
     // explicit override (internReportStartDate) for this intern.
-    const reportStartDate = intern.internReportStartDate ?? intern.createdAt
-    if (weekStart < reportStartDate) continue
+    // Only skip if an explicit internReportStartDate is set and the week predates it.
+    // Falling back to createdAt is wrong — interns are often data-entered after they started.
+    if (intern.internReportStartDate && weekStart < intern.internReportStartDate) continue
 
+    // Only skip if a real submission exists — DRAFT does not count as submitted
     const existing = await prisma.internWeeklyReport.findFirst({
-      where: { employeeId: intern.id, weekStart },
+      where: { employeeId: intern.id, weekStart, status: { notIn: ["DRAFT"] } },
     })
-    if (existing) continue // submitted (or already MISSING from a prior run)
+    if (existing) continue // SUBMITTED / LATE / REVIEWED / MISSING already handled
 
     const missingDeduction = missedMondaysCount(weekStart, now) * missingWeeklyDeduction
 
-    const placeholder = await prisma.internWeeklyReport.create({
-      data: {
-        employeeId: intern.id,
-        weekStart,
-        weekEnd,
-        status: "MISSING",
-        pointDeduction: missingDeduction,
-        lateFlag: false,
-        submittedAt: null,
-      },
+    // If intern saved a draft but never submitted, overwrite it with MISSING
+    const draft = await prisma.internWeeklyReport.findFirst({
+      where: { employeeId: intern.id, weekStart, status: "DRAFT" },
     })
+    let placeholder: { id: string }
+    if (draft) {
+      placeholder = await prisma.internWeeklyReport.update({
+        where: { id: draft.id },
+        data: { status: "MISSING", pointDeduction: missingDeduction, lateFlag: false, submittedAt: null },
+      })
+    } else {
+      placeholder = await prisma.internWeeklyReport.create({
+        data: {
+          employeeId: intern.id,
+          weekStart,
+          weekEnd,
+          status: "MISSING",
+          pointDeduction: missingDeduction,
+          lateFlag: false,
+          submittedAt: null,
+        },
+      })
+    }
     createdCount++
 
     const internName = `${intern.firstName} ${intern.lastName}`
