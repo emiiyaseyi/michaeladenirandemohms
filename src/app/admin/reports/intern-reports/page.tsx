@@ -342,21 +342,6 @@ export default function AdminInternReportsPage() {
     a.click()
   }
 
-  const exportExcel = async () => {
-    const { utils, write } = await import("xlsx")
-    const headers = ["Intern", "Dept", "Hours", "PL Score", "Attendance", "Deduction", "Total Score", "Status", "Late"]
-    const wsData = [headers, ...getExportRows()]
-    const ws = utils.aoa_to_sheet(wsData)
-    ws["!cols"] = headers.map(() => ({ wch: 18 }))
-    const wb = utils.book_new()
-    utils.book_append_sheet(wb, ws, "Intern Reports")
-    const buf = write(wb, { bookType: "xlsx", type: "array" })
-    const blob = new Blob([buf], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
-    const a = document.createElement("a")
-    a.href = URL.createObjectURL(blob)
-    a.download = `intern-reports-${getPeriodLabel().replace(/[^a-zA-Z0-9]/g, "-")}.xlsx`
-    a.click()
-  }
 
   const exportPDF = async () => {
     const { jsPDF } = await import("jspdf")
@@ -426,6 +411,9 @@ export default function AdminInternReportsPage() {
   const exportAllZip = async () => {
     const JSZip = (await import("jszip")).default
     const zip = new JSZip()
+    const label = getPeriodLabel().replace(/[^a-zA-Z0-9]/g, "-")
+
+    // 1. Individual intern Excel reports
     for (const r of reports) {
       if (!["SUBMITTED","LATE","REVIEWED"].includes(r.status)) continue
       const { blob, filename } = generateInternReportExcel({
@@ -438,12 +426,66 @@ export default function AdminInternReportsPage() {
         dailyReflections: r.dailyReflections,
         generalReflection: r.generalReflection,
       })
-      zip.file(filename, await blob.arrayBuffer())
+      zip.file(`reports/${filename}`, await blob.arrayBuffer())
     }
+
+    // 2. Table summary CSV (all reports, unfiltered)
+    const tableHeaders = ["Intern", "Dept", "Hours", "PL Score", "Attendance", "Deduction", "Total Score", "Status", "Late"]
+    const tableRows = reports.map(r => [
+      `${r.employee?.firstName} ${r.employee?.lastName}`,
+      r.employee?.department?.name ?? "",
+      (r.totalHours ?? 0).toFixed(1),
+      (r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0),
+      r.attendanceRating ?? "",
+      r.pointDeduction ?? 0,
+      r.totalScore ?? "",
+      r.status,
+      r.lateFlag ? "Yes" : "No",
+    ])
+    const csv = [tableHeaders, ...tableRows].map(row => row.map(c => `"${c}"`).join(",")).join("\n")
+    zip.file(`intern-reports-${label}.csv`, csv)
+
+    // 3. Table summary PDF (all reports, unfiltered)
+    const { jsPDF } = await import("jspdf")
+    const { default: autoTable } = await import("jspdf-autotable")
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" })
+    const W = doc.internal.pageSize.width
+    const H = doc.internal.pageSize.height
+    const green: [number, number, number] = [22, 163, 74]
+    const white: [number, number, number] = [255, 255, 255]
+    const lightGreen: [number, number, number] = [240, 253, 244]
+    const HEADER_H = 36
+    doc.setFillColor(...green); doc.rect(0, 0, W, HEADER_H, "F")
+    doc.setTextColor(...white); doc.setFontSize(8); doc.setFont("helvetica", "normal")
+    doc.text("DATA SCIENCE NIGERIA — HRMS", 14, 11)
+    doc.setFontSize(18); doc.setFont("helvetica", "bold")
+    doc.text("Intern Reports", 14, 25)
+    doc.setFontSize(8); doc.setFont("helvetica", "normal")
+    doc.text(getPeriodLabel(), W - 14, 18, { align: "right" })
+    doc.text(`Generated: ${new Date().toLocaleString("en-NG", { dateStyle: "medium", timeStyle: "short" })}`, W - 14, 26, { align: "right" })
+    autoTable(doc, {
+      head: [tableHeaders],
+      body: tableRows.map(r => r.map(v => String(v ?? ""))),
+      startY: HEADER_H + 6,
+      theme: "grid",
+      styles: { fontSize: 8, cellPadding: { top: 3, right: 4, bottom: 3, left: 4 }, overflow: "linebreak", valign: "middle", lineColor: [220, 220, 220] as [number,number,number], lineWidth: 0.1 },
+      headStyles: { fillColor: green, textColor: white, fontStyle: "bold", fontSize: 8.5 },
+      alternateRowStyles: { fillColor: lightGreen },
+      margin: { top: HEADER_H + 6, right: 12, bottom: 18, left: 12 },
+    })
+    const totalPages = (doc as any).internal.getNumberOfPages()
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i); doc.setFillColor(248, 250, 248); doc.rect(0, H - 12, W, 12, "F")
+      doc.setFontSize(7); doc.setTextColor(80, 80, 80)
+      doc.text("Confidential — Data Science Nigeria HRMS", 12, H - 5)
+      doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 5, { align: "center" })
+    }
+    zip.file(`intern-reports-${label}.pdf`, doc.output("arraybuffer"))
+
     const zipBlob = await zip.generateAsync({ type: "blob" })
     const a = document.createElement("a")
     a.href = URL.createObjectURL(zipBlob)
-    a.download = `intern-reports-${getPeriodLabel().replace(/[^a-zA-Z0-9]/g, "-")}.zip`
+    a.download = `intern-reports-${label}.zip`
     a.click()
   }
 
@@ -459,18 +501,16 @@ export default function AdminInternReportsPage() {
           </div>
           <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>View all intern reports, fill attendance ratings, and track weekly performance.</p>
         </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
           <button onClick={exportCSV} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
             <Download size={14} /> CSV
-          </button>
-          <button onClick={exportExcel} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
-            <Download size={14} /> Excel
           </button>
           <button onClick={exportPDF} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--muted)", border: "1px solid var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600 }}>
             <Download size={14} /> PDF
           </button>
+          <div style={{ width: 1, height: 28, background: "var(--border)" }} />
           <button onClick={exportAllZip} style={{ display: "flex", alignItems: "center", gap: 6, padding: "9px 16px", background: "var(--primary)", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "white" }}>
-            <Download size={14} /> Download All (.zip)
+            <Download size={14} /> All Reports (.zip)
           </button>
         </div>
       </div>
