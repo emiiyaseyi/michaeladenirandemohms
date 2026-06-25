@@ -58,8 +58,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { appraisalId: id, raterId: eid, raterType: raterType as any, section: section as any },
   })
 
-  // Team-lead (MEMBER) reviews lock after the first submission.
-  const locked = raterType === "MEMBER" && myRatings.length > 0
+  // Reviews lock after submission (admin can reopen):
+  //  - MEMBER (team-lead review): locked once any rating exists.
+  //  - PEER: locked once the peer assignment is marked SUBMITTED.
+  const myPeer = appraisal.peers.find(p => p.peerId === eid)
+  const locked =
+    (raterType === "MEMBER" && myRatings.length > 0) ||
+    (raterType === "PEER" && myPeer?.status === "SUBMITTED")
 
   return NextResponse.json({
     subject: appraisal.employee,

@@ -646,6 +646,10 @@ model Appraisal {
   reviewerComments        String?
   counterReviewerComments String?
   managementComment       String?   // admin/management final comment per staff (Section VII) — admin-only, survives reopen
+  // Team-lead upward review — LLM synthesis of the lead's team-member reviews (raw rows stay sealed).
+  teamLeadReviewSummary   String?   // generated markdown report (lead + HR see this; never the raw rows)
+  teamLeadReviewSummaryAt DateTime?
+  teamLeadReviewCount     Int?      // # of member raters that fed in (gate: needs >= 3 to generate)
   // Section V — Query (negative points). Counts entered by staff (self) + HR; points auto-derived from bands.
   queryWarnings      Int?      // staff self count
   queryBadges        Int?

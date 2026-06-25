@@ -61,6 +61,7 @@ type Appraisal = {
   coreScoreEmp: number | null; coreScoreRev: number | null
   finalEmployeePercent: number | null; finalReviewerPercent: number | null
   finalPercent: number | null; teamLeadPercent: number | null
+  teamLeadReviewSummary: string | null; teamLeadReviewSummaryAt: string | null; teamLeadReviewCount: number | null
   finalizedAt: string | null
 }
 
@@ -273,6 +274,66 @@ function ManagementCommentCard({ a, refetch }: { a: Appraisal; refetch: () => Pr
   )
 }
 
+// ---- Admin: reopen a submitted review so the person can re-do it ----
+// Once reopened, the staff/peer/team-member can edit + re-submit; it locks again on submit.
+function ReopenCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<void> }) {
+  const [busy, setBusy] = useState<string | null>(null)
+  if (a.stage === "FINALIZED") {
+    return (
+      <SectionCard icon={<RotateCcw size={17} />} title="Reopen for editing"
+        subtitle="This appraisal is finalized. Use “Reopen” below to unlock it, then you can reopen individual reviews.">
+        <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Finalized — reopen the appraisal first.</p>
+      </SectionCard>
+    )
+  }
+
+  const selfSubmitted = ["SUBMITTED", "LEAD_REVIEWING", "LEAD_DONE"].includes(a.stage)
+  const submittedPeers = a.peers.filter(p => p.status === "SUBMITTED")
+  const memberRaters = Array.from(new Set(a.ratings.filter(r => r.raterType === "MEMBER" && r.raterId).map(r => r.raterId as string)))
+
+  async function reopen(label: string, body: Record<string, string>) {
+    setBusy(label)
+    try {
+      const res = await jpost(`/api/performance/appraisals/${a.id}/reopen-review`, body)
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(d.error ?? "Reopen failed"); return }
+      await refetch()
+    } finally { setBusy(null) }
+  }
+
+  const nothing = !selfSubmitted && submittedPeers.length === 0 && memberRaters.length === 0
+  const Row = ({ label, sub, busyKey, onClick }: { label: string; sub?: string; busyKey: string; onClick: () => void }) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "9px 0", borderBottom: "1px solid var(--border)" }}>
+      <div><div style={{ fontSize: 13, fontWeight: 600 }}>{label}</div>{sub && <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{sub}</div>}</div>
+      <button onClick={onClick} disabled={busy === busyKey} style={{ ...ghostBtn, opacity: busy === busyKey ? 0.6 : 1 }}>
+        {busy === busyKey ? <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> : <RotateCcw size={13} />} Reopen
+      </button>
+    </div>
+  )
+
+  return (
+    <SectionCard icon={<RotateCcw size={17} />} title="Reopen for editing"
+      subtitle="Send a submitted self-assessment, peer review or team-member review back for re-doing. It locks again once re-submitted.">
+      {nothing ? (
+        <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Nothing has been submitted yet.</p>
+      ) : (
+        <div>
+          {selfSubmitted && (
+            <Row label="Staff self-assessment" sub="Resets the appraisal to Draft so the staff can edit (cycle must be Open)." busyKey="SELF" onClick={() => reopen("SELF", { target: "SELF" })} />
+          )}
+          {submittedPeers.map((p, i) => (
+            <Row key={p.id} label={`Peer reviewer ${i + 1} — ${fullName(p.peer)}`} sub="Sets this peer review back to “to do”." busyKey={`PEER:${p.peerId}`} onClick={() => reopen(`PEER:${p.peerId}`, { target: "PEER", peerId: p.peerId })} />
+          ))}
+          {memberRaters.map((rid, i) => (
+            <Row key={rid} label={`Team member ${i + 1} (upward review)`} sub="Clears their team-lead review so they can re-rate." busyKey={`MEMBER:${rid}`} onClick={() => reopen(`MEMBER:${rid}`, { target: "MEMBER", raterId: rid })} />
+          ))}
+        </div>
+      )}
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </SectionCard>
+  )
+}
+
 // ---- 360 / Peer ratings ----
 function RatingsCard({ a }: { a: Appraisal }) {
   const groups: { key: string; label: string }[] = [
@@ -385,24 +446,6 @@ function StackedReviewsCard({ a, questions, refetch }: {
     return rows
   }
 
-  // LEADERSHIP (upward) rows: one read-only row per distinct team-member rater.
-  function memberRowsFor(q: Question): RaterRow[] {
-    const members = a.ratings.filter(r => r.raterType === "MEMBER" && r.questionId === q.id)
-    const seen: string[] = []
-    for (const r of members) {
-      const key = r.raterId ?? ""
-      if (!seen.includes(key)) seen.push(key)
-    }
-    return members.map(r => ({
-      raterType: "MEMBER" as RaterRow["raterType"],
-      label: `Team member ${seen.indexOf(r.raterId ?? "") + 1}`,
-      score: r.score ?? null, comment: r.comment ?? null, editable: false,
-    }))
-  }
-
-  const leadershipQs = questions.filter(q => q.section === "LEADERSHIP").sort((x, y) => x.order - y.order)
-  const hasMemberRatings = a.ratings.some(r => r.raterType === "MEMBER")
-
   function onChange(qid: string, patch: { score?: number | null; comment?: string }) {
     setAdminEdits(s => {
       const cur = s[qid] ?? { score: null, comment: "" }
@@ -474,23 +517,74 @@ function StackedReviewsCard({ a, questions, refetch }: {
           </SectionCard>
         )
       })}
-      <SectionCard icon={<ShieldCheck size={17} />} title="Team Lead Review (upward)"
-        subtitle="Team-member upward reviews of this appraisal's subject (read-only).">
-        {leadershipQs.length === 0 || !hasMemberRatings ? (
-          <p style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>
-            No team-member (upward) reviews — this appraisal&apos;s subject is not a team lead, or none submitted yet.
-          </p>
-        ) : leadershipQs.map(q => (
-          <StackedRatings
-            key={q.id}
-            questionText={q.text}
-            scaleMax={q.scaleMax}
-            rows={memberRowsFor(q)}
-            onChange={() => {}}
-          />
-        ))}
-      </SectionCard>
+      <TeamLeadReportCard a={a} refetch={refetch} />
     </>
+  )
+}
+
+// Renders the LLM synthesis of a lead's upward reviews. Raw member rows are sealed —
+// this is the only window onto upward feedback, for both HR and the lead.
+function TeamLeadReportCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<void> }) {
+  const [busy, setBusy] = useState(false)
+  const count = a.teamLeadReviewCount
+  const MIN = 3
+
+  async function regenerate() {
+    setBusy(true)
+    try {
+      const res = await jpost(`/api/performance/appraisals/${a.id}/team-lead-report`, {})
+      const d = await res.json().catch(() => ({}))
+      if (!res.ok) { alert(d.error ?? "Failed"); return }
+      await refetch()
+    } finally { setBusy(false) }
+  }
+
+  let body: React.ReactNode
+  if (count === null || count === undefined || count === 0) {
+    body = <p style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>No upward reviews — this subject isn&apos;t a team lead, or none submitted yet.</p>
+  } else if (count < MIN) {
+    body = <p style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>Held for anonymity — a report is generated only once at least {MIN} team members submit (currently {count}).</p>
+  } else if (a.teamLeadReviewSummary) {
+    body = (
+      <>
+        <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 10 }}>
+          Based on {count} anonymous reviews{a.teamLeadPercent != null ? ` · overall upward score ${Math.round(a.teamLeadPercent)}%` : ""}
+          {a.teamLeadReviewSummaryAt ? ` · generated ${format(new Date(a.teamLeadReviewSummaryAt), "dd MMM yyyy, HH:mm")}` : ""}
+        </div>
+        <Markdownish text={a.teamLeadReviewSummary} />
+      </>
+    )
+  } else {
+    body = <p style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>{count} reviews received, but no report yet. Click Regenerate (requires the OpenAI key to be configured).</p>
+  }
+
+  return (
+    <SectionCard icon={<ShieldCheck size={17} />} title="Team Lead Review — synthesis (upward)"
+      subtitle="AI summary of anonymous team-member feedback. Individual reviews are sealed from everyone; only this synthesis is shown.">
+      {body}
+      <div style={{ marginTop: 12 }}>
+        <button onClick={regenerate} disabled={busy} style={{ ...ghostBtn, opacity: busy ? 0.6 : 1 }}>
+          {busy ? <Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> : <RotateCcw size={13} />} Regenerate
+        </button>
+      </div>
+    </SectionCard>
+  )
+}
+
+// Tiny Markdown-ish renderer: "## " headings bold, "- " bullets, blank lines as gaps.
+function Markdownish({ text }: { text: string }) {
+  const lines = text.split(/\r?\n/)
+  return (
+    <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--foreground)" }}>
+      {lines.map((ln, i) => {
+        const t = ln.trim()
+        if (!t) return <div key={i} style={{ height: 8 }} />
+        if (t.startsWith("## ")) return <div key={i} style={{ fontWeight: 800, fontSize: 13.5, marginTop: 10, marginBottom: 2 }}>{t.slice(3)}</div>
+        if (t.startsWith("# ")) return <div key={i} style={{ fontWeight: 800, fontSize: 14, marginTop: 10 }}>{t.slice(2)}</div>
+        if (t.startsWith("- ") || t.startsWith("* ")) return <div key={i} style={{ paddingLeft: 14 }}>• {t.slice(2)}</div>
+        return <div key={i}>{t}</div>
+      })}
+    </div>
   )
 }
 
@@ -765,6 +859,7 @@ export default function AppraisalDetailPage() {
       <KpisCard a={a} refetch={refetch} />
       <CommentsCard a={a} refetch={refetch} />
       <ManagementCommentCard a={a} refetch={refetch} />
+      <ReopenCard a={a} refetch={refetch} />
       <ActionBar a={a} refetch={refetch} />
 
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>

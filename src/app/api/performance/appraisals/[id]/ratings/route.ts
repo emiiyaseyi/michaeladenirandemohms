@@ -54,6 +54,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     isAnonymous = false
   } else if (raterType === "PEER" && section === "BEHAVIOURAL") {
     allowed = rel.isPeer && stage === "OPEN"
+    // Peer reviews lock after submission — no edits once submitted (admin can reopen).
+    if (allowed) {
+      const mine = appraisal.peers.find(p => p.peerId === eid)
+      if (mine?.status === "SUBMITTED") return NextResponse.json({ error: "You have already submitted this peer review." }, { status: 400 })
+    }
   } else if (raterType === "MEMBER" && section === "LEADERSHIP") {
     // caller must be a direct report (manager/projectLead) of the subject
     const me = await prisma.employee.findUnique({ where: { id: eid }, select: { managerId: true, projectLeadId: true } })
