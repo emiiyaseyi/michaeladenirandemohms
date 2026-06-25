@@ -1158,55 +1158,64 @@ export default function InternReportPage() {
         {(() => {
           const visibleReports = pastStatusFilter ? reports.filter(r => r.status === pastStatusFilter) : reports
           return loading ? (
-          <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
-        ) : visibleReports.length === 0 ? (
-          <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>{reports.length === 0 ? "No reports submitted yet." : "No reports match this filter."}</div>
-        ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 0 }}>
-            {visibleReports.map(r => (
-              <div key={r.id} style={{ padding: "14px 20px", borderBottom: "1px solid var(--border)", borderRight: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>
-                    {format(new Date(r.weekStart), "MMM d")} – {format(new Date(r.weekEnd), "MMM d")}
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
-                    <StatusBadge status={r.status} />
-                    <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{(r.totalHours ?? 0).toFixed(1)}h</span>
-                    {r.totalScore !== undefined && r.productivityRating !== null ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, color: "var(--primary)" }}>
-                        {r.attendanceRating !== null
-                          ? `${Math.round((r.totalScore / 12) * 100)}%`
-                          : `PL: ${Math.round(((r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)) / 9 * 100)}% (att. pending)`}
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <button onClick={() => setViewReport(r)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", color: "var(--primary)", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px" }}>
-                    <Eye size={12} /> View
-                  </button>
-                  {["SUBMITTED","LATE","REVIEWED"].includes(r.status) && (
-                    <button onClick={() => {
-                      const { blob, filename } = generateInternReportExcel({
-                        firstName: r.employee?.firstName ?? "",
-                        lastName:  r.employee?.lastName  ?? "",
-                        weekNumber: r.weekNumber,
-                        weekStart: r.weekStart,
-                        weekEnd:   r.weekEnd,
-                        taskDescriptions: r.taskDescriptions,
-                        dailyReflections: r.dailyReflections,
-                        generalReflection: r.generalReflection,
-                      })
-                      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click()
-                    }} style={{ background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", color: "white", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px" }}>
-                      <Download size={12} /> Download
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )
+            <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
+          ) : visibleReports.length === 0 ? (
+            <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>{reports.length === 0 ? "No reports submitted yet." : "No reports match this filter."}</div>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                <thead>
+                  <tr style={{ background: "var(--muted)" }}>
+                    {["Week", "Status", "Hours", "Score", "Actions"].map((h, i) => (
+                      <th key={h} style={{ padding: "10px 16px", textAlign: i === 4 ? "right" : "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap", ...(i === 4 ? { position: "sticky", right: 0, background: "var(--muted)", zIndex: 1 } : {}) }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleReports.map((r, ri) => (
+                    <tr key={r.id} style={{ borderTop: "1px solid var(--border)", background: ri % 2 === 0 ? "transparent" : "rgba(0,0,0,0.01)" }}>
+                      <td style={{ padding: "11px 16px", fontWeight: 600, whiteSpace: "nowrap" }}>
+                        {format(new Date(r.weekStart), "MMM d")} – {format(new Date(r.weekEnd), "MMM d, yyyy")}
+                      </td>
+                      <td style={{ padding: "11px 16px" }}><StatusBadge status={r.status} /></td>
+                      <td style={{ padding: "11px 16px", color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{(r.totalHours ?? 0).toFixed(1)}h</td>
+                      <td style={{ padding: "11px 16px", fontWeight: 700, color: "var(--primary)", whiteSpace: "nowrap" }}>
+                        {r.productivityRating !== null
+                          ? r.attendanceRating !== null
+                            ? `${Math.round(((r.totalScore ?? 0) / 12) * 100)}%`
+                            : `PL: ${Math.round(((r.productivityRating ?? 0) + (r.ldRating ?? 0) + (r.reflectionsRating ?? 0)) / 9 * 100)}% (att. pending)`
+                          : <span style={{ color: "var(--muted-foreground)", fontWeight: 400 }}>–</span>}
+                      </td>
+                      <td style={{ padding: "11px 16px", position: "sticky", right: 0, background: ri % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>
+                        <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                          <button onClick={() => setViewReport(r)} style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", color: "var(--primary)", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px", whiteSpace: "nowrap" }}>
+                            <Eye size={12} /> View
+                          </button>
+                          {["SUBMITTED","LATE","REVIEWED"].includes(r.status) && (
+                            <button onClick={() => {
+                              const { blob, filename } = generateInternReportExcel({
+                                firstName: r.employee?.firstName ?? "",
+                                lastName:  r.employee?.lastName  ?? "",
+                                weekNumber: r.weekNumber,
+                                weekStart: r.weekStart,
+                                weekEnd:   r.weekEnd,
+                                taskDescriptions: r.taskDescriptions,
+                                dailyReflections: r.dailyReflections,
+                                generalReflection: r.generalReflection,
+                              })
+                              const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = filename; a.click()
+                            }} style={{ background: "var(--primary)", border: "none", borderRadius: 6, cursor: "pointer", color: "white", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, padding: "5px 10px", whiteSpace: "nowrap" }}>
+                              <Download size={12} /> Download
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         })()}
       </div>
 
@@ -1239,26 +1248,25 @@ export default function InternReportPage() {
                 )}
               </div>
               {top3.length > 0 && (() => {
-                const byRank: Record<number, any> = {}
-                top3.forEach((r: any) => { byRank[r.rank] = r })
-                const podiumOrder = [byRank[2], byRank[1], byRank[3]].filter(Boolean)
-                const cfg: Record<number, { lift: number; size: number; ribbon: string; medal: string; numCol: string }> = {
-                  1: { lift: 36, size: 56, ribbon: "#FCD34D", medal: "#F59E0B", numCol: "#78350F" },
-                  2: { lift: 18, size: 46, ribbon: "#CBD5E1", medal: "#94A3B8", numCol: "#1E293B" },
-                  3: { lift: 0,  size: 40, ribbon: "#C97B3A", medal: "#92400E", numCol: "#FEF3C7" },
-                }
+                const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean)
+                const visualCfg = [
+                  { lift: 18, size: 46, ribbon: "#CBD5E1", medal: "#94A3B8", numCol: "#1E293B", pos: 2 },
+                  { lift: 36, size: 56, ribbon: "#FCD34D", medal: "#F59E0B", numCol: "#78350F", pos: 1 },
+                  { lift: 0,  size: 40, ribbon: "#C97B3A", medal: "#92400E", numCol: "#FEF3C7", pos: 3 },
+                ]
+                const ringCol = ["#9CA3AF", "#F59E0B", "#CD7C2F"]
                 return (
                   <div style={{ display: "flex", gap: 18, alignItems: "flex-end", paddingBottom: 4 }}>
-                    {podiumOrder.map((row: any) => {
-                      const c = cfg[row.rank]
+                    {podiumOrder.map((row: any, vi: number) => {
+                      const c = visualCfg[vi]
                       return (
                         <div key={row.employeeId} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, marginBottom: c.lift }}>
-                          <div style={{ width: c.size, height: c.size, borderRadius: "50%", background: avatarColor(row.name), border: `3px solid ${ringColor(row.rank)}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(c.size * 0.3), fontWeight: 800, color: "white", boxShadow: "0 4px 14px rgba(0,0,0,0.35)", flexShrink: 0 }}>
+                          <div style={{ width: c.size, height: c.size, borderRadius: "50%", background: avatarColor(row.name), border: `3px solid ${ringCol[vi]}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(c.size * 0.3), fontWeight: 800, color: "white", boxShadow: "0 4px 14px rgba(0,0,0,0.35)", flexShrink: 0 }}>
                             {lbInitials(row.name)}
                           </div>
                           <div style={{ width: 3, height: 14, background: c.ribbon, marginTop: 2 }} />
                           <div style={{ width: 26, height: 26, borderRadius: "50%", background: c.medal, border: "2px solid rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: c.numCol, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-                            {row.rank}
+                            {c.pos}
                           </div>
                           <div style={{ textAlign: "center", marginTop: 6 }}>
                             <div style={{ fontSize: 11, fontWeight: 700, maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.name.split(" ")[0]}</div>
@@ -1347,7 +1355,7 @@ export default function InternReportPage() {
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={() => setViewReport(null)}>
           <div style={{ background: "var(--card)", borderRadius: 16, maxWidth: "min(1100px, 95vw)", width: "100%", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column" }} onClick={e => e.stopPropagation()}>
             <div style={{ flex: 1, overflow: "auto" }}>
-            <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--card)", zIndex: 1 }}>
+            <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center", position: "sticky", top: 0, background: "var(--card)", zIndex: 20 }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>
                   {format(new Date(viewReport.weekStart), "MMM d")} – {format(new Date(viewReport.weekEnd), "MMM d, yyyy")}
@@ -1418,8 +1426,8 @@ export default function InternReportPage() {
                       )
                     })}
                     {/* Category totals row */}
-                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)", position: "sticky", bottom: 0, zIndex: 2 }}>
-                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, position: "sticky", left: 0, background: "var(--muted)", zIndex: 3 }}>Total</td>
+                    <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
+                      <td style={{ padding: "8px 12px", fontWeight: 800, fontSize: 12, position: "sticky", left: 0, background: "var(--muted)", zIndex: 1 }}>Total</td>
                       {CATEGORIES.map(cat => {
                         const td = viewReport.taskDescriptions as any
                         const catTotMins = DAYS_LIST.reduce((s, d) => {

@@ -148,7 +148,9 @@ export async function GET(req: NextRequest) {
     scored.sort((a, b) => {
       if (a.attendancePending && !b.attendancePending) return 1
       if (!a.attendancePending && b.attendancePending) return -1
-      return b.totalScore - a.totalScore
+      if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore
+      if (b.streak !== a.streak) return b.streak - a.streak
+      return a.name.localeCompare(b.name)
     })
     assignRanks(scored)
     return NextResponse.json({ leaderboard: scored, weekStart: weekStart.toISOString(), mode: "week" })
@@ -196,7 +198,9 @@ export async function GET(req: NextRequest) {
   scored.sort((a, b) => {
     if (a.attendancePending && !b.attendancePending) return 1
     if (!a.attendancePending && b.attendancePending) return -1
-    return b.avgScore - a.avgScore
+    if (b.avgScore !== a.avgScore) return b.avgScore - a.avgScore
+    if (b.streak !== a.streak) return b.streak - a.streak
+    return a.name.localeCompare(b.name)
   })
   assignRanks(scored)
 

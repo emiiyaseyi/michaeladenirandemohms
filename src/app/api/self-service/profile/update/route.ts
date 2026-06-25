@@ -11,7 +11,7 @@ const UPDATABLE_FIELDS = [
   "nin", "aiMembership",
 ]
 
-// Fields that skip the approval workflow and are saved directly
+// Fields applied immediately without going through the change block
 const DIRECT_FIELDS = ["nin", "aiMembership"]
 
 export async function PATCH(req: NextRequest) {
@@ -37,7 +37,6 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
-  // Apply direct fields immediately (no approval workflow)
   if (Object.keys(directChanges).length > 0) {
     await prisma.employee.update({ where: { id: empId }, data: directChanges })
     await logAudit({
@@ -51,53 +50,16 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ direct: true, message: "Profile updated" })
   }
 
-  // SUPER_ADMIN: apply directly, no approval needed
-  if (user.role === "SUPER_ADMIN") {
-    await prisma.employee.update({ where: { id: empId }, data: changes })
-    await logAudit({
-      req, actor: user, action: "PROFILE_SELF_UPDATE", entity: "Employee", entityId: empId,
-      targetUserId: user.id,
-      newValues: changes,
-    })
-    return NextResponse.json({ direct: true, message: "Profile updated" })
+  if (typeof changes.dateOfBirth === "string" && changes.dateOfBirth) {
+    changes.dateOfBirth = new Date(changes.dateOfBirth)
   }
 
-  // Cancel any existing PENDING request before creating a new one
-  await prisma.profileUpdateRequest.deleteMany({
-    where: { employeeId: empId, status: "PENDING" },
-  })
-
-  const request = await prisma.profileUpdateRequest.create({
-    data: { employeeId: empId, changes },
-  })
-
+  await prisma.employee.update({ where: { id: empId }, data: changes })
   await logAudit({
-    req, actor: user, action: "PROFILE_REQUEST_SUBMIT", entity: "ProfileUpdateRequest", entityId: request.id,
+    req, actor: user, action: "PROFILE_SELF_UPDATE", entity: "Employee", entityId: empId,
     targetUserId: user.id,
-    newValues: { changes },
+    newValues: changes,
   })
 
-  // ADMIN requests → notify only SUPER_ADMIN
-  // Staff/TL requests → notify ADMIN + SUPER_ADMIN (excluding submitter)
-  const reviewers = await prisma.user.findMany({
-    where: { role: { in: ["SUPER_ADMIN"] }, isActive: true, NOT: { id: user.id } },
-    select: { id: true },
-  })
-  if (reviewers.length > 0) {
-    const emp = await prisma.employee.findUnique({ where: { id: empId }, select: { firstName: true, lastName: true } })
-    await prisma.notification.createMany({
-      data: reviewers.map(a => ({
-        userId: a.id,
-        employeeId: empId!,
-        title: "Profile Update Request",
-        message: `${emp?.firstName} ${emp?.lastName} has submitted a profile update request for review.`,
-        type: "INFO" as const,
-        link: "/admin/people/profile-requests",
-      })),
-    })
-    // profile_update_request email dropped (R6) — reviewers see new requests in their
-    // queue at /admin/people/profile-requests. In-app notification suffices.
-  }
-
-  return NextResponse.json({ request, message: "Profile update submitted for review" })
+  return NextResponse.json({ direct: true, message: "Profile updated" })
 }

@@ -210,33 +210,6 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       NOTE(),
   },
 
-  profile_update_approved: {
-    name: "Profile Update Approved",
-    category: "People",
-    description: "Sent to an employee when their profile update request is approved.",
-    variables: ["employeeName"],
-    defaultSubject: "Your profile update has been approved",
-    defaultBody:
-
-      H("Profile Update Approved") +
-      P("Your profile update request has been reviewed and approved. Your profile has been updated.") +
-      NOTE(),
-  },
-
-  profile_update_rejected: {
-    name: "Profile Update Not Approved",
-    category: "People",
-    description: "Sent to an employee when their profile update request is rejected.",
-    variables: ["employeeName", "reason"],
-    defaultSubject: "Your profile update request was not approved",
-    defaultBody:
-
-      H("Profile Update Not Approved") +
-      P("Your profile update request was reviewed and could not be approved.") +
-      P("Reason: <em>{{reason}}</em>") +
-      NOTE("Contact HR if you have questions."),
-  },
-
   // ── Admin ──────────────────────────────────────────────────────────────────
 
   admin_access_granted: {

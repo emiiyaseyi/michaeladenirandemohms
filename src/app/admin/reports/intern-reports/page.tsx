@@ -1093,7 +1093,9 @@ export default function AdminInternReportsPage() {
         const depts = [...new Set(leaderboard.map((r: any) => r.dept).filter(Boolean))] as string[]
         const filtered = lbDeptFilter ? leaderboard.filter((r: any) => r.dept === lbDeptFilter) : leaderboard
         const tlPct = (row: any) => lbMode === "week" ? row.plScorePct : row.avgPlPct
-        const attPct = (row: any) => lbMode === "week" ? row.attendanceScorePct : row.avgAttPct
+        const attRaw = (row: any) => lbMode === "week"
+          ? (row.attendanceRating != null ? `${row.attendanceRating}/3` : null)
+          : (row.avgAttScore != null ? `${(row.avgAttScore as number).toFixed(1)}/3` : null)
         const totPct = (row: any) => lbMode === "week" ? row.totalScorePct : row.avgScorePct
         const isPending = (row: any) => row.attendancePending
         const curLbMonday = (() => {
@@ -1115,26 +1117,27 @@ export default function AdminInternReportsPage() {
                 </div>
                 {/* Podium: #2 left · #1 center+highest · #3 right */}
                 {(() => {
-                  const byRank: Record<number, any> = {}
-                  top3.forEach((r: any) => { byRank[r.rank] = r })
-                  const podiumOrder = [byRank[2], byRank[1], byRank[3]].filter(Boolean)
-                  const cfg: Record<number, { lift: number; size: number; ribbon: string; medal: string; numCol: string }> = {
-                    1: { lift: 36, size: 56, ribbon: "#FCD34D", medal: "#F59E0B", numCol: "#78350F" },
-                    2: { lift: 18, size: 46, ribbon: "#CBD5E1", medal: "#94A3B8", numCol: "#1E293B" },
-                    3: { lift: 0,  size: 40, ribbon: "#C97B3A", medal: "#92400E", numCol: "#FEF3C7" },
-                  }
+                  // Positional podium: array order decides 1st/2nd/3rd regardless of tied ranks.
+                  // Display order: silver (left), gold (center), bronze (right).
+                  const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean)
+                  const visualCfg = [
+                    { lift: 18, size: 46, ribbon: "#CBD5E1", medal: "#94A3B8", numCol: "#1E293B", pos: 2 },
+                    { lift: 36, size: 56, ribbon: "#FCD34D", medal: "#F59E0B", numCol: "#78350F", pos: 1 },
+                    { lift: 0,  size: 40, ribbon: "#C97B3A", medal: "#92400E", numCol: "#FEF3C7", pos: 3 },
+                  ]
+                  const ringCol = ["#9CA3AF", "#F59E0B", "#CD7C2F"]
                   return (
                     <div style={{ display: "flex", gap: 18, alignItems: "flex-end", paddingBottom: 4 }}>
-                      {podiumOrder.map((row: any) => {
-                        const c = cfg[row.rank]
+                      {podiumOrder.map((row: any, vi: number) => {
+                        const c = visualCfg[vi]
                         return (
                           <div key={row.employeeId} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0, marginBottom: c.lift }}>
-                            <div style={{ width: c.size, height: c.size, borderRadius: "50%", background: avatarColor(row.name), border: `3px solid ${ringColor(row.rank)}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(c.size * 0.3), fontWeight: 800, color: "white", boxShadow: "0 4px 14px rgba(0,0,0,0.35)", flexShrink: 0 }}>
+                            <div style={{ width: c.size, height: c.size, borderRadius: "50%", background: avatarColor(row.name), border: `3px solid ${ringCol[vi]}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: Math.round(c.size * 0.3), fontWeight: 800, color: "white", boxShadow: "0 4px 14px rgba(0,0,0,0.35)", flexShrink: 0 }}>
                               {lbInitials(row.name)}
                             </div>
                             <div style={{ width: 3, height: 14, background: c.ribbon, marginTop: 2 }} />
                             <div style={{ width: 26, height: 26, borderRadius: "50%", background: c.medal, border: "2px solid rgba(255,255,255,0.35)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 900, color: c.numCol, boxShadow: "0 2px 8px rgba(0,0,0,0.25)" }}>
-                              {row.rank}
+                              {c.pos}
                             </div>
                             <div style={{ textAlign: "center", marginTop: 6 }}>
                               <div style={{ fontSize: 11, fontWeight: 700, maxWidth: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{row.name.split(" ")[0]}</div>
@@ -1183,7 +1186,7 @@ export default function AdminInternReportsPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: "var(--muted)" }}>
-                        {["Rank", "Member", "Dept", "🔥 Streak", "PL %", "Att %", "Total %"].map(h => (
+                        {["Rank", "Member", "Dept", "🔥 Streak", "PL %", "Att", "Total %"].map(h => (
                           <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -1203,7 +1206,7 @@ export default function AdminInternReportsPage() {
                             <td style={{ padding: "11px 14px", color: "var(--muted-foreground)", fontSize: 12 }}>{row.dept}</td>
                             <td style={{ padding: "11px 14px", fontWeight: 600 }}>{row.streak > 0 ? `${row.streak}w` : "–"}</td>
                             <td style={{ padding: "11px 14px", fontWeight: 600 }}>{tlPct(row) != null ? `${tlPct(row)}%` : "–"}</td>
-                            <td style={{ padding: "11px 14px", color: isPending(row) ? "var(--muted-foreground)" : "inherit" }}>{isPending(row) ? "Pending" : attPct(row) != null ? `${attPct(row)}%` : "–"}</td>
+                            <td style={{ padding: "11px 14px", color: isPending(row) ? "var(--muted-foreground)" : "inherit" }}>{isPending(row) ? "Pending" : attRaw(row) ?? "–"}</td>
                             <td style={{ padding: "11px 14px", fontWeight: 700, color: "var(--primary)" }}>{isPending(row) ? "–" : totPct(row) != null ? `${totPct(row)}%` : "–"}</td>
                           </tr>
                         )
