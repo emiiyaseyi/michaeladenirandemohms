@@ -6,7 +6,7 @@ import Avatar from "@/components/ui/Avatar"
 import { useRouter } from "next/navigation"
 import {
   User, Phone, MapPin, Heart,
-  Save, ArrowLeft, Camera, CheckCircle, AlertCircle, Loader2, Clock,
+  Save, ArrowLeft, Camera, CheckCircle, AlertCircle, Loader2,
 } from "lucide-react"
 
 const fi = {
@@ -41,7 +41,6 @@ export default function EditProfilePage() {
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState("")
   const [form, setForm] = useState<Record<string, string>>({})
-  const [pendingRequest, setPendingRequest] = useState<any>(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [photoError, setPhotoError] = useState("")
   const photoInputRef = useRef<HTMLInputElement>(null)
@@ -50,13 +49,6 @@ export default function EditProfilePage() {
     fetch("/api/self-service/profile")
       .then(r => r.json())
       .then(d => { if (d.profile) setProfile(d.profile); setLoading(false) })
-    fetch("/api/profile-requests")
-      .then(r => r.ok ? r.json() : { requests: [] })
-      .then(d => {
-        const pending = (d.requests ?? []).find((r: any) => r.status === "PENDING")
-        setPendingRequest(pending ?? null)
-      })
-      .catch(() => {})
   }, [])
 
   // Also fetch raw employee data for form pre-fill
@@ -118,7 +110,6 @@ export default function EditProfilePage() {
       const d = await r.json()
       if (r.ok) {
         setSaved(true)
-        setPendingRequest(d.direct ? null : (d.request ?? null))
         setTimeout(() => setSaved(false), 3000)
       } else {
         setError(d.error ?? "Failed to submit")
@@ -147,12 +138,12 @@ export default function EditProfilePage() {
           </button>
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 800 }}>Edit Profile</h1>
-            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 3, lineHeight: 1.5 }}>Changes require HR approval before taking effect.</p>
+            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 3, lineHeight: 1.5 }}>Update your personal contact and next of kin details.</p>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
           {error && <span style={{ fontSize: 12, color: "var(--accent)", display: "flex", alignItems: "center", gap: 4 }}><AlertCircle size={13} />{error}</span>}
-          {saved && <span style={{ fontSize: 12, color: "var(--success)", display: "flex", alignItems: "center", gap: 4 }}><CheckCircle size={13} />{pendingRequest ? "Submitted for review!" : "Profile updated!"}</span>}
+          {saved && <span style={{ fontSize: 12, color: "var(--success)", display: "flex", alignItems: "center", gap: 4 }}><CheckCircle size={13} />Profile updated!</span>}
           <Button size="sm" onClick={save} disabled={saving}>
             {saving ? <><Loader2 size={13} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : <><Save size={13} /> Save Changes</>}
           </Button>
@@ -185,17 +176,6 @@ export default function EditProfilePage() {
           </div>
         </div>
       </Card>
-
-      {/* Pending review banner */}
-      {pendingRequest && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 18px", background: "#FFFBEB", border: "1px solid #F59E0B", borderRadius: 10, fontSize: 13 }}>
-          <Clock size={16} style={{ color: "#F59E0B", flexShrink: 0 }} />
-          <div>
-            <strong style={{ color: "#92400E" }}>Update pending review</strong>
-            <span style={{ color: "#78350F", marginLeft: 6 }}>You have a profile update awaiting HR approval. Submitting again will replace the pending request.</span>
-          </div>
-        </div>
-      )}
 
       {/* Personal Info */}
       <Card>

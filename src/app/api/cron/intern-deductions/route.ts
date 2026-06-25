@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
     if (draft) {
       placeholder = await prisma.internWeeklyReport.update({
         where: { id: draft.id },
-        data: { status: "MISSING", pointDeduction: missingDeduction, lateFlag: false, submittedAt: null },
+        data: { status: "MISSING", pointDeduction: missingDeduction, lateFlag: true, submittedAt: null },
       })
     } else {
       placeholder = await prisma.internWeeklyReport.create({
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
           weekEnd,
           status: "MISSING",
           pointDeduction: missingDeduction,
-          lateFlag: false,
+          lateFlag: true,
           submittedAt: null,
         },
       })
