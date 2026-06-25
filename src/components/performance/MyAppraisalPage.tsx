@@ -48,10 +48,14 @@ interface Appraisal {
   developmentPlan: string | null
   reviewerComments: string | null
   counterReviewerComments: string | null
+  managementComment: string | null
   finalPercent: number | null
   finalEmployeePercent: number | null
   finalReviewerPercent: number | null
   teamLeadPercent: number | null
+  teamLeadReviewSummary: string | null
+  teamLeadReviewSummaryAt: string | null
+  teamLeadReviewCount: number | null
   behavioural360Score: number | null
   behavioural360Emp: number | null
   behavioural360Rev: number | null
@@ -395,6 +399,49 @@ function fmt(v: number | null | undefined, suffix = "") { return v == null ? "�
 
 function r1(v: number) { return Math.round(v * 10) / 10 }
 
+// Anonymous synthesis of upward (team-member) feedback for a lead. Raw reviews are sealed;
+// only this AI summary is shown, and only once >= 3 members have submitted.
+function TeamLeadFeedback({ a }: { a: Appraisal }) {
+  const count = a.teamLeadReviewCount
+  if (count === null || count === undefined || count === 0) return null // not a lead / no upward reviews
+  const MIN = 3
+  return (
+    <section style={card}>
+      <div style={sectionTitle}>Your Team&apos;s Upward Feedback</div>
+      <div style={sectionSub}>Anonymous summary from your team members. Individual reviews are never shown to anyone — only this synthesis.</div>
+      {count < MIN ? (
+        <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
+          Held for anonymity — a summary appears once at least {MIN} of your team members have submitted (currently {count}).
+        </p>
+      ) : a.teamLeadReviewSummary ? (
+        <>
+          <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 10 }}>
+            Based on {count} anonymous reviews{a.teamLeadPercent != null ? ` · overall upward score ${Math.round(a.teamLeadPercent)}%` : ""}
+          </div>
+          <MiniMarkdown text={a.teamLeadReviewSummary} />
+        </>
+      ) : (
+        <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Your team&apos;s feedback summary is being prepared and will appear here shortly.</p>
+      )}
+    </section>
+  )
+}
+
+function MiniMarkdown({ text }: { text: string }) {
+  return (
+    <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--foreground)" }}>
+      {text.split(/\r?\n/).map((ln, i) => {
+        const t = ln.trim()
+        if (!t) return <div key={i} style={{ height: 8 }} />
+        if (t.startsWith("## ")) return <div key={i} style={{ fontWeight: 800, fontSize: 13.5, marginTop: 10, marginBottom: 2 }}>{t.slice(3)}</div>
+        if (t.startsWith("# ")) return <div key={i} style={{ fontWeight: 800, fontSize: 14, marginTop: 10 }}>{t.slice(2)}</div>
+        if (t.startsWith("- ") || t.startsWith("* ")) return <div key={i} style={{ paddingLeft: 14 }}>• {t.slice(2)}</div>
+        return <div key={i}>{t}</div>
+      })}
+    </div>
+  )
+}
+
 // Live "Overall Performance Summary" for the subject — their own (Employee) column.
 // Shows each section's WEIGHTED contribution (raw ÷ max × weight) which sum to the
 // overall %. Mirrors the official appraisal summary. Refreshes on each save.
@@ -671,6 +718,9 @@ function ReadOnly({ cycle, appraisal }: { cycle: Cycle; appraisal: Appraisal }) 
       {/* Your scores (employee side) — visible as soon as submitted */}
       <ScoreSummary a={appraisal} cycle={cycle} />
 
+      {/* Your team's upward feedback (leads only) — anonymous synthesis, raw reviews sealed */}
+      <TeamLeadFeedback a={appraisal} />
+
       {/* Final result */}
       {finalized && (
         <section style={{ ...card, borderColor: "var(--primary)" }}>
@@ -682,8 +732,9 @@ function ReadOnly({ cycle, appraisal }: { cycle: Cycle; appraisal: Appraisal }) 
           {appraisal.finalizedAt && (
             <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>Finalized {format(new Date(appraisal.finalizedAt), "MMM d, yyyy")}</div>
           )}
-          {(appraisal.reviewerComments || appraisal.areasForImprovement || appraisal.developmentPlan) && (
+          {(appraisal.managementComment || appraisal.reviewerComments || appraisal.areasForImprovement || appraisal.developmentPlan) && (
             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+              {appraisal.managementComment && <RoText label="Management comment" value={appraisal.managementComment} />}
               <RoText label="Reviewer comments" value={appraisal.reviewerComments} />
               <RoText label="Areas for improvement" value={appraisal.areasForImprovement} />
               <RoText label="Development plan" value={appraisal.developmentPlan} />

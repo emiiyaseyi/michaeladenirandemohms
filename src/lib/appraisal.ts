@@ -177,12 +177,14 @@ export function relationshipTo(user: SessionUser, appraisal: any): Relationship 
 export function shapeForViewer(appraisal: any, user: SessionUser) {
   const admin = isAdminLike(user)
   const isSubject = appraisal.employeeId === user.employeeId
-  // Peer (PEER) and team-member upward (MEMBER) reviews are visible ONLY to admins.
-  // Everyone else (subject, reviewers) does not see these rows at all — the scores still
-  // roll up into the 360 total server-side, but the individual rows are hidden.
-  const ratings = admin
-    ? (appraisal.ratings ?? [])
-    : (appraisal.ratings ?? []).filter((r: any) => r.raterType !== "PEER" && r.raterType !== "MEMBER")
+  // MEMBER (team-member upward) reviews are SEALED from everyone — lead, reviewers AND admins.
+  // They surface only as the LLM synthesis (teamLeadReviewSummary). PEER rows stay admin-only.
+  // Scores still roll up into the 360 total server-side (recompute reads the DB directly).
+  const ratings = (appraisal.ratings ?? []).filter((r: any) => {
+    if (r.raterType === "MEMBER") return false
+    if (!admin && r.raterType === "PEER") return false
+    return true
+  })
   // The subject should not see who the assigned peers are (anonymity); admins do.
   let peers = appraisal.peers
   if (!admin) peers = (appraisal.peers ?? []).map((p: any) => ({ id: p.id, status: p.status, submittedAt: p.submittedAt }))

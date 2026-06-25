@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
 import { notifyReviewStageOpened, notifyFinalReport } from "@/lib/appraisal-notify"
+import { generateTeamLeadReportsForCycle } from "@/lib/team-lead-report"
 
 const STAGE_ORDER = ["CONFIG", "OPEN", "REVIEW", "COMPILING", "FINALIZED"] as const
 
@@ -49,6 +50,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
     const alreadyClosed = !!cycle.closedAt
     const updated = await prisma.performanceCycle.update({ where: { id }, data: { isActive: false, closedAt: cycle.closedAt ?? new Date() } })
+    // Refresh team-lead syntheses to capture late/reopened upward reviews before reports go out.
+    await generateTeamLeadReportsForCycle(id)
     if (!alreadyClosed) await notifyFinalReport(id)
     await logAudit({ req, actor: user, action: "APPRAISAL_CYCLE_CLOSE", entity: "PerformanceCycle", entityId: id, newValues: { emailsSent: !alreadyClosed } })
     return NextResponse.json({ cycle: updated, emailsSent: !alreadyClosed })
@@ -60,6 +63,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (stage === "REVIEW") {
       const reviewers = await prisma.appraisalReviewer.findMany({ where: { appraisal: { cycleId: id } }, select: { reviewerId: true } })
       await notifyReviewStageOpened(reviewers.map(r => r.reviewerId))
+      // Members rate upward during OPEN, so the data is ready — synthesize each lead's report.
+      await generateTeamLeadReportsForCycle(id)
     }
     await logAudit({ req, actor: user, action: "APPRAISAL_CYCLE_STAGE", entity: "PerformanceCycle", entityId: id, newValues: { stage } })
     return NextResponse.json({ cycle: updated })

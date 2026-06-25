@@ -103,7 +103,7 @@ export default function PeerReviewsPage() {
                     style={{ ...primaryBtn, marginTop: 16, width: "100%" }}
                     onClick={() => router.push(`${base}/performance/peer-reviews/${task.appraisalId}?type=PEER`)}
                   >
-                    {task.status === "SUBMITTED" ? "Edit" : "Rate"}
+                    {task.status === "SUBMITTED" ? "View" : "Rate"}
                   </button>
                 </div>
               ))}

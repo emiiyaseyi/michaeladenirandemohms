@@ -194,6 +194,31 @@ async function main() {
   const fresh = await prisma.appraisal.findUnique({ where: { id: golden.id }, select: { finalPercent: true } })
   console.log(`Golden sample finalized. Final score: ${fresh?.finalPercent?.toFixed(1)}%`)
 
+  // ── 4. Seed >=3 upward (team-member) reviews for a NON-finalized lead so the
+  //       OpenAI team-lead synthesis is testable (click Regenerate, or move cycle to REVIEW). ──
+  const tlLead = appraisals.find(a => a.id !== golden.id) ?? golden
+  const tlMembers = appraisals.filter(a => a.employee.id !== tlLead.employee.id).slice(0, 3)
+  if (lead.length && tlMembers.length >= 3) {
+    await prisma.appraisalRating.deleteMany({ where: { appraisalId: tlLead.id, raterType: "MEMBER" } })
+    const cmts = [
+      ["Clear direction; always unblocks me quickly.", "Decisions occasionally come a little late.", "Trusts the team and listens well."],
+      ["Fair, supportive, gives actionable feedback.", "Could delegate more rather than doing it all.", "Calm under pressure."],
+      ["Excellent technical mentor — I've grown a lot.", "Meetings sometimes run long and lose focus.", "Sets a high but reasonable bar."],
+    ]
+    for (let m = 0; m < 3; m++) {
+      for (let i = 0; i < lead.length; i++) {
+        const q = lead[i]
+        await prisma.appraisalRating.create({ data: {
+          appraisalId: tlLead.id, raterId: tlMembers[m].employee.id, raterType: "MEMBER", section: "LEADERSHIP",
+          questionId: q.id, score: Math.min(q.scaleMax, 3 + ((m + i) % 3)), comment: cmts[m][i % cmts[m].length], isAnonymous: true,
+        } })
+      }
+    }
+    await prisma.appraisal.update({ where: { id: tlLead.id }, data: { teamLeadReviewCount: 3, teamLeadReviewSummary: null, teamLeadReviewSummaryAt: null } })
+    await recompute(tlLead.id)
+    console.log(`Seeded 3 upward reviews for team lead: ${tlLead.employee.firstName} ${tlLead.employee.lastName}. Open their appraisal → Regenerate, or move the cycle to REVIEW.`)
+  }
+
   await done()
 }
 
