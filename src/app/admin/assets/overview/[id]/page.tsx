@@ -146,7 +146,7 @@ export default function AssetDetailPage() {
                 {search ? "No results match your search." : "No employees assigned yet."}
               </td></tr>
             ) : filtered.map((a: any) => {
-              const assignedDate = a.assignedOn ? new Date(a.assignedOn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"
+              const assignedDate = a.assignedOn ? new Date(a.assignedOn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-"
               const releasedDate = a.releasedAt ? new Date(a.releasedAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : null
 
               return (
@@ -165,8 +165,8 @@ export default function AssetDetailPage() {
                       <span>{a.employee.firstName} {a.employee.lastName}</span>
                     </div>
                   </td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>—</td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.employee.department?.name ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>-</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.employee.department?.name ?? "-"}</td>
                   <td style={td}>{assignedDate}</td>
                   <td style={td}>
                     {a.status === "RELEASED" ? (

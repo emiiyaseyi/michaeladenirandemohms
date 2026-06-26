@@ -255,7 +255,7 @@ export default function StaffInternReviewsPage() {
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800 }}>Leave Your Comment</h3>
                 <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>
-                  {(() => { const r = reports.find(x => x.id === commentingId); return r ? `${r.employee?.firstName} ${r.employee?.lastName} — ${format(new Date(r.weekStart), "MMM d")} – ${format(new Date(r.weekEnd), "MMM d, yyyy")}` : "" })()}
+                  {(() => { const r = reports.find(x => x.id === commentingId); return r ? `${r.employee?.firstName} ${r.employee?.lastName} - ${format(new Date(r.weekStart), "MMM d")} – ${format(new Date(r.weekEnd), "MMM d, yyyy")}` : "" })()}
                 </p>
               </div>
               <button onClick={() => setCommentingId(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted-foreground)" }}>×</button>
@@ -321,7 +321,7 @@ export default function StaffInternReviewsPage() {
                           <td style={{ padding: "10px 14px", fontWeight: 600, fontSize: 13, verticalAlign: "top", position: "sticky", left: 0, background: rowBg, zIndex: 1, boxShadow: "2px 0 4px rgba(0,0,0,0.06)" }}>{cat.label}</td>
                           {isLegacy ? (
                             <>
-                              <td colSpan={5} style={{ padding: "10px 14px", color: "var(--muted-foreground)", fontStyle: "italic" }}>{dayData || "—"}</td>
+                              <td colSpan={5} style={{ padding: "10px 14px", color: "var(--muted-foreground)", fontStyle: "italic" }}>{dayData || "-"}</td>
                               <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, position: "sticky", right: 0, background: rowBg, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>{legacyHrs}</td>
                             </>
                           ) : (
@@ -349,12 +349,12 @@ export default function StaffInternReviewsPage() {
                                         {totalMins > 0 && <div style={{ fontSize: 11, color: "var(--primary)", fontWeight: 700, marginTop: 3 }}>{fmtMins(totalMins)}</div>}
                                       </>
                                     ) : (
-                                      <div style={{ fontSize: 11, color: "var(--border)" }}>—</div>
+                                      <div style={{ fontSize: 11, color: "var(--border)" }}>-</div>
                                     )}
                                   </td>
                                 )
                               })}
-                              <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, fontSize: 13, verticalAlign: "top", position: "sticky", right: 0, background: rowBg, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>{weekTotalMins > 0 ? fmtMins(weekTotalMins) : "—"}</td>
+                              <td style={{ padding: "10px 14px", textAlign: "center", fontWeight: 700, fontSize: 13, verticalAlign: "top", position: "sticky", right: 0, background: rowBg, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>{weekTotalMins > 0 ? fmtMins(weekTotalMins) : "-"}</td>
                             </>
                           )}
                         </tr>

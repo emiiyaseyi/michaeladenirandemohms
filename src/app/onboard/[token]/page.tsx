@@ -159,7 +159,7 @@ export default function OnboardPage() {
     const copy =
       status === "invalid" ? { icon: "🔗", title: "Invalid invite link", body: "This invite link is not valid. Please contact your HR administrator." } :
       status === "used"    ? { icon: "✓",   title: "Already used",       body: "You've already set your password. Sign in with your new password instead." } :
-                             { icon: "⏰",  title: "Invite link expired", body: "Your invite link has expired. Sign in directly with your work email and default password Welcome@DSN1 — you'll be prompted to set a new password." }
+                             { icon: "⏰",  title: "Invite link expired", body: "Your invite link has expired. Sign in directly with your work email and default password Welcome@DSN1 - you'll be prompted to set a new password." }
     return (
       <PageShell>
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: "40px 32px", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)" }}>
@@ -210,7 +210,7 @@ export default function OnboardPage() {
     )
   }
 
-  // ── status === "valid" — set-password form ─────────────────────────────────
+  // ── status === "valid" - set-password form ─────────────────────────────────
   return (
     <PageShell>
       <div style={{ background: "var(--card)", borderRadius: 20, padding: "36px 36px 28px", boxShadow: "0 8px 40px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)", border: "1px solid var(--border)" }}>

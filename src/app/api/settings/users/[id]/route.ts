@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
 
-// PATCH /api/settings/users/[id] — update role, status, or reset password
+// PATCH /api/settings/users/[id] - update role, status, or reset password
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -56,7 +56,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ user: updated })
 }
 
-// DELETE /api/settings/users/[id] — hard delete (only for users with no employee activity)
+// DELETE /api/settings/users/[id] - hard delete (only for users with no employee activity)
 // Prefer deactivation via PATCH isActive=false
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()

@@ -127,7 +127,7 @@ async function generatePDF(data: ReportData, _dateFrom: string, _dateTo: string)
   doc.setTextColor(...white)
   doc.setFontSize(9)
   doc.setFont("helvetica", "normal")
-  doc.text("DATA SCIENCE NIGERIA — HRMS", 14, 12)
+  doc.text("DATA SCIENCE NIGERIA - HRMS", 14, 12)
   doc.setFontSize(20)
   doc.setFont("helvetica", "bold")
   doc.text(data.title, 14, 27)
@@ -181,7 +181,7 @@ async function generatePDF(data: ReportData, _dateFrom: string, _dateTo: string)
     doc.setFontSize(7)
     doc.setTextColor(80, 80, 80)
     doc.setFont("helvetica", "normal")
-    doc.text("Confidential — Data Science Nigeria HRMS", 12, H - 7)
+    doc.text("Confidential - Data Science Nigeria HRMS", 12, H - 7)
     doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 7, { align: "center" })
     doc.text(new Date().toLocaleDateString("en-NG", { dateStyle: "medium" }), W - 12, H - 7, { align: "right" })
   }
@@ -280,7 +280,7 @@ export default function ReportsPage() {
       if (!data) return
       const entry: HistoryEntry = {
         id: crypto.randomUUID(),
-        name: `${data.title}${dateFrom ? ` — ${new Date(dateFrom).toLocaleDateString("en-NG", { month: "short", year: "numeric" })}` : ""}`,
+        name: `${data.title}${dateFrom ? ` - ${new Date(dateFrom).toLocaleDateString("en-NG", { month: "short", year: "numeric" })}` : ""}`,
         date: new Date().toISOString().split("T")[0],
         format: selectedFormat,
         rowCount: data.rowCount,
@@ -358,7 +358,7 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Column picker — custom report only */}
+            {/* Column picker - custom report only */}
             {selectedCategory.id === "custom" && (
               <div style={{ marginBottom: 20 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>

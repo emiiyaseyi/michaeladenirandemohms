@@ -15,7 +15,7 @@ function calcCompleteness(emp: any): number {
 }
 
 function timeInCompany(hireDate: Date | null): string {
-  if (!hireDate) return "—"
+  if (!hireDate) return "-"
   const now = new Date()
   const years = differenceInYears(now, hireDate)
   const months = differenceInMonths(now, hireDate) % 12
@@ -25,7 +25,7 @@ function timeInCompany(hireDate: Date | null): string {
 }
 
 function workAnniversary(hireDate: Date | null): string {
-  if (!hireDate) return "—"
+  if (!hireDate) return "-"
   return format(hireDate, "MMM do")
 }
 
@@ -62,7 +62,7 @@ export async function GET() {
   const cameViaInvite = inviteCount > 0
 
   // Merge any pending ProfileUpdateRequest into completeness so the reminder
-  // disappears while awaiting HR approval — the user has done their part.
+  // disappears while awaiting HR approval - the user has done their part.
   const pendingRequest = await prisma.profileUpdateRequest.findFirst({
     where: { employeeId: employee.id, status: "PENDING" },
     select: { changes: true },
@@ -112,7 +112,7 @@ export async function GET() {
 
   // Build leave balance summary
 
-  // Intern entitlement — must match the apply-form filter and API enforcement.
+  // Intern entitlement - must match the apply-form filter and API enforcement.
   const isIntern = (employee.jobTitle ?? "").toLowerCase().includes("intern") || employee.employmentType === "INTERN"
   const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
 

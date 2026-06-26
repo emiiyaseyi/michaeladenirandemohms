@@ -193,7 +193,7 @@ const btnStyle: React.CSSProperties = {
 }
 
 function fmt(n: number | null | undefined): string {
-  return n == null ? "—" : String(n)
+  return n == null ? "-" : String(n)
 }
 
 function AdminDashboard() {
@@ -467,7 +467,7 @@ function Content({ data, base }: { data: Overview; base: string }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 24 }}>
-      {/* Active cycle card — non-admin only (admins get the cycle selector in Analytics). */}
+      {/* Active cycle card - non-admin only (admins get the cycle selector in Analytics). */}
       {!data.admin && (
         <div style={cardStyle}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>

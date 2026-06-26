@@ -188,7 +188,7 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
   }
 
   return (
-    <Modal open onClose={onClose} title={`${dept.name} — Members`} width={600}>
+    <Modal open onClose={onClose} title={`${dept.name} - Members`} width={600}>
       <div style={{ padding: "16px 24px", maxHeight: "65vh", overflowY: "auto" }}>
         {error && (
           <div style={{ display: "flex", gap: 8, background: "rgba(239,68,68,0.08)", color: "#EF4444", padding: "10px 14px", borderRadius: 8, fontSize: 13, marginBottom: 12 }}>
@@ -216,7 +216,7 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
                       <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={28} />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
-                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle ?? "—"}</div>
+                        <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle ?? "-"}</div>
                       </div>
                     </div>
                   )}
@@ -245,7 +245,7 @@ function DeptMembersModal({ dept, isAdmin, onClose }: { dept: any; isAdmin: bool
                 <Avatar name={`${m.firstName} ${m.lastName}`} photo={m.profilePhoto} size={36} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.firstName} {m.lastName}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{m.jobTitle ?? "—"}{m.isPrimary && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "var(--primary)" }}>· Primary</span>}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{m.jobTitle ?? "-"}{m.isPrimary && <span style={{ marginLeft: 6, fontSize: 10, fontWeight: 700, color: "var(--primary)" }}>· Primary</span>}</div>
                 </div>
                 <Badge status={m.employeeStatus ?? "ACTIVE"} />
                 {isAdmin && (
@@ -355,7 +355,7 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
                 </div>
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: sel ? "var(--primary)" : "var(--foreground)" }}>{e.firstName} {e.lastName}</div>
-                  <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.employeeId} · {e.jobTitle ?? "—"}</div>
+                  <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.employeeId} · {e.jobTitle ?? "-"}</div>
                 </div>
               </div>
             )}
@@ -394,7 +394,7 @@ function DeptProjectsModal({ dept, onClose }: { dept: any; onClose: () => void }
   }, [dept.id])
 
   return (
-    <Modal open onClose={onClose} title={`${dept.name} — Projects`} width={620}>
+    <Modal open onClose={onClose} title={`${dept.name} - Projects`} width={620}>
       <div style={{ padding: "16px 24px", maxHeight: "65vh", overflowY: "auto" }}>
         {loading ? (
           <div style={{ padding: 40, display: "flex", justifyContent: "center" }}>
@@ -422,7 +422,7 @@ function DeptProjectsModal({ dept, onClose }: { dept: any; onClose: () => void }
                         Lead: {p.lead.firstName} {p.lead.lastName} · {p._count.members} member{p._count.members !== 1 ? "s" : ""}
                         {(p.startDate || p.endDate) && (
                           <span style={{ marginLeft: 8 }}>
-                            · {p.startDate ? new Date(p.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"} → {p.endDate ? new Date(p.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Ongoing"}
+                            · {p.startDate ? new Date(p.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"} → {p.endDate ? new Date(p.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Ongoing"}
                           </span>
                         )}
                       </div>
@@ -446,7 +446,7 @@ function DeptProjectsModal({ dept, onClose }: { dept: any; onClose: () => void }
                               <div>
                                 <div style={{ fontSize: 12, fontWeight: 600 }}>{m.employee.firstName} {m.employee.lastName}</div>
                                 <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                                  {m.employee.jobTitle ?? "—"}{m.projectRole && <span style={{ marginLeft: 6, color: "var(--primary)", fontWeight: 600 }}>· {m.projectRole}</span>}
+                                  {m.employee.jobTitle ?? "-"}{m.projectRole && <span style={{ marginLeft: 6, color: "var(--primary)", fontWeight: 600 }}>· {m.projectRole}</span>}
                                 </div>
                               </div>
                             </div>

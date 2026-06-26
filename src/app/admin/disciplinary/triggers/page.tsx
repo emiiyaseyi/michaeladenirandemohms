@@ -126,14 +126,14 @@ export default function DisciplinaryTriggersPage() {
                     <Avatar name={`${t.employee.firstName} ${t.employee.lastName}`} photo={t.employee.profilePhoto} size={32} />
                     <div>
                       <div style={{ fontWeight: 600 }}>{t.employee.firstName} {t.employee.lastName}</div>
-                      <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{t.employee.jobTitle ?? "—"}</div>
+                      <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{t.employee.jobTitle ?? "-"}</div>
                     </div>
                   </div>
                 </td>
                 <td style={td}>{t.action}</td>
                 <td style={{ ...td, maxWidth: 260 }}>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: t.description ? "var(--foreground)" : "var(--muted-foreground)" }}>
-                    {t.description ?? "—"}
+                    {t.description ?? "-"}
                   </div>
                 </td>
                 <td style={{ ...td, color: "var(--muted-foreground)" }}>{formatDate(t.triggerDate)}</td>

@@ -29,7 +29,7 @@ export async function GET(_req: NextRequest) {
     subject: p.appraisal.employee, cycle: p.appraisal.cycle,
   }))
 
-  // Lead task — rate my team lead (manager/projectLead) in the active OPEN cycle.
+  // Lead task - rate my team lead (manager/projectLead) in the active OPEN cycle.
   let leadTask: any = null
   const active = await getActiveCycle()
   if (active && active.stage === "OPEN") {

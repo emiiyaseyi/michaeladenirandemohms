@@ -86,7 +86,7 @@ export async function recomputeAndPersist(appraisalId: string) {
 }
 
 // A reviewer (primary/counter) may fill their review once the employee has submitted
-// and until the appraisal is finalized — independent of the global cycle stage.
+// and until the appraisal is finalized - independent of the global cycle stage.
 export function reviewerCanEdit(appraisalStage: string): boolean {
   return appraisalStage === "SUBMITTED" || appraisalStage === "LEAD_REVIEWING" || appraisalStage === "LEAD_DONE"
 }
@@ -100,12 +100,12 @@ export function isAdminLike(user: SessionUser) {
 }
 
 // Ordered peer candidates for an employee: same-department colleagues first, then
-// everyone else as fallback (small org — peer review is anonymous, so cross-dept is
+// everyone else as fallback (small org - peer review is anonymous, so cross-dept is
 // safe when a department lacks enough people). Excludes the subject. Caller slices
 // to the needed count, so the department-priority order must be preserved (do NOT
 // re-sort the result).
-// Priority order (preserved — do NOT re-sort):
-//   1. Co-members of any shared project (uploaded by HR — the main matching source)
+// Priority order (preserved - do NOT re-sort):
+//   1. Co-members of any shared project (uploaded by HR - the main matching source)
 //   2. Same-department employees (fallback / top-up)
 //   3. Everyone else (cross-dept fallback so autofill never runs dry)
 export async function peerCandidatesOf(employeeId: string): Promise<string[]> {
@@ -177,7 +177,7 @@ export function relationshipTo(user: SessionUser, appraisal: any): Relationship 
 export function shapeForViewer(appraisal: any, user: SessionUser) {
   const admin = isAdminLike(user)
   const isSubject = appraisal.employeeId === user.employeeId
-  // MEMBER (team-member upward) reviews are SEALED from everyone — lead, reviewers AND admins.
+  // MEMBER (team-member upward) reviews are SEALED from everyone - lead, reviewers AND admins.
   // They surface only as the LLM synthesis (teamLeadReviewSummary). PEER rows stay admin-only.
   // Scores still roll up into the 360 total server-side (recompute reads the DB directly).
   const ratings = (appraisal.ratings ?? []).filter((r: any) => {

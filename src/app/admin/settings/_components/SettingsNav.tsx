@@ -14,7 +14,7 @@ export default function SettingsNav() {
   const pathname = usePathname()
   const router = useRouter()
 
-  // Roles & Permissions is a standalone page — no tab bar
+  // Roles & Permissions is a standalone page - no tab bar
   if (pathname.startsWith("/admin/settings/roles-permissions")) return null
 
   return (

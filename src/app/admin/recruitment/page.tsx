@@ -77,7 +77,7 @@ export default function RecruitmentOverviewPage() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <p style={{ fontSize: 12, color: "var(--muted-foreground)", fontWeight: 600, marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>{s.label}</p>
-                <p style={{ fontSize: 28, fontWeight: 800 }}>{loading ? "—" : s.value}</p>
+                <p style={{ fontSize: 28, fontWeight: 800 }}>{loading ? "-" : s.value}</p>
               </div>
               <div style={{ width: 40, height: 40, borderRadius: 10, background: `${s.color}18`, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <s.icon size={18} style={{ color: s.color }} />
@@ -115,7 +115,7 @@ export default function RecruitmentOverviewPage() {
                 return (
                   <tr key={j.id} style={{ borderBottom: "1px solid var(--border)" }}>
                     <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 600 }}>{j.title}</td>
-                    <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>{j.department?.name ?? "—"}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>{j.department?.name ?? "-"}</td>
                     <td style={{ padding: "12px 16px", fontSize: 13, color: "var(--muted-foreground)" }}>{j.employmentType?.replace(/_/g, " ")}</td>
                     <td style={{ padding: "12px 16px", fontSize: 13 }}>{j._count?.applications ?? 0}</td>
                     <td style={{ padding: "12px 16px" }}>

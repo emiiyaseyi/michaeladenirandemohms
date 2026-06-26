@@ -5,7 +5,7 @@ import { logAudit } from "@/lib/audit"
 import { notifyCycleOpened } from "@/lib/appraisal-notify"
 
 // Generate appraisal records for all active employees in this cycle, then open it.
-//  - One Appraisal per active employee (idempotent — skips existing).
+//  - One Appraisal per active employee (idempotent - skips existing).
 //  - Primary reviewer = employee's project lead (fallback: manager).
 //  - Injects the cycle's global KPI rows (Learning & Dev, Brand) as ADMIN-source job rows.
 //  - Moves the cycle stage CONFIG → OPEN.

@@ -61,9 +61,9 @@ function catHrsCol(catIdx: number)  { return 2 + catIdx * 2 + 1 }  // D, F, H, �
 // Colours matching the template (ARGB hex for xlsx)
 const CLR_TITLE   = "FF0C2340"  // dark blue bg (title row)
 const CLR_NAME    = "FFD7E4F3"  // light blue bg (name row)
-const CLR_TASK    = "FFFCE4D6"  // cream/tan (task cols) — approx RGB 10086143
-const CLR_HRS     = "FFD9E1F2"  // light blue (hours cols) — approx RGB 14348258
-const CLR_DAY     = "FFD6DCE4"  // grey (day label col) — approx RGB 14395790
+const CLR_TASK    = "FFFCE4D6"  // cream/tan (task cols) - approx RGB 10086143
+const CLR_HRS     = "FFD9E1F2"  // light blue (hours cols) - approx RGB 14348258
+const CLR_DAY     = "FFD6DCE4"  // grey (day label col) - approx RGB 14395790
 const CLR_HEADER  = "FFD6DCE4"  // same grey for header row bg
 const CLR_WHITE   = "FFFFFFFF"
 const CLR_TITLE_FONT = "FFFFFFFF"  // white text on dark title
@@ -204,7 +204,7 @@ export function generateInternReportExcel(report: {
       // Col A (unused, fill white)
       setCell(row, 0, makeCell("", styEmpty))
 
-      // Day label — only on first row
+      // Day label - only on first row
       setCell(row, COL_DAY, isFirst ? makeCell(day.label, styDay) : makeCell("", styDay))
 
       // Category task + hours columns
@@ -214,10 +214,10 @@ export function generateInternReportExcel(report: {
         setCell(row, catHrsCol(ci),  makeCell(task ? fmtHours(task.minutes) : "", styHrs))
       })
 
-      // Total hours — only on first row
+      // Total hours - only on first row
       setCell(row, COL_TOTAL, isFirst ? makeCell(fmtHours(dayMins), styTotal) : makeCell("", styHrs))
 
-      // Personal reflection — only on first row
+      // Personal reflection - only on first row
       setCell(row, COL_REFL, isFirst ? makeCell(reflection, styRefl) : makeCell("", styRefl))
 
       row++

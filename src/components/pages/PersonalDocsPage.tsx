@@ -111,7 +111,7 @@ export default function PersonalDocsAdminPage() {
                       </span>
                     </div>
                     <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>
-                      {doc.employee.jobTitle ?? "—"} · {doc.employee.department?.name ?? "—"}
+                      {doc.employee.jobTitle ?? "-"} · {doc.employee.department?.name ?? "-"}
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 6, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 6, background: "var(--muted)", color: "var(--foreground)" }}>

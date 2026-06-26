@@ -2,7 +2,7 @@
  * LOCAL showcase seed for the appraisal module. NOT for production.
  *
  * 1. Resets all appraisal fills in the active cycle (deletes ratings, nulls KPI scores,
- *    resets each appraisal to NOT_STARTED) — keeps cycle, appraisal shells, reviewers, peers.
+ *    resets each appraisal to NOT_STARTED) - keeps cycle, appraisal shells, reviewers, peers.
  * 2. Clears + repopulates the leaderboard with sample Brand/Learning/Attendance scores.
  * 3. Builds ONE fully-completed, finalized "golden" appraisal: self + primary lead +
  *    counter reviewer + peers + (member upward if available) + admin scores + management comment.
@@ -203,7 +203,7 @@ async function main() {
     const cmts = [
       ["Clear direction; always unblocks me quickly.", "Decisions occasionally come a little late.", "Trusts the team and listens well."],
       ["Fair, supportive, gives actionable feedback.", "Could delegate more rather than doing it all.", "Calm under pressure."],
-      ["Excellent technical mentor — I've grown a lot.", "Meetings sometimes run long and lose focus.", "Sets a high but reasonable bar."],
+      ["Excellent technical mentor - I've grown a lot.", "Meetings sometimes run long and lose focus.", "Sets a high but reasonable bar."],
     ]
     for (let m = 0; m < 3; m++) {
       for (let i = 0; i < lead.length; i++) {

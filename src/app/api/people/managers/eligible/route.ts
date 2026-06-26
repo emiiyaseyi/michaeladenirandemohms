@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 
-// Lists PROJECT_LEADs who aren't yet managers — used by Add Manager picker.
+// Lists PROJECT_LEADs who aren't yet managers - used by Add Manager picker.
 // SUPER_ADMIN only.
 export async function GET() {
   const { user, error } = await requireAuth()

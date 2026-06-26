@@ -2,7 +2,7 @@
 //
 // Team members rate their lead upward (raterType MEMBER, section LEADERSHIP). The raw
 // rows stay sealed from everyone (see shapeForViewer); instead we generate an OpenAI
-// synthesis over the pooled, name-stripped comments — useful to the lead, anonymous in
+// synthesis over the pooled, name-stripped comments - useful to the lead, anonymous in
 // practice. Only generated once at least MIN_REVIEWS members have submitted (anonymity floor).
 import { prisma } from "@/lib/prisma"
 import { chat } from "@/lib/openai"
@@ -42,7 +42,7 @@ export async function generateTeamLeadReport(leadAppraisalId: string): Promise<{
     })
     const count = new Set(ratings.map(r => r.raterId).filter(Boolean)).size
 
-    // Anonymity floor — below MIN_REVIEWS we generate nothing and send nothing to OpenAI.
+    // Anonymity floor - below MIN_REVIEWS we generate nothing and send nothing to OpenAI.
     if (count < MIN_REVIEWS) {
       await prisma.appraisal.update({ where: { id: leadAppraisalId }, data: { teamLeadReviewCount: count, teamLeadReviewSummary: null, teamLeadReviewSummaryAt: null } })
       return { generated: false, count }
@@ -70,7 +70,7 @@ export async function generateTeamLeadReport(leadAppraisalId: string): Promise<{
 
     const summary = await chat(SYSTEM, userMsg)
     if (!summary) {
-      // No key / API error — keep the count so the UI can show status, leave summary empty.
+      // No key / API error - keep the count so the UI can show status, leave summary empty.
       await prisma.appraisal.update({ where: { id: leadAppraisalId }, data: { teamLeadReviewCount: count } })
       return { generated: false, count }
     }

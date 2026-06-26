@@ -42,7 +42,7 @@ function fmtMinutes(m: number): string {
   return h ? (min ? `${h}h ${min}m` : `${h}h`) : `${min}m`
 }
 
-// Get hours for a category+day from taskDescriptions — handles both old {tasks,hours} and new [{text,minutes}] formats
+// Get hours for a category+day from taskDescriptions - handles both old {tasks,hours} and new [{text,minutes}] formats
 function getCellData(td: any, catKey: string, day: string): { tasks: string[]; totalMins: number } {
   const cell = td?.[catKey]?.[day]
   if (!cell) return { tasks: [], totalMins: 0 }
@@ -168,7 +168,7 @@ export default function AdminInternReportsPage() {
 
   const now = new Date()
 
-  // Week mode — use UTC dates to match server weekStart storage
+  // Week mode - use UTC dates to match server weekStart storage
   const currentMonday = (() => {
     const d = new Date(now); d.setUTCHours(0,0,0,0)
     const day = d.getUTCDay(); const diff = day === 0 ? -6 : 1 - day
@@ -351,10 +351,10 @@ export default function AdminInternReportsPage() {
   const createPlaceholderAndOpenAttendance = async (emp: any) => {
     setCreatingPlaceholder(emp.id)
     // Create a MISSING placeholder via the cron-like route or directly via a new endpoint
-    // We'll use the intern-reports DELETE inverse — we need to create a MISSING report
+    // We'll use the intern-reports DELETE inverse - we need to create a MISSING report
     // Since there's no direct admin-create endpoint, we'll create the MISSING record server-side
     // by calling a special admin endpoint. For now, use the cron payload pattern.
-    // Actually: just open the attendance modal — we'll handle the "no report" case in the API
+    // Actually: just open the attendance modal - we'll handle the "no report" case in the API
     // by creating the placeholder there when status check is relaxed.
     // But the current API requires an existing report ID. So we do need to create one first.
 
@@ -432,7 +432,7 @@ export default function AdminInternReportsPage() {
     doc.setTextColor(...white)
     doc.setFontSize(8)
     doc.setFont("helvetica", "normal")
-    doc.text("DATA SCIENCE NIGERIA — HRMS", 14, 11)
+    doc.text("DATA SCIENCE NIGERIA - HRMS", 14, 11)
     doc.setFontSize(18)
     doc.setFont("helvetica", "bold")
     doc.text("Intern Reports", 14, 25)
@@ -460,7 +460,7 @@ export default function AdminInternReportsPage() {
       doc.rect(0, H - 12, W, 12, "F")
       doc.setFontSize(7)
       doc.setTextColor(80, 80, 80)
-      doc.text("Confidential — Data Science Nigeria HRMS", 12, H - 5)
+      doc.text("Confidential - Data Science Nigeria HRMS", 12, H - 5)
       doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 5, { align: "center" })
     }
 
@@ -530,7 +530,7 @@ export default function AdminInternReportsPage() {
     const HEADER_H = 36
     doc.setFillColor(...green); doc.rect(0, 0, W, HEADER_H, "F")
     doc.setTextColor(...white); doc.setFontSize(8); doc.setFont("helvetica", "normal")
-    doc.text("DATA SCIENCE NIGERIA — HRMS", 14, 11)
+    doc.text("DATA SCIENCE NIGERIA - HRMS", 14, 11)
     doc.setFontSize(18); doc.setFont("helvetica", "bold")
     doc.text("Intern Reports", 14, 25)
     doc.setFontSize(8); doc.setFont("helvetica", "normal")
@@ -550,7 +550,7 @@ export default function AdminInternReportsPage() {
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i); doc.setFillColor(248, 250, 248); doc.rect(0, H - 12, W, 12, "F")
       doc.setFontSize(7); doc.setTextColor(80, 80, 80)
-      doc.text("Confidential — Data Science Nigeria HRMS", 12, H - 5)
+      doc.text("Confidential - Data Science Nigeria HRMS", 12, H - 5)
       doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 5, { align: "center" })
     }
     zip.file(`intern-reports-${label}.pdf`, doc.output("arraybuffer"))
@@ -629,7 +629,7 @@ export default function AdminInternReportsPage() {
     doc.setTextColor(...white)
     doc.setFontSize(8)
     doc.setFont("helvetica", "normal")
-    doc.text("DATA SCIENCE NIGERIA — HRMS", 14, 11)
+    doc.text("DATA SCIENCE NIGERIA - HRMS", 14, 11)
     doc.setFontSize(16)
     doc.setFont("helvetica", "bold")
     doc.text("Intern Report Overview", 14, 25)
@@ -689,7 +689,7 @@ export default function AdminInternReportsPage() {
       doc.rect(0, H - 12, W, 12, "F")
       doc.setFontSize(7)
       doc.setTextColor(80, 80, 80)
-      doc.text("Confidential — Data Science Nigeria HRMS", 12, H - 5)
+      doc.text("Confidential - Data Science Nigeria HRMS", 12, H - 5)
       doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 5, { align: "center" })
     }
 
@@ -895,7 +895,7 @@ export default function AdminInternReportsPage() {
                           ))}
                         </tbody>
                       </table>
-                      <div style={{ ...caption, marginTop: 10 }}>“Avg Score Given” is each Team Lead's own ratings only (productivity + L&D + reflections ÷ 9) — kept separate from the report-level average so a TL who always rates very high or very low stands out.</div>
+                      <div style={{ ...caption, marginTop: 10 }}>“Avg Score Given” is each Team Lead's own ratings only (productivity + L&D + reflections ÷ 9) - kept separate from the report-level average so a TL who always rates very high or very low stands out.</div>
                     </div>
                   )}
                 </div>
@@ -1060,15 +1060,15 @@ export default function AdminInternReportsPage() {
                 <tr key={`no-report-${emp.id}`} style={{ borderTop: "1px solid var(--border)", opacity: 0.7 }}>
                   <td style={{ padding: "12px 16px", fontWeight: 600 }}>{emp.firstName} {emp.lastName}</td>
                   <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>{emp.department?.name ?? "–"}</td>
-                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>-</td>
                   <td style={{ padding: "12px 16px" }}>
                     <span style={{ padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, background: "#F3F4F6", color: "#6B7280" }}>No report</span>
                   </td>
-                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
-                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>-</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>-</td>
                   <td style={{ padding: "12px 16px", color: "var(--muted-foreground)", fontStyle: "italic" }}>Pending</td>
-                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
-                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>—</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>-</td>
+                  <td style={{ padding: "12px 16px", color: "var(--muted-foreground)" }}>-</td>
                   <td style={{ padding: "12px 16px", position: "sticky", right: 0, background: "var(--background)", zIndex: 1, borderLeft: "1px solid var(--border)" }}>
                     <button
                       onClick={() => createPlaceholderAndOpenAttendance(emp)}
@@ -1108,7 +1108,7 @@ export default function AdminInternReportsPage() {
         const curLbLabel = `${format(curLbMonday, "MMM d")} – ${format(curLbFriday, "MMM d, yyyy")}`
         return (
           <div>
-            {/* Hero banner — top 3 only for admin */}
+            {/* Hero banner - top 3 only for admin */}
             {top3.length > 0 && (
               <div style={{ background: "#15803D", borderRadius: 16, padding: "24px 28px", marginBottom: 16, color: "white", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
                 <div>
@@ -1279,7 +1279,7 @@ export default function AdminInternReportsPage() {
             <div style={{ fontSize: 32, marginBottom: 12, textAlign: "center" }}>🗑️</div>
             <h3 style={{ fontSize: 16, fontWeight: 800, marginBottom: 8, textAlign: "center" }}>Clear Missed Record?</h3>
             <p style={{ fontSize: 13, color: "var(--muted-foreground)", textAlign: "center", marginBottom: 4 }}>
-              <strong>{clearingReport.name}</strong> — {clearingReport.week}
+              <strong>{clearingReport.name}</strong> - {clearingReport.week}
             </p>
             <p style={{ fontSize: 13, color: "var(--muted-foreground)", textAlign: "center", marginBottom: 20 }}>
               This will delete the "Missing" placeholder. The intern will be able to submit their report retroactively.
@@ -1321,7 +1321,7 @@ export default function AdminInternReportsPage() {
               <button onClick={() => setViewingId(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted-foreground)" }}>×</button>
             </div>
             <div style={{ padding: "20px 24px" }}>
-              {/* Task breakdown — Days as rows, Categories as columns */}
+              {/* Task breakdown - Days as rows, Categories as columns */}
               <div style={{ overflow: "auto", maxHeight: "min(55vh, 440px)", marginBottom: 20, border: "1px solid var(--border)", borderRadius: 8 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
@@ -1367,13 +1367,13 @@ export default function AdminInternReportsPage() {
                                     {totalMins > 0 && <div style={{ fontWeight: 700, color: "var(--primary)", marginTop: 3, fontSize: 11 }}>{fmtMinutes(totalMins)}</div>}
                                   </>
                                 ) : (
-                                  <span style={{ color: "var(--border)" }}>—</span>
+                                  <span style={{ color: "var(--border)" }}>-</span>
                                 )}
                               </td>
                             )
                           })}
                           <td style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--primary)", verticalAlign: "top", position: "sticky", right: 0, background: rowBg, zIndex: 1, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>
-                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "—"}
+                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "-"}
                           </td>
                         </tr>
                       )
@@ -1383,7 +1383,7 @@ export default function AdminInternReportsPage() {
                       {CATEGORIES.map(cat => {
                         const td = viewingReport.taskDescriptions as any
                         const catMins = DAYS_LIST.reduce((s, d) => s + getCellData(td, cat.key, d).totalMins, 0)
-                        return <td key={cat.key} style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>{catMins > 0 ? fmtMinutes(catMins) : "—"}</td>
+                        return <td key={cat.key} style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>{catMins > 0 ? fmtMinutes(catMins) : "-"}</td>
                       })}
                       <td style={{ padding: "10px 10px", textAlign: "center", fontWeight: 900, fontSize: 13, color: "var(--primary)", position: "sticky", right: 0, background: "var(--muted)", boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>{(viewingReport.totalHours ?? 0).toFixed(1)}h</td>
                     </tr>
@@ -1401,7 +1401,7 @@ export default function AdminInternReportsPage() {
                       return (
                         <div key={key} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 12px" }}>
                           <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>{label}</div>
-                          <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0 }}>{text || <span style={{ color: "var(--border)", fontStyle: "italic" }}>—</span>}</p>
+                          <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0 }}>{text || <span style={{ color: "var(--border)", fontStyle: "italic" }}>-</span>}</p>
                         </div>
                       )
                     })}

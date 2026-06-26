@@ -3,7 +3,7 @@ import { useState, useEffect } from "react"
 import { ClipboardList, Save, Loader2 } from "lucide-react"
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-const OPENABLE_DAYS = [1, 2, 3, 4, 5] // Monday–Friday only — weekends are always the late-deduction days
+const OPENABLE_DAYS = [1, 2, 3, 4, 5] // Monday–Friday only - weekends are always the late-deduction days
 
 function hourLabel(h: number) {
   const n = h === 24 ? 0 : h
@@ -100,8 +100,8 @@ export default function InternReportSettingsPage() {
   const save = async () => {
     const openParsed = parseHHMM(openTimeStr)
     const lateParsed = parseHHMM(lateTimeStr)
-    if (!openParsed) { setErr("Invalid open time — use HH:MM (e.g. 16:00)"); return }
-    if (!lateParsed) { setErr("Invalid late threshold — use HH:MM (e.g. 20:00)"); return }
+    if (!openParsed) { setErr("Invalid open time - use HH:MM (e.g. 16:00)"); return }
+    if (!lateParsed) { setErr("Invalid late threshold - use HH:MM (e.g. 20:00)"); return }
     const payload = {
       ...settings,
       openHour: openParsed.h, openMinute: openParsed.m,
@@ -138,7 +138,7 @@ export default function InternReportSettingsPage() {
       ) : (
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, padding: "8px 24px 20px" }}>
           <div style={{ padding: "12px 14px", background: "#F3F4F6", borderRadius: 8, fontSize: 12, color: "var(--muted-foreground)", marginBottom: 12, lineHeight: 1.6 }}>
-            The submission window opens on the chosen day. Saturday and Sunday are always the late-deduction days, no matter which day the window opens on. Still not submitted by Monday — it becomes a MISSING record and loses more points every following Monday until submitted.
+            The submission window opens on the chosen day. Saturday and Sunday are always the late-deduction days, no matter which day the window opens on. Still not submitted by Monday - it becomes a MISSING record and loses more points every following Monday until submitted.
           </div>
 
           {/* Submission Day */}
@@ -243,7 +243,7 @@ export default function InternReportSettingsPage() {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Missing Report Deduction</div>
-              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Points deducted on Monday if still not submitted — and again every following Monday until it is</div>
+              <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>Points deducted on Monday if still not submitted - and again every following Monday until it is</div>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input
@@ -274,7 +274,7 @@ export default function InternReportSettingsPage() {
 
           {/* Preview */}
           <div style={{ background: "var(--muted)", borderRadius: 10, padding: "12px 16px", marginTop: 8 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Preview — this week's window</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Preview - this week's window</div>
             <div style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.8 }}>
               {(() => {
                 const today = new Date()
@@ -294,12 +294,12 @@ export default function InternReportSettingsPage() {
                 return <>
                   Window opens <strong>{d1} {fmtDate(openDate)}, {hourLabel(settings.openHour)} WAT</strong>.
                   <br />
-                  • <strong>{d1} {hourLabel(settings.openHour)}–{hourLabel(settings.lateHour)}:</strong> on time — 0 pts
+                  • <strong>{d1} {hourLabel(settings.openHour)}–{hourLabel(settings.lateHour)}:</strong> on time - 0 pts
                   <br />
                   • <strong>{d1} {hourLabel(settings.lateHour)}–midnight:</strong> LATE flag, <strong>−{settings.lateDeductionSameDay} pts</strong>
                   <br />
                   {settings.submissionDay < 5 && <>
-                    • <strong>{DAYS[settings.submissionDay + 1]}–Friday:</strong> window closed — no submission allowed until Saturday's late window opens
+                    • <strong>{DAYS[settings.submissionDay + 1]}–Friday:</strong> window closed - no submission allowed until Saturday's late window opens
                     <br />
                   </>}
                   • <strong>Saturday {fmtDate(satDate)}:</strong> LATE, <strong>−{settings.lateDeduction} pts</strong>
@@ -310,7 +310,7 @@ export default function InternReportSettingsPage() {
                   <br />
                   Countdown turns red <strong>{settings.warningThresholdMinutes} minutes</strong> before the late threshold.
                   <br />
-                  <span style={{ color: "var(--muted-foreground)" }}>Saturday and Sunday are always the late days, and Monday is always the missing-deduction day — changing "Submission Day" above only moves when the window opens, not these.</span>
+                  <span style={{ color: "var(--muted-foreground)" }}>Saturday and Sunday are always the late days, and Monday is always the missing-deduction day - changing "Submission Day" above only moves when the window opens, not these.</span>
                 </>
               })()}
             </div>
@@ -321,7 +321,7 @@ export default function InternReportSettingsPage() {
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Reviewer Deadline</div>
               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>
-                Fixed at 7 days after the week starts, at 08:00 WAT — the exact moment the weekly cron runs.
+                Fixed at 7 days after the week starts, at 08:00 WAT - the exact moment the weekly cron runs.
                 This isn't adjustable: the cron only runs once a week, so any other time would silently never fire.
               </div>
             </div>

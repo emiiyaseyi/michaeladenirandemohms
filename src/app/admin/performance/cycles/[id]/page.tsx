@@ -290,7 +290,7 @@ function QuestionGroup({ cycle, section, label, scaleMax, refetch, onDelete }: {
           {items.length === 0 && <tr><td style={{ ...td, color: "var(--muted-foreground)" }} colSpan={3}>No questions yet.</td></tr>}
           {items.map(q => (
             mirror
-              ? <tr key={q.id}><td style={td}>{q.text}</td><td style={{ ...td, width: 80 }}>{q.scaleMax}</td><td style={{ ...td, width: 90, textAlign: "right", color: "var(--muted-foreground)" }}>—</td></tr>
+              ? <tr key={q.id}><td style={td}>{q.text}</td><td style={{ ...td, width: 80 }}>{q.scaleMax}</td><td style={{ ...td, width: 90, textAlign: "right", color: "var(--muted-foreground)" }}>-</td></tr>
               : <QuestionRow key={q.id} q={q} onSaved={refetch} onDelete={onDelete} />
           ))}
         </tbody>
@@ -499,7 +499,7 @@ function ImportsCard({ cycle, refetch }: { cycle: Cycle; refetch: () => Promise<
         desc="Project lead + team members. Members of the same project become each other's peer candidates. Run “Auto-assign peers” after uploading."
         endpoint="/api/performance/projects/import"
         sample="projectName,department,leadEmail,memberEmail"
-        summarize={d => `Imported — ${d.projectsCreated} project(s) created, ${d.membersAdded} member(s) added${d.skipped?.length ? `, ${d.skipped.length} skipped` : ""}.`}
+        summarize={d => `Imported - ${d.projectsCreated} project(s) created, ${d.membersAdded} member(s) added${d.skipped?.length ? `, ${d.skipped.length} skipped` : ""}.`}
         refetch={refetch}
       />
       <CsvUploader

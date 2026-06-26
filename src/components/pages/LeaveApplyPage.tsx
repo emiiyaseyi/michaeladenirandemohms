@@ -167,11 +167,11 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
   const applicantIsIntern = (applicantJobTitle ?? "").toLowerCase().includes("intern")
 
   // Leave types interns are entitled to ON TOP of intern-only ones (e.g. Casual).
-  // Annual + Sick + Compassionate are full-employee benefits — interns don't get them.
+  // Annual + Sick + Compassionate are full-employee benefits - interns don't get them.
   const INTERN_ALLOWED_NON_INTERN_TYPES = ["Maternity Leave", "Paternity Leave"]
 
   const visibleTypes = leaveTypes.filter(lt => {
-    // Hide intern-only types from non-interns. Admin override doesn't apply —
+    // Hide intern-only types from non-interns. Admin override doesn't apply -
     // the API enforces this server-side too, so even an admin acting on behalf
     // of a non-intern can't apply for an intern-only type for them.
     if (lt.internOnly && !applicantIsIntern) return false
@@ -418,7 +418,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                         <div style={{ background: "var(--primary-50)", border: "1px solid var(--primary)", borderRadius: 8, padding: "10px 14px", display: "flex", gap: 10, alignItems: "center" }}>
                           <CalendarDays size={14} style={{ color: "var(--primary)", flexShrink: 0 }} />
                           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--primary)" }}>{selType?.name}</span>
-                          <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>— {selBal.remaining} days available</span>
+                          <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>- {selBal.remaining} days available</span>
                         </div>
                       )}
                       {selType?.minNoticeDays > 0 && !isAdmin && (
@@ -570,7 +570,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                                 <select value={pl.relieverId} onChange={e => updatePL(i, "relieverId", e.target.value)} style={fi}>
                                   <option value="">No relief needed</option>
                                   {employees.filter((e: any) => e.id !== applicantId).map((e: any) => (
-                                    <option key={e.id} value={e.id}>{e.firstName} {e.lastName}{e.jobTitle ? ` — ${e.jobTitle}` : ""}</option>
+                                    <option key={e.id} value={e.id}>{e.firstName} {e.lastName}{e.jobTitle ? ` - ${e.jobTitle}` : ""}</option>
                                   ))}
                                 </select>
                               </div>
@@ -593,7 +593,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                                   <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "2px dashed var(--border)", borderRadius: 8, cursor: plDocUploading[i] ? "not-allowed" : "pointer", fontSize: 13, color: "var(--muted-foreground)" }}
                                     onMouseEnter={e => { if (!plDocUploading[i]) (e.currentTarget as HTMLElement).style.borderColor = "var(--primary)" }}
                                     onMouseLeave={e => { if (!plDocUploading[i]) (e.currentTarget as HTMLElement).style.borderColor = "var(--border)" }}>
-                                    {plDocUploading[i] ? <><Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> Uploading…</> : <><FileText size={14} /> Attach document (PDF, JPG, PNG — max 5MB)</>}
+                                    {plDocUploading[i] ? <><Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> Uploading…</> : <><FileText size={14} /> Attach document (PDF, JPG, PNG - max 5MB)</>}
                                     <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} disabled={!!plDocUploading[i]}
                                       onChange={async ev => {
                                         const file = ev.target.files?.[0]; if (!file) return
@@ -640,7 +640,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                             <label style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", border: "2px dashed var(--border)", borderRadius: 8, cursor: "pointer", fontSize: 13, color: "var(--muted-foreground)" }}
                               onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--primary)"}
                               onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"}>
-                              {docUploading ? <><Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> Uploading…</> : <><FileText size={14} /> Attach document (PDF, JPG, PNG — max 5MB)</>}
+                              {docUploading ? <><Loader2 size={14} style={{ animation: "spin .8s linear infinite" }} /> Uploading…</> : <><FileText size={14} /> Attach document (PDF, JPG, PNG - max 5MB)</>}
                               <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} disabled={docUploading}
                                 onChange={async e => {
                                   const f = e.target.files?.[0]; if (!f) return
@@ -668,13 +668,13 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                         {[
                           ["Leave Type", selType?.name],
                           ["Duration", `${calcDays} working day${calcDays !== 1 ? "s" : ""}`],
-                          ["Dates", form.startDate && form.endDate ? `${formatDate(form.startDate, "MMM d")} → ${formatDate(form.endDate, "MMM d")}` : "—"],
-                          ["Project Lead(s)", form.projectLeads.map(pl => { const e = employees.find((x: any) => x.id === pl.employeeId); return e ? `${e.firstName} ${e.lastName}` : "—" }).join(", ") || "—"],
+                          ["Dates", form.startDate && form.endDate ? `${formatDate(form.startDate, "MMM d")} → ${formatDate(form.endDate, "MMM d")}` : "-"],
+                          ["Project Lead(s)", form.projectLeads.map(pl => { const e = employees.find((x: any) => x.id === pl.employeeId); return e ? `${e.firstName} ${e.lastName}` : "-" }).join(", ") || "-"],
                           ...(form.documentUrl ? [["Supporting Document", "Attached ✓"]] : []),
                         ].map(([label, value]) => (
                           <div key={label as string} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, padding: "7px 0", borderBottom: "1px solid var(--border)" }}>
                             <span style={{ color: "var(--muted-foreground)" }}>{label}</span>
-                            <span style={{ fontWeight: 600, textAlign: "right", maxWidth: "60%" }}>{value ?? "—"}</span>
+                            <span style={{ fontWeight: 600, textAlign: "right", maxWidth: "60%" }}>{value ?? "-"}</span>
                           </div>
                         ))}
                       </div>
@@ -687,7 +687,7 @@ export default function LeaveApplyPage({ basePath, userCaps, isAdmin }: {
                             const reliefEmp = pl.relieverId ? employees.find((e: any) => e.id === pl.relieverId) : null
                             return (
                               <div key={i} style={{ fontSize: 12, paddingBottom: i < form.projectLeads.length - 1 ? 8 : 0, marginBottom: i < form.projectLeads.length - 1 ? 8 : 0, borderBottom: i < form.projectLeads.length - 1 ? "1px solid var(--border)" : "none" }}>
-                                <div style={{ fontWeight: 700 }}>{plEmp ? `${plEmp.firstName} ${plEmp.lastName}` : "—"} — <span style={{ color: "var(--primary)" }}>{pl.taskName}</span></div>
+                                <div style={{ fontWeight: 700 }}>{plEmp ? `${plEmp.firstName} ${plEmp.lastName}` : "-"} - <span style={{ color: "var(--primary)" }}>{pl.taskName}</span></div>
                                 {reliefEmp && <div style={{ color: "var(--muted-foreground)", marginTop: 2 }}>Relief: {reliefEmp.firstName} {reliefEmp.lastName}</div>}
                                 {pl.taskDescription && <div style={{ color: "var(--muted-foreground)", marginTop: 2, fontStyle: "italic" }}>{pl.taskDescription.slice(0, 80)}{pl.taskDescription.length > 80 ? "…" : ""}</div>}
                                 {pl.documentUrl && <div style={{ marginTop: 3, display: "flex", alignItems: "center", gap: 5 }}><FileText size={11} style={{ color: "var(--success)" }} /><a href={pl.documentUrl} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: "var(--primary)", textDecoration: "underline" }}>Handover document</a></div>}

@@ -131,13 +131,13 @@ export default function AuditLogPage() {
       head: [["Timestamp", "Actor", "Target", "Action", "Entity", "Entity ID", "Reason", "IP"]],
       body: rows.map(r => [
         format(new Date(r.createdAt), "yyyy-MM-dd HH:mm:ss"),
-        r.user?.email ?? "—",
-        r.targetUser?.email ?? "—",
+        r.user?.email ?? "-",
+        r.targetUser?.email ?? "-",
         r.action.replace(/_/g, " "),
         r.entity,
-        r.entityId ? r.entityId.slice(0, 12) : "—",
+        r.entityId ? r.entityId.slice(0, 12) : "-",
         (r.reason ?? "").slice(0, 60),
-        r.ipAddress ?? "—",
+        r.ipAddress ?? "-",
       ]),
       styles: { fontSize: 7, cellPadding: 1.5 },
       headStyles: { fillColor: [11, 92, 46], textColor: 255, fontSize: 8 },
@@ -232,7 +232,7 @@ export default function AuditLogPage() {
 
       <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 12 }}>
         {loading ? "Loading…" : `${total.toLocaleString()} records`}
-        {totalPages > 1 && ` — page ${currentPage} of ${totalPages}`}
+        {totalPages > 1 && ` - page ${currentPage} of ${totalPages}`}
       </div>
 
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
@@ -273,12 +273,12 @@ export default function AuditLogPage() {
                             <div style={{ fontWeight: 600, fontSize: 12 }}>{log.targetUser.name}</div>
                             <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{log.targetUser.email}</div>
                           </div>
-                        ) : <span style={{ color: "var(--muted-foreground)", fontSize: 12 }}>—</span>}
+                        ) : <span style={{ color: "var(--muted-foreground)", fontSize: 12 }}>-</span>}
                       </td>
                       <td style={{ padding: "10px 14px" }}><ActionBadge action={log.action} /></td>
                       <td style={{ padding: "10px 14px" }}><EntityBadge entity={log.entity} /></td>
                       <td style={{ padding: "10px 14px", fontSize: 11, color: "var(--muted-foreground)", fontFamily: "monospace" }}>
-                        {log.entityId ? log.entityId.slice(0, 12) + "…" : "—"}
+                        {log.entityId ? log.entityId.slice(0, 12) + "…" : "-"}
                       </td>
                       <td style={{ padding: "10px 14px" }}>
                         {hasDetails ? (
@@ -286,7 +286,7 @@ export default function AuditLogPage() {
                             style={{ background: "none", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer", padding: "3px 8px", color: "var(--muted-foreground)", display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
                             {isOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />} Details
                           </button>
-                        ) : <span style={{ color: "var(--muted-foreground)", fontSize: 12 }}>—</span>}
+                        ) : <span style={{ color: "var(--muted-foreground)", fontSize: 12 }}>-</span>}
                       </td>
                       <td style={{ padding: "10px 14px" }} />
                     </tr>

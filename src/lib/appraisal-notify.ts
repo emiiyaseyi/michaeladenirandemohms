@@ -91,7 +91,7 @@ export async function notifyFinalReport(cycleId: string) {
         employee: { select: { firstName: true, lastName: true, userId: true } },
       },
     })
-    const fmt = (v: number | null) => (v === null || v === undefined ? "—" : Math.round(v * 10) / 10 + "")
+    const fmt = (v: number | null) => (v === null || v === undefined ? "-" : Math.round(v * 10) / 10 + "")
     for (const a of appraisals) {
       if (!a.employee?.userId) continue
       await sendEmail({
@@ -104,7 +104,7 @@ export async function notifyFinalReport(cycleId: string) {
           behaviouralScore: fmt(a.behavioural360Rev),
           jobScore: fmt(a.jobScoreRev),
           coreScore: fmt(a.coreScoreRev),
-          managementComment: a.managementComment?.trim() || "—",
+          managementComment: a.managementComment?.trim() || "-",
         },
       })
     }

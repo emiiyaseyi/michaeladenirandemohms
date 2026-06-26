@@ -194,7 +194,7 @@ export default function PLProjectDetailPage({ params }: { params: Promise<{ id: 
             <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--muted-foreground)" }}>
               <Calendar size={13} />
               <span>
-                {project.startDate ? new Date(project.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                {project.startDate ? new Date(project.startDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"}
                 {" → "}
                 {project.endDate ? new Date(project.endDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "Ongoing"}
               </span>
@@ -244,8 +244,8 @@ export default function PLProjectDetailPage({ params }: { params: Promise<{ id: 
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: "12px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{m.employee.jobTitle ?? "—"}</td>
-                    <td style={{ padding: "12px 20px", fontSize: 13 }}>{m.projectRole ?? <span style={{ color: "var(--muted-foreground)" }}>—</span>}</td>
+                    <td style={{ padding: "12px 20px", fontSize: 13, color: "var(--muted-foreground)" }}>{m.employee.jobTitle ?? "-"}</td>
+                    <td style={{ padding: "12px 20px", fontSize: 13 }}>{m.projectRole ?? <span style={{ color: "var(--muted-foreground)" }}>-</span>}</td>
                     <td style={{ padding: "12px 20px" }}><Badge status={m.employee.employeeStatus ?? "ACTIVE"} /></td>
                     <td style={{ padding: "12px 20px", fontSize: 12, color: "var(--muted-foreground)" }}>
                       {new Date(m.assignedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
@@ -306,7 +306,7 @@ export default function PLProjectDetailPage({ params }: { params: Promise<{ id: 
             <select value={addEmployeeId} onChange={e => setAddEmployeeId(e.target.value)} style={{ ...inp, appearance: "none", cursor: "pointer" }}>
               <option value="">Select from your team…</option>
               {eligibleToAdd.map((e: any) => (
-                <option key={e.id} value={e.id}>{e.firstName} {e.lastName} — {e.jobTitle ?? e.department?.name ?? ""}</option>
+                <option key={e.id} value={e.id}>{e.firstName} {e.lastName} - {e.jobTitle ?? e.department?.name ?? ""}</option>
               ))}
             </select>
             {eligibleToAdd.length === 0 && (

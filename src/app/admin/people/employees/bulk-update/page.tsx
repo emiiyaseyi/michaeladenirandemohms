@@ -125,7 +125,7 @@ export default function BulkUpdateEmployeesPage() {
     `${e.firstName} ${e.lastName}`.toLowerCase().includes(empSearch.toLowerCase())
   )
 
-  const readyItems = ["Employee ID (required) — used to match the row", "Any other field you want to update (optional)"]
+  const readyItems = ["Employee ID (required) - used to match the row", "Any other field you want to update (optional)"]
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--background)" }}>

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
-// GET /api/settings/users — list all users with employee snapshot
+// GET /api/settings/users - list all users with employee snapshot
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -30,7 +30,7 @@ export async function GET() {
   return NextResponse.json({ users })
 }
 
-// POST /api/settings/users — create a new user + employee record
+// POST /api/settings/users - create a new user + employee record
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error

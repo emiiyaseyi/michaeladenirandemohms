@@ -115,7 +115,7 @@ export default function TrashPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{ann.title}</div>
                     <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>
-                      Retired {ann.retiredAt ? formatDate(ann.retiredAt, "MMM d, yyyy") : "—"} · by {ann.createdBy?.name ?? "—"}
+                      Retired {ann.retiredAt ? formatDate(ann.retiredAt, "MMM d, yyyy") : "-"} · by {ann.createdBy?.name ?? "-"}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
@@ -140,7 +140,7 @@ export default function TrashPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{doc.title}</div>
                     <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 2 }}>
-                      {doc.category} · Deleted {formatDate(doc.updatedAt, "MMM d, yyyy")} · by {doc.uploadedBy?.name ?? "—"}
+                      {doc.category} · Deleted {formatDate(doc.updatedAt, "MMM d, yyyy")} · by {doc.uploadedBy?.name ?? "-"}
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>

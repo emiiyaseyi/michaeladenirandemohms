@@ -188,11 +188,11 @@ export default function StaffPeoplePage() {
                           </span>
                         </div>
                       </td>
-                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.user?.email ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.user?.email ?? "-"}</td>
                       <td style={{ ...td, color: "var(--muted-foreground)", fontFamily: "monospace", fontSize: 12 }}>{emp.employeeId}</td>
-                      <td style={td}>{emp.department?.name ?? "—"}</td>
-                      <td style={td}>{emp.jobTitle ?? "—"}</td>
-                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.phone ?? "—"}</td>
+                      <td style={td}>{emp.department?.name ?? "-"}</td>
+                      <td style={td}>{emp.jobTitle ?? "-"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{emp.phone ?? "-"}</td>
                       <td style={td}>
                         <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: badge.bg, color: badge.color, whiteSpace: "nowrap" }}>
                           {badge.label}
@@ -203,7 +203,7 @@ export default function StaffPeoplePage() {
                           <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, whiteSpace: "nowrap", background: emp.gender === "MALE" ? "#EFF6FF" : "#FDF2F8", color: emp.gender === "MALE" ? "#1D4ED8" : "#9D174D" }}>
                             {emp.gender === "MALE" ? "Male" : "Female"}
                           </span>
-                        ) : "—"}
+                        ) : "-"}
                       </td>
                     </tr>
                   )

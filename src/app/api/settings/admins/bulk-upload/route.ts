@@ -28,7 +28,7 @@ function parseCSV(text: string): Record<string, string>[] {
   })
 }
 
-// GET: download CSV template — lists available role slugs in comments
+// GET: download CSV template - lists available role slugs in comments
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error

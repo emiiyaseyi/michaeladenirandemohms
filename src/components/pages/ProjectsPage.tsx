@@ -61,7 +61,7 @@ function MemberSearch({ employees, selected, onChange, exclude }: { employees: a
               <Avatar name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={26} />
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{e.firstName} {e.lastName}</div>
-                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle ?? "—"}</div>
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle ?? "-"}</div>
               </div>
             </div>
           ))}

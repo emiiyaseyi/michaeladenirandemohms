@@ -1,4 +1,4 @@
-// Default appraisal template — sourced from the org's "Performance Appraisal New Template".
+// Default appraisal template - sourced from the org's "Performance Appraisal New Template".
 // Admin can load these into a cycle and then edit per cycle.
 
 export type SectionKey = "BEHAVIOURAL" | "LEADERSHIP" | "CORE_VALUE" | "PEER"
@@ -11,7 +11,7 @@ export interface DefaultQuestion {
   adminScored?: boolean
 }
 
-// Section II — team-member behavioural items. Scale 0–5.
+// Section II - team-member behavioural items. Scale 0–5.
 // Rated by the SUBJECT (self / Employee column), their TEAM LEAD (Reviewer column),
 // and their PEERS. Pooled (lead + peers + member-upward) = the 360.
 export const DEFAULT_BEHAVIOURAL: { text: string }[] = [
@@ -24,7 +24,7 @@ export const DEFAULT_BEHAVIOURAL: { text: string }[] = [
   { text: "Cooperation & Teamwork: respectful of colleagues and makes valuable contributions to help the group achieve its goals." },
 ]
 
-// Leadership items — a team lead's direct reports rate their lead (upward). Scale 0–5.
+// Leadership items - a team lead's direct reports rate their lead (upward). Scale 0–5.
 // Only applies when the subject is a lead → feeds the Team Lead Score.
 export const DEFAULT_LEADERSHIP: { text: string }[] = [
   { text: "Promotes Teamwork & Inclusion: effectively promotes teamwork across functions, values diverse perspectives, and empowers all team members to contribute." },
@@ -36,7 +36,7 @@ export const DEFAULT_LEADERSHIP: { text: string }[] = [
   { text: "Drives Team Success, Morale & Retention: drives the team's success in achieving key objectives, and strengthens team morale." },
 ]
 
-// Section IV — organisation core values. Scale 0–3 (self + reviewer rate each).
+// Section IV - organisation core values. Scale 0–3 (self + reviewer rate each).
 // `adminScored` items also get a locked admin-entered score (attendance from HR records).
 export const DEFAULT_CORE_VALUES: { text: string; adminScored?: boolean }[] = [
   { text: "CanDo: demonstrates enthusiasm, actively contributes beyond assigned duties, takes on new tasks with a positive and committed attitude." },
@@ -61,9 +61,9 @@ export function defaultQuestions(): DefaultQuestion[] {
 // "Development Plan" so both staff and reviewer know how to write them.
 export const SMART_GUIDANCE = {
   areasForImprovement:
-    "SMART — Specific: what exactly to improve? Measurable: how is progress tracked? Achievable: realistic this cycle? Relevant: how it ties to the role/goals. Time-bound: by when?",
+    "SMART - Specific: what exactly to improve? Measurable: how is progress tracked? Achievable: realistic this cycle? Relevant: how it ties to the role/goals. Time-bound: by when?",
   developmentPlan:
-    "SMART — Specific: 1–2 key development actions. Measurable: success indicators. Achievable: resources/support in place. Relevant: links to career growth & team priorities. Time-bound: target date.",
+    "SMART - Specific: 1–2 key development actions. Measurable: success indicators. Achievable: resources/support in place. Relevant: links to career growth & team priorities. Time-bound: target date.",
 }
 
 // ── Section weights (Overall Performance Summary). Sum of weighted sections = 100. ──
@@ -72,7 +72,7 @@ export interface SectionWeights {
   jobSpecific: number   // job-specific / projects
   coreValues: number    // organisation core values
   recommendation: number
-  query: number         // query weight is 0 — it subtracts raw points
+  query: number         // query weight is 0 - it subtracts raw points
 }
 
 export const DEFAULT_WEIGHTS: SectionWeights = {
@@ -83,7 +83,7 @@ export const DEFAULT_WEIGHTS: SectionWeights = {
   query: 0,
 }
 
-// ── Query bands (Section V) — negative points based on warnings / official query badges. ──
+// ── Query bands (Section V) - negative points based on warnings / official query badges. ──
 export interface QueryBand { label: string; warnings?: number; badges?: number; points: number }
 export const DEFAULT_QUERY_BANDS: QueryBand[] = [
   { label: "1 - 2 Warnings", warnings: 2, points: -2 },
@@ -92,7 +92,7 @@ export const DEFAULT_QUERY_BANDS: QueryBand[] = [
   { label: "2 Official Query Badges", badges: 2, points: -9 },
 ]
 
-// ── Recommendation bands (Section VI) — positive points. ──
+// ── Recommendation bands (Section VI) - positive points. ──
 export interface RecommendationBand { label: string; min: number; max: number; points: number }
 export const DEFAULT_RECOMMENDATION_BANDS: RecommendationBand[] = [
   { label: "1 Recommendation", min: 1, max: 1, points: 4 },
@@ -100,7 +100,7 @@ export const DEFAULT_RECOMMENDATION_BANDS: RecommendationBand[] = [
   { label: "3 - 5 Recommendations", min: 3, max: 5, points: 11 },
 ]
 
-// ── Admin-filled global KPI rows (same for everyone) — part of the Job-Specific table. ──
+// ── Admin-filled global KPI rows (same for everyone) - part of the Job-Specific table. ──
 export interface GlobalKpiTemplate { projectName: string; deliverable: string; kpi: string; weight: number }
 export const DEFAULT_GLOBAL_KPIS: GlobalKpiTemplate[] = [
   { projectName: "Learning & Development", deliverable: "Course/Training/Conference", kpi: "Complete 3 courses (Data Protection & Privacy, Time Management, and Developing Corporate Behavior) by the end of June 2026.", weight: 4 },

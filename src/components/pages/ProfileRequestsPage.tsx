@@ -177,7 +177,7 @@ export default function ProfileRequestsPage() {
                   <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{rejecting.email}</div>
                 </div>
                 <p style={{ fontSize: 13, color: "var(--muted-foreground)", lineHeight: 1.6 }}>
-                  This closes the request without changing the employee's password — use this if they remembered it or the request was a mistake. They can submit a new request anytime.
+                  This closes the request without changing the employee's password - use this if they remembered it or the request was a mistake. They can submit a new request anytime.
                 </p>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                   <Button variant="secondary" onClick={() => setRejecting(null)}>Cancel</Button>

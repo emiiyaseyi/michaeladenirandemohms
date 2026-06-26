@@ -181,19 +181,19 @@ export default function ConfirmationPage() {
                           <div style={{ fontWeight: 700 }}>{e.lastName?.toUpperCase()} {e.firstName}</div>
                         </div>
                       </td>
-                      <td style={{ ...td, color: "var(--muted-foreground)", fontSize: 12 }}>{e.user?.email ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)", fontSize: 12 }}>{e.user?.email ?? "-"}</td>
                       <td style={td}>
-                        <div style={{ fontWeight: 600 }}>{e.department?.name ?? "—"}</div>
+                        <div style={{ fontWeight: 600 }}>{e.department?.name ?? "-"}</div>
                         {e.jobTitle && <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle}</div>}
                       </td>
                       <td style={td}>
                         {late != null ? (
                           <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{late} days late</span>
                         ) : (
-                          <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>—</span>
+                          <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>-</span>
                         )}
                       </td>
-                      <td style={{ ...td, color: "var(--muted-foreground)", fontSize: 12 }}>{e.phone ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)", fontSize: 12 }}>{e.phone ?? "-"}</td>
                       <td style={td}>
                         <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "#DCFCE7", color: "#15803d" }}>Active</span>
                       </td>

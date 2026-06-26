@@ -149,7 +149,7 @@ export default function StaffDocumentsPage() {
                               </button>
                             )}
                             {!doc.canView && !doc.canDownload && (!doc.requiresAck || acked) && (
-                              <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>—</span>
+                              <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>-</span>
                             )}
                           </div>
                         </td>

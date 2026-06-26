@@ -165,11 +165,11 @@ export default function RateFormPage() {
             </div>
           </div>
           <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 8 }}>
-            Anonymous — only HR can see who submitted this. A comment is required for every item.
+            Anonymous - only HR can see who submitted this. A comment is required for every item.
           </p>
           {locked && (
             <div style={{ marginTop: 12, padding: "10px 14px", background: "#DCFCE7", color: "#15803D", border: "1px solid #86EFAC", borderRadius: 8, fontSize: 13, fontWeight: 600 }}>
-              ✓ Submitted — this review is locked and can no longer be edited.
+              ✓ Submitted - this review is locked and can no longer be edited.
             </div>
           )}
 

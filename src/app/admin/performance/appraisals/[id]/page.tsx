@@ -65,11 +65,11 @@ type Appraisal = {
   finalizedAt: string | null
 }
 
-const n = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${v}`)
+const n = (v: number | null | undefined) => (v === null || v === undefined ? "-" : `${v}`)
 
 function fullName(p?: Person | null) {
-  if (!p) return "—"
-  return `${p.firstName} ${p.lastName}`.trim() || "—"
+  if (!p) return "-"
+  return `${p.firstName} ${p.lastName}`.trim() || "-"
 }
 
 function StageBadge({ stage }: { stage: string }) {
@@ -135,7 +135,7 @@ function SummaryCard({ a }: { a: Appraisal }) {
       <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "stretch" }}>
         <div style={{ flex: 1, minWidth: 200, background: "var(--primary)", borderRadius: 12, padding: "18px 22px", color: "white" }}>
           <div style={{ fontSize: 12.5, fontWeight: 600, opacity: 0.9 }}>Final Score</div>
-          <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1 }}>{a.finalPercent ?? "—"}%</div>
+          <div style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.1 }}>{a.finalPercent ?? "-"}%</div>
         </div>
         {a.teamLeadPercent !== null && a.teamLeadPercent !== undefined && (
           <div style={{ flex: 1, minWidth: 200, background: "var(--muted)", borderRadius: 12, padding: "18px 22px", color: "var(--foreground)" }}>
@@ -215,7 +215,7 @@ function KpisCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<void> }
           key={k.id}
           mode="number"
           scaleMax={k.weight ?? 0}
-          questionText={`${k.projectName} — ${k.kpi ?? k.deliverable ?? ""} (weight ${k.weight ?? "—"}) · ${k.source}`}
+          questionText={`${k.projectName} - ${k.kpi ?? k.deliverable ?? ""} (weight ${k.weight ?? "-"}) · ${k.source}`}
           rows={rowsFor(k)}
           onChange={(_raterType, patch) => onChange(k.id, patch)}
           footer={k.evidenceUrl ? <span style={{ fontSize: 12 }}>Evidence: <a href={k.evidenceUrl} target="_blank" rel="noreferrer" style={{ color: "var(--primary)", textDecoration: "underline" }}>Open link</a></span> : undefined}
@@ -256,7 +256,7 @@ function ManagementCommentCard({ a, refetch }: { a: Appraisal; refetch: () => Pr
   const ta: React.CSSProperties = { ...fi, minHeight: 90, resize: "vertical" }
   return (
     <SectionCard icon={<MessageSquare size={17} />} title="Management Comment"
-      subtitle="Management's final note for this staff member — included in the final report email.">
+      subtitle="Management's final note for this staff member - included in the final report email.">
       {editable ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           <textarea style={ta} value={value} placeholder="Add a management comment for this staff member…" onChange={e => { setValue(e.target.value); setSaved(false) }} />
@@ -282,7 +282,7 @@ function ReopenCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<void>
     return (
       <SectionCard icon={<RotateCcw size={17} />} title="Reopen for editing"
         subtitle="This appraisal is finalized. Use “Reopen” below to unlock it, then you can reopen individual reviews.">
-        <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Finalized — reopen the appraisal first.</p>
+        <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Finalized - reopen the appraisal first.</p>
       </SectionCard>
     )
   }
@@ -322,7 +322,7 @@ function ReopenCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<void>
             <Row label="Staff self-assessment" sub="Resets the appraisal to Draft so the staff can edit (cycle must be Open)." busyKey="SELF" onClick={() => reopen("SELF", { target: "SELF" })} />
           )}
           {submittedPeers.map((p, i) => (
-            <Row key={p.id} label={`Peer reviewer ${i + 1} — ${fullName(p.peer)}`} sub="Sets this peer review back to “to do”." busyKey={`PEER:${p.peerId}`} onClick={() => reopen(`PEER:${p.peerId}`, { target: "PEER", peerId: p.peerId })} />
+            <Row key={p.id} label={`Peer reviewer ${i + 1} - ${fullName(p.peer)}`} sub="Sets this peer review back to “to do”." busyKey={`PEER:${p.peerId}`} onClick={() => reopen(`PEER:${p.peerId}`, { target: "PEER", peerId: p.peerId })} />
           ))}
           {memberRaters.map((rid, i) => (
             <Row key={rid} label={`Team member ${i + 1} (upward review)`} sub="Clears their team-lead review so they can re-rate." busyKey={`MEMBER:${rid}`} onClick={() => reopen(`MEMBER:${rid}`, { target: "MEMBER", raterId: rid })} />
@@ -341,7 +341,7 @@ function RatingsCard({ a }: { a: Appraisal }) {
     { key: "PEER", label: "Peer ratings" },
   ]
   return (
-    <SectionCard icon={<Users size={17} />} title="360 / Peer ratings" subtitle="Admin view — rater identities are shown.">
+    <SectionCard icon={<Users size={17} />} title="360 / Peer ratings" subtitle="Admin view - rater identities are shown.">
       {groups.map(g => {
         const items = a.ratings.filter(r => r.section === g.key)
         const scored = items.filter(r => typeof r.score === "number")
@@ -350,7 +350,7 @@ function RatingsCard({ a }: { a: Appraisal }) {
           <div key={g.key} style={{ marginBottom: 18 }}>
             <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 8 }}>
               <h3 style={{ fontSize: 13, fontWeight: 700 }}>{g.label}</h3>
-              <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{scored.length} rated · avg {avg === null ? "—" : avg.toFixed(2)}</span>
+              <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{scored.length} rated · avg {avg === null ? "-" : avg.toFixed(2)}</span>
             </div>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
@@ -364,9 +364,9 @@ function RatingsCard({ a }: { a: Appraisal }) {
                 {items.length === 0 && <tr><td style={{ ...td, color: "var(--muted-foreground)" }} colSpan={3}>No ratings.</td></tr>}
                 {items.map((r, i) => (
                   <tr key={i}>
-                    <td style={td}>{r.raterId ?? "—"}</td>
+                    <td style={td}>{r.raterId ?? "-"}</td>
                     <td style={{ ...td, textAlign: "right" }}>{n(r.score)}</td>
-                    <td style={{ ...td, color: r.comment ? "var(--foreground)" : "var(--muted-foreground)" }}>{r.comment ?? "—"}</td>
+                    <td style={{ ...td, color: r.comment ? "var(--foreground)" : "var(--muted-foreground)" }}>{r.comment ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -378,7 +378,7 @@ function RatingsCard({ a }: { a: Appraisal }) {
   )
 }
 
-// ---- Reviews (stacked) — Behavioural (II) & Core Values (IV) ----
+// ---- Reviews (stacked) - Behavioural (II) & Core Values (IV) ----
 type Question = { id: string; section: string; text: string; scaleMax: number; order: number; adminScored: boolean }
 
 function StackedReviewsCard({ a, questions, refetch }: {
@@ -433,7 +433,7 @@ function StackedReviewsCard({ a, questions, refetch }: {
         })
       })
     }
-    // Admin row only when the question is admin-scored (e.g. attendance) — editable until finalize.
+    // Admin row only when the question is admin-scored (e.g. attendance) - editable until finalize.
     if (q.adminScored) {
       const edit = adminEdits[q.id]
       rows.push({
@@ -490,7 +490,7 @@ function StackedReviewsCard({ a, questions, refetch }: {
         const qs = questions.filter(q => q.section === g.key).sort((x, y) => x.order - y.order)
         return (
           <SectionCard key={g.key} icon={g.icon} title={g.title}
-            subtitle="Stacked per question — Employee, Team Lead, Reviewer 2 (read-only) and Admin (attendance) layered.">
+            subtitle="Stacked per question - Employee, Team Lead, Reviewer 2 (read-only) and Admin (attendance) layered.">
             {g.key === "BEHAVIOURAL" && a.peers.length === 0 && (
               <p style={{ fontSize: 12.5, color: "var(--muted-foreground)", marginBottom: 12 }}>No peer reviewers assigned.</p>
             )}
@@ -522,7 +522,7 @@ function StackedReviewsCard({ a, questions, refetch }: {
   )
 }
 
-// Renders the LLM synthesis of a lead's upward reviews. Raw member rows are sealed —
+// Renders the LLM synthesis of a lead's upward reviews. Raw member rows are sealed -
 // this is the only window onto upward feedback, for both HR and the lead.
 function TeamLeadReportCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<void> }) {
   const [busy, setBusy] = useState(false)
@@ -541,9 +541,9 @@ function TeamLeadReportCard({ a, refetch }: { a: Appraisal; refetch: () => Promi
 
   let body: React.ReactNode
   if (count === null || count === undefined || count === 0) {
-    body = <p style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>No upward reviews — this subject isn&apos;t a team lead, or none submitted yet.</p>
+    body = <p style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>No upward reviews - this subject isn&apos;t a team lead, or none submitted yet.</p>
   } else if (count < MIN) {
-    body = <p style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>Held for anonymity — a report is generated only once at least {MIN} team members submit (currently {count}).</p>
+    body = <p style={{ fontSize: 12.5, color: "var(--muted-foreground)" }}>Held for anonymity - a report is generated only once at least {MIN} team members submit (currently {count}).</p>
   } else if (a.teamLeadReviewSummary) {
     body = (
       <>
@@ -559,7 +559,7 @@ function TeamLeadReportCard({ a, refetch }: { a: Appraisal; refetch: () => Promi
   }
 
   return (
-    <SectionCard icon={<ShieldCheck size={17} />} title="Team Lead Review — synthesis (upward)"
+    <SectionCard icon={<ShieldCheck size={17} />} title="Team Lead Review - synthesis (upward)"
       subtitle="AI summary of anonymous team-member feedback. Individual reviews are sealed from everyone; only this synthesis is shown.">
       {body}
       <div style={{ marginTop: 12 }}>
@@ -605,7 +605,7 @@ function ReadField({ label, value }: { label: string; value: React.ReactNode }) 
   return (
     <div style={{ marginBottom: 12 }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>{value === null || value === undefined || value === "" ? "—" : value}</div>
+      <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>{value === null || value === undefined || value === "" ? "-" : value}</div>
     </div>
   )
 }
@@ -658,7 +658,7 @@ function CommentsCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<voi
     } finally { setSaving(false) }
   }
 
-  const yesNo = (v: boolean | null) => (v === null || v === undefined ? "—" : v ? "Yes" : "No")
+  const yesNo = (v: boolean | null) => (v === null || v === undefined ? "-" : v ? "Yes" : "No")
   const ta: React.CSSProperties = { ...fi, minHeight: 72, resize: "vertical" }
 
   return (
@@ -672,7 +672,7 @@ function CommentsCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<voi
             </div>
           ))}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 700 }}>Query (HR) — Section V</label>
+            <label style={{ fontSize: 12, fontWeight: 700 }}>Query (HR) - Section V</label>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
                 <label style={{ fontSize: 12, color: "var(--muted-foreground)" }}>How many warnings? (HR)</label>
@@ -686,10 +686,10 @@ function CommentsCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<voi
             <div style={{ fontSize: 13, fontWeight: 700 }}>
               Query points (auto): {queryPoints(qBands, Number(qWarn || 0), Number(qBadge || 0))}
             </div>
-            <ScaleList title="Scale — points deducted" bands={qBands} />
+            <ScaleList title="Scale - points deducted" bands={qBands} />
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <label style={{ fontSize: 12, fontWeight: 700 }}>Recommendations (HR) — Section VI</label>
+            <label style={{ fontSize: 12, fontWeight: 700 }}>Recommendations (HR) - Section VI</label>
             <div style={{ display: "flex", flexDirection: "column", gap: 5, maxWidth: 280 }}>
               <label style={{ fontSize: 12, color: "var(--muted-foreground)" }}>How many recommendations? (HR)</label>
               <input type="number" min={0} style={fi} value={rCount} onChange={e => setRCount(e.target.value)} />
@@ -697,7 +697,7 @@ function CommentsCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<voi
             <div style={{ fontSize: 13, fontWeight: 700 }}>
               Recommendation points (auto): {recommendationPoints(rBands, Number(rCount || 0))}
             </div>
-            <ScaleList title="Scale — points awarded" bands={rBands} />
+            <ScaleList title="Scale - points awarded" bands={rBands} />
           </div>
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
             <button onClick={() => setEditing(false)} disabled={saving} style={ghostBtn}>Cancel</button>
@@ -713,22 +713,22 @@ function CommentsCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<voi
               <button onClick={start} style={ghostBtn}><Pencil size={13} /> Edit compile fields</button>
             </div>
           )}
-          <SubHead>Section V — Query</SubHead>
+          <SubHead>Section V - Query</SubHead>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 12 }}>
             <ReadField label="Warnings / Badges (staff)" value={`${n(a.queryWarnings)} / ${n(a.queryBadges)}`} />
             <ReadField label="Warnings / Badges (HR)" value={`${n(a.queryWarningsHr)} / ${n(a.queryBadgesHr)}`} />
-            <ReadField label="Query points — Employee / HR" value={`${n(a.queryEmployeeRating)} / ${n(a.queryHrRating)}`} />
+            <ReadField label="Query points - Employee / HR" value={`${n(a.queryEmployeeRating)} / ${n(a.queryHrRating)}`} />
           </div>
           <ReadField label="Query comment" value={a.queryComment} />
 
-          <SubHead>Section VI — Recommendation</SubHead>
+          <SubHead>Section VI - Recommendation</SubHead>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 12 }}>
             <ReadField label="Recommendations (staff / HR)" value={`${n(a.recCount)} / ${n(a.recCountHr)}`} />
-            <ReadField label="Recommendation points — Employee / HR" value={`${n(a.recEmployeeRating)} / ${n(a.recHrRating)}`} />
+            <ReadField label="Recommendation points - Employee / HR" value={`${n(a.recEmployeeRating)} / ${n(a.recHrRating)}`} />
           </div>
           <ReadField label="Recommendation comment" value={a.recComment} />
 
-          <SubHead>Section VII — Improvement &amp; Comments</SubHead>
+          <SubHead>Section VII - Improvement &amp; Comments</SubHead>
           <ReadField label="Key achievements" value={a.keyAchievements} />
           <ReadField label="Areas for improvement" value={a.areasForImprovement} />
           <ReadField label="Development plan" value={a.developmentPlan} />
@@ -737,8 +737,8 @@ function CommentsCard({ a, refetch }: { a: Appraisal; refetch: () => Promise<voi
           <ReadField label="Reviewer comments" value={a.reviewerComments} />
           <ReadField label="Counter reviewer comments" value={a.counterReviewerComments} />
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 12, marginTop: 4 }}>
-            <ReadField label="Meeting — Employee confirmed" value={yesNo(a.meetingEmployeeConfirmed)} />
-            <ReadField label="Meeting — Reviewer confirmed" value={yesNo(a.meetingReviewerConfirmed)} />
+            <ReadField label="Meeting - Employee confirmed" value={yesNo(a.meetingEmployeeConfirmed)} />
+            <ReadField label="Meeting - Reviewer confirmed" value={yesNo(a.meetingReviewerConfirmed)} />
           </div>
         </>
       )}
@@ -849,7 +849,7 @@ export default function AppraisalDetailPage() {
             <StageBadge stage={a.stage} />
           </div>
           <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>
-            {a.employee.jobTitle ?? "—"} · {a.cycle.name} · Primary: {fullName(primary)} · Counter: {fullName(counter)}
+            {a.employee.jobTitle ?? "-"} · {a.cycle.name} · Primary: {fullName(primary)} · Counter: {fullName(counter)}
           </p>
         </div>
       </div>

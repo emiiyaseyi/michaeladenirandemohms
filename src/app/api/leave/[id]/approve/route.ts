@@ -117,7 +117,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const empRole = (request.employee as any).user?.role ?? "STAFF"
     const stageLabel = stage === "HR_ADMIN" ? "HR Admin" : "Project Lead"
 
-    // Resolve relief officer names from handoverNotes — the LeaveReliefOfficer rows are
+    // Resolve relief officer names from handoverNotes - the LeaveReliefOfficer rows are
     // created later in this function so querying that table here would always return empty.
     let reliefNamesForEmail: string[] = []
     if (isApproval && stage === "HR_ADMIN") {
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       },
     })
     // Email only for terminal decisions (fully approved / rejected). The "progressing
-    // to HR" stage is a queue handoff — the in-app notification above is sufficient;
+    // to HR" stage is a queue handoff - the in-app notification above is sufficient;
     // emailing the employee at every stage transition was inbox noise. (R6)
     const stageEventKey = isApproval
       ? (stage === "HR_ADMIN" ? "leave_approved" : null)
@@ -180,7 +180,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  // After PL approves — check if ALL PLs done, then notify HR Admins only
+  // After PL approves - check if ALL PLs done, then notify HR Admins only
   if (isApproval && stage === "PROJECT_LEAD") {
     const refreshed = await prisma.leaveApproval.findMany({ where: { leaveRequestId: id, stage: "PROJECT_LEAD" } })
     const allDone = refreshed.length > 0 && refreshed.every(a => a.action && ["APPROVED", "APPROVED_WITH_COMMENT"].includes(a.action as string))
@@ -191,7 +191,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           data: {
             userId: hr.userId,
             employeeId: hr.employeeId ?? null,
-            title: "Leave — Final Approval Needed",
+            title: "Leave - Final Approval Needed",
             message: `${request.employee?.firstName} ${request.employee?.lastName}'s ${request.leaveType?.name} leave has been approved by all Project Leads and awaits your final approval.`,
             type: "WARNING",
             link: `/admin/requests/leave`,
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
   }
 
-  // After HR Admin approves — create relief records then notify relief officers
+  // After HR Admin approves - create relief records then notify relief officers
   if (isApproval && stage === "HR_ADMIN") {
     let handoverData: any[] = []
     try { handoverData = JSON.parse(request.handoverNotes as string ?? "[]") } catch {}
@@ -239,7 +239,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           link: `${roleBasePath((relief.employee.user?.role as string) ?? "STAFF")}/requests/leave?tab=relief`,
         },
       })
-      // relief_assigned email dropped (R6) — in-app notification is enough; relief officers
+      // relief_assigned email dropped (R6) - in-app notification is enough; relief officers
       // are colleagues already using the system. See work.md Round 6.
     }
   }

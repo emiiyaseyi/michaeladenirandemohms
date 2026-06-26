@@ -159,7 +159,7 @@ export default function AssignmentsPage() {
                 {search ? "No results match your search." : "No assignments yet."}
               </td></tr>
             ) : paged.map(a => {
-              const assignedDate = a.assignedOn ? new Date(a.assignedOn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"
+              const assignedDate = a.assignedOn ? new Date(a.assignedOn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-"
               const isAssigned = a.status === "ASSIGNED"
 
               return (
@@ -181,7 +181,7 @@ export default function AssignmentsPage() {
                     {a.asset?.identifier && <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{a.asset.identifier}</div>}
                   </td>
                   <td style={td}>{assignedDate}</td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.description ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.description ?? "-"}</td>
                   <td style={td}>
                     <span style={{
                       fontSize: 12, padding: "3px 12px", borderRadius: 999, fontWeight: 600, display: "inline-block",

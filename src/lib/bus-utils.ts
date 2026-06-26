@@ -25,7 +25,7 @@ export function isBusDay(now = new Date()): boolean {
   return BUS_DAYS.includes(watDay)
 }
 
-// Today midnight UTC — used as bookingDate key
+// Today midnight UTC - used as bookingDate key
 export function todayUTC(now = new Date()): Date {
   const d = new Date(now)
   d.setUTCHours(0, 0, 0, 0)

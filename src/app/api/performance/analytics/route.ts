@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
   // Per-department average (finalized).
   const deptMap = new Map<string, number[]>()
   for (const a of finalized) {
-    const d = a.employee.department?.name ?? "—"
+    const d = a.employee.department?.name ?? "-"
     const v = a.finalPercent ?? a.finalReviewerPercent
     if (typeof v === "number") { if (!deptMap.has(d)) deptMap.set(d, []); deptMap.get(d)!.push(v) }
   }

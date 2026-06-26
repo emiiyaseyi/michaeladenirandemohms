@@ -94,7 +94,7 @@ async function parseTemplateFile(file: File): Promise<{
   const newEntries = initEntries()
   const newRef: Record<string, string> = { Mon: "", Tue: "", Wed: "", Thu: "", Fri: "" }
 
-  // The template has a blank col 0 — "Day of the week" is in col 1.
+  // The template has a blank col 0 - "Day of the week" is in col 1.
   // Find the header row by scanning any column for "day of the week".
   let hdrIdx = -1
   let dayCol = -1
@@ -103,14 +103,14 @@ async function parseTemplateFile(file: File): Promise<{
     if (colIdx !== -1) { hdrIdx = i; dayCol = colIdx; break }
   }
   if (hdrIdx === -1) {
-    warnings.push("Could not find the header row — make sure you're using the standard template.")
+    warnings.push("Could not find the header row - make sure you're using the standard template.")
     return { entries: newEntries, dailyReflections: newRef, warnings }
   }
 
   const headers = rows[hdrIdx].map(h => String(h ?? "").trim().toLowerCase())
 
   // Build column map. After finding a category text column, the NEXT column is always hours
-  // (regardless of whether its header says "hours" or is blank — e.g. Research).
+  // (regardless of whether its header says "hours" or is blank - e.g. Research).
   // Unknown categories (Consulting, New Business) are silently skipped.
   type ColMeta = { type: "text"; catKey: string } | { type: "hours"; catKey: string } | { type: "reflection" } | { type: "skip" }
   const colMeta: ColMeta[] = headers.map(() => ({ type: "skip" } as ColMeta))
@@ -136,18 +136,18 @@ async function parseTemplateFile(file: File): Promise<{
   }
 
   if (foundCats === 0) {
-    warnings.push("No category columns found — make sure you're using the standard template.")
+    warnings.push("No category columns found - make sure you're using the standard template.")
     return { entries: newEntries, dailyReflections: newRef, warnings }
   }
 
   const reflectionCol = colMeta.findIndex(m => m.type === "reflection")
 
   // The template merges the "Personal Reflections" cell across each day's row range.
-  // The day-name text typed in dayCol isn't always at the top of that range — interns
+  // The day-name text typed in dayCol isn't always at the top of that range - interns
   // sometimes add extra task rows above it (e.g. Meetings/Self Development) before
   // typing the next day's name, which would otherwise misattribute that range's
   // reflection (and tasks) to the previous day. Use the merge ranges as the
-  // authoritative day boundaries when available (.xlsx only — .csv has no merges).
+  // authoritative day boundaries when available (.xlsx only - .csv has no merges).
   type DayInfo = { dayKey: DayKey; refKey: string }
   type Block = { start: number; end: number; day: DayInfo | null }
   let blocks: Block[] = []
@@ -181,7 +181,7 @@ async function parseTemplateFile(file: File): Promise<{
         dayRefTaken = false
       }
     } else {
-      // Day name is in dayCol — trim and lowercase to match map keys
+      // Day name is in dayCol - trim and lowercase to match map keys
       const dayCell = String(row[dayCol] ?? "").trim().toLowerCase()
       if (TEMPLATE_DAY_MAP[dayCell]) {
         currentDay = TEMPLATE_DAY_MAP[dayCell]
@@ -190,7 +190,7 @@ async function parseTemplateFile(file: File): Promise<{
     }
     if (!currentDay) continue
 
-    // Parse task cells — only import rows where the text cell is non-empty
+    // Parse task cells - only import rows where the text cell is non-empty
     let rowHasData = false
     for (let c = 0; c < colMeta.length; c++) {
       const meta = colMeta[c]
@@ -213,7 +213,7 @@ async function parseTemplateFile(file: File): Promise<{
       }
     }
 
-    // Personal reflection — take from first row of each day that has any content
+    // Personal reflection - take from first row of each day that has any content
     if (!dayRefTaken && reflectionCol !== -1) {
       const ref = String(row[reflectionCol] ?? "").trim()
       if (ref) { newRef[currentDay.refKey] = ref; dayRefTaken = true }
@@ -276,12 +276,12 @@ function computePhase(cfg: Settings, nowWat: Date): Phase {
     // Fake an "ontime" phase with a far-future late marker so the countdown
     // shows a big positive number and nothing in the UI thinks we're closed.
     const fakeLate = new Date(nowWat.getTime() + 7 * 24 * 60 * 60 * 1000)
-    return { kind: "ontime", ms: fakeLate.getTime() - nowWat.getTime(), label: "Testing — window always open" }
+    return { kind: "ontime", ms: fakeLate.getTime() - nowWat.getTime(), label: "Testing - window always open" }
   }
   // nowWat is a Date shifted by +1hr from UTC so that getUTC* methods return WAT values
   const day = nowWat.getUTCDay() // 0=Sun … 1=Mon … 6=Sat
   // Submission Day (open day) is configurable Mon-Fri. Saturday/Sunday are ALWAYS the
-  // literal calendar late days — they never shift with the open day.
+  // literal calendar late days - they never shift with the open day.
   const OPEN_DAY = cfg.submissionDay
 
   // Build a Date in WAT-shifted space for today at HH:MM WAT
@@ -309,20 +309,19 @@ function computePhase(cfg: Settings, nowWat: Date): Phase {
     return { kind: "late_friday", ms: msTo(closeTodayAt) }
   }
 
-  // TEMP TEST: late-deduction days shifted from Sat/Sun to Tue/Wed — revert to 6/0 when done testing
-  if (day === 2) {
+  if (day === 6) {
     const tomorrowMidnight = todayAt(24)
     return { kind: "late_saturday", ms: msTo(tomorrowMidnight) }
   }
 
-  if (day === 3) {
+  if (day === 0) {
     const tomorrowMidnight = todayAt(24)
     return { kind: "late_sunday", ms: msTo(tomorrowMidnight) }
   }
 
   // A Mon-Fri weekday that isn't the open day.
   if (day < OPEN_DAY) {
-    // Before this week's open day — window hasn't opened yet.
+    // Before this week's open day - window hasn't opened yet.
     const daysUntilOpen = OPEN_DAY - day
     const next = new Date(nowWat)
     next.setUTCDate(nowWat.getUTCDate() + daysUntilOpen)
@@ -330,13 +329,13 @@ function computePhase(cfg: Settings, nowWat: Date): Phase {
     return { kind: "closed_before", ms: msTo(next), label: `Opens ${DAYS[OPEN_DAY]} ${fmtWAT(cfg.openHour, openM)}` }
   }
 
-  // After this week's open day but before Saturday — window is closed until Saturday
+  // After this week's open day but before Saturday - window is closed until Saturday
   // (Saturday/Sunday late submission is always available regardless of the open day).
   const daysUntilSat = 6 - day
   const nextSat = new Date(nowWat)
   nextSat.setUTCDate(nowWat.getUTCDate() + daysUntilSat)
   nextSat.setUTCHours(0, 0, 0, 0)
-  return { kind: "closed_before", ms: msTo(nextSat), label: `Window closed — opens again Saturday (late, −${cfg.lateDeduction} pts)` }
+  return { kind: "closed_before", ms: msTo(nextSat), label: `Window closed - opens again Saturday (late, −${cfg.lateDeduction} pts)` }
 }
 
 function computeWindow(cfg: Settings): { text: string; open: boolean; late: boolean; deduction: number } {
@@ -347,9 +346,9 @@ function computeWindow(cfg: Settings): { text: string; open: boolean; late: bool
     case "closed_after":  return { text: "Submission window closed. Next opens Friday.", open: false, late: false, deduction: 0 }
     case "ontime":        return { text: `On-time window`, open: true, late: false, deduction: 0 }
     case "warning":       return { text: phase.label, open: true, late: false, deduction: 0 }
-    case "late_friday":   return { text: `LATE — submit before midnight (−${cfg.lateDeductionSameDay} pt deduction)`, open: true, late: true, deduction: cfg.lateDeductionSameDay }
-    case "late_saturday": return { text: `Saturday submission — −${cfg.lateDeduction} pts`, open: true, late: true, deduction: cfg.lateDeduction }
-    case "late_sunday":   return { text: `Sunday submission — −${cfg.lateDeductionSunday} pts (final day)`, open: true, late: true, deduction: cfg.lateDeductionSunday }
+    case "late_friday":   return { text: `LATE - submit before midnight (−${cfg.lateDeductionSameDay} pt deduction)`, open: true, late: true, deduction: cfg.lateDeductionSameDay }
+    case "late_saturday": return { text: `Saturday submission - −${cfg.lateDeduction} pts`, open: true, late: true, deduction: cfg.lateDeduction }
+    case "late_sunday":   return { text: `Sunday submission - −${cfg.lateDeductionSunday} pts (final day)`, open: true, late: true, deduction: cfg.lateDeductionSunday }
   }
 }
 
@@ -380,18 +379,18 @@ function CountdownBanner({ cfg }: { cfg: Settings }) {
       break
     case "late_friday":
       bg = "#FEE2E2"; color = "#DC2626"; icon = "⏰"
-      title = `Late submission — −${cfg.lateDeductionSameDay} pt${cfg.lateDeductionSameDay !== 1 ? "s" : ""}`
+      title = `Late submission - −${cfg.lateDeductionSameDay} pt${cfg.lateDeductionSameDay !== 1 ? "s" : ""}`
       subtitle = "Submit tonight before midnight"
       break
     case "late_saturday":
       bg = "#FEF3C7"; color = "#D97706"; icon = "⏰"
-      title = `Late submission — −${cfg.lateDeduction} pts`
+      title = `Late submission - −${cfg.lateDeduction} pts`
       subtitle = "Window closes Sunday midnight"
       break
     case "late_sunday":
       bg = "#FEE2E2"; color = "#DC2626"; icon = "🔥"
-      title = `Late submission — −${cfg.lateDeductionSunday} pts · Final day`
-      subtitle = "Last chance — window closes at midnight"
+      title = `Late submission - −${cfg.lateDeductionSunday} pts · Final day`
+      subtitle = "Last chance - window closes at midnight"
       break
     case "closed_after":
       bg = "#F3F4F6"; color = "#374151"; icon = "🕒"
@@ -494,7 +493,7 @@ export default function InternReportPage() {
       if (warnings.length > 0) {
         setUploadMsg({ ok: false, text: warnings.join(" ") })
       } else {
-        setUploadMsg({ ok: true, text: "Template imported — review your entries, fill in general reflection and week number, then submit." })
+        setUploadMsg({ ok: true, text: "Template imported - review your entries, fill in general reflection and week number, then submit." })
       }
     } catch {
       setUploadMsg({ ok: false, text: "Could not read the file. Make sure it is a valid .xlsx or .csv file." })
@@ -521,7 +520,7 @@ export default function InternReportPage() {
     fetch("/api/self-service/profile").then(r => r.json()).then(d => {
       const pl = d.profile?.projectLead
       if (pl) setProjectLead({ id: pl.id, name: pl.name })
-      // Eligibility to submit reports starts from account creation, not hireDate —
+      // Eligibility to submit reports starts from account creation, not hireDate -
       // unless an admin set an explicit override (internReportStartDate) for this intern.
       const start = d.profile?.internReportStartDate ?? d.profile?.accountCreatedAt
       if (start) setReportStartDate(new Date(start))
@@ -596,7 +595,7 @@ export default function InternReportPage() {
 
   const totalHours = CATEGORIES.reduce((s, c) => s + catTotal(c.key), 0)
 
-  // Current week (WAT) — used as reference for the week navigator
+  // Current week (WAT) - used as reference for the week navigator
   const watNow = new Date(new Date().getTime() + 60 * 60 * 1000)
   const currentDay = watNow.getDay()
   const diffToCurrentMonday = currentDay === 0 ? -6 : 1 - currentDay
@@ -611,7 +610,7 @@ export default function InternReportPage() {
   const weekLabel = `${format(weekMon, "MMM d")} – ${format(weekFri, "MMM d, yyyy")}`
   const isPastWeek = weekOffset < 0
 
-  // Monday of the intern's earliest reportable week — can't navigate to weeks before this
+  // Monday of the intern's earliest reportable week - can't navigate to weeks before this
   let earliestWeekMon: Date | null = null
   if (reportStartDate) {
     const sd = new Date(reportStartDate)
@@ -688,7 +687,7 @@ export default function InternReportPage() {
       if (weekOffset === 0) setSubmitOk(true)
       setReports(prev => [d.report, ...prev.filter(r => r.id !== d.report.id)])
     } catch {
-      setSubmitErr("Connection issue — your report may have still gone through. Refresh the page to check before submitting again.")
+      setSubmitErr("Connection issue - your report may have still gone through. Refresh the page to check before submitting again.")
     } finally {
       setSubmitting(false)
     }
@@ -777,7 +776,7 @@ export default function InternReportPage() {
         </button>
       </div>
 
-      {/* Big live countdown — only for current week */}
+      {/* Big live countdown - only for current week */}
       {!isPastWeek && <CountdownBanner cfg={cfg} />}
 
       {/* Past week notice */}
@@ -785,7 +784,7 @@ export default function InternReportPage() {
         <div style={{ padding: "14px 18px", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 10, marginBottom: 16, color: "#92400E", fontSize: 13, display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 18 }}>⏰</span>
           <div>
-            <strong>Past week submission</strong> — a deduction of <strong>−{pastWeekDeduction} pts</strong> will be applied.
+            <strong>Past week submission</strong> - a deduction of <strong>−{pastWeekDeduction} pts</strong> will be applied.
             Deductions accrue −{cfg.missingWeeklyDeduction} pts every Monday until you submit. Submit as soon as possible.
           </div>
         </div>
@@ -793,11 +792,11 @@ export default function InternReportPage() {
 
       {hasMissingPlaceholder && (
         <div style={{ padding: "12px 16px", background: "#FEF3C7", border: "1px solid #FDE68A", borderRadius: 8, marginBottom: 16, color: "#92400E", fontSize: 12 }}>
-          A "Missing" placeholder exists for this week — submitting will replace it.
+          A "Missing" placeholder exists for this week - submitting will replace it.
         </div>
       )}
 
-      {/* Submission Form — full width */}
+      {/* Submission Form - full width */}
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", marginBottom: 24 }}>
         {/* Card header */}
         <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
@@ -813,13 +812,15 @@ export default function InternReportPage() {
               value={weekNumber}
               onChange={e => { setWeekNumber(e.target.value); if (submitErr === "Please enter your week number before submitting.") setSubmitErr("") }}
               placeholder="e.g. 1"
-              style={{ width: 70, padding: "5px 8px", border: `1.5px solid ${submitErr === "Please enter your week number before submitting." ? "#EF4444" : "var(--border)"}`, borderRadius: 6, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none" }}
+              disabled={alreadySubmitted}
+              style={{ width: 70, padding: "5px 8px", border: `1.5px solid ${submitErr === "Please enter your week number before submitting." ? "#EF4444" : "var(--border)"}`, borderRadius: 6, fontSize: 12, background: "var(--background)", color: "var(--foreground)", outline: "none", opacity: alreadySubmitted ? 0.45 : 1 }}
             />
             <input ref={uploadRef} type="file" accept=".xlsx,.csv" style={{ display: "none" }} onChange={handleTemplateUpload} />
             <button
-              onClick={() => uploadRef.current?.click()}
+              onClick={() => { if (!alreadySubmitted) uploadRef.current?.click() }}
               title="Import from template (.xlsx or .csv)"
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", border: "1.5px solid var(--border)", borderRadius: 6, background: "var(--muted)", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--foreground)" }}
+              disabled={alreadySubmitted}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", border: "1.5px solid var(--border)", borderRadius: 6, background: "var(--muted)", cursor: alreadySubmitted ? "not-allowed" : "pointer", fontSize: 12, fontWeight: 600, color: "var(--foreground)", opacity: alreadySubmitted ? 0.45 : 1 }}
             >
               <Upload size={13} /> Import Template
             </button>
@@ -859,10 +860,10 @@ export default function InternReportPage() {
           <>
             <div style={{ padding: "16px 24px 0" }}>
               <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 10 }}>
-                Time per task: enter minutes (e.g. <strong>90</strong>) or hours/mins in any format or case — <strong>1h 30m</strong>, <strong>1HR 30MIN</strong>, <strong>1:30</strong> all work.
+                Time per task: enter minutes (e.g. <strong>90</strong>) or hours/mins in any format or case - <strong>1h 30m</strong>, <strong>1HR 30MIN</strong>, <strong>1:30</strong> all work.
               </p>
 
-              {/* Task table — Days as rows, Categories as columns */}
+              {/* Task table - Days as rows, Categories as columns */}
               <div style={{ overflow: "auto", maxHeight: "min(70vh, 560px)", marginBottom: 12, border: "1px solid var(--border)", borderRadius: 8 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
@@ -922,7 +923,7 @@ export default function InternReportPage() {
                             )
                           })}
                           <td style={{ padding: "10px 8px", textAlign: "center", fontWeight: 700, fontSize: 13, color: dayOver ? "#DC2626" : "var(--primary)", verticalAlign: "top", position: "sticky", right: 0, background: rowBg, zIndex: 1, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>
-                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "—"}
+                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "-"}
                             {dayOver && <div style={{ fontSize: 10, color: "#DC2626", fontWeight: 600 }}>over 8h</div>}
                           </td>
                         </tr>
@@ -935,7 +936,7 @@ export default function InternReportPage() {
                         const catMins = DAYS_LIST.reduce((s, d) => s + cellMinutes(cat.key, d), 0)
                         return (
                           <td key={cat.key} style={{ padding: "11px 8px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>
-                            {catMins > 0 ? fmtMinutes(catMins) : "—"}
+                            {catMins > 0 ? fmtMinutes(catMins) : "-"}
                           </td>
                         )
                       })}
@@ -961,7 +962,7 @@ export default function InternReportPage() {
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: "var(--foreground)", display: "flex", alignItems: "center", gap: 8 }}>
                   <span>Daily Reflections</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em" }}>Required — all 5 days</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 12, background: "#FEE2E2", color: "#DC2626", textTransform: "uppercase", letterSpacing: "0.05em" }}>Required - all 5 days</span>
                 </div>
                 <div className="reflections-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
                   {REFLECTION_DAYS.map(({ key, label }) => {
@@ -1008,7 +1009,7 @@ export default function InternReportPage() {
                   onChange={e => setGeneralReflection(e.target.value)}
                   rows={4}
                   disabled={!window.open}
-                  placeholder="Summarise your week overall — what went well, what you learned, and what you'd do differently…"
+                  placeholder="Summarise your week overall - what went well, what you learned, and what you'd do differently…"
                   style={{
                     width: "100%", padding: "10px 12px",
                     border: `1.5px solid ${(!generalReflection.trim() && window.open) ? "#FCA5A5" : "var(--border)"}`,
@@ -1032,11 +1033,11 @@ export default function InternReportPage() {
                   {projectLead ? (
                     <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 12px", borderRadius: 20, background: "#EEF2FF", fontSize: 12, fontWeight: 600, color: "#4338ca" }}>
                       {projectLead.name}
-                      <span style={{ fontSize: 10, fontWeight: 400, color: "#6366f1" }}>— primary reviewer</span>
+                      <span style={{ fontSize: 10, fontWeight: 400, color: "#6366f1" }}>- primary reviewer</span>
                     </div>
                   ) : (
                     <div style={{ fontSize: 12, color: "#D97706", fontStyle: "italic" }}>
-                      No project lead assigned — add at least one reviewer below.
+                      No project lead assigned - add at least one reviewer below.
                     </div>
                   )}
                   {extraReviewerIds.map(revId => {
@@ -1081,7 +1082,7 @@ export default function InternReportPage() {
 
               {!isPastWeek && window.late && window.deduction > 0 && (
                 <div style={{ padding: "8px 12px", background: "#FEF3C7", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 12 }}>
-                  Late submission — {window.deduction} point{window.deduction !== 1 ? "s" : ""} will be automatically deducted from your score.
+                  Late submission - {window.deduction} point{window.deduction !== 1 ? "s" : ""} will be automatically deducted from your score.
                 </div>
               )}
 
@@ -1142,7 +1143,7 @@ export default function InternReportPage() {
         )}
       </div>
 
-      {/* Past Reports — below the form */}
+      {/* Past Reports - below the form */}
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden" }}>
         <div style={{ padding: "18px 24px", borderBottom: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
           <h2 style={{ fontSize: 15, fontWeight: 800 }}>Past Reports</h2>
@@ -1369,7 +1370,7 @@ export default function InternReportPage() {
             </div>
 
             <div style={{ padding: "20px 24px" }}>
-              {/* Task breakdown — Days as rows, Categories as columns */}
+              {/* Task breakdown - Days as rows, Categories as columns */}
               <div style={{ overflowX: "auto", marginBottom: 20 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
                   <thead>
@@ -1407,7 +1408,7 @@ export default function InternReportPage() {
                                       {tasks.map((r: any, idx: number) => <div key={idx} style={{ marginBottom: 2, lineHeight: 1.4 }}>{r.text}</div>)}
                                       {mins > 0 && <div style={{ fontWeight: 700, color: "var(--primary)", marginTop: 2 }}>{fmtMinutes(mins)}</div>}
                                     </>
-                                  ) : <span style={{ color: "var(--border)" }}>—</span>}
+                                  ) : <span style={{ color: "var(--border)" }}>-</span>}
                                 </td>
                               )
                             }
@@ -1415,12 +1416,12 @@ export default function InternReportPage() {
                               <td key={cat.key} style={{ padding: "6px 8px", fontSize: 11, verticalAlign: "top" }}>
                                 {cell?.tasks && <div style={{ marginBottom: 2, color: "var(--foreground)", lineHeight: 1.4 }}>{cell.tasks}</div>}
                                 {mins > 0 && <div style={{ fontWeight: 700, color: "var(--primary)" }}>{fmtMinutes(mins)}</div>}
-                                {!cell?.tasks && !mins && <span style={{ color: "var(--border)" }}>—</span>}
+                                {!cell?.tasks && !mins && <span style={{ color: "var(--border)" }}>-</span>}
                               </td>
                             )
                           })}
                           <td style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--primary)", verticalAlign: "middle", position: "sticky", right: 0, background: i % 2 === 0 ? "var(--card)" : "var(--muted)", zIndex: 1 }}>
-                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "—"}
+                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "-"}
                           </td>
                         </tr>
                       )
@@ -1438,7 +1439,7 @@ export default function InternReportPage() {
                         }, 0)
                         return (
                           <td key={cat.key} style={{ padding: "8px 8px", textAlign: "center", fontWeight: 700, fontSize: 11, color: "var(--muted-foreground)" }}>
-                            {catTotMins > 0 ? fmtMinutes(catTotMins) : "—"}
+                            {catTotMins > 0 ? fmtMinutes(catTotMins) : "-"}
                           </td>
                         )
                       })}
@@ -1460,7 +1461,7 @@ export default function InternReportPage() {
                       return (
                         <div key={key} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 12px" }}>
                           <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>{label}</div>
-                          <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0 }}>{text || <span style={{ color: "var(--border)", fontStyle: "italic" }}>—</span>}</p>
+                          <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0 }}>{text || <span style={{ color: "var(--border)", fontStyle: "italic" }}>-</span>}</p>
                         </div>
                       )
                     })}

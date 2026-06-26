@@ -48,7 +48,7 @@ function embedUrl(url: string): string | null {
   // Google Drive
   const gdrive = url.match(/drive\.google\.com\/file\/d\/([^/]+)/)
   if (gdrive) return `https://drive.google.com/file/d/${gdrive[1]}/preview`
-  // Direct link (mp4 etc) — use as-is
+  // Direct link (mp4 etc) - use as-is
   return url
 }
 
@@ -189,7 +189,7 @@ export function DashboardScrollTicker({ items, userId }: { items: Announcement[]
 
   if (dismissed || items.length === 0) return null
 
-  const text = items.map(a => `${a.title}${a.body ? ` — ${a.body}` : ""}`).join("   ·   ")
+  const text = items.map(a => `${a.title}${a.body ? ` - ${a.body}` : ""}`).join("   ·   ")
 
   return (
     <div style={{

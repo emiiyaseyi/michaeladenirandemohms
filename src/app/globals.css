@@ -3,7 +3,7 @@
 /* ─── DSN Brand · Light Mode ─────────────────────────────────── */
 /* Off-white canvas, white cards, deep green CTAs, red accent     */
 :root {
-  /* Green — primary actions, headings, nav active */
+  /* Green - primary actions, headings, nav active */
   --primary:         #0B5C2E;
   --primary-dark:    #083D1E;
   --primary-light:   #0E7A40;
@@ -11,13 +11,13 @@
   --primary-50:      #EBF5EF;
   --primary-100:     #C8E6D4;
 
-  /* Red — badges, underlines, alerts, secondary accent */
+  /* Red - badges, underlines, alerts, secondary accent */
   --accent:          #E3192A;
   --accent-dark:     #B51020;
   --accent-50:       #FEF0F1;
   --accent-100:      #FBCDD0;
 
-  /* Sidebar — very dark green, like DSN/Equalyz hero sections */
+  /* Sidebar - very dark green, like DSN/Equalyz hero sections */
   --sidebar-bg:      #071F10;
   --sidebar-hover:   rgba(255,255,255,0.07);
   --sidebar-active:  rgba(11,92,46,0.85);
@@ -25,7 +25,7 @@
   --sidebar-fg-active: #FFFFFF;
   --sidebar-border:  rgba(255,255,255,0.05);
 
-  /* Canvas — off-white with the faintest green tint */
+  /* Canvas - off-white with the faintest green tint */
   --background:      #F6F8F6;
   --foreground:      #1A1A1A;
   --card:            #FFFFFF;
@@ -56,7 +56,7 @@
 }
 
 /* ─── Dark Mode ───────────────────────────────────────────────── */
-/* True dark — near-black canvas, grey cards, green only on CTAs  */
+/* True dark - near-black canvas, grey cards, green only on CTAs  */
 .dark {
   /* Green CTAs / active states only */
   --primary:         #4ADE80;
@@ -72,7 +72,7 @@
   --accent-50:       #2D1515;
   --accent-100:      #3D1B1B;
 
-  /* Sidebar — very dark, near black */
+  /* Sidebar - very dark, near black */
   --sidebar-bg:      #0D0D0D;
   --sidebar-hover:   rgba(255,255,255,0.06);
   --sidebar-active:  rgba(74,222,128,0.12);
@@ -80,7 +80,7 @@
   --sidebar-fg-active: #F0F0F0;
   --sidebar-border:  rgba(255,255,255,0.06);
 
-  /* Canvas — near-black, no colour tint */
+  /* Canvas - near-black, no colour tint */
   --background:      #141414;
   --foreground:      #E8E8E8;
   --card:            #1C1C1C;
@@ -243,7 +243,7 @@ main { min-width: 0; }
   to   { transform: translateY(0);    opacity: 1 }
 }
 
-/* ─── Mobile responsiveness — global polish ───────────────────── */
+/* ─── Mobile responsiveness - global polish ───────────────────── */
 
 /* Hide scrollbars on horizontal scroll strips (settings tabs, etc.) while keeping touch scroll smooth */
 .scrollbar-hide {
@@ -261,12 +261,12 @@ main { min-width: 0; }
 /* Page content padding: shrink generous desktop padding on small screens */
 @media (max-width: 899px) {
   main { padding-left: 16px !important; padding-right: 16px !important; padding-top: 16px !important; padding-bottom: 16px !important; }
-  /* Reduce the inner card padding on mobile too — most pages use 28px 32px */
+  /* Reduce the inner card padding on mobile too - most pages use 28px 32px */
   main > div[style*="padding: \"28px 32px\""],
   main > div[style*="padding:\"28px 32px\""] { padding: 16px !important; }
 }
 
-/* Generic modal helpers — use with createPortal where the modal is nested inside a transformed parent */
+/* Generic modal helpers - use with createPortal where the modal is nested inside a transformed parent */
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -289,7 +289,7 @@ main { min-width: 0; }
   .modal-box { padding: 20px 16px; }
 }
 
-/* Auto-fit grid that collapses gracefully on narrow screens —
+/* Auto-fit grid that collapses gracefully on narrow screens -
    prefer this over inline `repeat(N, 1fr)` when authoring new pages */
 .grid-auto-fill {
   display: grid;
@@ -297,7 +297,7 @@ main { min-width: 0; }
   gap: 16px;
 }
 
-/* Stat tile grid (used on dashboards) — 4 / 2 / 1 columns */
+/* Stat tile grid (used on dashboards) - 4 / 2 / 1 columns */
 .stat-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -322,7 +322,7 @@ main { min-width: 0; }
 }
 
 /* Backup for non-iOS touch devices (older Android Chrome etc.) using a
-   touch-only media query. Same goal — no focus-zoom. */
+   touch-only media query. Same goal - no focus-zoom. */
 @media (pointer: coarse) {
   input:not([type="checkbox"]):not([type="radio"]),
   textarea,
@@ -353,7 +353,7 @@ input[type="time"] {
   .full-viewport { height: 100dvh !important; }
 }
 
-/* Tap targets — make all buttons + links comfortable on touch (min 44px iOS HIG).
+/* Tap targets - make all buttons + links comfortable on touch (min 44px iOS HIG).
    Doesn't enlarge visual styling, just adds invisible touch area where needed. */
 @media (pointer: coarse) {
   button, a, [role="button"] {

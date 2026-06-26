@@ -14,9 +14,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (user.employeeId !== id) {
     const c = caps(user.role)
     if (c.canViewAllEmployees) {
-      // admin — full access
+      // admin - full access
     } else if (c.canViewTeamEmployees) {
-      // project lead — only their direct reports
+      // project lead - only their direct reports
       const isReport = await prisma.employee.findFirst({ where: { id, managerId: user.employeeId }, select: { id: true } })
       if (!isReport) return forbidden("You can only view profiles of your direct reports")
     } else {
@@ -149,7 +149,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     })
   }
 
-  // Notify PLs when departmentId changes — old dept gets a "removed" notice, new dept gets "added"
+  // Notify PLs when departmentId changes - old dept gets a "removed" notice, new dept gets "added"
   if (before && before.departmentId !== employee.departmentId) {
     const empName = `${employee.firstName} ${employee.lastName}`
     if (before.departmentId) {

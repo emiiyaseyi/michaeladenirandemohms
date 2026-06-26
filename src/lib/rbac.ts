@@ -1,8 +1,8 @@
-// ─── RBAC — Role-Based Access Control ───────────────────────────────────────
+// ─── RBAC - Role-Based Access Control ───────────────────────────────────────
 
 export type SystemRole = "SUPER_ADMIN" | "PROJECT_LEAD" | "STAFF"
 
-// Nav panel role — "ADMIN" is an internal nav concept (admin panel items),
+// Nav panel role - "ADMIN" is an internal nav concept (admin panel items),
 // not a DB system role.
 export type NavPanelRole = SystemRole | "ADMIN"
 
@@ -37,7 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard",       href: "/dashboard",       icon: "LayoutDashboard", roles: ALL_ROLES },
   { label: "Company Details", href: "/company-details", icon: "Building2",       roles: ["SUPER_ADMIN"] },
 
-  // Spacers — visual gap after the top items, role-specific
+  // Spacers - visual gap after the top items, role-specific
   { label: "__spacer_top_admin__", spacer: true, icon: "", roles: ["SUPER_ADMIN", "ADMIN"] },
   { label: "__spacer_top_staff__", spacer: true, icon: "", roles: ["STAFF"] },
 

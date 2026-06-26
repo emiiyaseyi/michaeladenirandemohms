@@ -26,7 +26,7 @@ export default function AlertsBanner({ pendingLeave, pendingKPIs, leaveHref = "/
             <div style={{ fontWeight: 600, fontSize: 13, color: "var(--foreground)" }}>
               {pendingLeave} Leave Request{pendingLeave !== 1 ? "s" : ""} Awaiting
             </div>
-            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Requires your attention — click to review</div>
+            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Requires your attention - click to review</div>
           </div>
         </div>
       )}

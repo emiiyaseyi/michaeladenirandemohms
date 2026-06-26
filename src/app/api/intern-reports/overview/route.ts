@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
 
   // Expected report-slots across the period: each eligible intern counts once per week
   // in range (interns who joined mid-period are only counted from their start week on).
-  // Eligibility starts from account creation, not an unset internReportStartDate —
+  // Eligibility starts from account creation, not an unset internReportStartDate -
   // matches the same fallback used in api/intern-reports/route.ts.
   const internStartWeeks = interns.map(i => mondayOf(i.internReportStartDate ?? i.createdAt))
   const expectedSlots = weeks.reduce((sum, w) => {
@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
 
   const distribution = DIST_BANDS.map(b => ({ label: b.label, count: 0 }))
   for (const p of totalPcts) {
-    const idx = DIST_BANDS.findIndex(b => p >= b.min) // bands ordered by descending min — first match is correct band
+    const idx = DIST_BANDS.findIndex(b => p >= b.min) // bands ordered by descending min - first match is correct band
     if (idx >= 0) distribution[idx].count++
   }
 
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
   const pendingReviews = realSubmissions.filter(r => r.reviewers.some(rv => !rv.reviewedAt)).length
   const pendingAttendance = realSubmissions.filter(r => r.attendanceRating === null).length
 
-  // Reviewer deadline is fixed per-report (days after that report's own weekStart, WAT time) —
+  // Reviewer deadline is fixed per-report (days after that report's own weekStart, WAT time) -
   // computed per-row so multi-week ranges judge "overdue" correctly for every week, not just one.
   const now = new Date()
   const deadlineFor = (weekStart: Date) => {

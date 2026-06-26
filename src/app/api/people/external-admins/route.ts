@@ -8,7 +8,7 @@ export async function GET() {
   if (!hasCap(user, "canManageSettings")) return forbidden()
 
   // Only show users who have admin role grants AND no Employee record.
-  // Once hired, they get an Employee record and disappear from this list — they're now in /admin/people/employees.
+  // Once hired, they get an Employee record and disappear from this list - they're now in /admin/people/employees.
   const admins = await prisma.user.findMany({
     where: { adminRoles: { some: {} }, employee: null, role: { not: "SUPER_ADMIN" } },
     select: {
@@ -21,6 +21,6 @@ export async function GET() {
   return NextResponse.json({ admins })
 }
 
-// POST removed — external admin creation now happens exclusively via
+// POST removed - external admin creation now happens exclusively via
 // /admin/settings/admins (single create + bulk upload) so we can attach
 // system role bundles atomically and send the welcome email.

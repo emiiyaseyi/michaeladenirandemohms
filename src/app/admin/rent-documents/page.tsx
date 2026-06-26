@@ -146,7 +146,7 @@ export default function RentDocumentsPage() {
   }
 
   const fmt = (d: string) => {
-    try { return new Date(d).toLocaleDateString("en-US", { month: "short", year: "numeric" }) } catch { return "—" }
+    try { return new Date(d).toLocaleDateString("en-US", { month: "short", year: "numeric" }) } catch { return "-" }
   }
 
   return (
@@ -210,7 +210,7 @@ export default function RentDocumentsPage() {
                       <Avatar name={`${doc.employee.firstName} ${doc.employee.lastName}`} photo={doc.employee.profilePhoto} size={32} />
                       <div>
                         <div style={{ fontWeight: 600 }}>{doc.employee.firstName} {doc.employee.lastName}</div>
-                        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{doc.employee.jobTitle ?? "—"}</div>
+                        <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{doc.employee.jobTitle ?? "-"}</div>
                       </div>
                     </div>
                   </td>

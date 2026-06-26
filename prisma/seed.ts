@@ -1,5 +1,5 @@
 /**
- * Production seed — safe to run in any environment.
+ * Production seed - safe to run in any environment.
  * Creates reference data the app needs to function:
  *   - Divisions & Departments
  *   - Leave Types
@@ -40,8 +40,8 @@ async function main() {
     prisma.department.upsert({ where: { name: "System Support" },                     update: {}, create: { name: "System Support",                     description: "IT and systems support",                            divisionId: techDiv.id } }),
     // Programs
     prisma.department.upsert({ where: { name: "Solution Delivery (Training)" },       update: {}, create: { name: "Solution Delivery (Training)",       description: "Training program delivery",                         divisionId: progsDiv.id } }),
-    prisma.department.upsert({ where: { name: "Edo Technical Team" },                 update: {}, create: { name: "Edo Technical Team",                 description: "Regional technical team — Edo State",               divisionId: progsDiv.id } }),
-    prisma.department.upsert({ where: { name: "Northern Technical Team" },            update: {}, create: { name: "Northern Technical Team",            description: "Regional technical team — Northern Nigeria",        divisionId: progsDiv.id } }),
+    prisma.department.upsert({ where: { name: "Edo Technical Team" },                 update: {}, create: { name: "Edo Technical Team",                 description: "Regional technical team - Edo State",               divisionId: progsDiv.id } }),
+    prisma.department.upsert({ where: { name: "Northern Technical Team" },            update: {}, create: { name: "Northern Technical Team",            description: "Regional technical team - Northern Nigeria",        divisionId: progsDiv.id } }),
     prisma.department.upsert({ where: { name: "Community" },                          update: {}, create: { name: "Community",                          description: "Community engagement and growth",                   divisionId: progsDiv.id } }),
     // Design & Communications
     prisma.department.upsert({ where: { name: "Product Design Team" },                update: {}, create: { name: "Product Design Team",                description: "UI/UX and product design",                          divisionId: designDiv.id } }),
@@ -59,8 +59,8 @@ async function main() {
   // ── Leave Types (DSN policy) ────────────────────────────────────────────────
   const leavePolicy = {
     annual:        { name: "Annual Leave",        description: "Standard annual leave",                                          defaultDays: 10, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
-    sick:          { name: "Sick Leave",          description: "Medical leave — align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
-    compassionate: { name: "Compassionate Leave", description: "Bereavement / family emergency — align with your Project Lead.", defaultDays: 5,  minNoticeDays: 0,  requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
+    sick:          { name: "Sick Leave",          description: "Medical leave - align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
+    compassionate: { name: "Compassionate Leave", description: "Bereavement / family emergency - align with your Project Lead.", defaultDays: 5,  minNoticeDays: 0,  requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
     maternity:     { name: "Maternity Leave",     description: "Maternity leave for expectant mothers.",                         defaultDays: 90, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: "FEMALE" as const, excludeWeekends: true,  isActive: true },
     paternity:     { name: "Paternity Leave",     description: "Paternity leave for new fathers.",                               defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: "MALE" as const,   excludeWeekends: true,  isActive: true },
     casual:        { name: "Casual Leave",        description: "Casual leave (interns only).",                                   defaultDays: 5,  minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: true,  genderSpecific: null,              excludeWeekends: true,  isActive: true },
@@ -122,7 +122,7 @@ async function main() {
   console.log("  ✓ Public Holidays")
 
 // ── Production HR Admin (Super Admin) ────────────────────────────────────────
-  // isSeeded: false — real person, emails flow normally.
+  // isSeeded: false - real person, emails flow normally.
   {
     const hashed = await bcrypt.hash("Admin@DSN2024!", 12)
     await prisma.user.upsert({
@@ -138,7 +138,7 @@ async function main() {
     {
       slug: "secondary-admin",
       name: "Secondary Admin",
-      description: "Full admin panel access — same as Primary Admin except account management.",
+      description: "Full admin panel access - same as Primary Admin except account management.",
       permissions: {
         canViewAllEmployees: true, canCreateEmployee: true, canEditEmployee: true, canDeleteEmployee: true, canApproveEmployee: true,
         canViewOffers: true, canManageOffers: true, canViewOrgChart: true,
@@ -322,7 +322,7 @@ async function main() {
       eventToggles: {},
     },
   })
-  console.log("  ✓ Email settings (disabled by default — enable via Settings → Customization)")
+  console.log("  ✓ Email settings (disabled by default - enable via Settings → Customization)")
 
   // ── Email Templates ───────────────────────────────────────────────────────────
   let templateCount = 0
@@ -344,11 +344,11 @@ async function main() {
   console.log(`  ✓ ${templateCount} email templates seeded`)
 
   // ── Top-tier Managers (CEO + Executive Director) ─────────────────────────────
-  // SUPER_ADMIN users with Employee + Manager records — they sit at the top of the
+  // SUPER_ADMIN users with Employee + Manager records - they sit at the top of the
   // org hierarchy (managerId = null). PLs report to them via Employee.managerId.
-  // The Manager table FK requires an Employee record — that's the only reason they
+  // The Manager table FK requires an Employee record - that's the only reason they
   // have one. They do NOT appear in the staff/PL employee directory.
-  // mustChangePassword: true — they set their own password on first login.
+  // mustChangePassword: true - they set their own password on first login.
   const managerSeeds = [
     { email: "olubayo@datasciencenigeria.ai", name: "Olubayo Adekanbi", fn: "Olubayo", ln: "Adekanbi", empId: "DSN-M001", title: "CEO/Founder",                          gender: "MALE"   },
     { email: "toyin@datasciencenigeria.ai",   name: "Toyin Adekanbi",   fn: "Toyin",   ln: "Adekanbi", empId: "DSN-M002", title: "Executive Director, Talent & Process", gender: "FEMALE" },
@@ -383,7 +383,7 @@ async function main() {
     { title: "Welcome to DSN HRMS",              body: "We're excited to launch the new DSN HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
     { title: "Q2 2026 Leave Reminder",           body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
     { title: "Performance Review Cycle Open",    body: "The Q1 2026 performance review cycle is now open. All employees should complete their self-assessment by April 30, 2026.", behavior: "DASHBOARD_SCROLL" as const, targetRoles: [] as string[] },
-    { title: "Public Holiday Notice — Workers' Day", body: "May 1, 2026 (Workers' Day) is a public holiday. All offices will be closed.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: [] as string[] },
+    { title: "Public Holiday Notice - Workers' Day", body: "May 1, 2026 (Workers' Day) is a public holiday. All offices will be closed.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: [] as string[] },
     { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
   ]
   if (superAdminUser) {
@@ -419,7 +419,7 @@ async function main() {
   }
   console.log("  ✓ Company details & workplace")
 
-  // ── Test accounts — one per role, known passwords (all: Test@1234) ─────────
+  // ── Test accounts - one per role, known passwords (all: Test@1234) ─────────
   {
     const testDept = await prisma.department.findFirst({ orderBy: { createdAt: "asc" } })
     const pw = hash("Test@1234")
@@ -441,16 +441,16 @@ async function main() {
     }
     // Admin test login (in addition to the production edodida account)
     await ensureTestUser("admin@dsn-hrms.com", "SUPER_ADMIN", "TEST-ADMIN", "Test", "Admin", "HR Administrator")
-    // Project lead — will be the primary reviewer for the test staff
+    // Project lead - will be the primary reviewer for the test staff
     const leadEmp = await ensureTestUser("lead@dsn-hrms.com", "PROJECT_LEAD", "TEST-LEAD", "Test", "Lead", "Team Lead")
-    // Staff — reviewed by the test lead (so the lead gets a "To Review" item and the staff can rate their lead)
+    // Staff - reviewed by the test lead (so the lead gets a "To Review" item and the staff can rate their lead)
     await ensureTestUser("staff@dsn-hrms.com", "STAFF", "TEST-STAFF", "Test", "Staff", "Officer", { projectLeadId: leadEmp.id })
     // A second staff in the same dept so peer pools are never empty
     await ensureTestUser("staff2@dsn-hrms.com", "STAFF", "TEST-STAFF2", "Sam", "Peer", "Officer", { projectLeadId: leadEmp.id })
-    console.log("  ✓ Test accounts (admin/lead/staff/staff2 @dsn-hrms.com — Test@1234)")
+    console.log("  ✓ Test accounts (admin/lead/staff/staff2 @dsn-hrms.com - Test@1234)")
   }
 
-  // ── Active appraisal cycle (open) — generation is idempotent (tops up on reseed) ──
+  // ── Active appraisal cycle (open) - generation is idempotent (tops up on reseed) ──
   {
     const year = new Date().getFullYear()
     const cycleName = `H1 ${year} Performance Appraisal`
@@ -505,7 +505,7 @@ async function main() {
       const pick = [...sameDept, ...others].slice(0, (cycle.peerCount ?? 3) - a.peers.length)
       for (const peerId of pick) await prisma.appraisalPeer.create({ data: { appraisalId: a.id, peerId } })
     }
-    console.log(`  ✓ Appraisal cycle "${cycleName}" (OPEN) — ${appraisals.length} appraisals (${created} new this run)`)
+    console.log(`  ✓ Appraisal cycle "${cycleName}" (OPEN) - ${appraisals.length} appraisals (${created} new this run)`)
   }
 
   console.log("\n✅ Seed complete.")
@@ -516,8 +516,8 @@ async function main() {
   console.log("   STAFF #2:      staff2@dsn-hrms.com")
   console.log("\n🔑 Production accounts:")
   console.log("   HRMS Admin:     edodida@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")
-  console.log("   CEO:            olubayo@datasciencenigeria.ai  /  Welcome@DSN1   (SUPER_ADMIN — must change password on first login)")
-  console.log("   Exec Director:  toyin@datasciencenigeria.ai    /  Welcome@DSN1   (SUPER_ADMIN — must change password on first login)")
+  console.log("   CEO:            olubayo@datasciencenigeria.ai  /  Welcome@DSN1   (SUPER_ADMIN - must change password on first login)")
+  console.log("   Exec Director:  toyin@datasciencenigeria.ai    /  Welcome@DSN1   (SUPER_ADMIN - must change password on first login)")
 }
 
 main()

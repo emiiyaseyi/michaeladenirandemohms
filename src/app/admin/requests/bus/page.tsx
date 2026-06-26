@@ -78,14 +78,14 @@ export default function AdminBusPage() {
     const wb = utils.book_new()
     utils.book_append_sheet(wb, utils.aoa_to_sheet([headers, ...rows]), "All Bookings")
     utils.book_append_sheet(wb, utils.aoa_to_sheet([
-      ["DSN SHUTTLE — MORNING MANIFEST"],
+      ["DSN SHUTTLE - MORNING MANIFEST"],
       [`Route: ${MORNING_STOPS.join(" → ")}`],
       [],
       ["Seat", "Passenger", "Tier", "Pickup Stop", "Booked At", "Status"],
       ...morning.map((b, i) => [i + 1, b.name, b.tier, b.stop, fmtTime(b.bookedAt), b.status]),
     ]), "Morning")
     utils.book_append_sheet(wb, utils.aoa_to_sheet([
-      ["DSN SHUTTLE — AFTERNOON MANIFEST"],
+      ["DSN SHUTTLE - AFTERNOON MANIFEST"],
       [`Route: ${AFTERNOON_STOPS.join(" → ")}`],
       [],
       ["Seat", "Passenger", "Tier", "Drop-off Stop", "Booked At", "Status"],

@@ -57,7 +57,7 @@ export async function DELETE(req: NextRequest) {
   const id = searchParams.get("id")
   if (!id) return NextResponse.json({ error: "ID required" }, { status: 400 })
   const count = await prisma.leaveRequest.count({ where: { leaveTypeId: id } })
-  if (count > 0) return NextResponse.json({ error: `Cannot delete — ${count} leave request(s) use this type` }, { status: 409 })
+  if (count > 0) return NextResponse.json({ error: `Cannot delete - ${count} leave request(s) use this type` }, { status: 409 })
   await prisma.leaveType.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }

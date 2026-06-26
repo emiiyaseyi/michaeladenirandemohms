@@ -92,7 +92,7 @@ export default function BusBookingPage() {
     setCancelling(false)
     if (!res.ok) {
       const d = await res.json().catch(() => ({}))
-      setCancelErr(d.error ?? "Cancel failed — try again.")
+      setCancelErr(d.error ?? "Cancel failed - try again.")
       return
     }
     await fetchTrip(trip)
@@ -103,7 +103,7 @@ export default function BusBookingPage() {
     return <div style={{ padding: "28px 32px", color: "var(--muted-foreground)", fontSize: 13 }}>Loading…</div>
   }
 
-  // TESTING: bus always available while testing — server returns isBusDay:true when TESTING_ALWAYS_OPEN is set
+  // TESTING: bus always available while testing - server returns isBusDay:true when TESTING_ALWAYS_OPEN is set
   const noBusDay = morning?.isBusDay === false
 
   return (
@@ -115,7 +115,7 @@ export default function BusBookingPage() {
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Bus Booking</h1>
         </div>
         <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
-          14-seater shuttle — Mon / Wed / Fri only. Seats allocated at 7:45 AM (morning) and 3:50 PM (afternoon).
+          14-seater shuttle - Mon / Wed / Fri only. Seats allocated at 7:45 AM (morning) and 3:50 PM (afternoon).
         </p>
       </div>
 

@@ -42,8 +42,8 @@ function StageBadge({ stage }: { stage: string }) {
 }
 
 function fullName(p?: Person | null) {
-  if (!p) return "—"
-  return `${p.firstName} ${p.lastName}`.trim() || "—"
+  if (!p) return "-"
+  return `${p.firstName} ${p.lastName}`.trim() || "-"
 }
 
 export default function AppraisalsListPage() {
@@ -110,7 +110,7 @@ export default function AppraisalsListPage() {
 
   const th: React.CSSProperties = { textAlign: "left", padding: "10px 12px", fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", borderBottom: "1px solid var(--border)" }
   const td: React.CSSProperties = { padding: "12px", fontSize: 13, color: "var(--foreground)", borderBottom: "1px solid var(--border)", verticalAlign: "middle" }
-  const num = (v: number | null) => (v === null || v === undefined ? "—" : `${v}%`)
+  const num = (v: number | null) => (v === null || v === undefined ? "-" : `${v}%`)
 
   const primaryOf = (a: Appraisal) => a.reviewers.find(r => r.role === "PRIMARY")?.reviewer
   const counterOf = (a: Appraisal) => a.reviewers.find(r => r.role === "COUNTER")?.reviewer
@@ -136,7 +136,7 @@ export default function AppraisalsListPage() {
         </select>
       </div>
 
-      {/* Summary strip — click a card to filter by that stage */}
+      {/* Summary strip - click a card to filter by that stage */}
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 18 }}>
         <button
           onClick={() => setStageFilter("")}

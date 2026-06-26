@@ -30,7 +30,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const have = a.peers.length
     if (have >= peerCount) continue
     const excluded = new Set<string>([a.employeeId, ...a.reviewers.map(r => r.reviewerId), ...a.peers.map(p => p.peerId)])
-    // Preserve department-priority order from peerCandidatesOf — do not re-sort.
+    // Preserve department-priority order from peerCandidatesOf - do not re-sort.
     const mates = (await peerCandidatesOf(a.employeeId)).filter(m => !excluded.has(m))
     const need = peerCount - have
     const pick = mates.slice(0, need)

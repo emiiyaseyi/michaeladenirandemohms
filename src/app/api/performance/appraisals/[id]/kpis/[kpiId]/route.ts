@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.evidenceUrl !== undefined) data.evidenceUrl = body.evidenceUrl
   }
   // Reviewers: score once the employee has submitted, until finalized.
-  // ADMIN-source rows (Brand, Learning & Dev) are admin-only — reviewers cannot score them.
+  // ADMIN-source rows (Brand, Learning & Dev) are admin-only - reviewers cannot score them.
   else if (rel.isReviewer && reviewerCanEdit(appraisal.stage)) {
     if (row.source === "ADMIN") return NextResponse.json({ error: "This row is scored by admin only" }, { status: 400 })
     if (rel.isPrimary) {
@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (!Object.keys(data).length) return NextResponse.json({ error: "No editable fields" }, { status: 400 })
-  // Each KPI is scored out of its OWN weight — clamp scores to [0, weight].
+  // Each KPI is scored out of its OWN weight - clamp scores to [0, weight].
   const maxScore = Number(data.weight ?? row.weight ?? 0)
   for (const f of ["employeeScore", "primaryScore", "counterScore"]) {
     if (typeof data[f] === "number") data[f] = Math.max(0, Math.min(maxScore, data[f]))
@@ -83,7 +83,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { appraisal, row } = await loadCtx(id, kpiId)
   if (!appraisal || !row || row.appraisalId !== id) return NextResponse.json({ error: "Not found" }, { status: 404 })
   const rel = relationshipTo(user, appraisal)
-  // KPI rows are admin-assigned — only admins may delete them.
+  // KPI rows are admin-assigned - only admins may delete them.
   if (!rel.isAdmin) return NextResponse.json({ error: "KPI rows are managed by HR" }, { status: 400 })
   await prisma.appraisalKpi.delete({ where: { id: kpiId } })
   await recomputeAndPersist(id)

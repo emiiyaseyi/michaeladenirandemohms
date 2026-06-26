@@ -1,5 +1,5 @@
--- Appraisal module — ADDITIVE ONLY (regenerated 2026-06-18). Run once on production.
--- Creates all appraisal enums/tables/columns. DROPS NOTHING — existing data (incl. old KPI/Feedback) untouched.
+-- Appraisal module - ADDITIVE ONLY (regenerated 2026-06-18). Run once on production.
+-- Creates all appraisal enums/tables/columns. DROPS NOTHING - existing data (incl. old KPI/Feedback) untouched.
 -- Apply:  psql "$PROD_URL" -f prisma/sql/2026_appraisal_additive.sql
 BEGIN;
 -- CreateEnum

@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
           link: "/admin/requests/leave",
         },
       }).catch(() => {})
-      // leave_started_stakeholder email dropped (R6) — purely informational broadcast,
+      // leave_started_stakeholder email dropped (R6) - purely informational broadcast,
       // in-app notification suffices. See work.md Round 6.
     }
   }

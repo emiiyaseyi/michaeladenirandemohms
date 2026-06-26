@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   const now = new Date()
   if (!isBusDay(now)) {
-    return NextResponse.json({ message: "Not a bus day — no allocation needed" })
+    return NextResponse.json({ message: "Not a bus day - no allocation needed" })
   }
 
   const today = todayUTC()
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   const bouncedLower = lowerBookings.slice(remaining > 0 ? remaining : 0)
   const bounced = [...bouncedStaff, ...bouncedLower]
 
-  // Update confirmed — assign seat numbers in order
+  // Update confirmed - assign seat numbers in order
   await Promise.all(
     confirmed.map((b, i) =>
       prisma.busBooking.update({
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
     await prisma.notification.create({
       data: {
         userId: b.userId,
-        title: `${tripLabel} Bus Confirmed — Seat #${seatNum}`,
+        title: `${tripLabel} Bus Confirmed - Seat #${seatNum}`,
         message: `Your seat on the ${tripLabel.toLowerCase()} bus is confirmed (Seat #${seatNum}, ${b.stop}). Have a safe trip!`,
         type: "SUCCESS",
         link: "/staff/requests/bus",
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     await prisma.notification.create({
       data: {
         userId: b.userId,
-        title: `${tripLabel} Bus — No Seat Available`,
+        title: `${tripLabel} Bus - No Seat Available`,
         message: `Unfortunately there is no space for you on the ${tripLabel.toLowerCase()} bus today. Please find alternative transport home.`,
         type: "WARNING",
         link: "/staff/requests/bus",

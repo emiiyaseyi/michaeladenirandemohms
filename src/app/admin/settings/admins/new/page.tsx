@@ -190,7 +190,7 @@ export default function NewAdminPage() {
                 >
                   {selectedEmployee ? (
                     <span style={{ fontWeight: 600 }}>
-                      {selectedEmployee.name} — {selectedEmployee.employee?.employeeId}
+                      {selectedEmployee.name} - {selectedEmployee.employee?.employeeId}
                     </span>
                   ) : (
                     <span style={{ color: "var(--muted-foreground)" }}>Search by name, email or ID…</span>
@@ -244,7 +244,7 @@ export default function NewAdminPage() {
           <p style={{ fontSize: 13, color: "var(--muted-foreground)", margin: "0 0 20px" }}>Choose the level of access for this admin.</p>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-            {([["full", "Full access (Secondary Admin)", "Full admin panel access — same as the Primary Admin except admin management"] as const,
+            {([["full", "Full access (Secondary Admin)", "Full admin panel access - same as the Primary Admin except admin management"] as const,
                ["limited", "Limited access", "Choose specific system roles with targeted permissions"] as const
             ]).map(([val, title, desc]) => (
               <label key={val} onClick={() => setAccessType(val)} style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "14px 16px", borderRadius: 10, border: `2px solid ${accessType === val ? "var(--primary)" : "var(--border)"}`, cursor: "pointer", background: accessType === val ? "var(--muted)" : "transparent" }}>

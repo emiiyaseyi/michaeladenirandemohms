@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
+import { EmployeeStatus } from "@prisma/client"
 import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { notifyDepartmentPLs } from "@/lib/notifications"
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest) {
   const rows = parseCSV(text)
   if (!rows.length) return NextResponse.json({ error: "CSV is empty or has no data rows" }, { status: 400 })
 
-  // ── Level 1: structural validation — column mismatch rejects entire file ──
+  // ── Level 1: structural validation - column mismatch rejects entire file ──
   const headers = Object.keys(rows[0])
   const expectedCols = role === "STAFF" ? STAFF_COLS : PL_COLS
   const requiredCols = role === "STAFF" ? REQUIRED_STAFF : REQUIRED_PL
@@ -139,7 +140,7 @@ export async function POST(req: NextRequest) {
         const dept = await prisma.department.findFirst({ where: { name: { equals: primaryDeptName, mode: "insensitive" } } })
         if (!dept) { results.push({ row: rowNum, status: "skipped", email, error: `Department not found: "${primaryDeptName}"` }); continue }
 
-        // PL is optional — only resolve if email provided
+        // PL is optional - only resolve if email provided
         const plEmail = (row.primaryProjectLeadEmail ?? "").trim().toLowerCase()
         if (plEmail) {
           const plEmp = await prisma.employee.findFirst({
@@ -217,6 +218,7 @@ export async function POST(req: NextRequest) {
           departmentId: computedDepartmentId,
           managerId: computedManagerId,
           projectLeadId: computedProjectLeadId,
+          employeeStatus: EmployeeStatus.NEEDS_ATTENTION,
         },
       })
 
@@ -246,7 +248,7 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Notify PLs (STAFF only — primary + secondaries)
+      // Notify PLs (STAFF only - primary + secondaries)
       if (role === "STAFF" && primaryDeptIdForJunction) {
         const empName = `${firstName} ${lastName}`
         notifyDepartmentPLs({

@@ -28,7 +28,7 @@ const CONTENT_TYPES: Record<string, string> = {
  *   GET /api/files/kpi-evidence/xyz-456.pdf
  *   GET /api/files/leave-docs/def-789.jpg
  *
- * Files live in `private/uploads/{category}/` — NOT in `public/`, so the only
+ * Files live in `private/uploads/{category}/` - NOT in `public/`, so the only
  * way to fetch them is through this auth + permission-checked endpoint.
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
@@ -81,7 +81,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pat
 
   if (category === "leave-docs") {
     // Orphan-upload fast path: filename is <uploaderUserId>_<uuid>.<ext>.
-    // If the prefix matches the current user, they uploaded it — allow even before
+    // If the prefix matches the current user, they uploaded it - allow even before
     // any LeaveRequest references it (lets them preview during the apply form).
     const uploaderPrefix = filename.split("_")[0]
     const isUploader = !!uploaderPrefix && uploaderPrefix === user.id
@@ -109,7 +109,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ pat
       }) ?? null
     }
     if (!leave) {
-      // No request references this file yet — allow only the original uploader.
+      // No request references this file yet - allow only the original uploader.
       if (isUploader) {
         // fall through to streaming
       } else {

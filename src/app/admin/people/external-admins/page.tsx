@@ -149,7 +149,7 @@ export default function ExternalAdminsPage() {
             style={{ paddingLeft: 32, paddingRight: 12, paddingTop: 8, paddingBottom: 8, border: "1px solid var(--border)", borderRadius: 8, fontSize: 13, background: "var(--background)", color: "var(--foreground)", width: 240, outline: "none" }} />
         </div>
         <div style={{ fontSize: 12, color: "var(--muted-foreground)", maxWidth: 440, textAlign: "right" }}>
-          Create new external admins via <strong style={{ color: "var(--foreground)" }}>Settings → Admins → Add New Admin</strong>. People listed here have admin panel access but no employee record yet — use Hire to add them as a staff member or project lead.
+          Create new external admins via <strong style={{ color: "var(--foreground)" }}>Settings → Admins → Add New Admin</strong>. People listed here have admin panel access but no employee record yet - use Hire to add them as a staff member or project lead.
         </div>
       </div>
 
@@ -182,7 +182,7 @@ export default function ExternalAdminsPage() {
                     </div>
                   </td>
                   <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.email}</td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.employee?.phone ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.employee?.phone ?? "-"}</td>
                   <td style={{ ...td, textAlign: "right" }}>
                     <RowMenu
                       onHire={() => router.push(`/admin/people/employees/add?fromUser=${a.id}`)}

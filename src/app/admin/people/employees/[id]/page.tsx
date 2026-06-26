@@ -100,7 +100,7 @@ function InfoRow({ label, value }: { label: string; value?: string | null }) {
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
       <span style={{ fontSize: 12, color: "var(--muted-foreground)", flexShrink: 0, minWidth: 120 }}>{label}</span>
       <span style={{ fontSize: 13, fontWeight: 600, textAlign: "right", color: value ? "var(--foreground)" : "var(--muted-foreground)" }}>
-        {value ?? "—"}
+        {value ?? "-"}
       </span>
     </div>
   )
@@ -153,7 +153,7 @@ function PLDepartmentsCard({ emp }: { emp: any }) {
           <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(99,102,241,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <Building2 size={16} color="#6366f1" />
           </div>
-          <span style={{ fontSize: 14, fontWeight: 700 }}>Project Lead — Assigned Departments</span>
+          <span style={{ fontSize: 14, fontWeight: 700 }}>Project Lead - Assigned Departments</span>
         </div>
         <button onClick={save} disabled={saving} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 14px", background: saved ? "var(--success)" : "var(--primary)", border: "none", borderRadius: 7, cursor: saving ? "wait" : "pointer", fontSize: 12, fontWeight: 700, color: "white", transition: "background .2s" }}>
           {saving ? <><Loader2 size={11} style={{ animation: "spin .8s linear infinite" }} /> Saving…</> : saved ? "Saved ✓" : "Save"}
@@ -180,7 +180,7 @@ function PLDepartmentsCard({ emp }: { emp: any }) {
 }
 
 function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any) => void }) {
-  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"
   const isoDate = (d?: string | null) => d ? d.slice(0, 10) : ""
   const isIntern = (emp.jobTitle ?? "").toLowerCase().includes("intern") || emp.employmentType === "INTERN"
 
@@ -221,7 +221,7 @@ function TabPersonal({ emp, openModal, onUpload, uploadedDocs }: {
   emp: any; openModal: (k: string, d: any) => void
   onUpload: (key: string, accept?: string) => void; uploadedDocs: Record<string, string>
 }) {
-  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—"
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "numeric" }) : "-"
   const isoDate = (d?: string | null) => d ? d.slice(0, 10) : ""
 
   return (
@@ -359,7 +359,7 @@ function TabRequest({ emp }: { emp: any }) {
       .catch(() => setLoading(false))
   }, [activeType, emp?.id])
 
-  const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"
+  const fmtDate = (d: string) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"
   const statusBadge = (s: string) => {
     const m: Record<string, { bg: string; color: string }> = {
       PENDING: { bg: "#FEF3C7", color: "#92400e" },
@@ -514,7 +514,7 @@ function TabDocuments({ emp }: { emp: any }) {
                       style={{ background: "none", border: "none", cursor: "pointer", color: "#2563EB", fontSize: 14, fontWeight: 500, display: "flex", alignItems: "center", gap: 6, padding: 0 }}
                     >
                       <FileText size={14} color="#6B7280" />
-                      {a.document?.title ?? "—"}
+                      {a.document?.title ?? "-"}
                     </button>
                   </td>
                   <td style={{ ...td, color: "var(--muted-foreground)" }}>{statusText(a)}</td>
@@ -574,7 +574,7 @@ function TabAssets({ emp }: { emp: any }) {
     LOST:     { bg: "#FEE2E2", color: "#DC2626" },
     DAMAGED:  { bg: "#FEF3C7", color: "#92400e" },
   }
-  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"
   const th: React.CSSProperties = { padding: "10px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }
   const td: React.CSSProperties = { padding: "12px 20px", fontSize: 13, borderBottom: "1px solid var(--border)" }
 
@@ -601,9 +601,9 @@ function TabAssets({ emp }: { emp: any }) {
               const sc = STATUS_COLOR[a.status] ?? { bg: "#F3F4F6", color: "#6B7280" }
               return (
                 <tr key={a.id}>
-                  <td style={td}><span style={{ fontWeight: 600 }}>{a.asset?.name ?? "—"}</span></td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.asset?.assetType?.name ?? "—"}</td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.asset?.identifier ?? "—"}</td>
+                  <td style={td}><span style={{ fontWeight: 600 }}>{a.asset?.name ?? "-"}</span></td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.asset?.assetType?.name ?? "-"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.asset?.identifier ?? "-"}</td>
                   <td style={{ ...td, color: "var(--muted-foreground)" }}>{fmtDate(a.assignedOn)}</td>
                   <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: sc.bg, color: sc.color }}>{a.status}</span></td>
                 </tr>
@@ -635,7 +635,7 @@ function TabDisciplinary({ emp }: { emp: any }) {
     DISMISSED:  { bg: "#F3F4F6", color: "#6B7280" },
     ESCALATED:  { bg: "#FEE2E2", color: "#DC2626" },
   }
-  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"
+  const fmtDate = (d?: string | null) => d ? new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "-"
   const th: React.CSSProperties = { padding: "10px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }
   const td: React.CSSProperties = { padding: "12px 20px", fontSize: 13, borderBottom: "1px solid var(--border)" }
 
@@ -663,7 +663,7 @@ function TabDisciplinary({ emp }: { emp: any }) {
               return (
                 <tr key={v.id}>
                   <td style={{ ...td, color: "var(--muted-foreground)" }}>{fmtDate(v.incidentDate)}</td>
-                  <td style={td}><span style={{ fontWeight: 600 }}>{v.violationType?.name ?? "—"}</span></td>
+                  <td style={td}><span style={{ fontWeight: 600 }}>{v.violationType?.name ?? "-"}</span></td>
                   <td style={{ ...td, color: "var(--muted-foreground)", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.details}</td>
                   <td style={td}><span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: sc.bg, color: sc.color }}>{v.status}</span></td>
                 </tr>
@@ -686,7 +686,7 @@ function TabLogs({ emp }: { emp: any }) {
       .then(d => { setLogs(d.logs ?? []); setLoading(false) })
       .catch(() => setLoading(false))
   }, [emp.id])
-  const fmtDate = (d: string) => d ? new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "—"
+  const fmtDate = (d: string) => d ? new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "-"
   const th: React.CSSProperties = { padding: "10px 20px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.06em", background: "var(--muted)", borderBottom: "1px solid var(--border)" }
   const td: React.CSSProperties = { padding: "12px 20px", fontSize: 13, borderBottom: "1px solid var(--border)" }
   return (
@@ -841,7 +841,7 @@ export default function EmployeeProfilePage() {
           setTimeout(() => setResetMsg(null), 5000)
         }
       } catch {
-        setResetMsg({ ok: false, text: "Photo upload failed — network error" })
+        setResetMsg({ ok: false, text: "Photo upload failed - network error" })
         setTimeout(() => setResetMsg(null), 5000)
       }
       setUploadingKey(null)
@@ -861,7 +861,7 @@ export default function EmployeeProfilePage() {
         setTimeout(() => setResetMsg(null), 5000)
       }
     } catch {
-      setResetMsg({ ok: false, text: "Upload failed — network error" })
+      setResetMsg({ ok: false, text: "Upload failed - network error" })
       setTimeout(() => setResetMsg(null), 5000)
     }
     setUploadingKey(null)
@@ -879,7 +879,7 @@ export default function EmployeeProfilePage() {
         setTimeout(() => setResetMsg(null), 5000)
       }
     } catch {
-      setResetMsg({ ok: false, text: "Delete failed — network error" })
+      setResetMsg({ ok: false, text: "Delete failed - network error" })
       setTimeout(() => setResetMsg(null), 5000)
     }
     setDeleting(false)
@@ -906,7 +906,7 @@ export default function EmployeeProfilePage() {
         setTimeout(() => setResetMsg(null), 5000)
       }
     } catch {
-      setResetMsg({ ok: false, text: "Role change failed — network error" })
+      setResetMsg({ ok: false, text: "Role change failed - network error" })
       setTimeout(() => setResetMsg(null), 5000)
     }
     setRoleChanging(false)
@@ -1004,7 +1004,7 @@ export default function EmployeeProfilePage() {
               <MF label="Intern Report Start Date">
                 <input type="date" value={mf.internReportStartDate ?? ""} onChange={setMF("internReportStartDate")} style={fi} />
                 <div style={{ fontSize: 11, color: "var(--muted-foreground)", marginTop: 4 }}>
-                  First week this intern is required to submit weekly reports. Leave blank to use their account creation date — set this if they shouldn't be on the hook for earlier weeks (e.g. onboarding delay).
+                  First week this intern is required to submit weekly reports. Leave blank to use their account creation date - set this if they shouldn't be on the hook for earlier weeks (e.g. onboarding delay).
                 </div>
               </MF>
             )}
@@ -1172,7 +1172,7 @@ export default function EmployeeProfilePage() {
                         setResetMsg({ ok: false, text: d.error ?? "Reset failed" })
                       }
                     } catch {
-                      setResetMsg({ ok: false, text: "Reset failed — network error" })
+                      setResetMsg({ ok: false, text: "Reset failed - network error" })
                     }
                     setTimeout(() => setResetMsg(null), 5000)
                   }}

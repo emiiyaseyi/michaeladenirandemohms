@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
           where: { year, ...(employeeId && employeeId !== "all" ? { employeeId } : {}) },
           include: { employee: { select: { employeeId: true, firstName: true, lastName: true } }, leaveType: { select: { name: true } } },
         })
-        // Compute used/pending dynamically — stored .used/.pending columns aren't maintained.
+        // Compute used/pending dynamically - stored .used/.pending columns aren't maintained.
         const yearStart = new Date(year, 0, 1)
         const yearEnd = new Date(year + 1, 0, 1)
         const balancePairs = balances.map(b => ({ employeeId: b.employeeId, leaveTypeId: b.leaveTypeId }))

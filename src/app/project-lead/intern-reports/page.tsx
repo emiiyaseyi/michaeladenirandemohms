@@ -170,7 +170,7 @@ export default function PLInternReportsPage() {
 
   const now = new Date()
 
-  // Week mode — use UTC dates to match how weekStart is stored on the server (getWeekBounds uses UTC)
+  // Week mode - use UTC dates to match how weekStart is stored on the server (getWeekBounds uses UTC)
   const currentMonday = (() => {
     const d = new Date(now); d.setUTCHours(0,0,0,0)
     const day = d.getUTCDay(); const diff = day === 0 ? -6 : 1 - day
@@ -619,7 +619,7 @@ export default function PLInternReportsPage() {
               <button onClick={() => setViewingId(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, color: "var(--muted-foreground)" }}>×</button>
             </div>
             <div style={{ padding: "20px 24px" }}>
-              {/* Task breakdown — Days as rows, Categories as columns */}
+              {/* Task breakdown - Days as rows, Categories as columns */}
               <div style={{ overflow: "auto", maxHeight: "min(55vh, 440px)", marginBottom: 20, border: "1px solid var(--border)", borderRadius: 8 }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                   <thead>
@@ -658,12 +658,12 @@ export default function PLInternReportsPage() {
                                     )}
                                     {totalMins > 0 && <div style={{ fontWeight: 700, color: "var(--primary)", marginTop: 3, fontSize: 11 }}>{fmtMinutes(totalMins)}</div>}
                                   </>
-                                ) : <span style={{ color: "var(--border)" }}>—</span>}
+                                ) : <span style={{ color: "var(--border)" }}>-</span>}
                               </td>
                             )
                           })}
                           <td style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 13, color: "var(--primary)", verticalAlign: "top", position: "sticky", right: 0, background: rowBg, zIndex: 1, boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>
-                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "—"}
+                            {dayTotalMins > 0 ? fmtMinutes(dayTotalMins) : "-"}
                           </td>
                         </tr>
                       )
@@ -673,7 +673,7 @@ export default function PLInternReportsPage() {
                       {CATEGORIES.map(cat => {
                         const td = viewingReport.taskDescriptions as any
                         const catMins = DAYS_LIST.reduce((s, d) => s + getCellData(td, cat.key, d).totalMins, 0)
-                        return <td key={cat.key} style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>{catMins > 0 ? fmtMinutes(catMins) : "—"}</td>
+                        return <td key={cat.key} style={{ padding: "10px 10px", textAlign: "center", fontWeight: 700, fontSize: 12, color: "var(--muted-foreground)" }}>{catMins > 0 ? fmtMinutes(catMins) : "-"}</td>
                       })}
                       <td style={{ padding: "10px 10px", textAlign: "center", fontWeight: 900, fontSize: 13, color: "var(--primary)", position: "sticky", right: 0, background: "var(--muted)", boxShadow: "-2px 0 4px rgba(0,0,0,0.06)" }}>{(viewingReport.totalHours ?? 0).toFixed(1)}h</td>
                     </tr>
@@ -691,7 +691,7 @@ export default function PLInternReportsPage() {
                       return (
                         <div key={key} style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 12px" }}>
                           <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--muted-foreground)", marginBottom: 5 }}>{label}</div>
-                          <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0 }}>{text || <span style={{ color: "var(--border)", fontStyle: "italic" }}>—</span>}</p>
+                          <p style={{ fontSize: 12, lineHeight: 1.6, margin: 0 }}>{text || <span style={{ color: "var(--border)", fontStyle: "italic" }}>-</span>}</p>
                         </div>
                       )
                     })}

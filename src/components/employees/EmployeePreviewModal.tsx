@@ -26,7 +26,7 @@ export default function EmployeePreviewModal({ employee }: { employee: any }) {
               {employee.firstName} {employee.lastName}
             </h2>
             <p style={{ fontSize: 13, opacity: 0.85, marginTop: 2 }}>
-              {employee.jobTitle ?? "—"} · {employee.department?.name ?? "—"}
+              {employee.jobTitle ?? "-"} · {employee.department?.name ?? "-"}
             </p>
             <p style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
               {employee.employeeId} · {employee.user?.email}
@@ -39,17 +39,17 @@ export default function EmployeePreviewModal({ employee }: { employee: any }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
           {tile("Employee ID",     employee.employeeId)}
           {tile("Work Email",      employee.user?.email)}
-          {tile("Phone",           employee.phone ?? "—")}
-          {tile("Employment Type", employee.employmentType?.replace(/_/g, " ") ?? "—")}
+          {tile("Phone",           employee.phone ?? "-")}
+          {tile("Employment Type", employee.employmentType?.replace(/_/g, " ") ?? "-")}
           {tile("Hire Date",       formatDate(employee.hireDate))}
-          {tile("Manager",         employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}` : "—")}
+          {tile("Manager",         employee.manager ? `${employee.manager.firstName} ${employee.manager.lastName}` : "-")}
         </div>
 
         {/* Department info */}
         <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--muted-foreground)", marginBottom: 8 }}>Department</div>
           <div style={{ background: "var(--muted)", borderRadius: 8, padding: "10px 14px" }}>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{employee.department?.name ?? "—"}</div>
+            <div style={{ fontSize: 13, fontWeight: 600 }}>{employee.department?.name ?? "-"}</div>
             {employee.department?.description && (
               <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 3 }}>{employee.department.description}</div>
             )}

@@ -179,7 +179,7 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
                   <div>
                     <Image size={24} style={{ color:"var(--muted-foreground)", margin:"0 auto 6px" }} />
                     <div style={{ fontSize:12, fontWeight:600, color:"var(--foreground)" }}>Click or drag to upload image</div>
-                    <div style={{ fontSize:11, color:"var(--muted-foreground)", marginTop:2 }}>PNG, JPG, GIF, WebP — or paste a URL below</div>
+                    <div style={{ fontSize:11, color:"var(--muted-foreground)", marginTop:2 }}>PNG, JPG, GIF, WebP - or paste a URL below</div>
                   </div>
                 )}
               </div>

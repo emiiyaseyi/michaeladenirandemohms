@@ -5,7 +5,7 @@ import { relationshipTo } from "@/lib/appraisal"
 
 // Privacy-safe rating context for peers / members / reviewers (core values).
 // Returns ONLY the subject's name, the relevant questions, and the caller's own
-// prior ratings — never other raters' input or the subject's scores.
+// prior ratings - never other raters' input or the subject's scores.
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error

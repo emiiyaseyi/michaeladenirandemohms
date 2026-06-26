@@ -30,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!doc) return NextResponse.json({ error: "Not found" }, { status: 404 })
 
-  // All active employees — to find who hasn't been assigned/acked
+  // All active employees - to find who hasn't been assigned/acked
   const allActive = await prisma.employee.findMany({
     where: { employeeStatus: "ACTIVE" },
     select: { id: true, firstName: true, lastName: true, profilePhoto: true },

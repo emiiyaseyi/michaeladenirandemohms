@@ -52,7 +52,7 @@ export function requirePermission(user: SessionUser, key: string): NextResponse 
 // OR via a granted admin-role permission. Use this instead of `caps(user.role).canX`
 // in permission gates so elevated STAFF/PL who hold the grant via UserAdminRole
 // also pass the check. (Without this, gates that only consult role caps wrongly
-// block elevated users — the same bug class as the R6 /api/analytics fix.)
+// block elevated users - the same bug class as the R6 /api/analytics fix.)
 export function hasCap(user: SessionUser, key: string): boolean {
   const roleCaps = getCapabilities(user.role) as unknown as Record<string, boolean>
   if (roleCaps[key] === true) return true

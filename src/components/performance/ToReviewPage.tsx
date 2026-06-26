@@ -127,7 +127,7 @@ export default function ToReviewPage() {
                     {rv.subject.firstName} {rv.subject.lastName}
                   </div>
                   <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>
-                    {rv.subject.jobTitle ?? "—"}
+                    {rv.subject.jobTitle ?? "-"}
                   </div>
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
                     <Pill tone="primary">{roleLabel(rv.role)}</Pill>

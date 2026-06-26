@@ -182,7 +182,7 @@ function ViolationDetailModal({ v, onClose, onSaved }: { v: any; onClose: () => 
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: "var(--foreground)", marginBottom: 4 }}>Description</div>
-              <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>{v.details || "—"}</div>
+              <div style={{ fontSize: 13, color: "var(--muted-foreground)" }}>{v.details || "-"}</div>
             </div>
           </div>
 
@@ -352,7 +352,7 @@ export default function ViolationsPage() {
                 </td>
                 <td style={{ ...td, maxWidth: 220 }}>
                   <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: "var(--muted-foreground)" }}>
-                    {v.details || "—"}
+                    {v.details || "-"}
                   </div>
                 </td>
                 <td style={td}><Badge status={v.status} /></td>

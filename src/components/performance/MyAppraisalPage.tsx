@@ -122,7 +122,7 @@ export default function MyAppraisalPage() {
         <div style={{ ...card, marginTop: 24, color: "var(--muted-foreground)", fontSize: 14 }}>No active appraisal cycle.</div>
       ) : !data.appraisal ? (
         <div style={{ ...card, marginTop: 24, color: "var(--muted-foreground)", fontSize: 14 }}>
-          Your appraisal hasn&apos;t been generated yet — contact HR.
+          Your appraisal hasn&apos;t been generated yet - contact HR.
         </div>
       ) : (
         <Body cycle={data.cycle} appraisal={data.appraisal} refetch={refetch} />
@@ -157,14 +157,14 @@ function Editable({ cycle, appraisal, refetch }: { cycle: Cycle; appraisal: Appr
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     })
 
-  // Weights are fixed by HR — informational total only.
+  // Weights are fixed by HR - informational total only.
   const totalWeight = appraisal.kpis.reduce((s, k) => s + (Number(k.weight) || 0), 0)
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: 24 }}>
       {/* Stage banner */}
       <div style={{ background: "#DCFCE7", color: "#15803D", border: "1px solid #86EFAC", borderRadius: 12, padding: "12px 16px", fontSize: 13, fontWeight: 600 }}>
-        Open — complete and submit your appraisal
+        Open - complete and submit your appraisal
       </div>
 
       {/* 1. Employee Info */}
@@ -173,7 +173,7 @@ function Editable({ cycle, appraisal, refetch }: { cycle: Cycle; appraisal: Appr
         <div style={sectionSub}>Section I</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16 }}>
           <Field label="Name" value={`${emp.firstName} ${emp.lastName}`} />
-          <Field label="Job title" value={emp.jobTitle ?? "—"} />
+          <Field label="Job title" value={emp.jobTitle ?? "-"} />
           <Field label="Cycle" value={cycle.name} />
         </div>
       </section>
@@ -181,12 +181,12 @@ function Editable({ cycle, appraisal, refetch }: { cycle: Cycle; appraisal: Appr
       {/* 2. Behavioural self-assessment (Section II) */}
       <SelfRatingSection cycle={cycle} appraisal={appraisal} aid={aid} refetch={refetch}
         section="BEHAVIOURAL" title="Behavioural Self-Assessment"
-        sub="Section II — rate yourself on each behavioural area. Your team lead and peers rate you separately. A comment is required for every item." />
+        sub="Section II - rate yourself on each behavioural area. Your team lead and peers rate you separately. A comment is required for every item." />
 
       {/* 3. Job-Specific Performance */}
       <section style={card}>
         <div style={sectionTitle}>Job-Specific Performance</div>
-        <div style={sectionSub}>Section III — projects, deliverables &amp; KPIs assigned by HR. Score yourself, comment, and add an evidence link for each.</div>
+        <div style={sectionSub}>Section III - projects, deliverables &amp; KPIs assigned by HR. Score yourself, comment, and add an evidence link for each.</div>
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
             <thead>
@@ -205,7 +205,7 @@ function Editable({ cycle, appraisal, refetch }: { cycle: Cycle; appraisal: Appr
                 <KpiRow key={k.id} kpi={k} patchKpi={patchKpi} />
               ))}
               {appraisal.kpis.length === 0 && (
-                <tr><td style={{ ...td, color: "var(--muted-foreground)", fontSize: 13 }} colSpan={7}>No projects assigned yet — HR will upload your KPIs for this cycle.</td></tr>
+                <tr><td style={{ ...td, color: "var(--muted-foreground)", fontSize: 13 }} colSpan={7}>No projects assigned yet - HR will upload your KPIs for this cycle.</td></tr>
               )}
             </tbody>
           </table>
@@ -222,7 +222,7 @@ function Editable({ cycle, appraisal, refetch }: { cycle: Cycle; appraisal: Appr
       {/* 4. Core Values */}
       <SelfRatingSection cycle={cycle} appraisal={appraisal} aid={aid} refetch={refetch}
         section="CORE_VALUE" title="Organisation Core Values"
-        sub="Section IV — rate yourself on each value. A comment is required for every value." />
+        sub="Section IV - rate yourself on each value. A comment is required for every value." />
 
       {/* 4. Query */}
       <QuerySection appraisal={appraisal} patchAppraisal={patchAppraisal} cycle={cycle} />
@@ -294,7 +294,7 @@ function RoCell({ value, badge }: { value: string | number | null; badge?: strin
       {badge && (
         <span style={{ background: "var(--muted)", color: "var(--muted-foreground)", fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, marginRight: 6 }}>{badge}</span>
       )}
-      {value ?? "—"}
+      {value ?? "-"}
     </div>
   )
 }
@@ -395,7 +395,7 @@ function NumField({ label, defaultValue, onCommit }: { label: string; defaultVal
   )
 }
 
-function fmt(v: number | null | undefined, suffix = "") { return v == null ? "—" : `${v}${suffix}` }
+function fmt(v: number | null | undefined, suffix = "") { return v == null ? "-" : `${v}${suffix}` }
 
 function r1(v: number) { return Math.round(v * 10) / 10 }
 
@@ -408,10 +408,10 @@ function TeamLeadFeedback({ a }: { a: Appraisal }) {
   return (
     <section style={card}>
       <div style={sectionTitle}>Your Team&apos;s Upward Feedback</div>
-      <div style={sectionSub}>Anonymous summary from your team members. Individual reviews are never shown to anyone — only this synthesis.</div>
+      <div style={sectionSub}>Anonymous summary from your team members. Individual reviews are never shown to anyone - only this synthesis.</div>
       {count < MIN ? (
         <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
-          Held for anonymity — a summary appears once at least {MIN} of your team members have submitted (currently {count}).
+          Held for anonymity - a summary appears once at least {MIN} of your team members have submitted (currently {count}).
         </p>
       ) : a.teamLeadReviewSummary ? (
         <>
@@ -442,7 +442,7 @@ function MiniMarkdown({ text }: { text: string }) {
   )
 }
 
-// Live "Overall Performance Summary" for the subject — their own (Employee) column.
+// Live "Overall Performance Summary" for the subject - their own (Employee) column.
 // Shows each section's WEIGHTED contribution (raw ÷ max × weight) which sum to the
 // overall %. Mirrors the official appraisal summary. Refreshes on each save.
 function ScoreSummary({ a, cycle }: { a: Appraisal; cycle: Cycle }) {
@@ -476,7 +476,7 @@ function ScoreSummary({ a, cycle }: { a: Appraisal; cycle: Cycle }) {
   return (
     <section style={card}>
       <div style={sectionTitle}>Your Scores</div>
-      <div style={sectionSub}>Weighted contribution per section — these add up to your overall score. Updates each time you save.</div>
+      <div style={sectionSub}>Weighted contribution per section - these add up to your overall score. Updates each time you save.</div>
       <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
@@ -559,7 +559,7 @@ function QuerySection({ appraisal, patchAppraisal, cycle }: { appraisal: Apprais
   return (
     <section style={card}>
       <div style={sectionTitle}>Query</div>
-      <div style={sectionSub}>Section V — enter your counts; points are calculated automatically.</div>
+      <div style={sectionSub}>Section V - enter your counts; points are calculated automatically.</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 16 }}>
         <div>
           <label style={labelStyle}>How many warnings do you have?</label>
@@ -574,7 +574,7 @@ function QuerySection({ appraisal, patchAppraisal, cycle }: { appraisal: Apprais
           <div style={{ fontSize: 22, fontWeight: 800, color: points < 0 ? "#EF4444" : "var(--foreground)" }}>{points}</div>
         </div>
       </div>
-      <BandScale title="Scale — points deducted" rows={bands.map((b: any) => ({ label: b.label, points: b.points }))} />
+      <BandScale title="Scale - points deducted" rows={bands.map((b: any) => ({ label: b.label, points: b.points }))} />
       <div style={{ marginTop: 16 }}>
         <label style={labelStyle}>Comment</label>
         <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3} style={{ ...fi, resize: "vertical" }} />
@@ -592,7 +592,7 @@ function RecommendationsSection({ appraisal, patchAppraisal, cycle }: { appraisa
   return (
     <section style={card}>
       <div style={sectionTitle}>Recommendations</div>
-      <div style={sectionSub}>Section VI — enter your count; points are calculated automatically.</div>
+      <div style={sectionSub}>Section VI - enter your count; points are calculated automatically.</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 16 }}>
         <div>
           <label style={labelStyle}>How many recommendations do you have?</label>
@@ -603,7 +603,7 @@ function RecommendationsSection({ appraisal, patchAppraisal, cycle }: { appraisa
           <div style={{ fontSize: 22, fontWeight: 800, color: points > 0 ? "var(--primary)" : "var(--foreground)" }}>{points > 0 ? `+${points}` : points}</div>
         </div>
       </div>
-      <BandScale title="Scale — points awarded" rows={bands.map((b: any) => ({ label: b.label, points: b.points }))} />
+      <BandScale title="Scale - points awarded" rows={bands.map((b: any) => ({ label: b.label, points: b.points }))} />
       <div style={{ marginTop: 16 }}>
         <label style={labelStyle}>Comment</label>
         <textarea value={comment} onChange={e => setComment(e.target.value)} rows={3} style={{ ...fi, resize: "vertical" }} />
@@ -715,17 +715,17 @@ function ReadOnly({ cycle, appraisal }: { cycle: Cycle; appraisal: Appraisal }) 
         </div>
       </section>
 
-      {/* Your scores (employee side) — visible as soon as submitted */}
+      {/* Your scores (employee side) - visible as soon as submitted */}
       <ScoreSummary a={appraisal} cycle={cycle} />
 
-      {/* Your team's upward feedback (leads only) — anonymous synthesis, raw reviews sealed */}
+      {/* Your team's upward feedback (leads only) - anonymous synthesis, raw reviews sealed */}
       <TeamLeadFeedback a={appraisal} />
 
       {/* Final result */}
       {finalized && (
         <section style={{ ...card, borderColor: "var(--primary)" }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Final Result</div>
-          <div style={{ fontSize: 40, fontWeight: 800, color: "var(--primary)", marginTop: 4 }}>{appraisal.finalPercent ?? "—"}%</div>
+          <div style={{ fontSize: 40, fontWeight: 800, color: "var(--primary)", marginTop: 4 }}>{appraisal.finalPercent ?? "-"}%</div>
           {appraisal.teamLeadPercent != null && (
             <div style={{ fontSize: 14, fontWeight: 700, marginTop: 6 }}>Team Lead Score {appraisal.teamLeadPercent}%</div>
           )}
@@ -749,7 +749,7 @@ function ReadOnly({ cycle, appraisal }: { cycle: Cycle; appraisal: Appraisal }) 
         <div style={sectionSub}>Section I</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16 }}>
           <Field label="Name" value={`${emp.firstName} ${emp.lastName}`} />
-          <Field label="Job title" value={emp.jobTitle ?? "—"} />
+          <Field label="Job title" value={emp.jobTitle ?? "-"} />
           <Field label="Cycle" value={cycle.name} />
         </div>
       </section>
@@ -807,7 +807,7 @@ function ReadOnly({ cycle, appraisal }: { cycle: Cycle; appraisal: Appraisal }) 
                     <div style={{ fontSize: 13, fontWeight: 600 }}>{q.text}</div>
                     {r?.comment && <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 4 }}>{r.comment}</div>}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 800, whiteSpace: "nowrap" }}>{r?.score ?? "—"} / {q.scaleMax}</div>
+                  <div style={{ fontSize: 14, fontWeight: 800, whiteSpace: "nowrap" }}>{r?.score ?? "-"} / {q.scaleMax}</div>
                 </div>
               )
             })}
@@ -820,9 +820,9 @@ function ReadOnly({ cycle, appraisal }: { cycle: Cycle; appraisal: Appraisal }) 
         <div style={sectionTitle}>Query</div>
         <div style={sectionSub}>Section V</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 16 }}>
-          <Field label="Warnings" value={String(appraisal.queryWarnings ?? "—")} />
-          <Field label="Badges" value={String(appraisal.queryBadges ?? "—")} />
-          <Field label="Your query points" value={String(appraisal.queryEmployeeRating ?? "—")} />
+          <Field label="Warnings" value={String(appraisal.queryWarnings ?? "-")} />
+          <Field label="Badges" value={String(appraisal.queryBadges ?? "-")} />
+          <Field label="Your query points" value={String(appraisal.queryEmployeeRating ?? "-")} />
         </div>
         {appraisal.queryComment && <div style={{ marginTop: 12 }}><RoText label="Comment" value={appraisal.queryComment} /></div>}
       </section>
@@ -832,8 +832,8 @@ function ReadOnly({ cycle, appraisal }: { cycle: Cycle; appraisal: Appraisal }) 
         <div style={sectionTitle}>Recommendations</div>
         <div style={sectionSub}>Section VI</div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: 16 }}>
-          <Field label="Recommendation count" value={String(appraisal.recCount ?? "—")} />
-          <Field label="Your recommendation points" value={String(appraisal.recEmployeeRating ?? "—")} />
+          <Field label="Recommendation count" value={String(appraisal.recCount ?? "-")} />
+          <Field label="Your recommendation points" value={String(appraisal.recEmployeeRating ?? "-")} />
         </div>
         {appraisal.recComment && <div style={{ marginTop: 12 }}><RoText label="Comment" value={appraisal.recComment} /></div>}
       </section>
@@ -857,7 +857,7 @@ function RoText({ label, value }: { label: string; value: string | null }) {
   return (
     <div>
       <label style={labelStyle}>{label}</label>
-      <div style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{value ?? "—"}</div>
+      <div style={{ fontSize: 13, color: "var(--foreground)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{value ?? "-"}</div>
     </div>
   )
 }

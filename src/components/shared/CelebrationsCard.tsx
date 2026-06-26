@@ -99,7 +99,7 @@ export default function CelebrationsCard() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ev.name}</div>
                   <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>
-                    {ev.jobTitle ?? "—"}{ev.years ? ` · ${ev.years}yr` : ""}
+                    {ev.jobTitle ?? "-"}{ev.years ? ` · ${ev.years}yr` : ""}
                   </div>
                 </div>
                 <span style={{ fontSize: 11, fontWeight: 800, color: accent, background: `${accent}15`, border: `1px solid ${accent}30`, borderRadius: 6, padding: "3px 9px", whiteSpace: "nowrap" }}>

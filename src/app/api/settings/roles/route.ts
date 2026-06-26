@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
-// GET /api/settings/roles — all AdminRoles with member count
+// GET /api/settings/roles - all AdminRoles with member count
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -19,7 +19,7 @@ export async function GET() {
   return NextResponse.json({ roles })
 }
 
-// POST /api/settings/roles — create custom role
+// POST /api/settings/roles - create custom role
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
