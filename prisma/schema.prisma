@@ -557,6 +557,17 @@ model LeaderboardEntry {
   @@index([cycleId])
 }
 
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  email     String
+  codeHash  String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+}
+
 // ─── Half-Year Performance Appraisal ─────────────────────────────────────────
 
 enum AppraisalCycleStage {

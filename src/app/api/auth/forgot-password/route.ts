@@ -1,25 +1,9 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
+import bcrypt from "bcryptjs"
+import crypto from "crypto"
+import { sendEmail } from "@/lib/email"
 
-// GET /api/auth/forgot-password - admin: list all reset requests
-export async function GET() {
-  const { user, error } = await requireAuth()
-  if (error) return error
-  if (!isAdminRole(user.role)) return forbidden()
-
-  const requests = await prisma.passwordResetRequest.findMany({
-    orderBy: { createdAt: "desc" },
-    include: {
-      user: { select: { name: true, email: true, role: true } },
-      resolver: { select: { name: true } },
-    },
-  })
-
-  return NextResponse.json({ requests })
-}
-
-// POST /api/auth/forgot-password - any visitor: submit a reset request
 export async function POST(req: NextRequest) {
   const { email } = await req.json()
   if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 })
@@ -27,54 +11,32 @@ export async function POST(req: NextRequest) {
   const dbUser = await prisma.user.findUnique({ where: { email }, select: { id: true } })
 
   if (dbUser) {
-    const existing = await prisma.passwordResetRequest.findFirst({
-      where: { email, status: "PENDING" },
-    })
-    if (!existing) {
-      const resetReq = await prisma.passwordResetRequest.create({
-        data: { email, userId: dbUser.id },
-      })
+    const code = crypto.randomInt(100000, 1000000).toString()
+    const codeHash = await bcrypt.hash(code, 10)
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
-      // Anonymous endpoint - log directly. Actor and target are both the requesting user.
-      try {
-        const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? null
-        const userAgent = req.headers.get("user-agent") ?? null
-        await prisma.auditLog.create({
-          data: {
-            userId: dbUser.id, targetUserId: dbUser.id,
-            action: "PASSWORD_RESET_REQUEST",
-            entity: "PasswordResetRequest", entityId: resetReq.id,
-            newValues: { email },
-            ipAddress, userAgent,
-          },
-        })
-      } catch (err) {
-        console.error("[audit] password reset request log failed:", err)
-      }
+    await prisma.passwordResetToken.create({ data: { email, codeHash, expiresAt } })
 
-      // Notify all admins
-      const admins = await prisma.user.findMany({
-        where: { role: { in: ["SUPER_ADMIN"] }, isActive: true },
-        select: { id: true },
+    sendEmail({
+      eventKey: "password_reset_otp",
+      to: email,
+      variables: { code, expiresIn: "24 hours" },
+    }).catch(err => console.error("[forgot-password] email send failed:", err))
+
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: dbUser.id, targetUserId: dbUser.id,
+          action: "PASSWORD_RESET_REQUEST",
+          entity: "PasswordResetToken",
+          newValues: { email },
+          ipAddress: req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? null,
+          userAgent: req.headers.get("user-agent") ?? null,
+        },
       })
-      if (admins.length > 0) {
-        const name = await prisma.user.findUnique({
-          where: { id: dbUser.id },
-          select: { name: true },
-        })
-        await prisma.notification.createMany({
-          data: admins.map(a => ({
-            userId: a.id,
-            title: "Password Reset Request",
-            message: `${name?.name ?? email} has requested a password reset.`,
-            type: "WARNING" as const,
-            link: "/admin/people/profile-requests",
-          })),
-        })
-      }
-    }
+    } catch { /* audit failure is non-fatal */ }
   }
 
-  // Always return success to avoid revealing whether email exists
+  // Always return success — don't reveal whether the email is registered
   return NextResponse.json({ success: true })
 }
