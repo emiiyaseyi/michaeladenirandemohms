@@ -401,8 +401,8 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       H("Password Reset Request") +
       P("We received a request to reset your password. Use the code below to continue. Do not share this code with anyone.") +
       `<div style="text-align:center;margin:28px 0;"><span style="display:inline-block;padding:18px 36px;background:#f9fafb;border:2px dashed #d1d5db;border-radius:12px;font-size:40px;font-weight:800;letter-spacing:14px;color:#111827;font-family:monospace;">{{code}}</span></div>` +
-      P("This code expires in <strong>{{expiresIn}}</strong>. If you did not request a password reset, you can safely ignore this email — your password will not change.") +
-      NOTE("Never share this code with anyone, including HR or IT staff."),
+      P("This code expires in <strong>{{expiresIn}}</strong>. If you did not request a password reset, you can safely ignore this email - your password will not change.") +
+      NOTE("Never share this code with anyone"),
   },
 
   bus_booking_bounced: {
