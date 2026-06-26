@@ -133,7 +133,7 @@ export default function RolesPermissionsPage() {
       </div>
 
       {/* Assign Members Modal */}
-      <Modal open={!!assignRole} onClose={() => setAssignRole(null)} title={`Assign Members — ${assignRole?.name}`} width={480}>
+      <Modal open={!!assignRole} onClose={() => setAssignRole(null)} title={`Assign Members - ${assignRole?.name}`} width={480}>
         <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 14 }}>
           <input placeholder="Search admins…" value={memberSearch} onChange={e => setMemberSearch(e.target.value)} style={inp} />
           <p style={{ fontSize: 12, color: "var(--muted-foreground)", margin: 0 }}>Only elevated staff and the Primary Admin can be assigned roles.</p>
@@ -148,7 +148,7 @@ export default function RolesPermissionsPage() {
                     <input type="checkbox" checked={sel} onChange={() => setSelectedMemberIds(ids => sel ? ids.filter(id => id !== a.id) : [...ids, a.id])} style={{ width: 14, height: 14, flexShrink: 0 }} />
                     <Avatar name={a.name ?? a.email ?? "?"} size={28} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name ?? "—"}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{a.name ?? "-"}</div>
                       <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{a.email}</div>
                     </div>
                     {a.role === "SUPER_ADMIN" && <span style={{ fontSize: 10, background: "var(--primary)", color: "white", borderRadius: 999, padding: "2px 7px", fontWeight: 700 }}>Primary</span>}
@@ -215,7 +215,7 @@ function SystemRolesTable({ roles, onAssign, onView, menuOpen, setMenuOpen, menu
                   </div>
                 </div>
               </td>
-              <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)", maxWidth: 280 }}>{role.description ?? "—"}</td>
+              <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)", maxWidth: 280 }}>{role.description ?? "-"}</td>
               <td style={{ padding: "14px 20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{role._count.members}</span>
@@ -280,7 +280,7 @@ function CustomRolesTable({ roles, onAssign, onView, onEdit, onDelete, menuOpen,
                   </div>
                 </div>
               </td>
-              <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)", maxWidth: 280 }}>{role.description ?? "—"}</td>
+              <td style={{ padding: "14px 20px", fontSize: 13, color: "var(--muted-foreground)", maxWidth: 280 }}>{role.description ?? "-"}</td>
               <td style={{ padding: "14px 20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ fontSize: 13, fontWeight: 600 }}>{role._count.members}</span>

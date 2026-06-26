@@ -131,7 +131,7 @@ export async function DELETE(req: NextRequest) {
   ])
   const total = primaryCount + junctionCount
   if (total > 0) {
-    return NextResponse.json({ error: `Cannot delete — ${total} employee(s) are still in this department. Remove them first.` }, { status: 409 })
+    return NextResponse.json({ error: `Cannot delete - ${total} employee(s) are still in this department. Remove them first.` }, { status: 409 })
   }
   const before = await prisma.department.findUnique({ where: { id }, select: { name: true } })
   await prisma.department.delete({ where: { id } })

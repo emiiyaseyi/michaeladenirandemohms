@@ -87,7 +87,7 @@ export default function EmployeeAssetsPage() {
     setSelected(next)
   }
 
-  // release single — find asset id from assignment
+  // release single - find asset id from assignment
   const releaseAssignment = async (assignment: any) => {
     setConfirming(true)
     await fetch(`/api/assets/${assignment.assetId}/assignments/${assignment.id}`, {
@@ -159,7 +159,7 @@ export default function EmployeeAssetsPage() {
               <tr><td colSpan={7} style={{ padding: 60, textAlign: "center", color: "var(--muted-foreground)", fontSize: 13 }}>No assets assigned.</td></tr>
             ) : paged.map(a => {
               const isAssigned = a.status === "ASSIGNED"
-              const assignedDate = a.assignedOn ? new Date(a.assignedOn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"
+              const assignedDate = a.assignedOn ? new Date(a.assignedOn).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-"
               const isChecked = selected.has(a.id)
 
               return (
@@ -174,9 +174,9 @@ export default function EmployeeAssetsPage() {
                     <div style={{ fontWeight: 500 }}>{a.asset?.name}</div>
                     {a.asset?.assetType?.name && <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{a.asset.assetType.name}</div>}
                   </td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.asset?.identifier ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.asset?.identifier ?? "-"}</td>
                   <td style={td}>{assignedDate}</td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.description ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.description ?? "-"}</td>
                   <td style={td}>
                     <span style={{
                       fontSize: 12, padding: "3px 12px", borderRadius: 999, fontWeight: 600, display: "inline-block",

@@ -77,7 +77,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const { id } = await params
   const before = await prisma.announcement.findUnique({ where: { id }, select: { title: true } })
-  // Soft delete — set to RETIRED so it can be restored from trash
+  // Soft delete - set to RETIRED so it can be restored from trash
   await prisma.announcement.update({
     where: { id },
     data: { status: "RETIRED", retiredAt: new Date() },

@@ -88,7 +88,7 @@ export default function PolicyGate({ employeeId }: { employeeId?: string }) {
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#d97706", marginBottom: 4 }}>
-                Action Required — Document {idx + 1} of {docs.length}
+                Action Required - Document {idx + 1} of {docs.length}
               </div>
               <h2 style={{ fontSize: 17, fontWeight: 800, margin: 0 }}>{doc.title}</h2>
             </div>
@@ -98,7 +98,7 @@ export default function PolicyGate({ employeeId }: { employeeId?: string }) {
           </div>
           <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 10 }}>
             {countdown > 0
-              ? `Please read this document carefully before signing — ${countdown}s remaining`
+              ? `Please read this document carefully before signing - ${countdown}s remaining`
               : "You may now sign below"}
           </div>
           <div style={{ height: 5, background: "var(--border)", borderRadius: 4, overflow: "hidden" }}>
@@ -110,7 +110,7 @@ export default function PolicyGate({ employeeId }: { employeeId?: string }) {
           </div>
         </div>
 
-        {/* Document viewer — no download, no copy */}
+        {/* Document viewer - no download, no copy */}
         <div style={{ flex: 1, minHeight: 0, position: "relative", userSelect: "none" }}>
           <iframe
             src={`${doc.fileUrl}#toolbar=0&navpanes=0`}

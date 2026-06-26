@@ -42,7 +42,7 @@ function CategorySelect({ value, onChange }: { value: string; onChange: (v: stri
   return (
     <div>
       <select value={value} onChange={e => onChange(e.target.value)} style={fi}>
-        <option value="">— Select category —</option>
+        <option value="">- Select category -</option>
         {categories.map(c => <option key={c} value={c}>{c}</option>)}
       </select>
       {!adding ? (

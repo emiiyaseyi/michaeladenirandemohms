@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
-// POST /api/settings/roles/[id]/members — assign users { userIds: string[] }
+// POST /api/settings/roles/[id]/members - assign users { userIds: string[] }
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({ success: true })
 }
 
-// DELETE /api/settings/roles/[id]/members — remove a single member { userId: string }
+// DELETE /api/settings/roles/[id]/members - remove a single member { userId: string }
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error

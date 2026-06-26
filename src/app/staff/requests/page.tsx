@@ -138,10 +138,10 @@ export default function RequestsPage() {
                         style={{ cursor: "pointer" }}
                         onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
                         onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
-                        <td style={td}>{req.leaveType?.name ?? "—"}</td>
+                        <td style={td}>{req.leaveType?.name ?? "-"}</td>
                         <td style={{ ...td, color: "var(--muted-foreground)" }}>{formatDate(req.startDate)}</td>
                         <td style={{ ...td, color: "var(--muted-foreground)" }}>{formatDate(req.endDate)}</td>
-                        <td style={{ ...td, color: "var(--muted-foreground)" }}>{req.days ?? "—"}</td>
+                        <td style={{ ...td, color: "var(--muted-foreground)" }}>{req.days ?? "-"}</td>
                         <td style={td}>
                           <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: badge.bg, color: badge.color, whiteSpace: "nowrap" }}>
                             {badge.label}
@@ -154,7 +154,7 @@ export default function RequestsPage() {
               </table>
               {leaveRows.length > 10 && (
                 <div style={{ padding: "10px 20px", fontSize: 12, color: "var(--muted-foreground)", borderTop: "1px solid var(--border)" }}>
-                  Showing 10 of {leaveRows.length} — <button onClick={() => router.push(`${base}${section.path}`)} style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: 12, fontWeight: 600, padding: 0 }}>View all</button>
+                  Showing 10 of {leaveRows.length} - <button onClick={() => router.push(`${base}${section.path}`)} style={{ background: "none", border: "none", color: "var(--primary)", cursor: "pointer", fontSize: 12, fontWeight: 600, padding: 0 }}>View all</button>
                 </div>
               )}
             </div>

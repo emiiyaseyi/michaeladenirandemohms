@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
           link: `/admin/requests/leave`,
         },
       })
-      // employee_back_hr email dropped (R6) — auto-cron already flips the employee back
+      // employee_back_hr email dropped (R6) - auto-cron already flips the employee back
       // to ACTIVE; HR sees the change in the directory. In-app notification suffices.
     }
 

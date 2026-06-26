@@ -28,7 +28,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   // ── Leave ──────────────────────────────────────────────────────────────────
 
   leave_submitted_pl: {
-    name: "Leave Submitted — PL Approval Needed",
+    name: "Leave Submitted - PL Approval Needed",
     category: "Leave",
     description: "Sent to the assigned project lead(s) when an employee submits a leave request.",
     variables: ["employeeName", "leaveType", "startDate", "endDate", "days", "reason"],
@@ -46,11 +46,11 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   },
 
   leave_submitted_hr: {
-    name: "Leave Submitted — HR Notified",
+    name: "Leave Submitted - HR Notified",
     category: "Leave",
     description: "Sent to HR admins when a new leave request is submitted (informational, pending PL approval).",
     variables: ["employeeName", "leaveType", "startDate", "endDate", "days"],
-    defaultSubject: "New Leave Request: {{employeeName}} — {{leaveType}}",
+    defaultSubject: "New Leave Request: {{employeeName}} - {{leaveType}}",
     defaultBody:
 
       H("New Leave Request Submitted") +
@@ -96,7 +96,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   },
 
   leave_nudge_pl: {
-    name: "Leave Approval Reminder — Project Lead",
+    name: "Leave Approval Reminder - Project Lead",
     category: "Leave",
     description: "Sent to a project lead reminding them of a pending leave approval.",
     variables: ["requesterName", "leaveType"],
@@ -109,7 +109,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   },
 
   leave_nudge_hr: {
-    name: "Leave Approval Reminder — HR",
+    name: "Leave Approval Reminder - HR",
     category: "Leave",
     description: "Sent to HR admins reminding them of a pending final leave approval.",
     variables: ["requesterName", "leaveType"],
@@ -122,7 +122,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   },
 
   leave_auto_nudge: {
-    name: "Leave Approval Overdue — Auto Nudge",
+    name: "Leave Approval Overdue - Auto Nudge",
     category: "Leave",
     description: "Automatically sent to an approver when their approval deadline has passed.",
     variables: ["requesterName", "leaveType"],
@@ -254,7 +254,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   // ── People / Onboarding ───────────────────────────────────────────────────
 
   employee_invite: {
-    name: "Employee Invite — Complete Profile",
+    name: "Employee Invite - Complete Profile",
     category: "People",
     description: "Sent to new employees added via 'Invite' mode. Invites them to set a password and complete their profile.",
     variables: ["employeeName", "inviteLink", "workEmail", "loginUrl", "defaultPassword"],
@@ -296,11 +296,11 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   // ── Birthdays ──────────────────────────────────────────────────────────────
 
   birthday_digest: {
-    name: "Birthday Digest — HR Daily",
+    name: "Birthday Digest - HR Daily",
     category: "People",
     description: "Sent to HR admins each morning with a list of employee birthdays today.",
     variables: ["count", "names", "today"],
-    defaultSubject: "🎂 {{count}} birthday(s) today — {{today}}",
+    defaultSubject: "🎂 {{count}} birthday(s) today - {{today}}",
     defaultBody:
 
       H("Birthday Digest") +
@@ -310,7 +310,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   },
 
   birthday_employee: {
-    name: "Birthday Greeting — Employee",
+    name: "Birthday Greeting - Employee",
     category: "People",
     description: "Sent to an employee on their birthday.",
     variables: ["employeeName"],
@@ -326,16 +326,16 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   // ── Intern Reports ──────────────────────────────────────────────────────────
 
   intern_report_missing: {
-    name: "Intern Report — Missing (auto-flagged)",
+    name: "Intern Report - Missing (auto-flagged)",
     description: "Sent to the intern's Project Lead on Monday morning when an intern did not submit a weekly report by Sunday midnight.",
     category: "People",
     variables: ["internName", "weekRange", "reviewLink"],
-    defaultSubject: "Missed weekly report — {{internName}} ({{weekRange}})",
+    defaultSubject: "Missed weekly report - {{internName}} ({{weekRange}})",
     defaultBody:
 
       H("Missed Weekly Report") +
       P("<strong>{{internName}}</strong> did not submit a weekly report for <strong>{{weekRange}}</strong>. A 'Missed' placeholder has been auto-recorded with a 3-point deduction.") +
-      P("If this was an oversight or there was a valid reason, please coordinate with HR — an admin can clear the missed-record so the intern can submit retroactively.") +
+      P("If this was an oversight or there was a valid reason, please coordinate with HR - an admin can clear the missed-record so the intern can submit retroactively.") +
       `<div style="text-align:center;margin:24px 0;"><a href="{{reviewLink}}" style="display:inline-block;padding:12px 32px;background:#dc2626;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">Review in HRMS</a></div>` +
       NOTE("This is an automated notification."),
   },
@@ -351,7 +351,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       H("New Announcement") +
       P("<strong>{{announcementTitle}}</strong>") +
       P("{{announcementBody}}") +
-      `<p style="font-size:12px;color:#9ca3af;margin-top:16px;">— {{publishedBy}}</p>` +
+      `<p style="font-size:12px;color:#9ca3af;margin-top:16px;">- {{publishedBy}}</p>` +
       NOTE("Log in to your HRMS portal for more information."),
   },
 
@@ -370,7 +370,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
         ROW("Login URL", `<a href="{{loginUrl}}" style="color:#2563eb;text-decoration:none;">{{loginUrl}}</a>`),
         ROW("Temporary Password", `<span style="font-family:monospace;">{{tempPassword}}</span>`),
       ) +
-      NOTE("Keep this email safe — anyone with the temporary password can log in until you change it."),
+      NOTE("Keep this email safe - anyone with the temporary password can log in until you change it."),
   },
 
   bus_booking_confirmed: {
@@ -378,7 +378,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     category: "Admin",
     description: "Sent to an employee when their bus seat is confirmed after allocation.",
     variables: ["name", "seatNumber", "trip", "stop", "loginUrl"],
-    defaultSubject: "Your {{trip}} bus seat is confirmed — Seat #{{seatNumber}}",
+    defaultSubject: "Your {{trip}} bus seat is confirmed - Seat #{{seatNumber}}",
     defaultBody:
 
       H("Bus Seat Confirmed ✓") +
@@ -392,11 +392,11 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   },
 
   bus_booking_bounced: {
-    name: "Bus Booking — No Seat Available",
+    name: "Bus Booking - No Seat Available",
     category: "Admin",
     description: "Sent to an employee when their bus booking was not allocated a seat.",
     variables: ["name", "trip", "loginUrl"],
-    defaultSubject: "{{trip}} bus — No seat available today",
+    defaultSubject: "{{trip}} bus - No seat available today",
     defaultBody:
 
       H("No Seat Available") +
@@ -418,11 +418,11 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
       H("Welcome to the Team!") +
       P("Hi <strong>{{employeeName}}</strong>, congratulations! Your employment status has been updated from <strong>Intern</strong> to <strong>{{newType}}</strong>.") +
       P("You are now a full member of the Data Science Nigeria team. Please sign out and back in to see your updated profile and access.") +
-      NOTE("We're excited to have you on board — welcome!"),
+      NOTE("We're excited to have you on board - welcome!"),
   },
 
   intern_conversion_followup: {
-    name: "Intern Conversion — 5-Month Follow-up",
+    name: "Intern Conversion - 5-Month Follow-up",
     category: "People",
     description: "Sent to HR admins 5 months after an intern was converted to staff. Prompts a check-in before the 6-month mark.",
     variables: ["employeeName", "convertedAt", "profileLink"],
@@ -430,7 +430,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     defaultBody:
 
       H("Intern Conversion Follow-up") +
-      P("<strong>{{employeeName}}</strong> was converted from Intern to Staff on <strong>{{convertedAt}}</strong> — 5 months ago.") +
+      P("<strong>{{employeeName}}</strong> was converted from Intern to Staff on <strong>{{convertedAt}}</strong> - 5 months ago.") +
       P("Consider scheduling an engagement check-in before the 6-month mark to ensure a smooth transition.") +
       `<div style="text-align:center;margin:24px 0;"><a href="{{profileLink}}" style="display:inline-block;padding:12px 32px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:14px;">View Profile</a></div>` +
       NOTE("This is an automated reminder from the HRMS."),
@@ -441,7 +441,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
   appraisal_final_report: {
     name: "Appraisal Final Report",
     category: "People",
-    description: "Sent to each staff member from HR when an appraisal cycle is closed — their final score and management comment.",
+    description: "Sent to each staff member from HR when an appraisal cycle is closed - their final score and management comment.",
     variables: ["employeeName", "cycleName", "finalPercent", "behaviouralScore", "jobScore", "coreScore", "managementComment"],
     defaultSubject: "Your {{cycleName}} performance appraisal result",
     defaultBody:

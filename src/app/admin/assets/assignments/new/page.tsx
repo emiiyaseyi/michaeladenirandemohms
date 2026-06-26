@@ -184,7 +184,7 @@ export default function AssignAssetPage() {
             </div>
           </div>
 
-          {/* Row 3 — only when Yes */}
+          {/* Row 3 - only when Yes */}
           {form.hasTenure && (
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
               <div>

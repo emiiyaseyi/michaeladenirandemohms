@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description: "Unified HR Management System for Data Science Nigeria",
 }
 
-// Viewport — explicit width-device-width keeps content responsive.
+// Viewport - explicit width-device-width keeps content responsive.
 // We deliberately omit `maximumScale`/`userScalable=no` because they break
 // accessibility (pinch-to-zoom). The iOS focus-zoom on inputs is handled in
 // globals.css by forcing input font-size ≥ 16px on touch devices.

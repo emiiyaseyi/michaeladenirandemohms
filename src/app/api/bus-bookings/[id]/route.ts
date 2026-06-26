@@ -21,7 +21,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   const tier = busTier(booking.employee?.jobTitle)
   if (!isWindowOpen(booking.trip as "MORNING" | "AFTERNOON", tier)) {
-    return NextResponse.json({ error: "Booking window has closed — cannot cancel after allocation" }, { status: 400 })
+    return NextResponse.json({ error: "Booking window has closed - cannot cancel after allocation" }, { status: 400 })
   }
 
   await prisma.busBooking.update({ where: { id }, data: { status: "CANCELLED" } })

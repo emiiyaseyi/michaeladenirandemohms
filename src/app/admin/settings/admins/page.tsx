@@ -157,7 +157,7 @@ export default function AdminsSettingsPage() {
       </div>
 
       {/* Edit Roles Modal */}
-      <Modal open={!!editAdmin} onClose={() => setEditAdmin(null)} title={`Edit Roles — ${editAdmin?.name}`} width={500}>
+      <Modal open={!!editAdmin} onClose={() => setEditAdmin(null)} title={`Edit Roles - ${editAdmin?.name}`} width={500}>
         <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
           <p style={{ fontSize: 13, color: "var(--muted-foreground)", margin: 0 }}>Select which roles this admin should have. At least one role is required.</p>
           {allRoles.map(role => {
@@ -214,7 +214,7 @@ function AdminRow({ admin, canManage, onEdit, onRemove, menuOpen, setMenuOpen, m
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Avatar name={admin.name ?? admin.email ?? "?"} size={34} />
           <div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{admin.name ?? "—"}</div>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{admin.name ?? "-"}</div>
             <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{admin.email}</div>
           </div>
         </div>
@@ -223,7 +223,7 @@ function AdminRow({ admin, canManage, onEdit, onRemove, menuOpen, setMenuOpen, m
         {admin.employee ? (
           <>
             <div>{admin.employee.employeeId}</div>
-            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{admin.employee.department?.name ?? "—"}</div>
+            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{admin.employee.department?.name ?? "-"}</div>
           </>
         ) : <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>External</span>}
       </td>
@@ -262,7 +262,7 @@ function SuperAdminRow({ admin }: { admin: AdminRecord }) {
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <Avatar name={admin.name ?? admin.email ?? "?"} size={34} />
           <div>
-            <div style={{ fontWeight: 600, fontSize: 13 }}>{admin.name ?? "—"}</div>
+            <div style={{ fontWeight: 600, fontSize: 13 }}>{admin.name ?? "-"}</div>
             <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{admin.email}</div>
           </div>
         </div>
@@ -271,9 +271,9 @@ function SuperAdminRow({ admin }: { admin: AdminRecord }) {
         {admin.employee ? (
           <>
             <div>{admin.employee.employeeId}</div>
-            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{admin.employee.department?.name ?? "—"}</div>
+            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{admin.employee.department?.name ?? "-"}</div>
           </>
-        ) : <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>—</span>}
+        ) : <span style={{ fontSize: 12, color: "var(--muted-foreground)" }}>-</span>}
       </td>
       <td style={{ padding: "14px 20px" }}>
         <span style={{ fontSize: 11, background: "var(--primary)", color: "white", borderRadius: 999, padding: "3px 9px", fontWeight: 700 }}>Full Access</span>

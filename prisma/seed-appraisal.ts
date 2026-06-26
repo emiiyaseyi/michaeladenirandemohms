@@ -1,5 +1,5 @@
 /**
- * Production-safe appraisal seed. ADDITIVE — never deletes data.
+ * Production-safe appraisal seed. ADDITIVE - never deletes data.
  *
  * Creates the active half-year appraisal cycle (if missing), loads the standard
  * template (questions, global KPIs, weights, bands), then generates one appraisal
@@ -38,7 +38,7 @@ async function main() {
     await prisma.performanceCycle.updateMany({ where: { isActive: true, id: { not: cycle.id } }, data: { isActive: false } })
     console.log(`Created cycle "${cycleName}" (OPEN)`)
   } else {
-    console.log(`Cycle "${cycleName}" exists — topping up`)
+    console.log(`Cycle "${cycleName}" exists - topping up`)
   }
 
   // Top-up appraisals for active employees without one.

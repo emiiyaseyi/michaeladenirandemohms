@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
-// PATCH /api/auth/forgot-password/[id] — admin resolves a reset request
+// PATCH /api/auth/forgot-password/[id] - admin resolves a reset request
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

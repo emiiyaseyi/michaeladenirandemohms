@@ -189,7 +189,7 @@ export default function ReviewDetailPage() {
   const [fbSaving, setFbSaving] = useState(false)
 
   const raterType = relationship?.isPrimary ? "PRIMARY_REVIEWER" : "COUNTER_REVIEWER"
-  // Reviewer can fill once the employee has submitted, until finalized — not tied to a global REVIEW stage.
+  // Reviewer can fill once the employee has submitted, until finalized - not tied to a global REVIEW stage.
   const reviewable = ["SUBMITTED", "LEAD_REVIEWING", "LEAD_DONE"].includes(appraisal?.stage ?? "")
   const editable = reviewable && !!relationship?.isReviewer
 
@@ -426,7 +426,7 @@ export default function ReviewDetailPage() {
     )
   }
 
-  const roleName = relationship.isPrimary ? "Primary" : relationship.isCounter ? "Counter" : "—"
+  const roleName = relationship.isPrimary ? "Primary" : relationship.isCounter ? "Counter" : "-"
 
   const qBands = appraisal.cycle.queryBands && appraisal.cycle.queryBands.length ? appraisal.cycle.queryBands : DEFAULT_QUERY_BANDS
   const rBands = appraisal.cycle.recommendationBands && appraisal.cycle.recommendationBands.length ? appraisal.cycle.recommendationBands : DEFAULT_RECOMMENDATION_BANDS
@@ -458,13 +458,13 @@ export default function ReviewDetailPage() {
         </h1>
       </div>
       <p style={{ fontSize: 13, color: "var(--muted-foreground)", margin: "0 0 4px 0" }}>
-        {appraisal.employee.jobTitle ?? "—"} · {appraisal.cycle.name}
+        {appraisal.employee.jobTitle ?? "-"} · {appraisal.cycle.name}
       </p>
       <p style={{ fontSize: 12, color: "var(--muted-foreground)", margin: "0 0 24px 0" }}>
         Your role: {roleName} reviewer{!editable && " · Read-only"}
       </p>
 
-      {/* SECTION — Score the KPIs (stacked: Employee read-only on top, your row below) */}
+      {/* SECTION - Score the KPIs (stacked: Employee read-only on top, your row below) */}
       <div style={card}>
         <h2 style={sectionTitle}>Score the KPIs</h2>
         <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: -8, marginBottom: 14 }}>Each KPI is scored out of its assigned weight.</p>
@@ -474,7 +474,7 @@ export default function ReviewDetailPage() {
           appraisal.kpis.map(k => (
             <div key={k.id}>
               <StackedRatings
-                questionText={`${k.projectName ?? "—"} — ${k.kpi ?? k.deliverable ?? ""} (weight ${k.weight ?? 0})`}
+                questionText={`${k.projectName ?? "-"} - ${k.kpi ?? k.deliverable ?? ""} (weight ${k.weight ?? 0})`}
                 scaleMax={k.weight ?? 0}
                 mode="number"
                 rows={rowsForKpi(k)}
@@ -490,7 +490,7 @@ export default function ReviewDetailPage() {
               )}
               {k.source === "ADMIN" && (
                 <div style={{ fontSize: 11, color: "var(--muted-foreground)", margin: "-6px 0 12px 2px" }}>
-                  Admin-scored — reviewers cannot rate this item.
+                  Admin-scored - reviewers cannot rate this item.
                 </div>
               )}
             </div>
@@ -506,7 +506,7 @@ export default function ReviewDetailPage() {
         )}
       </div>
 
-      {/* SECTION 3 — Behavioural (Section II) — stacked per question */}
+      {/* SECTION 3 - Behavioural (Section II) - stacked per question */}
       <div style={card}>
         <h2 style={sectionTitle}>Behavioural (Section II)</h2>
         {editable && behQuestions.length > 0 && <ScaleLegend scaleMax={behQuestions[0]?.scaleMax ?? 5} />}
@@ -537,7 +537,7 @@ export default function ReviewDetailPage() {
         )}
       </div>
 
-      {/* SECTION 4 — Organisation Core Values (Section IV) — stacked per question */}
+      {/* SECTION 4 - Organisation Core Values (Section IV) - stacked per question */}
       <div style={card}>
         <h2 style={sectionTitle}>Organisation Core Values (Section IV)</h2>
         {editable && cvQuestions.length > 0 && <ScaleLegend scaleMax={cvQuestions[0]?.scaleMax ?? 3} />}
@@ -568,7 +568,7 @@ export default function ReviewDetailPage() {
         )}
       </div>
 
-      {/* SECTION 5 — Reviewer feedback */}
+      {/* SECTION 5 - Reviewer feedback */}
       <div style={card}>
         <h2 style={sectionTitle}>Reviewer Feedback (Section VII)</h2>
 
@@ -582,7 +582,7 @@ export default function ReviewDetailPage() {
             />
           ) : (
             <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
-              {appraisal.keyAchievements || "—"}
+              {appraisal.keyAchievements || "-"}
             </div>
           )}
         </div>
@@ -600,7 +600,7 @@ export default function ReviewDetailPage() {
             />
           ) : (
             <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
-              {appraisal.areasForImprovement || "—"}
+              {appraisal.areasForImprovement || "-"}
             </div>
           )}
         </div>
@@ -618,7 +618,7 @@ export default function ReviewDetailPage() {
             />
           ) : (
             <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
-              {appraisal.developmentPlan || "—"}
+              {appraisal.developmentPlan || "-"}
             </div>
           )}
         </div>
@@ -633,7 +633,7 @@ export default function ReviewDetailPage() {
             />
           ) : (
             <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
-              {appraisal.reviewerComments || "—"}
+              {appraisal.reviewerComments || "-"}
             </div>
           )}
         </div>
@@ -649,7 +649,7 @@ export default function ReviewDetailPage() {
               />
             ) : (
               <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap" }}>
-                {appraisal.counterReviewerComments || "—"}
+                {appraisal.counterReviewerComments || "-"}
               </div>
             )}
           </div>
@@ -685,7 +685,7 @@ export default function ReviewDetailPage() {
         )}
       </div>
 
-      {/* SCORES — live summary */}
+      {/* SCORES - live summary */}
       <div style={card}>
         <h2 style={sectionTitle}>Scores</h2>
         <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 14 }}>
@@ -701,11 +701,11 @@ export default function ReviewDetailPage() {
           </thead>
           <tbody>
             {[
-              { label: "360 Behavioural", emp: appraisal.behavioural360Emp != null ? `${appraisal.behavioural360Emp} / 5` : "—", rev: appraisal.behavioural360Rev != null ? `${appraisal.behavioural360Rev} / 5` : "—" },
-              { label: "Job-Specific", emp: appraisal.jobScoreEmp != null ? `${appraisal.jobScoreEmp} / 100` : "—", rev: appraisal.jobScoreRev != null ? `${appraisal.jobScoreRev} / 100` : "—" },
-              { label: "Core Values", emp: appraisal.coreScoreEmp ?? "—", rev: appraisal.coreScoreRev ?? "—" },
-              { label: "Query points", emp: appraisal.queryEmployeeRating ?? "—", rev: appraisal.queryHrRating ?? "—" },
-              { label: "Recommendation points", emp: appraisal.recEmployeeRating ?? "—", rev: appraisal.recHrRating ?? "—" },
+              { label: "360 Behavioural", emp: appraisal.behavioural360Emp != null ? `${appraisal.behavioural360Emp} / 5` : "-", rev: appraisal.behavioural360Rev != null ? `${appraisal.behavioural360Rev} / 5` : "-" },
+              { label: "Job-Specific", emp: appraisal.jobScoreEmp != null ? `${appraisal.jobScoreEmp} / 100` : "-", rev: appraisal.jobScoreRev != null ? `${appraisal.jobScoreRev} / 100` : "-" },
+              { label: "Core Values", emp: appraisal.coreScoreEmp ?? "-", rev: appraisal.coreScoreRev ?? "-" },
+              { label: "Query points", emp: appraisal.queryEmployeeRating ?? "-", rev: appraisal.queryHrRating ?? "-" },
+              { label: "Recommendation points", emp: appraisal.recEmployeeRating ?? "-", rev: appraisal.recHrRating ?? "-" },
             ].map(row => (
               <tr key={row.label}>
                 <td style={{ padding: "6px 8px", color: "var(--foreground)", borderBottom: "1px solid var(--border)" }}>{row.label}</td>
@@ -717,10 +717,10 @@ export default function ReviewDetailPage() {
         </table>
 
         <div style={{ marginTop: 16, fontSize: 24, fontWeight: 800, color: "var(--primary)" }}>
-          Reviewer overall score: {appraisal.finalReviewerPercent ?? "—"}%
+          Reviewer overall score: {appraisal.finalReviewerPercent ?? "-"}%
         </div>
         <div style={{ marginTop: 4, fontSize: 13, color: "var(--muted-foreground)" }}>
-          Employee self score: {appraisal.finalEmployeePercent ?? "—"}%
+          Employee self score: {appraisal.finalEmployeePercent ?? "-"}%
         </div>
         {appraisal.teamLeadPercent != null && (
           <div style={{ marginTop: 4, fontSize: 13, color: "var(--muted-foreground)" }}>
@@ -729,7 +729,7 @@ export default function ReviewDetailPage() {
         )}
       </div>
 
-      {/* SECTION 5 — Submit */}
+      {/* SECTION 5 - Submit */}
       {editable && (
         <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
           <button style={primaryBtn} onClick={() => setConfirmOpen(true)}>

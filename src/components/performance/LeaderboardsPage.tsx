@@ -44,7 +44,7 @@ export default function LeaderboardsPage() {
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Leaderboards</h1>
           <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
-            Org-wide admin-scored items{data?.cycle ? ` · ${data.cycle.name}` : ""} — imported by HR. These scores feed your appraisal; check yours and raise any issue with HR.
+            Org-wide admin-scored items{data?.cycle ? ` · ${data.cycle.name}` : ""} - imported by HR. These scores feed your appraisal; check yours and raise any issue with HR.
           </p>
         </div>
       </div>
@@ -81,7 +81,7 @@ export default function LeaderboardsPage() {
                           {r.jobTitle && <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{r.jobTitle}</div>}
                         </td>
                         <td style={{ ...td, fontWeight: 800 }}>{r.score}</td>
-                        <td style={{ ...td, color: "var(--muted-foreground)" }}>{r.note ?? "—"}</td>
+                        <td style={{ ...td, color: "var(--muted-foreground)" }}>{r.note ?? "-"}</td>
                       </tr>
                     ))}
                   </tbody>

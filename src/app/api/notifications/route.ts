@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
 
-// GET /api/notifications — fetch current user's notifications (latest 30)
+// GET /api/notifications - fetch current user's notifications (latest 30)
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -20,7 +20,7 @@ export async function GET() {
   return NextResponse.json({ notifications, unreadCount })
 }
 
-// PATCH /api/notifications — mark one or all as read
+// PATCH /api/notifications - mark one or all as read
 // Body: { id: string } to mark one, or { all: true } to mark all
 export async function PATCH(req: NextRequest) {
   const { user, error } = await requireAuth()

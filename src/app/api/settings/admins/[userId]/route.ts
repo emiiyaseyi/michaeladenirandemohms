@@ -10,7 +10,7 @@ const MEMBER_SELECT = {
   adminRoles: { include: { adminRole: { select: { id: true, name: true, slug: true, isSystem: true } } }, orderBy: { assignedAt: "asc" as const } },
 }
 
-// PATCH /api/settings/admins/[userId] — replace all role assignments
+// PATCH /api/settings/admins/[userId] - replace all role assignments
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
   return NextResponse.json({ admin: updated })
 }
 
-// DELETE /api/settings/admins/[userId] — remove all admin roles (de-elevate)
+// DELETE /api/settings/admins/[userId] - remove all admin roles (de-elevate)
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error

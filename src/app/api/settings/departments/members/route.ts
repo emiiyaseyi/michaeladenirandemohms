@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, requirePermission, forbidden } from "@/lib/api-auth"
 
-// GET /api/settings/departments/members?deptId=xxx — list employees in a department
+// GET /api/settings/departments/members?deptId=xxx - list employees in a department
 // Includes both primary (Employee.departmentId) and additional (EmployeeDepartment junction)
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ dept, members: enriched })
 }
 
-// POST — assign employee(s) to department (multi-add)
+// POST - assign employee(s) to department (multi-add)
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, added: employeeIds.length })
 }
 
-// DELETE — remove employee from department; blocks if it's their only one
+// DELETE - remove employee from department; blocks if it's their only one
 export async function DELETE(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error

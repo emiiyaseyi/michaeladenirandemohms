@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
         link: `/employees/personal-docs`,
       })),
     })
-    // personal_doc_uploaded email dropped (R6) — admins see new uploads in their review
+    // personal_doc_uploaded email dropped (R6) - admins see new uploads in their review
     // queue. In-app notification is sufficient.
   }
 

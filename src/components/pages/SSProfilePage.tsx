@@ -38,7 +38,7 @@ function TextFieldRow({
     <div style={{ display: "flex", alignItems: "center", padding: "14px 20px", borderBottom: "1px solid var(--border)" }}>
       <div style={{ flex: "0 0 220px", fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>{label}</div>
       <div style={{ flex: 1, fontSize: 13, color: value ? "var(--foreground)" : "var(--muted-foreground)" }}>
-        {value ?? "—"}
+        {value ?? "-"}
       </div>
       <button style={circleBtn} onClick={onEdit}>
         <Pencil size={14} />
@@ -173,24 +173,24 @@ function DocumentSections({ nin, aiMembership, onTextSaved }: { nin?: string | n
           <div style={{ fontSize: 14, fontWeight: 700 }}>General Information</div>
         </div>
 
-        {/* AI+ Membership — pencil modal */}
+        {/* AI+ Membership - pencil modal */}
         <TextFieldRow
           label="AI+ Membership"
           value={currentAi}
           onEdit={() => setEditModal({ field: "aiMembership", label: "AI+ Membership" })}
         />
 
-        {/* NIN — pencil modal */}
+        {/* NIN - pencil modal */}
         <TextFieldRow
           label="NIN"
           value={currentNin}
           onEdit={() => setEditModal({ field: "nin", label: "NIN" })}
         />
 
-        {/* NIN Slip — upload */}
+        {/* NIN Slip - upload */}
         {uploadRow("NIN_SLIP", "NIN Slip")}
 
-        {/* Utility Bill — upload (no bottom border on last row) */}
+        {/* Utility Bill - upload (no bottom border on last row) */}
         <div style={{ display: "flex", alignItems: "center", padding: "14px 20px" }}>
           <div style={{ flex: "0 0 220px", fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>Utility Bill</div>
           <div style={{ flex: 1, fontSize: 13, color: docs["UTILITY_BILL"] ? (docs["UTILITY_BILL"].status === "APPROVED" ? "#1A7336" : docs["UTILITY_BILL"].status === "REJECTED" ? "#DC2626" : "#B45309") : "var(--muted-foreground)" }}>
@@ -213,7 +213,7 @@ function DocumentSections({ nin, aiMembership, onTextSaved }: { nin?: string | n
         </div>
         {uploadRow("FIRST_DEGREE", "Degree")}
         {uploadRow("NYSC", "NYSC")}
-        {/* Last row — no bottom border */}
+        {/* Last row - no bottom border */}
         <div style={{ display: "flex", alignItems: "center", padding: "14px 20px" }}>
           <div style={{ flex: "0 0 220px", fontSize: 13, fontWeight: 500, color: "var(--foreground)" }}>SSCE</div>
           <div style={{ flex: 1, fontSize: 13, color: docs["SSCE"] ? (docs["SSCE"].status === "APPROVED" ? "#1A7336" : docs["SSCE"].status === "REJECTED" ? "#DC2626" : "#B45309") : "var(--muted-foreground)" }}>

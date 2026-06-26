@@ -189,7 +189,7 @@ export default function JobsPage() {
                   return (
                     <tr key={j.id} style={{ borderBottom: "1px solid var(--border)" }}>
                       <td style={{ ...td, fontWeight: 600 }}>{j.title}{j.isInternal && <span style={{ marginLeft: 6, fontSize: 10, background: "var(--muted)", padding: "2px 6px", borderRadius: 4, fontWeight: 600 }}>Internal</span>}</td>
-                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{j.department?.name ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{j.department?.name ?? "-"}</td>
                       <td style={{ ...td, color: "var(--muted-foreground)" }}>{j.employmentType?.replace(/_/g, " ")}</td>
                       <td style={td}>{j._count?.applications ?? 0}</td>
                       <td style={td}>

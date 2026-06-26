@@ -4,7 +4,7 @@ import { requireAuth } from "@/lib/api-auth"
 import { relationshipTo, recomputeAndPersist } from "@/lib/appraisal"
 import { logAudit } from "@/lib/audit"
 
-// Add a job-specific KPI row. KPI rows are admin-assigned (uploaded by HR) — only admins may add.
+// Add a job-specific KPI row. KPI rows are admin-assigned (uploaded by HR) - only admins may add.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error

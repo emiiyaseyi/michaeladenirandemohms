@@ -44,15 +44,15 @@ function ReviewPanel({ req, onClose, onDone }: { req: any; onClose: () => void; 
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 100, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}>
       <div className="side-panel" style={{ background: "var(--card)", width: 520, height: "100%", overflowY: "auto", boxShadow: "-4px 0 24px rgba(0,0,0,0.15)", padding: 28 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h3 style={{ fontSize: 15, fontWeight: 800 }}>Document Request — {req.employee.firstName} {req.employee.lastName}</h3>
+          <h3 style={{ fontSize: 15, fontWeight: 800 }}>Document Request - {req.employee.firstName} {req.employee.lastName}</h3>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)" }}><X size={18} /></button>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 24 }}>
           {[
             ["Document Type", req.documentType],
-            ["Purpose", req.purpose ?? "—"],
-            ["Notes", req.notes ?? "—"],
+            ["Purpose", req.purpose ?? "-"],
+            ["Notes", req.notes ?? "-"],
             ["Status", req.status],
           ].map(([k, v]) => (
             <div key={k}>
@@ -386,7 +386,7 @@ export default function RequestDocumentsPage() {
                         </div>
                       </td>
                       <td style={td}>{r.documentType}</td>
-                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{r.purpose ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{r.purpose ?? "-"}</td>
                       <td style={{ ...td, color: "var(--muted-foreground)" }}>
                         {new Date(r.createdAt).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}
                       </td>

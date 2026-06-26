@@ -149,7 +149,7 @@ export default function PreferencesPage() {
             <User size={28} style={{ color: "var(--muted-foreground)" }} />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)" }}>{data?.email ?? "—"}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: "var(--foreground)" }}>{data?.email ?? "-"}</div>
             <div style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 2 }}>{data?.name ?? ""}</div>
           </div>
         </div>

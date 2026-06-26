@@ -31,7 +31,7 @@ export default function AuthLeftPanel() {
           <span style={{ fontSize: 16, color: "#F87171", fontWeight: 600 }}>HR Platform</span>
         </div>
         <p style={{ fontSize: 14, color: "var(--sidebar-fg)", lineHeight: 1.8, maxWidth: 360 }}>
-          DSN's unified HR platform — leave, payslips, performance, offboarding and insights, all in one place.
+          DSN's unified HR platform - leave, payslips, performance, offboarding and insights, all in one place.
         </p>
       </div>
 

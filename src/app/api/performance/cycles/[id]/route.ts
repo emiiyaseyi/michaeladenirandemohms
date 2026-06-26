@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // finalized appraisal. The cycle must be at the FINALIZED stage first. closedAt
     // guards send-once: re-closing an already-closed cycle does not re-send.
     if (cycle.stage !== "FINALIZED") {
-      return NextResponse.json({ error: "Move the cycle to the Finalized stage before closing — final report emails go out on close." }, { status: 400 })
+      return NextResponse.json({ error: "Move the cycle to the Finalized stage before closing - final report emails go out on close." }, { status: 400 })
     }
     const alreadyClosed = !!cycle.closedAt
     const updated = await prisma.performanceCycle.update({ where: { id }, data: { isActive: false, closedAt: cycle.closedAt ?? new Date() } })
@@ -63,7 +63,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (stage === "REVIEW") {
       const reviewers = await prisma.appraisalReviewer.findMany({ where: { appraisal: { cycleId: id } }, select: { reviewerId: true } })
       await notifyReviewStageOpened(reviewers.map(r => r.reviewerId))
-      // Members rate upward during OPEN, so the data is ready — synthesize each lead's report.
+      // Members rate upward during OPEN, so the data is ready - synthesize each lead's report.
       await generateTeamLeadReportsForCycle(id)
     }
     await logAudit({ req, actor: user, action: "APPRAISAL_CYCLE_STAGE", entity: "PerformanceCycle", entityId: id, newValues: { stage } })

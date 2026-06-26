@@ -8,7 +8,7 @@ export async function GET() {
   if (error) return error
   const c = caps(user.role)
   // R6: also accept users who have canViewAnalytics granted via an admin role bundle
-  // (e.g. secondary-admin) — previously only role-based caps were honoured, which
+  // (e.g. secondary-admin) - previously only role-based caps were honoured, which
   // wrongly blocked elevated STAFF from analytics.
   const hasAnalyticsGrant = user.permissions?.canViewAnalytics === true
   if (!c.canViewAnalytics && !c.canViewTeamAnalytics && !hasAnalyticsGrant) {
@@ -34,7 +34,7 @@ export async function GET() {
     isTeamScoped ? Promise.resolve(0) : prisma.jobPosting.count({ where: { status: "OPEN" } }),
     isTeamScoped
       ? prisma.employee.groupBy({ by: ["departmentId"], where: empFilter, _count: true }).then(rows =>
-          rows.map(r => ({ name: r.departmentId ?? "—", count: r._count }))
+          rows.map(r => ({ name: r.departmentId ?? "-", count: r._count }))
         )
       : prisma.department.findMany({ include: { _count: { select: { employees: true } } }, orderBy: { name: "asc" } }),
     prisma.employee.groupBy({ by: ["employmentType"], where: empFilter, _count: true }),
@@ -46,7 +46,7 @@ export async function GET() {
   ])
 
   const byDepartment = isTeamScoped
-    ? (byDept as any[]).map(d => ({ name: d.name ?? "—", count: d.count }))
+    ? (byDept as any[]).map(d => ({ name: d.name ?? "-", count: d.count }))
     : (byDept as any[]).map(d => ({ name: d.name.length > 12 ? d.name.slice(0,12)+"…" : d.name, count: d._count.employees }))
   const byTypeFormatted = byType.map(t => ({ type: t.employmentType.replace(/_/g," "), count: t._count }))
 

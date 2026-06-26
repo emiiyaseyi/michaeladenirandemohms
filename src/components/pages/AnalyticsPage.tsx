@@ -7,7 +7,7 @@ import EmptyState from "@/components/ui/EmptyState"
 import { Users, CalendarDays, Briefcase, UserCheck, BarChart3, Loader2 } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from "recharts"
 
-// Chart palette — colours stay hard-coded because they're chart data, not UI tokens.
+// Chart palette - colours stay hard-coded because they're chart data, not UI tokens.
 const COLORS = ["#0052A5","#E3192A","#0B8A4A","#7C3AED","#C2410C","#0E7490","#B45309"]
 
 export default function AnalyticsPage() {

@@ -4,7 +4,7 @@ import { sendEmail } from "@/lib/email"
 import { format, subDays, startOfDay } from "date-fns"
 
 // Saturday/Sunday late deductions and the Monday missing-report deduction are always
-// calendar-fixed — they never move even if "Submission Day" (window-open day) is reconfigured.
+// calendar-fixed - they never move even if "Submission Day" (window-open day) is reconfigured.
 // Flat per-week deduction: -missingWeeklyDeduction on every Monday the report stays unsubmitted (no streak/escalation).
 function missedMondaysCount(weekStart: Date, now: Date): number {
   const firstMissedMonday = new Date(weekStart)
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const missingWeeklyDeduction = cfg?.missingWeeklyDeduction ?? 10
   const closingDay = "Sunday"
 
-  // Reviewer deadline is fixed: 7 days after the week starts, at 08:00 WAT — the exact
+  // Reviewer deadline is fixed: 7 days after the week starts, at 08:00 WAT - the exact
   // moment this cron runs. Not configurable (the cron only runs once a week).
   const reviewerDeadline = new Date(weekStart)
   reviewerDeadline.setDate(reviewerDeadline.getDate() + 7)
@@ -57,13 +57,13 @@ export async function GET(req: NextRequest) {
 
   let createdCount = 0
   for (const intern of interns) {
-    // Eligibility starts from account creation, not hireDate — unless an admin set an
+    // Eligibility starts from account creation, not hireDate - unless an admin set an
     // explicit override (internReportStartDate) for this intern.
     // Only skip if an explicit internReportStartDate is set and the week predates it.
-    // Falling back to createdAt is wrong — interns are often data-entered after they started.
+    // Falling back to createdAt is wrong - interns are often data-entered after they started.
     if (intern.internReportStartDate && weekStart < intern.internReportStartDate) continue
 
-    // Only skip if a real submission exists — DRAFT does not count as submitted
+    // Only skip if a real submission exists - DRAFT does not count as submitted
     const existing = await prisma.internWeeklyReport.findFirst({
       where: { employeeId: intern.id, weekStart, status: { notIn: ["DRAFT"] } },
     })
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
         entity: "InternWeeklyReport",
         entityId: placeholder.id,
         newValues: { weekStart, weekEnd, status: "MISSING", pointDeduction: missingDeduction },
-        reason: `Auto-created by Monday cron — intern did not submit by ${closingDay} 11:59 PM WAT.`,
+        reason: `Auto-created by Monday cron - intern did not submit by ${closingDay} 11:59 PM WAT.`,
       },
     }).catch(err => console.error("[audit] MISSING placeholder audit failed:", err))
 
@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
           userId: intern.userId,
           employeeId: intern.id,
           title: "Missed Weekly Report",
-          message: `You have not submitted a weekly report for ${weekRange}. Your report is still open — deductions increase each day you delay. Submit as soon as possible.`,
+          message: `You have not submitted a weekly report for ${weekRange}. Your report is still open - deductions increase each day you delay. Submit as soon as possible.`,
           type: "DANGER",
           link: "/staff/intern-report",
         },

@@ -165,7 +165,7 @@ export async function POST(req: NextRequest) {
     })
     if (!existingUser) return NextResponse.json({ error: "User not found" }, { status: 400 })
     if (existingUser.employee) return NextResponse.json({ error: "User already has an employee record" }, { status: 400 })
-    if (existingUser.adminRoles.length === 0) return NextResponse.json({ error: "User has no admin role — cannot be hired through this flow" }, { status: 400 })
+    if (existingUser.adminRoles.length === 0) return NextResponse.json({ error: "User has no admin role - cannot be hired through this flow" }, { status: 400 })
   } else {
     if (!workEmail.toLowerCase().trim().endsWith("@datasciencenigeria.ai")) {
       return NextResponse.json({ error: "Employee email must be a @datasciencenigeria.ai address" }, { status: 400 })
@@ -193,7 +193,7 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Atomic transaction: user + employee + junctions + invite ──────────────
-  // Any failure inside rolls back everything — no orphaned User rows in the DB.
+  // Any failure inside rolls back everything - no orphaned User rows in the DB.
   const { employee, userIdToUse, isHireFlow, invite } = await prisma.$transaction(async (tx) => {
     let txUserId: string
     let txIsHireFlow = false
@@ -270,7 +270,7 @@ export async function POST(req: NextRequest) {
     return { employee: emp, userIdToUse: txUserId, isHireFlow: txIsHireFlow, invite: txInvite }
   })
 
-  // ── Email (outside transaction — fire and forget) ──────────────────────────
+  // ── Email (outside transaction - fire and forget) ──────────────────────────
   if (isHireFlow) {
     await sendEmail({
       eventKey: "employee_account_created",

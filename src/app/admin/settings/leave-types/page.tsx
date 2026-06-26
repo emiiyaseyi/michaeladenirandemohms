@@ -94,7 +94,7 @@ export default function LeaveTypesSettingsPage() {
                 <input type="checkbox" checked={form.requiresDoc} onChange={e => setForm(f => ({...f, requiresDoc: e.target.checked}))} /> Requires supporting document
               </label>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>
-                <input type="checkbox" checked={form.internOnly} onChange={e => setForm(f => ({...f, internOnly: e.target.checked}))} /> Interns only — hide from non-intern employees
+                <input type="checkbox" checked={form.internOnly} onChange={e => setForm(f => ({...f, internOnly: e.target.checked}))} /> Interns only - hide from non-intern employees
               </label>
               {editing && (
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer" }}>

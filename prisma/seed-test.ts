@@ -1,9 +1,9 @@
 /**
- * Test / dev seed — DO NOT run in production.
+ * Test / dev seed - DO NOT run in production.
  * Requires seed.ts to have been run first (departments, leave types, etc. must exist).
  *
  * Demo login accounts:
- *   edodida@datasciencenigeria.ai     /  Admin@DSN2024!   (SUPER_ADMIN — set by seed.ts)
+ *   edodida@datasciencenigeria.ai     /  Admin@DSN2024!   (SUPER_ADMIN - set by seed.ts)
  *   staff1@dsn-hrms.com          /  dsn-demo    (STAFF)
  *   staff2@dsn-hrms.com          /  dsn-demo    (STAFF)
  *   staff3@dsn-hrms.com          /  dsn-demo    (STAFF)
@@ -15,7 +15,7 @@
  *   relief1.test@datasciencenigeria.ai      (STAFF)
  *   relief2.test@datasciencenigeria.ai      (STAFF)
  *   ada.obi@datasciencenigeria.ai           (STAFF, reports to projectlead.test)
- *   intern@dsn-hrms.com                      (STAFF/Intern) — reports to lead1@dsn-hrms.com
+ *   intern@dsn-hrms.com                      (STAFF/Intern) - reports to lead1@dsn-hrms.com
  *
  * Run: npm run db:seed:test
  */
@@ -44,7 +44,7 @@ async function main() {
   // ── Resolve admin roles ───────────────────────────────────────────────────────
   const hrAdminRole = await prisma.adminRole.findUnique({ where: { slug: "hr-admin" } })
 
-  // ── HR Admin (SUPER_ADMIN) — don't override role set by seed.ts ───────────────
+  // ── HR Admin (SUPER_ADMIN) - don't override role set by seed.ts ───────────────
   const hrUser = await prisma.user.upsert({
     where:  { email: "edodida@datasciencenigeria.ai" },
     update: { mustChangePassword: false, isSeeded: true },
@@ -259,7 +259,7 @@ async function main() {
     { title: "Welcome to DSN HRMS",                body: "We're excited to launch the new DSN HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
     { title: "Q2 2026 Leave Reminder",             body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
     { title: "Performance Review Cycle Open",      body: "The Q1 2026 performance review cycle is now open. All employees should complete their self-assessment by April 30, 2026.", behavior: "DASHBOARD_SCROLL" as const, targetRoles: [] as string[] },
-    { title: "Public Holiday Notice — Workers' Day", body: "May 1, 2026 (Workers' Day) is a public holiday. All offices will be closed.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: [] as string[] },
+    { title: "Public Holiday Notice - Workers' Day", body: "May 1, 2026 (Workers' Day) is a public holiday. All offices will be closed.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: [] as string[] },
     { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
   ]) {
     const exists = await prisma.announcement.findFirst({ where: { title: ann.title } })

@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     submit?: boolean
   }
   if (!Array.isArray(ratings)) return NextResponse.json({ error: "ratings array required" }, { status: 400 })
-  // Comments are mandatory — every item must have a score and a non-empty comment.
+  // Comments are mandatory - every item must have a score and a non-empty comment.
   for (const r of ratings) {
     if (r.score === null || r.score === undefined || Number.isNaN(Number(r.score))) {
       return NextResponse.json({ error: "Give every item a score." }, { status: 400 })
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     isAnonymous = false
   } else if (raterType === "PEER" && section === "BEHAVIOURAL") {
     allowed = rel.isPeer && stage === "OPEN"
-    // Peer reviews lock after submission — no edits once submitted (admin can reopen).
+    // Peer reviews lock after submission - no edits once submitted (admin can reopen).
     if (allowed) {
       const mine = appraisal.peers.find(p => p.peerId === eid)
       if (mine?.status === "SUBMITTED") return NextResponse.json({ error: "You have already submitted this peer review." }, { status: 400 })
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // caller must be a direct report (manager/projectLead) of the subject
     const me = await prisma.employee.findUnique({ where: { id: eid }, select: { managerId: true, projectLeadId: true } })
     allowed = stage === "OPEN" && !!me && (me.managerId === appraisal.employeeId || me.projectLeadId === appraisal.employeeId)
-    // Team-lead review locks after first submission — no edits.
+    // Team-lead review locks after first submission - no edits.
     if (allowed) {
       const already = await prisma.appraisalRating.count({ where: { appraisalId: id, raterId: eid, raterType: "MEMBER" } })
       if (already > 0) return NextResponse.json({ error: "You have already submitted your team lead review." }, { status: 400 })
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     allowed = (raterType === "PRIMARY_REVIEWER" ? rel.isPrimary : rel.isCounter) && reviewerCanEdit(appraisal.stage)
     isAnonymous = false
   } else if (raterType === "ADMIN" && section === "CORE_VALUE") {
-    // Admin-entered locked scores (e.g. attendance) — at any time before finalize.
+    // Admin-entered locked scores (e.g. attendance) - at any time before finalize.
     allowed = rel.isAdmin && appraisal.stage !== "FINALIZED"
     isAnonymous = false
   }

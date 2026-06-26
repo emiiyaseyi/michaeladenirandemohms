@@ -7,7 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatDate(date: Date | string | null | undefined, fmt = "MMM d, yyyy") {
-  if (!date) return "—"
+  if (!date) return "-"
   return format(new Date(date), fmt)
 }
 
@@ -21,7 +21,7 @@ export function initials(name: string | null | undefined) {
 }
 
 export function formatCurrency(amount: number | null | undefined) {
-  if (amount == null) return "—"
+  if (amount == null) return "-"
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", minimumFractionDigits: 0 }).format(amount)
 }
 

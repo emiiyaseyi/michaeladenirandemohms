@@ -34,7 +34,7 @@ export function StackedRatings({
         {rows.map((row, idx) => (
           <div key={idx} style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
             <div style={labelCol}>{row.label}</div>
-            {/* Score — single row, never wraps */}
+            {/* Score - single row, never wraps */}
             <div style={{ flex: "0 0 auto" }}>
               {row.editable ? (
                 mode === "number" ? (
@@ -60,16 +60,16 @@ export function StackedRatings({
                   </div>
                 )
               ) : (
-                <div style={{ fontSize: 14, fontWeight: 800, paddingTop: 6, width: 64 }}>{row.score ?? "—"}<span style={{ fontSize: 11, fontWeight: 500, color: "var(--muted-foreground)" }}> / {scaleMax}</span></div>
+                <div style={{ fontSize: 14, fontWeight: 800, paddingTop: 6, width: 64 }}>{row.score ?? "-"}<span style={{ fontSize: 11, fontWeight: 500, color: "var(--muted-foreground)" }}> / {scaleMax}</span></div>
               )}
             </div>
-            {/* Comment — takes the remaining (wider) space; extendable */}
+            {/* Comment - takes the remaining (wider) space; extendable */}
             <div style={{ flex: 1, minWidth: 160 }}>
               {row.editable ? (
                 <textarea value={row.comment ?? ""} placeholder="Comment (required)" rows={2}
                   onChange={e => onChange(row.raterType, { comment: e.target.value })} style={{ ...cellInput, width: "100%", resize: "vertical", minHeight: 38 }} />
               ) : (
-                <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap", paddingTop: 6 }}>{row.comment || "—"}</div>
+                <div style={{ fontSize: 13, color: "var(--foreground)", whiteSpace: "pre-wrap", paddingTop: 6 }}>{row.comment || "-"}</div>
               )}
             </div>
           </div>

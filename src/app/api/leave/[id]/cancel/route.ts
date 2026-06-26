@@ -33,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!isOrgAdmin && isOwner) {
     const someoneActed = (request.approvals ?? []).some(a => !!a.action)
     if (someoneActed) {
-      return NextResponse.json({ error: "An approver has already acted on this request — ask an admin to cancel it." }, { status: 400 })
+      return NextResponse.json({ error: "An approver has already acted on this request - ask an admin to cancel it." }, { status: 400 })
     }
   }
 

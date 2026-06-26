@@ -300,8 +300,8 @@ export default function ViewPolicyPage() {
                     onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
                     onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
                     <td style={td}>{ex.employee.firstName} {ex.employee.lastName}</td>
-                    <td style={td}>{ex.employee.department?.name ?? "—"}</td>
-                    <td style={td}>{ex.employee.email ?? "—"}</td>
+                    <td style={td}>{ex.employee.department?.name ?? "-"}</td>
+                    <td style={td}>{ex.employee.email ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>

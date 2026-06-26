@@ -59,7 +59,7 @@ export default function TeamLeadReviewPage() {
         <UserCheck size={22} color="var(--primary)" />
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 800 }}>Team Lead Review</h1>
-          <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Rate your team lead — anonymous to them, visible to HR</p>
+          <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Rate your team lead - anonymous to them, visible to HR</p>
         </div>
       </div>
 

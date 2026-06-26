@@ -43,7 +43,7 @@ function toWAT(date: Date): Date {
 }
 
 // Saturday/Sunday late deductions and the Monday missing-report deduction are always
-// calendar-fixed — they never move even if "Submission Day" (window-open day) is reconfigured.
+// calendar-fixed - they never move even if "Submission Day" (window-open day) is reconfigured.
 // Flat per-week deduction: -missingWeeklyDeduction on every Monday the report stays unsubmitted (no streak/escalation).
 function missedMondaysCount(weekStart: Date, now: Date): number {
   const firstMissedMonday = new Date(weekStart)
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
     isOwnReportsView = true
   } else if (user.role === "PROJECT_LEAD" && !user.permissions?.["canViewInternReports"]) {
     // Project leads see reports of interns who report to them via the org chart,
-    // PLUS any report where they were personally chosen as a reviewer — interns often
+    // PLUS any report where they were personally chosen as a reviewer - interns often
     // add their actual PL as an "extra reviewer" because Employee.projectLeadId/managerId
     // isn't populated for most interns, so the org-chart match alone misses them.
     const team = await prisma.employee.findMany({
@@ -115,11 +115,11 @@ export async function GET(req: NextRequest) {
     // ?employeeId= to fetch a report outside their team/reviewer scope.
     if (empParam) where = { AND: [where, { employeeId: empParam }] }
   } else {
-    // SUPER_ADMIN or has canViewInternReports permission — sees all
+    // SUPER_ADMIN or has canViewInternReports permission - sees all
     if (empParam) where.employeeId = empParam
   }
 
-  // Drafts are personal — only the intern who owns them sees their own draft.
+  // Drafts are personal - only the intern who owns them sees their own draft.
   // Reviewers, PLs, and admins should never see a report until it's actually submitted.
   if (!isOwnReportsView) where.status = { not: "DRAFT" }
 
@@ -226,7 +226,7 @@ export async function POST(req: NextRequest) {
     representationHours, selfDevHours,
   } = computedHours as Record<string, number>
 
-  // Compute week bounds early — needed by both draft and submit paths.
+  // Compute week bounds early - needed by both draft and submit paths.
   const nowWAT = toWAT(new Date())
   const { weekStart: currentWeekStart } = getWeekBounds(nowWAT)
   let ws: Date, we: Date
@@ -247,7 +247,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "You have already submitted a report for this week." }, { status: 409 })
   }
 
-  // Draft path — skip reflections, window, and hours-cap validation entirely
+  // Draft path - skip reflections, window, and hours-cap validation entirely
   if (isDraft) {
     const draftTotalHours = [
       mainProjectHours, specialProjectHours, trainingHours, reportingDocHours,
@@ -341,13 +341,12 @@ export async function POST(req: NextRequest) {
   const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
   const OPEN_DAY = submissionDay
   const isOpenDay = dayWAT === OPEN_DAY
-  // TEMP TEST: late-deduction days shifted from Sat/Sun to Tue/Wed — revert to 6/0 when done testing
-  const isSat = dayWAT === 2
-  const isSun = dayWAT === 3
+  const isSat = dayWAT === 6
+  const isSun = dayWAT === 0
 
   const TESTING_ALWAYS_OPEN = false
 
-  // Window check — skipped for past-week submissions
+  // Window check - skipped for past-week submissions
   if (!isPastWeek && !TESTING_ALWAYS_OPEN) {
     if (!isOpenDay && !isSat && !isSun) {
       return NextResponse.json({ error: `Submission window opens ${DAY_NAMES[OPEN_DAY]} at ${openHour}:${pad2(openMinute)} WAT and closes Sunday at 11:59 PM WAT.` }, { status: 400 })

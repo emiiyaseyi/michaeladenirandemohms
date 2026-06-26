@@ -74,7 +74,7 @@ const TOUR_STEPS = [
     icon: Zap,
     color: "#F59E0B",
     title: "Quick Actions",
-    body: "The quick action bar lets you jump straight to common tasks — request leave, set KPI goals, take your appraisal, access your documents, and more. Scroll sideways if more actions exist.",
+    body: "The quick action bar lets you jump straight to common tasks - request leave, set KPI goals, take your appraisal, access your documents, and more. Scroll sideways if more actions exist.",
     hint: "Find it just below your hero card",
   },
   {
@@ -95,14 +95,14 @@ const TOUR_STEPS = [
     icon: FolderOpen,
     color: "#8B5CF6",
     title: "Document Library",
-    body: "HR uploads important company documents here — policies, SOPs, templates and more. Some documents require your acknowledgement. You'll see a reminder if any are outstanding.",
+    body: "HR uploads important company documents here - policies, SOPs, templates and more. Some documents require your acknowledgement. You'll see a reminder if any are outstanding.",
     hint: "Access via the sidebar → Documents",
   },
   {
     icon: UserCheck,
     color: "#10B981",
     title: "Self Service",
-    body: "The Self Service section is your personal hub: update your profile, submit and track leave, and access your documents — all in one place.",
+    body: "The Self Service section is your personal hub: update your profile, submit and track leave, and access your documents - all in one place.",
     hint: "Click 'Self Service' in the left sidebar",
   },
   {
@@ -545,7 +545,7 @@ function AllEmployeesMini() {
                   {emp.firstName} {emp.lastName}
                 </div>
                 <div style={{ fontSize:11, color:"var(--muted-foreground)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
-                  {emp.jobTitle ?? emp.department?.name ?? "—"}
+                  {emp.jobTitle ?? emp.department?.name ?? "-"}
                 </div>
               </div>
               <Badge status={emp.employeeStatus ?? "ACTIVE"} />
@@ -612,7 +612,7 @@ export default function StaffDashboard() {
       <style>{GLOBAL_STYLE}</style>
       <DashboardAnnouncements />
 
-      {/* Platform Tour — auto on first visit, or manually triggered */}
+      {/* Platform Tour - auto on first visit, or manually triggered */}
       <PlatformTour key={tourKey} forceOpen={tourOpen} onStart={() => setTourOpen(false)} />
 
       {/* 1. Hero */}

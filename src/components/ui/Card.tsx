@@ -5,7 +5,7 @@ interface CardProps {
   style?: React.CSSProperties
   className?: string
   onClick?: () => void
-  /** Optional title — renders a header section with a bottom border. */
+  /** Optional title - renders a header section with a bottom border. */
   title?: ReactNode
   /** Optional content padding. Defaults to no padding (children control it). When title is present, defaults to 24px. */
   padded?: boolean

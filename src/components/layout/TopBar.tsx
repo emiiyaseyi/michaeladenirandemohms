@@ -234,7 +234,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
       height: 60, background: "var(--card)", borderBottom: "1px solid var(--border)",
       display: "flex", alignItems: "center", paddingInline: 16, gap: 10,
     }}>
-      {/* Hamburger — mobile only */}
+      {/* Hamburger - mobile only */}
       <button
         className="hdr-mobile"
         onClick={() => document.body.classList.toggle("mobile-nav-open")}
@@ -254,7 +254,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
 
       {/* ── Desktop controls ── */}
       <div className="hdr-desktop" style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
-        {/* Global Search — SUPER_ADMIN and secondary-admin only */}
+        {/* Global Search - SUPER_ADMIN and secondary-admin only */}
         {showSearch && <div ref={containerRef} style={{ position: "relative", flexShrink: 0 }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
@@ -355,7 +355,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
           <ThemeIcon size={16} />
         </button>
 
-        {/* Notifications bell — desktop */}
+        {/* Notifications bell - desktop */}
         <BellBadge size={16} />
 
         {/* User dropdown */}
@@ -512,7 +512,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
             border: "1px solid var(--border)", borderRadius: "0 0 0 12px",
             boxShadow: "var(--shadow-lg)", overflow: "hidden", zIndex: 300,
           }}>
-            {/* Search — only for SUPER_ADMIN / secondary-admin */}
+            {/* Search - only for SUPER_ADMIN / secondary-admin */}
             {showSearch && (
               <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--muted)", borderRadius: 8, padding: "8px 12px", border: "1.5px solid var(--border)" }}>
@@ -580,7 +580,7 @@ export default function TopBar({ title, user }: { title: string; user: any }) {
               <span style={{ fontSize: 13, color: "var(--foreground)" }}>My Profile</span>
             </button>
 
-            {/* Panel switcher — elevated staff only */}
+            {/* Panel switcher - elevated staff only */}
             {isElevated && (
               <button
                 onClick={() => { setMobileMenuOpen(false); router.push(isInAdminPanel ? "/staff" : "/admin") }}

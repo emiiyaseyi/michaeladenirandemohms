@@ -31,7 +31,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!isOwn && !isAdmin && !isPL) return forbidden()
 
-  // Drafts are personal — block everyone but the owning intern, even if they'd
+  // Drafts are personal - block everyone but the owning intern, even if they'd
   // otherwise qualify as admin/PL for this report once it's actually submitted.
   if (report.status === "DRAFT" && !isOwn) {
     return NextResponse.json({ error: "Report not found" }, { status: 404 })
@@ -40,7 +40,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({ report: { ...report, totalScore: computeScore(report) } })
 }
 
-// DELETE — admin clears a MISSING placeholder so the intern can submit retroactively.
+// DELETE - admin clears a MISSING placeholder so the intern can submit retroactively.
 // Only MISSING rows can be deleted via this endpoint; regular submissions are protected.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()

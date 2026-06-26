@@ -70,7 +70,7 @@ export default function ViewCustomGroupPage() {
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
                   <td style={td}>{m.employee.firstName} {m.employee.lastName}</td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{m.employee.employeeId ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{m.employee.employeeId ?? "-"}</td>
                 </tr>
               ))}
             </tbody>

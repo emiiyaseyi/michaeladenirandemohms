@@ -11,7 +11,7 @@ const MEMBER_SELECT = {
   adminRoles: { include: { adminRole: { select: { id: true, name: true, slug: true, isSystem: true } } }, orderBy: { assignedAt: "asc" as const } },
 }
 
-// GET /api/settings/admins — list all elevated users + SUPER_ADMIN
+// GET /api/settings/admins - list all elevated users + SUPER_ADMIN
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -34,7 +34,7 @@ export async function GET() {
   return NextResponse.json({ admins })
 }
 
-// POST /api/settings/admins — elevate a staff member OR create non-employee admin
+// POST /api/settings/admins - elevate a staff member OR create non-employee admin
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error

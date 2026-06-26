@@ -85,7 +85,7 @@ export default function BulkUploadAdminsPage() {
               {[
                 "First name, last name, email",
                 'accessLevel: "full" (Secondary Admin / full access) or comma-separated role slugs for limited access',
-                "Each email must be unique — duplicates are skipped",
+                "Each email must be unique - duplicates are skipped",
               ].map(item => (
                 <div key={item} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                   <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#DCFCE7", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -139,12 +139,12 @@ export default function BulkUploadAdminsPage() {
 
           {results && (
             <div style={{ padding: "20px 32px", borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Results — {results.created} created, {results.skipped} skipped</div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Results - {results.created} created, {results.skipped} skipped</div>
               {results.results && results.results.filter((r: any) => r.status === "skipped").length > 0 && (
                 <div style={{ background: "var(--card)", borderRadius: 8, padding: "10px 14px", maxHeight: 220, overflowY: "auto", border: "1px solid var(--border)" }}>
                   {results.results.filter((r: any) => r.status === "skipped").map((r: any, i: number) => (
                     <div key={i} style={{ fontSize: 12, color: "#DC2626", marginBottom: 4 }}>
-                      Row {r.row} ({r.email ?? "—"}) — {r.error}
+                      Row {r.row} ({r.email ?? "-"}) - {r.error}
                     </div>
                   ))}
                 </div>

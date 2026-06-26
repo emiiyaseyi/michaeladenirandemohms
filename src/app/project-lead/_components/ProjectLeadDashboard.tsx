@@ -35,7 +35,7 @@ function calcCompleteness(emp: any): number {
   return Math.round((filled / REQUIRED_FIELDS.length) * 100)
 }
 function timeInCompany(hireDate: Date | null): string {
-  if (!hireDate) return "—"
+  if (!hireDate) return "-"
   const now = new Date()
   const years = differenceInYears(now, hireDate)
   const months = differenceInMonths(now, hireDate) % 12
@@ -162,7 +162,7 @@ export default async function ProjectLeadDashboard() {
       : null,
   }))
 
-  // Leave balances — compute used/pending dynamically from this PL's leave requests.
+  // Leave balances - compute used/pending dynamically from this PL's leave requests.
   // Approved leave is deducted IMMEDIATELY (not after endDate).
   const ownLeaveRequests = employeeId
     ? await prisma.leaveRequest.findMany({
@@ -243,7 +243,7 @@ export default async function ProjectLeadDashboard() {
                 </span>
               )}
               {employee?.employeeStatus && <Badge status={employee.employeeStatus} />}
-              {tenure && tenure !== "—" && (
+              {tenure && tenure !== "-" && (
                 <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "rgba(255,255,255,0.45)" }}>
                   <Clock size={10} /> {tenure}
                 </span>
@@ -306,7 +306,7 @@ export default async function ProjectLeadDashboard() {
       {/* ── Pending approval banner ───────────────────────────────────────────── */}
       {pendingLeaveCount > 0 && (
         <div style={{ padding: "12px 16px", background: "rgba(234,179,8,0.1)", border: "1px solid var(--warning)", borderRadius: 10, fontSize: 13, fontWeight: 600, color: "var(--warning)" }}>
-          {pendingLeaveCount} leave request{pendingLeaveCount !== 1 ? "s" : ""} awaiting your approval —{" "}
+          {pendingLeaveCount} leave request{pendingLeaveCount !== 1 ? "s" : ""} awaiting your approval -{" "}
           <a href="/project-lead/requests/leave" style={{ color: "inherit", textDecoration: "underline" }}>Review now</a>
         </div>
       )}

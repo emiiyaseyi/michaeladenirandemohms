@@ -4,7 +4,7 @@ import { getToken } from "next-auth/jwt"
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Static assets, auth API, and public routes — always pass through
+  // Static assets, auth API, and public routes - always pass through
   if (
     pathname.startsWith("/api/auth") ||
     pathname.startsWith("/api/cron") ||
@@ -22,7 +22,7 @@ export async function proxy(req: NextRequest) {
 
   const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET })
 
-  // Public pages — redirect already-logged-in users away from /login
+  // Public pages - redirect already-logged-in users away from /login
   if (pathname.startsWith("/login") || pathname.startsWith("/forgot-password")) {
     if (token && pathname.startsWith("/login")) {
       return NextResponse.redirect(new URL("/", req.url))

@@ -255,8 +255,8 @@ export default function SuspensionsPage() {
                   </div>
                 </td>
                 <td style={td}>{fmt(s.startDate)}</td>
-                <td style={td}>{s.endDate ? fmt(s.endDate) : "—"}</td>
-                {tab === "suspensions" && <td style={{ ...td, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.reason || "—"}</td>}
+                <td style={td}>{s.endDate ? fmt(s.endDate) : "-"}</td>
+                {tab === "suspensions" && <td style={{ ...td, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.reason || "-"}</td>}
                 <td style={td}>
                   <span style={{ ...statusColor(s.status), padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600 }}>
                     {s.status.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())}

@@ -331,7 +331,7 @@ export default function NewAssetPage() {
             </div>
             <div style={{ borderTop: "1px solid var(--border)", padding: "24px 28px" }}>
 
-              {/* Row 1 — changes layout when "Add new type..." is selected */}
+              {/* Row 1 - changes layout when "Add new type..." is selected */}
               {!isAddNew ? (
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
                   <div>
@@ -345,7 +345,7 @@ export default function NewAssetPage() {
                 </div>
               ) : (
                 <>
-                  {/* Add new type mode — 3 rows */}
+                  {/* Add new type mode - 3 rows */}
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 20 }}>
                     <div>
                       <label style={lbl}>{req} Asset type</label>

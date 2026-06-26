@@ -32,7 +32,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({ role })
 }
 
-// PATCH /api/settings/roles/[id] — edit name/description/permissions
+// PATCH /api/settings/roles/[id] - edit name/description/permissions
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -70,7 +70,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ role: updated })
 }
 
-// DELETE /api/settings/roles/[id] — custom roles only
+// DELETE /api/settings/roles/[id] - custom roles only
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error

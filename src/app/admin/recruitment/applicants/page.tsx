@@ -242,7 +242,7 @@ export default function ApplicantsPage() {
                         <div style={{ fontWeight: 700 }}>{a.candidateName}</div>
                         <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>{a.candidateEmail}</div>
                       </td>
-                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.jobPosting?.title ?? "—"}</td>
+                      <td style={{ ...td, color: "var(--muted-foreground)" }}>{a.jobPosting?.title ?? "-"}</td>
                       <td style={td}>
                         <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: sc.bg, color: sc.color }}>{STAGE_LABEL[a.stage]}</span>
                       </td>

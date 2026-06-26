@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ to
     prisma.employeeInvite.update({ where: { token }, data: { usedAt: new Date() } }),
   ])
 
-  // Anonymous endpoint (pre-auth) — write audit log directly. Actor is the new user themselves.
+  // Anonymous endpoint (pre-auth) - write audit log directly. Actor is the new user themselves.
   try {
     const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? null
     const userAgent = req.headers.get("user-agent") ?? null

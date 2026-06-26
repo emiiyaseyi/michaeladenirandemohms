@@ -111,7 +111,7 @@ function ReviewerCell({
   return (
     <div style={{ position: "relative", display: "flex", alignItems: "center", gap: 8 }}>
       <span style={{ fontSize: 13, fontWeight: current ? 600 : 400, color: current ? "var(--foreground)" : "var(--muted-foreground)" }}>
-        {current ? fullName(current) : "—"}
+        {current ? fullName(current) : "-"}
       </span>
       {busy ? <Spinner /> : (
         <>
@@ -201,7 +201,7 @@ function PeersModal({
   const exclude = useMemo(() => [appraisal.employee.id, ...peerIds], [appraisal.employee.id, peerIds])
 
   return (
-    <Modal open onClose={onClose} title={`Peers — ${fullName(appraisal.employee)}`} width={560}>
+    <Modal open onClose={onClose} title={`Peers - ${fullName(appraisal.employee)}`} width={560}>
       <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 16 }}>
         {error && <div style={{ fontSize: 12, color: "#DC2626", background: "rgba(220,38,38,0.08)", padding: "8px 12px", borderRadius: 8 }}>{error}</div>}
 

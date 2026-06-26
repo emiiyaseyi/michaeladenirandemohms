@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const requesterName = `${leaveRequest.employee.firstName} ${leaveRequest.employee.lastName}`
   const leaveName = leaveRequest.leaveType.name
 
-  // Nudge HR Admin — use proper recipient lookup (not employee record)
+  // Nudge HR Admin - use proper recipient lookup (not employee record)
   if (stage === "HR_ADMIN") {
     const hrRecipients = await getHRAdminRecipients()
     if (hrRecipients.length === 0) return NextResponse.json({ error: "No HR Admin found" }, { status: 400 })

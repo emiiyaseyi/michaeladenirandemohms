@@ -6,10 +6,10 @@ import { prisma } from "@/lib/prisma"
  * to, removed from, or otherwise changed within a department.
  *
  * Optionally excludes one userId (useful when the actor or the staff being
- * added is themselves a PL of the same dept — don't notify them about themselves).
+ * added is themselves a PL of the same dept - don't notify them about themselves).
  *
  * R6: This helper previously also sent emails via the `department_member_change`
- * event. The email was dropped — PLs check the app daily; inbox spam per dept
+ * event. The email was dropped - PLs check the app daily; inbox spam per dept
  * change was unnecessary. If we ever bring it back, re-add the sendEmail loop
  * and a matching template entry in `src/lib/email-events.ts`.
  */

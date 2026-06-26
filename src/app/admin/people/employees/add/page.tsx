@@ -123,7 +123,7 @@ export default function AddNewMemberPage() {
   const [jobTitles, setJobTitles] = useState<any[]>([])
   const [orgDocs, setOrgDocs] = useState<any[]>([])
 
-  // Hire flow — pre-fill from existing external admin user
+  // Hire flow - pre-fill from existing external admin user
   const [fromUserLoading, setFromUserLoading] = useState(!!fromUserId)
   const [fromUserErr, setFromUserErr] = useState("")
 
@@ -137,11 +137,11 @@ export default function AddNewMemberPage() {
   const [form, setForm] = useState({
     firstName: "", middleName: "", lastName: "",
     workplaceId: "", email: "",
-    primaryDepartmentId: "",                  // STAFF — primary dept
-    primaryProjectLeadId: "",                 // STAFF — primary PL (must be PL of primary dept)
-    secondaryDepartmentIds: [] as string[],   // STAFF — optional secondary depts
-    departmentIds: [] as string[],            // PROJECT_LEAD — multi-dept they lead
-    managerEmployeeId: "",                    // PROJECT_LEAD — their manager (must be Manager-table entry)
+    primaryDepartmentId: "",                  // STAFF - primary dept
+    primaryProjectLeadId: "",                 // STAFF - primary PL (must be PL of primary dept)
+    secondaryDepartmentIds: [] as string[],   // STAFF - optional secondary depts
+    departmentIds: [] as string[],            // PROJECT_LEAD - multi-dept they lead
+    managerEmployeeId: "",                    // PROJECT_LEAD - their manager (must be Manager-table entry)
     hireDate: "", phone: "", employeeNumber: "",
     jobTitle: "", employmentStatus: "Full-time", role: "STAFF",
   })
@@ -222,7 +222,7 @@ export default function AddNewMemberPage() {
       .then(r => r.json())
       .then(d => { setPls(d.pls ?? []); setPlsLoading(false) })
       .catch(() => { setPls([]); setPlsLoading(false) })
-    // Clear the previously-chosen PL — they may not belong to this new dept
+    // Clear the previously-chosen PL - they may not belong to this new dept
     setForm(f => ({ ...f, primaryProjectLeadId: "" }))
   }, [form.role, form.primaryDepartmentId])
 
@@ -255,7 +255,7 @@ export default function AddNewMemberPage() {
     setSecondaryDeptStatus({})
   }, [form.role])
 
-  // Invite-mode equivalents — same logic for the simpler invite form.
+  // Invite-mode equivalents - same logic for the simpler invite form.
   useEffect(() => {
     if (inviteForm.role !== "STAFF" || !inviteForm.primaryDepartmentId) { setInvitePls([]); return }
     fetch(`/api/people/managers/pls-for-department?departmentId=${inviteForm.primaryDepartmentId}`)
@@ -367,7 +367,7 @@ export default function AddNewMemberPage() {
   const firstName = form.firstName || "the employee"
 
   // ── Choice screen ──────────────────────────────────────────────────────────
-  // Hire flow (?fromUser=) locks to "Me" mode — skip the picker entirely.
+  // Hire flow (?fromUser=) locks to "Me" mode - skip the picker entirely.
   if (onboardMode === null && !fromUserId) {
     return (
       <div style={{ minHeight: "100vh", background: "var(--background)" }}>
@@ -451,7 +451,7 @@ export default function AddNewMemberPage() {
           <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16 }}>
             <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
               <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>Invite Employee</h2>
-              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Enter the basics — the employee will receive a link to complete their own profile.</p>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>Enter the basics - the employee will receive a link to complete their own profile.</p>
             </div>
             <div style={{ padding: "28px 32px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               <Field label="First Name" required><input value={inviteForm.firstName} onChange={setIF("firstName")} style={fi} placeholder="e.g. Emmanuel" /></Field>
@@ -514,11 +514,11 @@ export default function AddNewMemberPage() {
                     <div>
                       <SearchableSelect label="Primary Project Lead (optional)" value={inviteForm.primaryProjectLeadId}
                         onChange={v => setInviteForm(f => ({ ...f, primaryProjectLeadId: v }))}
-                        options={invitePls.map((p: any) => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.jobTitle ? ` — ${p.jobTitle}` : ""}` }))}
+                        options={invitePls.map((p: any) => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.jobTitle ? ` - ${p.jobTitle}` : ""}` }))}
                         placeholder={invitePls.length === 0 ? "No Project Lead in this department yet" : "Select Project Lead…"} />
                       {invitePls.length === 0 && (
                         <div style={{ marginTop: 6, padding: "8px 12px", background: "#FEF3C7", borderRadius: 6, fontSize: 12, color: "#92400E", display: "flex", alignItems: "center", gap: 6 }}>
-                          <AlertCircle size={13} /> No Project Lead in this department yet — you can assign one later.
+                          <AlertCircle size={13} /> No Project Lead in this department yet - you can assign one later.
                         </div>
                       )}
                     </div>
@@ -567,7 +567,7 @@ export default function AddNewMemberPage() {
                   </div>
                   <SearchableSelect label="Manager (optional)" value={inviteForm.managerEmployeeId}
                     onChange={v => setInviteForm(f => ({ ...f, managerEmployeeId: v }))}
-                    options={managers.map((m: any) => ({ value: m.employee.id, label: `${m.employee.firstName} ${m.employee.lastName}${m.employee.jobTitle ? ` — ${m.employee.jobTitle}` : ""}` }))}
+                    options={managers.map((m: any) => ({ value: m.employee.id, label: `${m.employee.firstName} ${m.employee.lastName}${m.employee.jobTitle ? ` - ${m.employee.jobTitle}` : ""}` }))}
                     placeholder={managers.length === 0 ? "No managers available" : "Select Manager…"} />
                 </>
               )}
@@ -680,7 +680,7 @@ export default function AddNewMemberPage() {
 
             <div style={{ padding: "28px 32px", borderBottom: "1px solid var(--border)" }}>
               <h2 style={{ fontSize: 17, fontWeight: 800, marginBottom: 4 }}>1.2 Employment Details</h2>
-              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>Set the employee's role first — Department, Project Lead, and Manager fields below adapt to the chosen role.</p>
+              <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>Set the employee's role first - Department, Project Lead, and Manager fields below adapt to the chosen role.</p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
                 <Field label="Role" required>
                   <select value={form.role} onChange={setF("role")} style={{ ...fi, appearance: "none", cursor: "pointer" }}>
@@ -707,7 +707,7 @@ export default function AddNewMemberPage() {
               </h2>
               <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginBottom: 24 }}>
                 {form.role === "STAFF"
-                  ? "Pick the primary department first. The Project Lead dropdown loads PLs of that department. Secondary departments are optional — each must have a Project Lead."
+                  ? "Pick the primary department first. The Project Lead dropdown loads PLs of that department. Secondary departments are optional - each must have a Project Lead."
                   : "Pick the departments this Project Lead will lead, then choose the Manager they report to."}
               </p>
 
@@ -722,11 +722,11 @@ export default function AddNewMemberPage() {
                     <div>
                       <SearchableSelect label="Primary Project Lead (optional)" value={form.primaryProjectLeadId}
                         onChange={v => setForm(f => ({ ...f, primaryProjectLeadId: v }))}
-                        options={pls.map(p => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.jobTitle ? ` — ${p.jobTitle}` : ""}` }))}
+                        options={pls.map(p => ({ value: p.id, label: `${p.firstName} ${p.lastName}${p.jobTitle ? ` - ${p.jobTitle}` : ""}` }))}
                         placeholder={plsLoading ? "Loading PLs…" : pls.length === 0 ? "No Project Lead in this department yet" : "Select Project Lead…"} />
                       {!plsLoading && pls.length === 0 && (
                         <div style={{ marginTop: 6, padding: "8px 12px", background: "#FEF3C7", borderRadius: 6, fontSize: 12, color: "#92400E", display: "flex", alignItems: "center", gap: 6 }}>
-                          <AlertCircle size={13} /> No Project Lead in this department yet — you can assign one later.
+                          <AlertCircle size={13} /> No Project Lead in this department yet - you can assign one later.
                         </div>
                       )}
                     </div>
@@ -794,7 +794,7 @@ export default function AddNewMemberPage() {
                   </div>
                   <SearchableSelect label="Manager (optional)" value={form.managerEmployeeId}
                     onChange={v => setForm(f => ({ ...f, managerEmployeeId: v }))}
-                    options={managers.map((m: any) => ({ value: m.employee.id, label: `${m.employee.firstName} ${m.employee.lastName}${m.employee.jobTitle ? ` — ${m.employee.jobTitle}` : ""}` }))}
+                    options={managers.map((m: any) => ({ value: m.employee.id, label: `${m.employee.firstName} ${m.employee.lastName}${m.employee.jobTitle ? ` - ${m.employee.jobTitle}` : ""}` }))}
                     placeholder={managers.length === 0 ? "No managers available" : "Select Manager…"} />
                 </div>
               )}

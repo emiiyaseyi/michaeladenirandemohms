@@ -185,7 +185,7 @@ export async function GET(req: NextRequest) {
     pairs.length > 0
       ? prisma.leaveBalance.findMany({ where: { year: currentYear, OR: pairs } })
       : Promise.resolve([]),
-    // Compute used/pending dynamically from LeaveRequest — stored .used/.pending columns
+    // Compute used/pending dynamically from LeaveRequest - stored .used/.pending columns
     // are not maintained, and approved leave is deducted IMMEDIATELY (not after endDate).
     pairs.length > 0
       ? prisma.leaveRequest.findMany({
@@ -362,7 +362,7 @@ export async function POST(req: NextRequest) {
         data: {
           userId: plEmp.userId,
           employeeId: plId,
-          title: "Leave Request — Your Approval Needed",
+          title: "Leave Request - Your Approval Needed",
           message: `${employee.firstName} ${employee.lastName} submitted a ${request.days}-day ${request.leaveType.name} leave request (${format(start, "MMM d")} – ${format(end, "MMM d")}) and requires your approval.`,
           type: "WARNING",
           link: plLink,

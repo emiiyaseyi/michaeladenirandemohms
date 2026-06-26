@@ -397,7 +397,7 @@ function TemplateModal({ template, initialEventKey, eventDefs, existingKeys, onC
                 const d = eventDefs[k]
                 if (d) { setName(d.name); setSubject(d.defaultSubject); setBody(d.defaultBody) }
               }}>
-                <option value="">— Select event —</option>
+                <option value="">- Select event -</option>
                 {availableKeys.map(k => <option key={k} value={k}>{eventDefs[k]?.name ?? k}</option>)}
               </select>
             </div>
@@ -412,7 +412,7 @@ function TemplateModal({ template, initialEventKey, eventDefs, existingKeys, onC
 
           <div>
             <label style={label}>Template Name</label>
-            <input style={inp} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Leave Approval — Project Lead" />
+            <input style={inp} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Leave Approval - Project Lead" />
           </div>
 
           <div>

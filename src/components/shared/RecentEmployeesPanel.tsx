@@ -29,7 +29,7 @@ export default function RecentEmployeesPanel({ employees, viewAllHref = "/admin/
               <Avatar name={`${emp.firstName} ${emp.lastName}`} photo={emp.profilePhoto} size={36} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{emp.firstName} {emp.lastName}</div>
-                <div style={{ fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{emp.jobTitle ?? "—"} · {emp.department?.name ?? "—"}</div>
+                <div style={{ fontSize: 12, color: "var(--muted-foreground)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{emp.jobTitle ?? "-"} · {emp.department?.name ?? "-"}</div>
               </div>
               <Badge status={emp.employeeStatus} />
             </div>

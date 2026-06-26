@@ -262,7 +262,7 @@ export default function OrgChartPage() {
                         {n.emp.firstName} {n.emp.lastName}
                       </div>
                       <div style={{ fontSize: 10, color: "#64748B", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {n.emp.jobTitle ?? "—"}
+                        {n.emp.jobTitle ?? "-"}
                       </div>
                     </div>
                     <button

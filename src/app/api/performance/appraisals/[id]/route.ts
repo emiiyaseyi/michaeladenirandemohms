@@ -51,10 +51,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 // Employee-side fields (editable while OPEN by the subject). Query/rec ratings are
 // DERIVED from the counts server-side, so only counts are accepted here.
 const EMPLOYEE_FIELDS = ["employeeComments", "employeeImprovementPlan", "queryWarnings", "queryBadges", "queryComment", "recCount", "meetingEmployeeConfirmed"]
-// Reviewer-side fields (team lead / counter). Query & Recommendation HR scores are NOT here —
+// Reviewer-side fields (team lead / counter). Query & Recommendation HR scores are NOT here -
 // those are admin-only (HR_FIELDS).
 const REVIEWER_FIELDS = ["keyAchievements", "areasForImprovement", "developmentPlan", "reviewerComments", "meetingReviewerConfirmed"]
-// Admin/HR-only fields — Query (V) & Recommendation (VI) HR counts + management comment.
+// Admin/HR-only fields - Query (V) & Recommendation (VI) HR counts + management comment.
 const HR_FIELDS = ["queryWarningsHr", "queryBadgesHr", "recCountHr", "managementComment"]
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -69,7 +69,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const data: any = {}
 
-  // Subject editing their own sections — only while OPEN and not yet submitted.
+  // Subject editing their own sections - only while OPEN and not yet submitted.
   if (rel.isSubject) {
     if (cycleStage !== "OPEN" || (appraisal.stage !== "NOT_STARTED" && appraisal.stage !== "DRAFT")) {
       return NextResponse.json({ error: "Your appraisal is locked for editing" }, { status: 400 })
@@ -77,7 +77,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     for (const f of EMPLOYEE_FIELDS) if (body[f] !== undefined) data[f] = body[f]
     if (appraisal.stage === "NOT_STARTED" && Object.keys(data).length) data.stage = "DRAFT"
   }
-  // Reviewers editing reviewer sections — once the employee has submitted, until finalized.
+  // Reviewers editing reviewer sections - once the employee has submitted, until finalized.
   else if (rel.isReviewer) {
     if (!reviewerCanEdit(appraisal.stage)) return NextResponse.json({ error: "The employee hasn't submitted yet, or the appraisal is finalized" }, { status: 400 })
     for (const f of REVIEWER_FIELDS) if (body[f] !== undefined) data[f] = body[f]

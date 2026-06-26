@@ -3,7 +3,7 @@
 // Design (confirmed with stakeholders):
 //  • 360 Behavioural = mean of ALL behavioural rating rows pooled equally:
 //      - PEER rows (peers rating the subject), and
-//      - MEMBER rows (direct reports rating the subject — only when subject is a lead).
+//      - MEMBER rows (direct reports rating the subject - only when subject is a lead).
 //    Each item is on a 0–5 scale, so the pool normalises to a fraction of 5.
 //  • Team Leads Score = MEMBER-only pool (the standalone "Team Leads Score"), present
 //    only when the subject has direct reports who rated them.
@@ -78,13 +78,13 @@ export function scoreAppraisal(input: ScoreInput): ScoreResult {
 
   // ── 360 Behavioural (Section II, scale 0–5) ──
   // Employee column = the subject's OWN self ratings.
-  // Reviewer column = team lead (primary/counter) + peers + (for leads) member-upward — pooled equally.
+  // Reviewer column = team lead (primary/counter) + peers + (for leads) member-upward - pooled equally.
   const isBehav = (r: RatingRow) => r.section === "BEHAVIOURAL" && typeof r.score === "number"
   const selfBehav = input.ratings.filter(r => r.raterType === "SELF" && isBehav(r)).map(r => num(r.score))
   const revBehav = input.ratings
     .filter(r => (r.raterType === "PRIMARY_REVIEWER" || r.raterType === "COUNTER_REVIEWER" || r.raterType === "PEER") && isBehav(r))
     .map(r => num(r.score))
-  // Upward leadership ratings (a lead's reports) — feed the reviewer pool + Team Lead Score.
+  // Upward leadership ratings (a lead's reports) - feed the reviewer pool + Team Lead Score.
   const memberLead = input.ratings
     .filter(r => r.raterType === "MEMBER" && r.section === "LEADERSHIP" && typeof r.score === "number")
     .map(r => num(r.score))
@@ -98,7 +98,7 @@ export function scoreAppraisal(input: ScoreInput): ScoreResult {
   const teamLeadScore = hasMemberRatings ? mean(memberLead) : null
   const teamLeadPercent = teamLeadScore === null ? null : (teamLeadScore / 5) * 100
 
-  // ── Core Values — self vs reviewer per item (0–3) ──
+  // ── Core Values - self vs reviewer per item (0–3) ──
   const coreSelf = input.ratings.filter(r => r.section === "CORE_VALUE" && r.raterType === "SELF")
   const corePrimary = input.ratings.filter(r => r.section === "CORE_VALUE" && r.raterType === "PRIMARY_REVIEWER")
   const coreCounter = input.ratings.filter(r => r.section === "CORE_VALUE" && r.raterType === "COUNTER_REVIEWER")
@@ -122,7 +122,7 @@ export function scoreAppraisal(input: ScoreInput): ScoreResult {
   const coreItemCount = Math.max(coreSelf.length, coreQIds.size)
   const coreMax = coreItemCount * 3
 
-  // ── Job-Specific — each KPI is scored out of its OWN assigned weight (no fixed scale).
+  // ── Job-Specific - each KPI is scored out of its OWN assigned weight (no fixed scale).
   // The weights sum to 100, so the raw job total is 0–100; it's then scaled to the
   // section weight in the overall roll-up. ADMIN-source rows (Brand, L&D) are admin-scored
   // and count the same for both the employee and reviewer columns. ──
@@ -143,7 +143,7 @@ export function scoreAppraisal(input: ScoreInput): ScoreResult {
   jobScoreEmp = Math.min(100, jobScoreEmp)
   jobScoreRev = Math.min(100, jobScoreRev)
 
-  // ── Recommendation / Query — raw points ──
+  // ── Recommendation / Query - raw points ──
   const recPointsEmp = num(input.recEmployeeRating)
   const recPointsRev = num(input.recHrRating)
   const queryPointsEmp = num(input.queryEmployeeRating)

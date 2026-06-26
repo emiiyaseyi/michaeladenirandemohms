@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     { targetUser: { name: { contains: search, mode: "insensitive" } } },
   ]
 
-  // CSV export — no pagination, return everything matching the filters (capped at 50k for safety)
+  // CSV export - no pagination, return everything matching the filters (capped at 50k for safety)
   if (exportFormat === "csv") {
     const logs = await prisma.auditLog.findMany({
       where,

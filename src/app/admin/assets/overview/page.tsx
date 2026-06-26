@@ -174,18 +174,18 @@ export default function AssetsOverviewPage() {
               const assigned = asset._count?.assignments ?? 0
               const max = asset.maxAssignees
               const assignmentText = max ? `${assigned}/${max}` : `${assigned}`
-              const commDate = asset.commissionDate ? new Date(asset.commissionDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—"
+              const commDate = asset.commissionDate ? new Date(asset.commissionDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "-"
 
               return (
                 <tr key={asset.id}
                   onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "var(--muted)"}
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ""}>
-                  <td style={td}>{asset.assetType?.name ?? "—"}</td>
+                  <td style={td}>{asset.assetType?.name ?? "-"}</td>
                   <td style={td}>
                     <div style={{ fontWeight: 500 }}>{asset.name}</div>
                     {asset.identifier && <div style={{ fontSize: 12, color: "var(--muted-foreground)", marginTop: 2 }}>{asset.identifier}</div>}
                   </td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{asset.description ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{asset.description ?? "-"}</td>
                   <td style={td}>{assignmentText}</td>
                   <td style={td}>{commDate}</td>
                   <td style={td}>

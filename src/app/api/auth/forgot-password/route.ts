@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth, forbidden, isAdminRole } from "@/lib/api-auth"
 
-// GET /api/auth/forgot-password — admin: list all reset requests
+// GET /api/auth/forgot-password - admin: list all reset requests
 export async function GET() {
   const { user, error } = await requireAuth()
   if (error) return error
@@ -19,7 +19,7 @@ export async function GET() {
   return NextResponse.json({ requests })
 }
 
-// POST /api/auth/forgot-password — any visitor: submit a reset request
+// POST /api/auth/forgot-password - any visitor: submit a reset request
 export async function POST(req: NextRequest) {
   const { email } = await req.json()
   if (!email) return NextResponse.json({ error: "Email required" }, { status: 400 })
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
         data: { email, userId: dbUser.id },
       })
 
-      // Anonymous endpoint — log directly. Actor and target are both the requesting user.
+      // Anonymous endpoint - log directly. Actor and target are both the requesting user.
       try {
         const ipAddress = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? req.headers.get("x-real-ip") ?? null
         const userAgent = req.headers.get("user-agent") ?? null

@@ -27,8 +27,8 @@ type Cycle = {
 }
 
 function fmtDate(d: string | null) {
-  if (!d) return "—"
-  try { return format(new Date(d), "dd MMM yyyy") } catch { return "—" }
+  if (!d) return "-"
+  try { return format(new Date(d), "dd MMM yyyy") } catch { return "-" }
 }
 
 function StageBadge({ stage }: { stage: string }) {

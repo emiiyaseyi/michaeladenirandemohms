@@ -155,8 +155,8 @@ export default function ManagersPage() {
                         </div>
                       </div>
                     </td>
-                    <td style={{ ...td, color: "var(--muted-foreground)" }} onClick={goToProfile}>{emp.jobTitle ?? "—"}</td>
-                    <td style={{ ...td, color: "var(--muted-foreground)" }} onClick={goToProfile}>{emp.department?.name ?? "—"}</td>
+                    <td style={{ ...td, color: "var(--muted-foreground)" }} onClick={goToProfile}>{emp.jobTitle ?? "-"}</td>
+                    <td style={{ ...td, color: "var(--muted-foreground)" }} onClick={goToProfile}>{emp.department?.name ?? "-"}</td>
                     <td style={td} onClick={goToProfile}>
                       {m.isSystem
                         ? <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: "var(--muted)", color: "var(--muted-foreground)", display: "inline-flex", alignItems: "center", gap: 4 }}><Shield size={11} /> Seeded</span>
@@ -198,7 +198,7 @@ export default function ManagersPage() {
         )}
       </div>
 
-      {/* Add Manager modal — browsable list of eligible PLs */}
+      {/* Add Manager modal - browsable list of eligible PLs */}
       {addOpen && (
         <div onClick={() => setAddOpen(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, padding: 16 }}>
@@ -234,7 +234,7 @@ export default function ManagersPage() {
                   <Av name={`${e.firstName} ${e.lastName}`} photo={e.profilePhoto} size={32} />
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{e.firstName} {e.lastName}</div>
-                    <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle ?? "—"} {e.department?.name ? `· ${e.department.name}` : ""}</div>
+                    <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{e.jobTitle ?? "-"} {e.department?.name ? `· ${e.department.name}` : ""}</div>
                   </div>
                   {adding && <Loader2 size={14} style={{ animation: "spin .8s linear infinite", color: "var(--primary)" }} />}
                 </div>

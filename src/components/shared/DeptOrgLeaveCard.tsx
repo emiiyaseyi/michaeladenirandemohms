@@ -109,7 +109,7 @@ export default function DeptOrgLeaveCard({ deptOnLeave }: Props) {
                 <div style={{ fontSize: 13, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {m.name}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{m.jobTitle ?? "—"}</div>
+                <div style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{m.jobTitle ?? "-"}</div>
               </div>
               {m.currentLeave && (
                 <div style={{ textAlign: "right", flexShrink: 0 }}>

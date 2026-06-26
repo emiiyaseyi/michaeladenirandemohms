@@ -124,7 +124,7 @@ export default function CustomGroupsPage() {
               {paged.map(g => (
                 <tr key={g.id} style={{ borderBottom: "1px solid var(--border)" }}>
                   <td style={{ ...td, fontWeight: 600 }}>{g.name}</td>
-                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{g.description ?? "—"}</td>
+                  <td style={{ ...td, color: "var(--muted-foreground)" }}>{g.description ?? "-"}</td>
                   <td style={td}>
                     <span style={{ fontSize: 11, fontWeight: 700, padding: "3px 10px", borderRadius: 20, background: g.status === "ACTIVE" ? "#DCFCE7" : "#F3F4F6", color: g.status === "ACTIVE" ? "#15803d" : "#6B7280" }}>
                       {g.status === "ACTIVE" ? "Active" : "Inactive"}

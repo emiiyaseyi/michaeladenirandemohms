@@ -46,7 +46,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       where: { leaveRequestId: id, stage: "PROJECT_LEAD", employeeId: user.employeeId, action: null },
     }))
 
-  // Owner is NEVER allowed to edit their own pending request — only admins and pending PL approvers.
+  // Owner is NEVER allowed to edit their own pending request - only admins and pending PL approvers.
   if (!isAdmin && !isPLEdit) {
     return NextResponse.json({ error: "Not authorised" }, { status: 403 })
   }
@@ -104,7 +104,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const updated = await prisma.leaveRequest.update({ where: { id }, data: updates })
 
-  // Audit the edit (always fetch owner userId, even when the editor IS the owner — shouldn't happen but cheap).
+  // Audit the edit (always fetch owner userId, even when the editor IS the owner - shouldn't happen but cheap).
   const ownerForAudit = await prisma.employee.findUnique({
     where: { id: request.employeeId },
     select: { userId: true },

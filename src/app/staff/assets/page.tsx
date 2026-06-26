@@ -84,12 +84,12 @@ export default function StaffAssetsPage() {
                     const badge = STATUS_BADGE[a.status] ?? { bg: "#F3F4F6", color: "#6B7280", label: a.status }
                     const commissioned = a.asset.commissionDate
                       ? new Date(a.asset.commissionDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                      : "—"
+                      : "-"
                     return (
                       <tr key={a.id}
                         onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--muted)" }}
                         onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "" }}>
-                        <td style={td}>{a.asset.assetType?.name ?? "—"}</td>
+                        <td style={td}>{a.asset.assetType?.name ?? "-"}</td>
                         <td style={td}>
                           <span style={{ fontWeight: 600 }}>{a.asset.name}</span>
                           {a.asset.identifier && (
@@ -97,7 +97,7 @@ export default function StaffAssetsPage() {
                           )}
                         </td>
                         <td style={{ ...td, color: "var(--muted-foreground)", maxWidth: 220 }}>
-                          {a.description || a.asset.description || "—"}
+                          {a.description || a.asset.description || "-"}
                         </td>
                         <td style={{ ...td, color: "var(--muted-foreground)" }}>{commissioned}</td>
                         <td style={{ ...td, borderRight: "none" }}>
