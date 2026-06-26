@@ -1005,7 +1005,7 @@ export default function AdminInternReportsPage() {
                       {r.productivityRating !== null ? `${Math.round((plScore / 9) * 100)}%` : "–"}
                     </td>
                     <td style={{ padding: "12px 16px" }}>
-                      {r.attendanceRating !== null ? `${Math.round((r.attendanceRating / 3) * 100)}%` : <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>Pending</span>}
+                      {r.attendanceRating !== null ? `${r.attendanceRating}/3` : <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>Pending</span>}
                     </td>
                     <td style={{ padding: "12px 16px" }}>
                       {r.pointDeduction > 0 ? <span style={{ color: "#DC2626", fontWeight: 700 }}>-{r.pointDeduction}</span> : "0"}
