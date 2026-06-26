@@ -23,7 +23,6 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       { key: "canViewCustomGroups", label: "View custom groups" },
       { key: "canManageCustomGroups", label: "Manage custom groups" },
       { key: "canViewPersonalDetails", label: "View personal details" },
-      { key: "canManageProfileRequests", label: "Manage profile update requests" },
       { key: "canViewPersonalDocuments", label: "View personal documents" },
       { key: "canManageDepartments", label: "Create & edit departments" },
       { key: "canViewJobTitles", label: "View job titles" },

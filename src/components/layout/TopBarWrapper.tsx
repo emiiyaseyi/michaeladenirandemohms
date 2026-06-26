@@ -50,7 +50,6 @@ const SECTION_TITLES: Record<string, string> = {
   "people/offers/new":                  "New Offer",
   "people/org-chart":                   "Organisation Chart",
   "people/personal-docs":               "Personal Documents",
-  "people/profile-requests":            "Profile Update Requests",
   "people/documents":                   "Team Documents",
   "requests":                           "Requests",
   "requests/bus":                       "Bus Requests",

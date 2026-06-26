@@ -29,7 +29,6 @@ function navItems(base: string) {
       { type: "nav", label: "Employees",      href: `${b}/people/employees`,        desc: "Manage all staff",                  keywords: ["staff","people","team","headcount","directory","employees"] },
       { type: "nav", label: "Departments",    href: `${b}/people/departments`,      desc: "Manage departments",                keywords: ["department","division","unit"] },
       { type: "nav", label: "Recruitment",    href: `${b}/recruitment`,             desc: "Job postings & candidate pipeline", keywords: ["recruitment","hiring","candidates","jobs","ats","interview"] },
-      { type: "nav", label: "Profile Requests", href: `${b}/people/profile-requests`, desc: "Password & profile change requests", keywords: ["profile request","password reset","change request"] },
       { type: "nav", label: "Payroll",        href: `${b}/payroll/overview`,        desc: "Payroll overview & records",        keywords: ["payroll","salary","wages","pay run"] },
       { type: "nav", label: "Analytics",      href: `${b}/analytics`,               desc: "Charts, reports & insights",        keywords: ["analytics","reports","charts","insights","data","trends"] },
       { type: "nav", label: "Settings",       href: `${b}/settings`,                desc: "System configuration",              keywords: ["settings","config","setup","holidays"] },

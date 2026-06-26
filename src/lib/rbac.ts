@@ -60,7 +60,6 @@ export const NAV_ITEMS: NavItem[] = [
       { label: "Confirmation",     href: "/people/confirmation" },
       { label: "Org. Chart",       href: "/people/org-chart",       permission: "canViewOrgChart" },
       { label: "Job Titles",       href: "/people/job-titles",      permission: "canViewJobTitles" },
-      { label: "Profile Requests", href: "/people/profile-requests",permission: "canManageProfileRequests" },
     ],
   },
   {
