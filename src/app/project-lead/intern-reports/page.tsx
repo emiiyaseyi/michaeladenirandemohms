@@ -529,13 +529,15 @@ export default function PLInternReportsPage() {
                 </div>
               )}
               {lbMode === "week" && (
-                <div style={{ display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
-                  {(["", "SUBMITTED", "LATE", "REVIEWED", "MISSING"] as const).map(s => (
-                    <button key={s} onClick={() => setLbStatusFilter(s)}
-                      style={{ padding: "6px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", background: lbStatusFilter === s ? "var(--primary)" : "var(--card)", color: lbStatusFilter === s ? "white" : "var(--muted-foreground)" }}>
-                      {s === "" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}
-                    </button>
-                  ))}
+                <div style={{ overflowX: "auto", maxWidth: "100%" }}>
+                  <div style={{ display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
+                    {(["", "SUBMITTED", "LATE", "REVIEWED", "MISSING"] as const).map(s => (
+                      <button key={s} onClick={() => setLbStatusFilter(s)}
+                        style={{ padding: "6px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: lbStatusFilter === s ? "var(--primary)" : "var(--card)", color: lbStatusFilter === s ? "white" : "var(--muted-foreground)" }}>
+                        {s === "" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
