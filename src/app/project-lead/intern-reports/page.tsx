@@ -166,6 +166,9 @@ export default function PLInternReportsPage() {
   const [lbWeekOffset, setLbWeekOffset] = useState(0)
   const [lbMode, setLbMode] = useState<"week" | "month" | "alltime">("week")
   const [lbDeptFilter, setLbDeptFilter] = useState("")
+  const [lbMonthOffset, setLbMonthOffset] = useState(0)
+  const [lbSearch, setLbSearch] = useState("")
+  const [lbStatusFilter, setLbStatusFilter] = useState("")
   const [expandedCells, setExpandedCells] = useState<Set<string>>(new Set())
 
   const now = new Date()
@@ -237,11 +240,15 @@ export default function PLInternReportsPage() {
       const day = d.getUTCDay(); const diff = day === 0 ? -6 : 1 - day
       d.setUTCDate(d.getUTCDate() + diff + lbWeekOffset * 7)
       url += `?week=${encodeURIComponent(d.toISOString())}`
+    } else if (lbMode === "month") {
+      const d = new Date(now); d.setDate(1); d.setHours(0,0,0,0)
+      d.setMonth(d.getMonth() + lbMonthOffset)
+      url += `?mode=month&from=${encodeURIComponent(d.toISOString())}`
     } else {
       url += `?mode=${lbMode}`
     }
     fetch(url).then(r => r.json()).then(d => setLeaderboard(d.leaderboard ?? [])).catch(() => {})
-  }, [lbWeekOffset, lbMode])
+  }, [lbWeekOffset, lbMode, lbMonthOffset])
 
   const openReview = (id: string) => {
     const r = reports.find(r => r.id === id)
@@ -427,7 +434,13 @@ export default function PLInternReportsPage() {
         const top3 = leaderboard.filter((r: any) => r.rank !== null).slice(0, 3)
         const ringColor = (rank: number) => rank === 1 ? "#F59E0B" : rank === 2 ? "#9CA3AF" : "#CD7C2F"
         const depts = [...new Set(leaderboard.map((r: any) => r.dept).filter(Boolean))] as string[]
-        const filtered = lbDeptFilter ? leaderboard.filter((r: any) => r.dept === lbDeptFilter) : leaderboard
+        const lbMonthLabel = (() => { const d = new Date(now); d.setDate(1); d.setMonth(d.getMonth() + lbMonthOffset); return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) })()
+        const filtered = leaderboard.filter((r: any) => {
+          if (lbDeptFilter && r.dept !== lbDeptFilter) return false
+          if (lbSearch && !r.name.toLowerCase().includes(lbSearch.toLowerCase())) return false
+          if (lbStatusFilter && lbMode === "week" && r.status !== lbStatusFilter) return false
+          return true
+        })
         const tlPct = (row: any) => lbMode === "week" ? row.plScorePct : row.avgPlPct
         const attPct = (row: any) => lbMode === "week" ? row.attendanceScorePct : row.avgAttPct
         const totPct = (row: any) => lbMode === "week" ? row.totalScorePct : row.avgScorePct
@@ -447,7 +460,7 @@ export default function PLInternReportsPage() {
               <div style={{ background: "#15803D", borderRadius: 16, padding: "24px 28px", marginBottom: 16, color: "white", display: "flex", flexWrap: "wrap", justifyContent: "space-between", alignItems: "center", gap: 20 }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.8, textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Top Performers</div>
-                  <div style={{ fontSize: 14, opacity: 0.9 }}>{leaderboard.length} intern{leaderboard.length !== 1 ? "s" : ""} · {lbMode === "week" ? curLbLabel : lbMode === "month" ? "This Month" : "All Time"}</div>
+                  <div style={{ fontSize: 14, opacity: 0.9 }}>{leaderboard.length} intern{leaderboard.length !== 1 ? "s" : ""} · {lbMode === "week" ? curLbLabel : lbMode === "month" ? lbMonthLabel : "All Time"}</div>
                 </div>
                 {(() => {
                   const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean)
@@ -485,6 +498,8 @@ export default function PLInternReportsPage() {
 
             {/* Filter bar */}
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, marginBottom: 16 }}>
+              <input type="text" placeholder="Search intern..." value={lbSearch} onChange={e => setLbSearch(e.target.value)}
+                style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", color: "var(--foreground)", outline: "none", minWidth: 160 }} />
               {depts.length > 1 && (
                 <select value={lbDeptFilter} onChange={e => setLbDeptFilter(e.target.value)} style={{ fontSize: 12, padding: "6px 10px", border: "1px solid var(--border)", borderRadius: 8, background: "var(--card)", color: "var(--foreground)", cursor: "pointer" }}>
                   <option value="">All Departments</option>
@@ -493,7 +508,7 @@ export default function PLInternReportsPage() {
               )}
               <div style={{ display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
                 {(["week","month","alltime"] as const).map(m => (
-                  <button key={m} onClick={() => { setLbMode(m); setLbWeekOffset(0) }}
+                  <button key={m} onClick={() => { setLbMode(m); setLbWeekOffset(0); setLbMonthOffset(0); setLbStatusFilter("") }}
                     style={{ padding: "6px 12px", fontSize: 12, fontWeight: 600, border: "none", cursor: "pointer", background: lbMode === m ? "var(--primary)" : "var(--card)", color: lbMode === m ? "white" : "var(--muted-foreground)" }}>
                     {m === "week" ? "Week" : m === "month" ? "Month" : "All Time"}
                   </button>
@@ -504,6 +519,25 @@ export default function PLInternReportsPage() {
                   <button onClick={() => setLbWeekOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}><ChevronLeft size={15} /></button>
                   <span style={{ fontSize: 12, fontWeight: 700, minWidth: 130, textAlign: "center" }}>{curLbLabel}</span>
                   <button onClick={() => setLbWeekOffset(o => Math.min(o + 1, 0))} disabled={lbWeekOffset === 0} style={{ background: "none", border: "none", cursor: lbWeekOffset === 0 ? "not-allowed" : "pointer", color: lbWeekOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}><ChevronRight size={15} /></button>
+                </div>
+              )}
+              {lbMode === "month" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, padding: "4px 10px" }}>
+                  <button onClick={() => setLbMonthOffset(o => o - 1)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted-foreground)", display: "flex" }}><ChevronLeft size={15} /></button>
+                  <span style={{ fontSize: 12, fontWeight: 700, minWidth: 100, textAlign: "center" }}>{lbMonthLabel}</span>
+                  <button onClick={() => setLbMonthOffset(o => Math.min(o + 1, 0))} disabled={lbMonthOffset === 0} style={{ background: "none", border: "none", cursor: lbMonthOffset === 0 ? "not-allowed" : "pointer", color: lbMonthOffset === 0 ? "var(--border)" : "var(--muted-foreground)", display: "flex" }}><ChevronRight size={15} /></button>
+                </div>
+              )}
+              {lbMode === "week" && (
+                <div style={{ overflowX: "auto", maxWidth: "100%" }}>
+                  <div style={{ display: "flex", borderRadius: 8, border: "1px solid var(--border)", overflow: "hidden" }}>
+                    {(["", "SUBMITTED", "LATE", "REVIEWED", "MISSING"] as const).map(s => (
+                      <button key={s} onClick={() => setLbStatusFilter(s)}
+                        style={{ padding: "6px 10px", fontSize: 11, fontWeight: 600, border: "none", cursor: "pointer", whiteSpace: "nowrap", background: lbStatusFilter === s ? "var(--primary)" : "var(--card)", color: lbStatusFilter === s ? "white" : "var(--muted-foreground)" }}>
+                        {s === "" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -517,7 +551,7 @@ export default function PLInternReportsPage() {
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: "var(--muted)" }}>
-                        {["Rank", "Member", "Dept", "🔥 Streak", "PL %", "Att %", "Total %"].map(h => (
+                        {["Rank", "Member", "Dept", "🔥 Streak", "PL %", "Att %", "Deduction", "Total %"].map(h => (
                           <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>{h}</th>
                         ))}
                       </tr>
@@ -538,6 +572,11 @@ export default function PLInternReportsPage() {
                             <td style={{ padding: "11px 14px", fontWeight: 600 }}>{row.streak > 0 ? `${row.streak}w` : "–"}</td>
                             <td style={{ padding: "11px 14px", fontWeight: 600 }}>{tlPct(row) != null ? `${tlPct(row)}%` : "–"}</td>
                             <td style={{ padding: "11px 14px", color: isPending(row) ? "var(--muted-foreground)" : "inherit" }}>{isPending(row) ? "Pending" : attPct(row) != null ? `${attPct(row)}%` : "–"}</td>
+                            <td style={{ padding: "11px 14px", fontWeight: 600, color: (lbMode === "week" ? row.pointDeduction : row.totalDeductions) > 0 ? "#DC2626" : "var(--muted-foreground)" }}>
+                              {lbMode === "week"
+                                ? (row.pointDeduction > 0 ? `-${row.pointDeduction}` : "0")
+                                : (row.totalDeductions > 0 ? `-${row.totalDeductions}` : "0")}
+                            </td>
                             <td style={{ padding: "11px 14px", fontWeight: 700, color: "var(--primary)" }}>{isPending(row) ? "–" : totPct(row) != null ? `${totPct(row)}%` : "–"}</td>
                           </tr>
                         )
