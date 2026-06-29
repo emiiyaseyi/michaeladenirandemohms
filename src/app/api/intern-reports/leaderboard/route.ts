@@ -19,14 +19,27 @@ function addWeeks(date: Date, n: number): Date {
   const d = new Date(date); d.setDate(d.getDate() + n * 7); return d
 }
 
-// Count consecutive submitted/reviewed weeks going back from anchorWeek (inclusive)
+// Count consecutive submitted/reviewed weeks going back from anchorWeek (inclusive).
+// Walks back up to 2 extra weeks to find the most recent good submission first —
+// this handles viewing on Mon–Thu before the submission window opens, where the
+// current week has no report yet and would otherwise break the chain immediately.
 function computeStreak(
   reportMap: Map<string, string>,
   anchorWeek: Date,
 ): number {
   const GOOD = new Set(["SUBMITTED", "LATE", "REVIEWED", "ATTENDANCE_FILLED"])
-  let streak = 0
   let week = getWeekMonday(anchorWeek)
+
+  // Find the most recent week at or before anchorWeek that has a good status
+  let found = false
+  for (let i = 0; i < 3; i++) {
+    const key = week.toISOString().slice(0, 10)
+    if (GOOD.has(reportMap.get(key) ?? "")) { found = true; break }
+    week = addWeeks(week, -1)
+  }
+  if (!found) return 0
+
+  let streak = 0
   for (let i = 0; i < 104; i++) { // cap at 2 years
     const key = week.toISOString().slice(0, 10)
     const status = reportMap.get(key)
