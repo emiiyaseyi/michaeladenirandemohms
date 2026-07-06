@@ -4,7 +4,12 @@ Human Resource Management System - built with Next.js 16, Prisma, and PostgreSQL
 
 ## Reference
 
-- **Feature & code audit:** https://claude.ai/code/artifact/5d4e31a1-b278-4e41-8266-e2c405ae59a6?via=auto_preview — a living status report of what's built, partial, and buggy across the app. Keep this link here and update it as fixes land; don't delete it.
+- **Feature & code audit:** https://claude.ai/code/artifact/5d4e31a1-b278-4e41-8266-e2c405ae59a6?via=auto_preview — a living status report of what's built, partial, and buggy across the app. This link is redeployed in place as fixes land (same URL, new content) — never delete this entry, and log each redeploy below with a version, date, and time.
+
+  | Version | Date/time | Summary |
+  |---|---|---|
+  | v1 | 2026-07-06 (initial) | First audit: 22 feature areas reviewed, 2 critical auth-bypass bugs, several permission-wiring gaps, and a handful of correctness/dead-code findings. |
+  | v2 | 2026-07-06 14:40 WAT | All "Fix first" items from v1 resolved and verified live (SUPER_ADMIN + STAFF test accounts). Also found and fixed a separate SUPER_ADMIN permission-lockout bug across 7 routes, discovered while wiring the v1 fixes. Remaining open item: file uploads off by default (`UPLOADS_ENABLED`) — a deployment config choice, not a bug. |
 
 ## Prerequisites
 
