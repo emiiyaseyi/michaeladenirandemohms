@@ -461,7 +461,7 @@ export default function AddNewMemberPage() {
                   <input type="email" value={inviteForm.email}
                     onChange={e => { setIF("email")(e); setInviteEmailAvailable(null); checkInviteEmail(e.target.value) }}
                     style={{ ...fi, borderColor: inviteEmailAvailable === false ? "#ef4444" : inviteEmailAvailable === true ? "#16a34a" : "var(--border)", paddingRight: 36 }}
-                    placeholder="email@datasciencenigeria.ai" />
+                    placeholder="email@michaeldemohrms.example" />
                   {inviteEmailChecking && <Loader2 size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", animation: "spin .8s linear infinite", color: "var(--muted-foreground)" }} />}
                   {inviteEmailAvailable === true && !inviteEmailChecking && <Check size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#16a34a" }} />}
                   {inviteEmailAvailable === false && !inviteEmailChecking && <X size={14} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: "#ef4444" }} />}
@@ -939,10 +939,10 @@ export default function AddNewMemberPage() {
           <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, overflow: "hidden", maxWidth: 600, margin: "0 auto" }}>
             <div style={{ padding: "48px 40px" }}>
               <p style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, lineHeight: 1.6 }}>
-                {firstName} has already joined Data Science Nigeria, so we'll skip the welcome options this time.
+                {firstName} has already joined, so we'll skip the welcome options this time.
               </p>
               <p style={{ fontSize: 14, color: "var(--muted-foreground)", lineHeight: 1.7, marginBottom: 28 }}>
-                {firstName} will have access to Data Science Nigeria once you approve their information under Needs Attention in your People Menu.
+                {firstName} will have access once you approve their information under Needs Attention in your People Menu.
               </p>
               {err && <div style={{ padding: "10px 14px", background: "#FEE2E2", borderRadius: 8, fontSize: 13, color: "#DC2626", marginBottom: 20 }}>{err}</div>}
               <div style={{ display: "flex", justifyContent: "space-between" }}>

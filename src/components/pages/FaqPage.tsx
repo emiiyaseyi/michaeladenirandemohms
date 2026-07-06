@@ -12,11 +12,11 @@ const FAQS = [
   { cat: "Profile", q: "Why can't I change my name or role?", a: "Name, employee ID, job title, and system role are managed by HR. Submitting a change for a locked field creates a profile-update request that HR must approve." },
   { cat: "Profile", q: "How is profile completeness calculated?", a: "Completeness is the percentage of 13 required fields you've filled: first name, last name, gender, date of birth, marital status, personal email, phone, address, city, state, profile photo, next-of-kin name, next-of-kin phone." },
   { cat: "Profile", q: "I see a 'Complete your profile' popup - why?", a: "You were added through the Invite flow, which leaves most fields blank for you to fill in yourself. The popup appears on each new login until completeness reaches 100%. Click 'Complete my profile' to jump straight to the edit page." },
-  { cat: "Account", q: "How do I get my login credentials?", a: "When HR adds you, you receive an email. It contains a 'Set your password' link that expires 24 hours after it's sent. If the link expires, sign in at the login page using your work email and the default password 'Welcome@DSN1' - you'll be prompted to set a new password on first login." },
-  { cat: "Account", q: "My set-password link expired. What now?", a: "Go to the login page directly, enter your work email and the default password 'Welcome@DSN1'. You'll be redirected to a screen that asks you to set a new password. Once set, log back in with the new password." },
+  { cat: "Account", q: "How do I get my login credentials?", a: "When HR adds you, you receive an email. It contains a 'Set your password' link that expires 24 hours after it's sent. If the link expires, sign in at the login page using your work email and the default password 'Welcome@MDH1' - you'll be prompted to set a new password on first login." },
+  { cat: "Account", q: "My set-password link expired. What now?", a: "Go to the login page directly, enter your work email and the default password 'Welcome@MDH1'. You'll be redirected to a screen that asks you to set a new password. Once set, log back in with the new password." },
   { cat: "Account", q: "How do I change my password?", a: "Click 'Change Password' at the bottom of the sidebar. Enter your current password, then your new one (8+ characters, including uppercase, number, and symbol)." },
   { cat: "Announcements", q: "Why don't I see an announcement my colleague saw?", a: "Once you close an announcement, it stays dismissed for you in that browser. Other people sharing the same computer have their own dismiss list and will still see it. New announcements from HR appear automatically." },
-  { cat: "General", q: "How do I contact HR?", a: "Send an email to edodida@datasciencenigeria.ai." },
+  { cat: "General", q: "How do I contact HR?", a: "Send an email to hr@michaeldemohrms.example." },
 ]
 
 const CATS = ["All", ...Array.from(new Set(FAQS.map(f => f.cat)))]

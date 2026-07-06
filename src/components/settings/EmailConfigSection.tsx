@@ -50,7 +50,7 @@ export default function EmailConfigSection() {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<"settings" | "events" | "templates">("settings")
   const [loading, setLoading] = useState(false)
-  const [settings, setSettings] = useState<Settings>({ enabled: false, fromName: "DSN HRMS", fromEmail: "", eventToggles: {} })
+  const [settings, setSettings] = useState<Settings>({ enabled: false, fromName: "Michael Demo HRMS", fromEmail: "", eventToggles: {} })
   const [togglesDirty, setTogglesDirty] = useState(false)
   const [settingsDirty, setSettingsDirty] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -179,7 +179,7 @@ export default function EmailConfigSection() {
                   <div style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 700, color: "var(--muted-foreground)", textTransform: "uppercase", letterSpacing: "0.05em", display: "block", marginBottom: 6 }}>From Name</label>
-                      <input style={inp} value={settings.fromName} onChange={e => { setSettings(s => ({ ...s, fromName: e.target.value })); setSettingsDirty(true) }} placeholder="DSN HRMS" />
+                      <input style={inp} value={settings.fromName} onChange={e => { setSettings(s => ({ ...s, fromName: e.target.value })); setSettingsDirty(true) }} placeholder="Michael Demo HRMS" />
                     </div>
 
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>

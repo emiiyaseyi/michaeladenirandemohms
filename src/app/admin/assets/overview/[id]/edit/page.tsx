@@ -131,7 +131,7 @@ export default function EditAssetPage() {
             </div>
             <div>
               <label style={lbl}>Identifier</label>
-              <input value={form.identifier} onChange={e => setForm(f => ({ ...f, identifier: e.target.value }))} style={inp} placeholder="e.g. DSNLAP001" />
+              <input value={form.identifier} onChange={e => setForm(f => ({ ...f, identifier: e.target.value }))} style={inp} placeholder="e.g. MDHLAP001" />
             </div>
           </div>
 

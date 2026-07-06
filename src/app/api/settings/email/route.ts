@@ -15,7 +15,7 @@ export async function GET() {
   ])
 
   return NextResponse.json({
-    settings: settings ?? { id: "singleton", enabled: false, fromName: "DSN HRMS", fromEmail: process.env.EMAIL_FROM_ADDRESS ?? "noreply@hrms.dsnsandbox.com", eventToggles: {} },
+    settings: settings ?? { id: "singleton", enabled: false, fromName: "Michael Demo HRMS", fromEmail: process.env.EMAIL_FROM_ADDRESS ?? "noreply@michaeldemohrms.example", eventToggles: {} },
     templates,
     eventDefs: EMAIL_EVENTS,
   })
@@ -43,8 +43,8 @@ export async function PATCH(req: NextRequest) {
     create: {
       id: "singleton",
       enabled: enabled ?? false,
-      fromName: fromName ?? "DSN HRMS",
-      fromEmail: fromEmail ?? process.env.EMAIL_FROM_ADDRESS ?? "noreply@hrms.dsnsandbox.com",
+      fromName: fromName ?? "Michael Demo HRMS",
+      fromEmail: fromEmail ?? process.env.EMAIL_FROM_ADDRESS ?? "noreply@michaeldemohrms.example",
       eventToggles: eventToggles ?? {},
     },
   })

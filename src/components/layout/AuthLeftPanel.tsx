@@ -1,6 +1,6 @@
 const STATS = [["60+","Employees"],["18","Departments"],["36","States"],["7+","Years"]]
 
-export default function AuthLeftPanel() {
+export default function AuthLeftPanel({ companyName = "Michael Demo HRMS", logoUrl = null }: { companyName?: string; logoUrl?: string | null }) {
   return (
     <div className="lg-flex" style={{
       display: "none", width: "46%",
@@ -16,11 +16,10 @@ export default function AuthLeftPanel() {
       {/* Brand */}
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ width: 40, height: 40, borderRadius: 10, background: "white", display: "flex", alignItems: "center", justifyContent: "center", padding: 5, flexShrink: 0 }}>
-          <img src="/dsn-logo.svg" alt="DSN" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          <img src={logoUrl || "/logo.svg"} alt={companyName} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
         </div>
         <div>
-          <div style={{ fontWeight: 800, fontSize: 16, color: "white", letterSpacing: "-0.02em", lineHeight: 1.2 }}>DSN HRMS</div>
-          <div style={{ fontSize: 11, color: "var(--sidebar-fg)" }}>Data Science Nigeria</div>
+          <div style={{ fontWeight: 800, fontSize: 16, color: "white", letterSpacing: "-0.02em", lineHeight: 1.2 }}>{companyName}</div>
         </div>
       </div>
 
@@ -31,7 +30,7 @@ export default function AuthLeftPanel() {
           <span style={{ fontSize: 16, color: "#F87171", fontWeight: 600 }}>HR Platform</span>
         </div>
         <p style={{ fontSize: 14, color: "var(--sidebar-fg)", lineHeight: 1.8, maxWidth: 360 }}>
-          DSN's unified HR platform - leave, payslips, performance, offboarding and insights, all in one place.
+          {companyName}'s unified HR platform - leave, payslips, performance, offboarding and insights, all in one place.
         </p>
       </div>
 

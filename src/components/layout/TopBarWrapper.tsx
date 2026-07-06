@@ -143,7 +143,7 @@ export default function TopBarWrapper({ user }: { user: any }) {
     else if (segs[0] === "time-tracking" && segs[1] === "absence" && segs[3] === "bulk-upload") title = "Bulk Upload Absences"
     else if (segs[0] === "company-details" && segs[1] === "workplaces" && segs[3] === "edit") title = "Edit Workplace"
     else if (segs[0] === "settings" && segs[1] === "roles-permissions" && segs.length === 3) title = "Role Details"
-    else title = "DSN HRMS"
+    else title = "Michael Demo HRMS"
   }
 
   return <TopBar title={title} user={user} />

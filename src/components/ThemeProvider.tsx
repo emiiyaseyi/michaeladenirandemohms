@@ -11,7 +11,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>("light")
 
   useEffect(() => {
-    const stored = localStorage.getItem("dsn-theme") as Theme | null
+    const stored = localStorage.getItem("mdh-theme") as Theme | null
     if (stored === "light" || stored === "dark") {
       setThemeState(stored)
     } else {
@@ -27,7 +27,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme])
 
   const setTheme = (t: Theme) => {
-    localStorage.setItem("dsn-theme", t)
+    localStorage.setItem("mdh-theme", t)
     setThemeState(t)
   }
 

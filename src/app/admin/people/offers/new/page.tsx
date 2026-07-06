@@ -20,7 +20,7 @@ function buildLetter(f: typeof BLANK, deptName: string, mgr: string) {
   const fullName = [f.firstName, f.middleName, f.lastName].filter(Boolean).join(" ")
   return `Dear ${fullName || "[Candidate Name]"},
 
-We are pleased to offer you the position of ${f.jobTitle || "[Job Title]"} at Data Science Nigeria.
+We are pleased to offer you the position of ${f.jobTitle || "[Job Title]"} at Michael Demo HRMS.
 
 POSITION DETAILS
 Job Title: ${f.jobTitle || "[Job Title]"}
@@ -39,7 +39,7 @@ Please confirm your acceptance by signing and returning this letter within the o
 
 Yours sincerely,
 HR Department
-Data Science Nigeria`
+Michael Demo HRMS`
 }
 
 export default function NewOfferPage() {
@@ -129,7 +129,7 @@ export default function NewOfferPage() {
                 Fill out the basic information to populate the <span style={{ padding: "2px 8px", background: "var(--muted)", borderRadius: 6, fontSize: 12, fontWeight: 600, border: "1px solid var(--border)" }}>Smart Text</span> fields in your offer letter.
               </p>
               <p style={{ fontSize: 13, color: "var(--muted-foreground)", marginTop: 6 }}>
-                Please note: This information will also be used to onboard them into DSN HRMS if they sign the offer.
+                Please note: This information will also be used to onboard them into Michael Demo HRMS if they sign the offer.
               </p>
             </div>
 

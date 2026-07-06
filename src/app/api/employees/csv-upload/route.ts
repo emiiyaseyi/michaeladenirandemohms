@@ -5,6 +5,7 @@ import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { notifyDepartmentPLs } from "@/lib/notifications"
 import bcrypt from "bcryptjs"
+import { getBranding } from "@/lib/branding"
 
 const COMMON_COLS = ["firstName", "middleName", "lastName", "email", "phone", "jobTitle", "hireDate", "dateOfBirth", "gender", "employmentType"]
 const STAFF_COLS = [...COMMON_COLS, "primaryDepartment", "primaryProjectLeadEmail", "secondaryDepartments"]
@@ -85,7 +86,8 @@ export async function POST(req: NextRequest) {
 
   // ── Level 2: row-by-row validation ─────────────────────────────────────────
   const results: { row: number; status: "created" | "skipped"; email?: string; error?: string }[] = []
-  const hashedPwd = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 10)
+  const hashedPwd = await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@MDH1", 10)
+  const { employeeEmailDomain } = await getBranding()
   const count = await prisma.employee.count()
   let nextNum = count + 1
 
@@ -110,8 +112,8 @@ export async function POST(req: NextRequest) {
       continue
     }
 
-    if (!email!.endsWith("@datasciencenigeria.ai")) {
-      results.push({ row: rowNum, status: "skipped", email, error: "Email must be @datasciencenigeria.ai" }); continue
+    if (employeeEmailDomain && !email!.endsWith(`@${employeeEmailDomain}`)) {
+      results.push({ row: rowNum, status: "skipped", email, error: `Email must be @${employeeEmailDomain}` }); continue
     }
     if (!VALID_GENDERS.includes(genderRaw!)) {
       results.push({ row: rowNum, status: "skipped", email, error: `Invalid gender "${row.gender}". Use: MALE or FEMALE` }); continue
@@ -197,7 +199,7 @@ export async function POST(req: NextRequest) {
 
       const middleName = row.middleName?.trim() || null
       const fullName = `${firstName}${middleName ? " " + middleName : ""} ${lastName}`
-      const empId = `DSN${String(nextNum).padStart(4, "0")}`
+      const empId = `MDH${String(nextNum).padStart(4, "0")}`
       nextNum++
 
       const newUser = await prisma.user.create({
@@ -290,19 +292,21 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const roleRaw = req.nextUrl.searchParams.get("role") ?? "STAFF"
   const role = roleRaw === "PROJECT_LEAD" ? "PROJECT_LEAD" : "STAFF"
+  const { employeeEmailDomain } = await getBranding()
+  const exampleDomain = employeeEmailDomain || "example.com"
 
   if (role === "STAFF") {
     const headers = STAFF_COLS
     const example = [
-      "John", "", "Doe", "john.doe@datasciencenigeria.ai", "08012345678",
+      "John", "", "Doe", `john.doe@${exampleDomain}`, "08012345678",
       "Software Engineer", "2024-01-15", "1995-06-20", "MALE", "FULL_TIME",
-      "EqualyzAI", "lead1@dsn-hrms.com", "Finance|Brand and Comms",
+      "EqualyzAI", "lead1@michaeldemohrms.example", "Finance|Brand and Comms",
     ]
     const notes = [
       "# Staff template - for adding STAFF role members.",
       "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, employmentType, primaryDepartment",
       "# Optional: middleName, phone, primaryProjectLeadEmail, secondaryDepartments",
-      "# email must end with @datasciencenigeria.ai",
+      employeeEmailDomain ? `# email must end with @${employeeEmailDomain}` : "# email: any valid email address",
       "# gender: MALE or FEMALE",
       "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN",
       "# hireDate / dateOfBirth: YYYY-MM-DD format",
@@ -319,15 +323,15 @@ export async function GET(req: NextRequest) {
   // PROJECT_LEAD template
   const headers = PL_COLS
   const example = [
-    "Jane", "", "Smith", "jane.smith@datasciencenigeria.ai", "08087654321",
+    "Jane", "", "Smith", `jane.smith@${exampleDomain}`, "08087654321",
     "Team Lead - Technology", "2023-03-01", "1988-09-12", "FEMALE", "FULL_TIME",
-    "EqualyzAI|Technical Delivery (Service & Consulting)", "manager1@datasciencenigeria.ai",
+    "EqualyzAI|Technical Delivery (Service & Consulting)", `manager1@${exampleDomain}`,
   ]
   const notes = [
     "# Project Lead template - for adding PROJECT_LEAD role members.",
     "# Required: firstName, lastName, email, jobTitle, hireDate, dateOfBirth, gender, employmentType, departments",
     "# Optional: middleName, phone, managerEmail",
-    "# email must end with @datasciencenigeria.ai",
+    employeeEmailDomain ? `# email must end with @${employeeEmailDomain}` : "# email: any valid email address",
     "# gender: MALE or FEMALE",
     "# employmentType: FULL_TIME | PART_TIME | CONTRACT | INTERN",
     "# hireDate / dateOfBirth: YYYY-MM-DD format",

@@ -60,8 +60,8 @@ function NavLink({ href, icon: Icon, label, active, indent = false }: {
   )
 }
 
-export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = [] }: {
-  user: any; nav: NavItem[]; homeUrl?: string; extraNav?: NavItem[]
+export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = [], companyName = "Michael Demo HRMS", logoUrl = null }: {
+  user: any; nav: NavItem[]; homeUrl?: string; extraNav?: NavItem[]; companyName?: string; logoUrl?: string | null
 }) {
   const path = usePathname()
   const { confirmLogout, modal: logoutModal } = useLogoutConfirm()
@@ -165,11 +165,10 @@ export default function Sidebar({ user, nav: baseNav, homeUrl = "/", extraNav = 
           display: "flex", alignItems: "center", justifyContent: "center",
           flexShrink: 0, padding: 4, overflow: "hidden",
         }}>
-          <img src="/dsn-logo.svg" alt="DSN" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          <img src={logoUrl || "/logo.svg"} alt={companyName} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
         </div>
         <div>
-          <div style={{ color: "white", fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>DSN HRMS</div>
-          <div style={{ color: "var(--sidebar-fg)", fontSize: 11 }}>Data Science Nigeria</div>
+          <div style={{ color: "white", fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>{companyName}</div>
         </div>
       </div>
 

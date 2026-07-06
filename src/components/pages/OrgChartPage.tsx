@@ -241,7 +241,7 @@ export default function OrgChartPage() {
                 color: "white", fontSize: 13, fontWeight: 700,
                 boxShadow: "0 2px 10px rgba(99,102,241,0.3)",
               }}>
-                Data Science Nigeria
+                Michael Demo HRMS
               </div>
 
               {/* Employee nodes */}

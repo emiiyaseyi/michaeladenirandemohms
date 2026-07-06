@@ -258,11 +258,11 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     category: "People",
     description: "Sent to new employees added via 'Invite' mode. Invites them to set a password and complete their profile.",
     variables: ["employeeName", "inviteLink", "workEmail", "loginUrl", "defaultPassword"],
-    defaultSubject: "You're invited to complete your DSN HRMS profile",
+    defaultSubject: "You're invited to complete your Michael Demo HRMS profile",
     defaultBody:
 
-      `<h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px;text-align:center;letter-spacing:-0.4px;">Welcome to Data Science Nigeria</h1>` +
-      `<p style="font-size:15px;color:#6b7280;text-align:center;margin:0 0 24px;">Hi <strong style="color:#111827;">{{employeeName}}</strong>, your DSN HRMS account has been created and you've been invited to complete your profile.</p>` +
+      `<h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px;text-align:center;letter-spacing:-0.4px;">Welcome to Michael Demo HRMS</h1>` +
+      `<p style="font-size:15px;color:#6b7280;text-align:center;margin:0 0 24px;">Hi <strong style="color:#111827;">{{employeeName}}</strong>, your Michael Demo HRMS account has been created and you've been invited to complete your profile.</p>` +
       `<div style="text-align:center;margin:28px 0 20px;"><a href="{{inviteLink}}" style="display:inline-block;padding:14px 44px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.2px;">Set your password</a></div>` +
       `<p style="font-size:13px;color:#6b7280;text-align:center;margin:0 0 18px;">Or sign in directly using your work email:</p>` +
       TABLE(
@@ -278,11 +278,11 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     category: "People",
     description: "Sent to new employees added via 'Me' mode (admin filled the profile). Provides a set-password link and default credentials.",
     variables: ["employeeName", "inviteLink", "workEmail", "loginUrl", "defaultPassword"],
-    defaultSubject: "Your DSN HRMS account is ready",
+    defaultSubject: "Your Michael Demo HRMS account is ready",
     defaultBody:
 
-      `<h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px;text-align:center;letter-spacing:-0.4px;">Welcome to Data Science Nigeria</h1>` +
-      `<p style="font-size:15px;color:#6b7280;text-align:center;margin:0 0 24px;">Hi <strong style="color:#111827;">{{employeeName}}</strong>, your DSN HRMS account has been created.</p>` +
+      `<h1 style="font-size:22px;font-weight:800;color:#111827;margin:0 0 6px;text-align:center;letter-spacing:-0.4px;">Welcome to Michael Demo HRMS</h1>` +
+      `<p style="font-size:15px;color:#6b7280;text-align:center;margin:0 0 24px;">Hi <strong style="color:#111827;">{{employeeName}}</strong>, your Michael Demo HRMS account has been created.</p>` +
       `<div style="text-align:center;margin:28px 0 20px;"><a href="{{inviteLink}}" style="display:inline-block;padding:14px 44px;background:#16a34a;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:700;font-size:15px;letter-spacing:0.2px;">Set your password</a></div>` +
       `<p style="font-size:13px;color:#6b7280;text-align:center;margin:0 0 18px;">Or sign in directly using your work email:</p>` +
       TABLE(
@@ -319,7 +319,7 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
 
       H("Happy Birthday! 🎂") +
       P("Wishing you a wonderful birthday, <strong>{{employeeName}}</strong>! Thank you for everything you bring to the team. Have a fantastic day!") +
-      P("From everyone at DSN.") +
+      P("From everyone at Michael Demo HRMS.") +
       NOTE(),
   },
 
@@ -360,10 +360,10 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     category: "Admin",
     description: "Sent to a newly-created external admin user with their temporary password.",
     variables: ["name", "tempPassword", "loginUrl"],
-    defaultSubject: "Your DSN Admin Account",
+    defaultSubject: "Your Michael Demo HRMS Admin Account",
     defaultBody:
 
-      H("Welcome to the DSN HRMS Admin Panel") +
+      H("Welcome to the Michael Demo HRMS Admin Panel") +
       P("Hi {{name}},") +
       P("An admin account has been created for you. Use the credentials below to sign in. You will be prompted to change the password on first login.") +
       TABLE(
@@ -426,12 +426,12 @@ export const EMAIL_EVENTS: Record<string, EmailEventDef> = {
     category: "People",
     description: "Sent to an intern when they are converted to a full staff or project lead role.",
     variables: ["employeeName", "newType"],
-    defaultSubject: "Welcome to the DSN Team, {{employeeName}}!",
+    defaultSubject: "Welcome to the Team, {{employeeName}}!",
     defaultBody:
 
       H("Welcome to the Team!") +
       P("Hi <strong>{{employeeName}}</strong>, congratulations! Your employment status has been updated from <strong>Intern</strong> to <strong>{{newType}}</strong>.") +
-      P("You are now a full member of the Data Science Nigeria team. Please sign out and back in to see your updated profile and access.") +
+      P("You are now a full member of the Michael Demo HRMS team. Please sign out and back in to see your updated profile and access.") +
       NOTE("We're excited to have you on board - welcome!"),
   },
 

@@ -19,7 +19,7 @@ interface Announcement {
 
 // Per-user key so two users sharing the same browser don't inherit each other's dismissals.
 function seenKeyFor(userId: string): string {
-  return `dsn_seen_announcements:${userId}`
+  return `mdh_seen_announcements:${userId}`
 }
 
 function getSeenIds(userId: string): Set<string> {

@@ -78,20 +78,20 @@ export default function AdminBusPage() {
     const wb = utils.book_new()
     utils.book_append_sheet(wb, utils.aoa_to_sheet([headers, ...rows]), "All Bookings")
     utils.book_append_sheet(wb, utils.aoa_to_sheet([
-      ["DSN SHUTTLE - MORNING MANIFEST"],
+      ["MDH SHUTTLE - MORNING MANIFEST"],
       [`Route: ${MORNING_STOPS.join(" → ")}`],
       [],
       ["Seat", "Passenger", "Tier", "Pickup Stop", "Booked At", "Status"],
       ...morning.map((b, i) => [i + 1, b.name, b.tier, b.stop, fmtTime(b.bookedAt), b.status]),
     ]), "Morning")
     utils.book_append_sheet(wb, utils.aoa_to_sheet([
-      ["DSN SHUTTLE - AFTERNOON MANIFEST"],
+      ["MDH SHUTTLE - AFTERNOON MANIFEST"],
       [`Route: ${AFTERNOON_STOPS.join(" → ")}`],
       [],
       ["Seat", "Passenger", "Tier", "Drop-off Stop", "Booked At", "Status"],
       ...afternoon.map((b, i) => [i + 1, b.name, b.tier, b.stop, fmtTime(b.bookedAt), b.status]),
     ]), "Afternoon")
-    writeFile(wb, `DSN_Shuttle_${fromDate}_to_${toDate}.xlsx`)
+    writeFile(wb, `MDH_Shuttle_${fromDate}_to_${toDate}.xlsx`)
   }
 
   return (
@@ -215,8 +215,8 @@ export default function AdminBusPage() {
       {/* Route reference */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginTop: 20 }}>
         {[
-          { label: "Morning Route", sub: "To DSN Hub, Yaba", stops: MORNING_STOPS, color: "#3B82F6" },
-          { label: "Afternoon Route", sub: "From DSN Hub, Yaba", stops: AFTERNOON_STOPS, color: "#F59E0B" },
+          { label: "Morning Route", sub: "To Office Hub, Yaba", stops: MORNING_STOPS, color: "#3B82F6" },
+          { label: "Afternoon Route", sub: "From Office Hub, Yaba", stops: AFTERNOON_STOPS, color: "#F59E0B" },
         ].map(r => (
           <div key={r.label} style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 18px" }}>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>{r.label}</div>
@@ -224,7 +224,7 @@ export default function AdminBusPage() {
             {r.stops.map((s, i) => (
               <div key={s} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0", fontSize: 12, borderBottom: i < r.stops.length - 1 ? "1px solid var(--border)" : "none" }}>
                 <span style={{ width: 20, height: 20, borderRadius: "50%", background: r.color, color: "white", fontSize: 10, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
-                <span style={{ fontWeight: s === "DSN Hub, Yaba" ? 700 : 400 }}>{s}</span>
+                <span style={{ fontWeight: s === "Office Hub, Yaba" ? 700 : 400 }}>{s}</span>
               </div>
             ))}
           </div>

@@ -64,7 +64,7 @@ export function WorkplaceFormBody({ form, setForm, saving, error, onCancel, onSa
         </div>
         <div>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Display Name <span style={{ color: "#ef4444" }}>*</span></label>
-          <input value={form.displayName} onChange={set("displayName")} style={fi} placeholder="e.g. Data Science Nigeria" />
+          <input value={form.displayName} onChange={set("displayName")} style={fi} placeholder="e.g. Michael Demo HRMS" />
         </div>
         <div>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Country <span style={{ color: "#ef4444" }}>*</span></label>
@@ -79,7 +79,7 @@ export function WorkplaceFormBody({ form, setForm, saving, error, onCancel, onSa
         </div>
         <div style={{ gridColumn: "1 / -1" }}>
           <label style={{ display: "block", fontSize: 13, fontWeight: 600, marginBottom: 6 }}>Email</label>
-          <input value={form.email} onChange={set("email")} style={{ ...fi, maxWidth: 400 }} placeholder="e.g. info@datasciencenigeria.ai" type="email" />
+          <input value={form.email} onChange={set("email")} style={{ ...fi, maxWidth: 400 }} placeholder="e.g. info@michaeldemohrms.example" type="email" />
         </div>
       </div>
 

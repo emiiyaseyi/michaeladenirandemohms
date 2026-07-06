@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   })
   if (!employee) return NextResponse.json({ error: "Employee not found" }, { status: 404 })
 
-  const defaultPwd = process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1"
+  const defaultPwd = process.env.DEFAULT_USER_PASSWORD || "Welcome@MDH1"
   const hashed = await bcrypt.hash(defaultPwd, 10)
 
   await prisma.user.update({

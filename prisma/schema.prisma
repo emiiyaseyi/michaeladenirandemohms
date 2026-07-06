@@ -53,7 +53,7 @@ model User {
   mustChangePassword Boolean     @default(true)
   // True for accounts created by prisma/seed.ts or prisma/seed-test.ts.
   // sendEmail() in src/lib/email.ts drops these recipients to prevent fake
-  // seed emails (e.g. @dsn-hrms.com, manager1@…) from being sent in real
+  // seed emails (e.g. @michaeldemohrms.example, manager1@…) from being sent in real
   // production once email delivery is enabled.
   // Flip to false (or delete the account) once a real user takes over.
   isSeeded        Boolean        @default(false)
@@ -1468,7 +1468,7 @@ model ProjectLeadDepartment {
 model EmailSettings {
   id           String   @id @default("singleton")
   enabled      Boolean  @default(false)
-  fromName     String   @default("DSN HRMS")
+  fromName     String   @default("Michael Demo HRMS")
   fromEmail    String
   eventToggles Json     @default("{}")
   createdAt    DateTime @default(now())

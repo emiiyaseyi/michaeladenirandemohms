@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { requireAuth } from "@/lib/api-auth"
+import { getBranding } from "@/lib/branding"
 
 const KEY = "company_details"
 
@@ -11,16 +12,15 @@ export async function GET() {
   const setting = await prisma.systemSetting.findUnique({ where: { key: KEY } })
   if (setting) return NextResponse.json({ details: setting.value })
 
-  // Fall back to branding orgName for the company name
-  const branding = await prisma.systemSetting.findUnique({ where: { key: "branding" } })
-  const brandingData = branding?.value as any
+  // Fall back to branding settings for the company name/logo
+  const branding = await getBranding()
   return NextResponse.json({
     details: {
-      companyName: brandingData?.orgName ?? "Data Science Nigeria",
+      companyName: branding.companyName,
       email: "",
       primaryContact: "",
       otherContact: "",
-      logoUrl: brandingData?.logoUrl ?? null,
+      logoUrl: branding.logoUrl,
     },
   })
 }

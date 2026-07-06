@@ -35,7 +35,7 @@ export async function POST() {
 <p style="font-size:14px;color:#374151;margin:0 0 12px;">This test email confirms your Resend API key and email settings are configured correctly.</p>
 <p style="font-size:13px;color:#6b7280;margin:0;">Sent to: <strong>${userRecord.email}</strong></p>
 </td></tr>
-<tr><td style="background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb;text-align:center;font-size:12px;color:#9ca3af;">DSN HRMS - Email Test</td></tr>
+<tr><td style="background:#f9fafb;padding:16px 32px;border-top:1px solid #e5e7eb;text-align:center;font-size:12px;color:#9ca3af;">Michael Demo HRMS - Email Test</td></tr>
 </table></td></tr></table></body></html>`,
     })
     return NextResponse.json({ ok: true, sentTo: userRecord.email })

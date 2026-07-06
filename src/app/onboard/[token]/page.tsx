@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { useSession, signIn } from "next-auth/react"
 import { Loader2, Eye, EyeOff, KeyRound, CheckCircle2, Circle } from "lucide-react"
+import { useBranding } from "@/hooks/useBranding"
 
 const RULES = [
   { key: "len",   label: "At least 8 characters",         test: (p: string) => p.length >= 8 },
@@ -41,26 +42,28 @@ function PasswordRules({ password }: { password: string }) {
 }
 
 function Brand() {
+  const branding = useBranding()
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 24 }}>
       <div style={{ width: 56, height: 56, borderRadius: 14, background: "var(--sidebar-bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 10 }}>
-        <img src="/dsn-logo.svg" alt="DSN" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+        <img src={branding.logoUrl || "/logo.svg"} alt={branding.companyName} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
       </div>
       <div style={{ textAlign: "center" }}>
-        <div style={{ fontWeight: 800, fontSize: 18, color: "var(--foreground)", letterSpacing: "-0.02em" }}>DSN HRMS</div>
+        <div style={{ fontWeight: 800, fontSize: 18, color: "var(--foreground)", letterSpacing: "-0.02em" }}>{branding.companyName}</div>
       </div>
     </div>
   )
 }
 
 function PageShell({ children }: { children: React.ReactNode }) {
+  const branding = useBranding()
   return (
     <div style={{ minHeight: "100vh", background: "var(--background)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "32px 16px" }}>
       <div style={{ width: "100%", maxWidth: 440 }}>
         <Brand />
         {children}
         <p style={{ textAlign: "center", fontSize: 12, color: "var(--subtle)", marginTop: 20 }}>
-          © {new Date().getFullYear()} Data Science Nigeria. All rights reserved.
+          © {new Date().getFullYear()} {branding.companyName}. All rights reserved.
         </p>
       </div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
@@ -159,7 +162,7 @@ export default function OnboardPage() {
     const copy =
       status === "invalid" ? { icon: "🔗", title: "Invalid invite link", body: "This invite link is not valid. Please contact your HR administrator." } :
       status === "used"    ? { icon: "✓",   title: "Already used",       body: "You've already set your password. Sign in with your new password instead." } :
-                             { icon: "⏰",  title: "Invite link expired", body: "Your invite link has expired. Sign in directly with your work email and default password Welcome@DSN1 - you'll be prompted to set a new password." }
+                             { icon: "⏰",  title: "Invite link expired", body: "Your invite link has expired. Sign in directly with your work email and default password Welcome@MDH1 - you'll be prompted to set a new password." }
     return (
       <PageShell>
         <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 16, padding: "40px 32px", textAlign: "center", boxShadow: "0 8px 40px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)" }}>

@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* ─── DSN Brand · Light Mode ─────────────────────────────────── */
+/* ─── Brand · Light Mode ─────────────────────────────────── */
 /* Off-white canvas, white cards, deep green CTAs, red accent     */
 :root {
   /* Green - primary actions, headings, nav active */
@@ -17,7 +17,7 @@
   --accent-50:       #FEF0F1;
   --accent-100:      #FBCDD0;
 
-  /* Sidebar - very dark green, like DSN/Equalyz hero sections */
+  /* Sidebar - very dark green hero section */
   --sidebar-bg:      #071F10;
   --sidebar-hover:   rgba(255,255,255,0.07);
   --sidebar-active:  rgba(11,92,46,0.85);

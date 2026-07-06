@@ -3,10 +3,10 @@ export const MAX_SEATS = 14
 
 export const MORNING_STOPS = [
   "Egbeda", "Alimosho", "Iyana Ipaja",
-  "Ikeja", "Leventies", "Maryland Bustop", "DSN Hub, Yaba",
+  "Ikeja", "Leventies", "Maryland Bustop", "Office Hub, Yaba",
 ]
 export const AFTERNOON_STOPS = [
-  "DSN Hub, Yaba", "Maryland", "Leventies",
+  "Office Hub, Yaba", "Maryland", "Leventies",
   "Ikeja", "Iyana Ipaja", "Alimosho", "Egbeda",
 ]
 

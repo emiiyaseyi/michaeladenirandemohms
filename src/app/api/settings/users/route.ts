@@ -53,13 +53,13 @@ export async function POST(req: NextRequest) {
 
   // Auto-generate employeeId if not provided
   const count = await prisma.employee.count()
-  const generatedEmpId = empId || `DSN-${String(count + 1).padStart(4, "0")}`
+  const generatedEmpId = empId || `MDH-${String(count + 1).padStart(4, "0")}`
 
   // Check duplicate employeeId
   const existingEmp = await prisma.employee.findUnique({ where: { employeeId: generatedEmpId } })
   if (existingEmp) return NextResponse.json({ error: "Employee ID already in use" }, { status: 409 })
 
-  const hashedPassword = await bcrypt.hash(password || process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 12)
+  const hashedPassword = await bcrypt.hash(password || process.env.DEFAULT_USER_PASSWORD || "Welcome@MDH1", 12)
 
   const newUser = await prisma.user.create({
     data: {

@@ -5,6 +5,7 @@ import { requireAuth, caps, forbidden, requirePermission, hasCap } from "@/lib/a
 import { logAudit } from "@/lib/audit"
 import bcrypt from "bcryptjs"
 import { sendEmail } from "@/lib/email"
+import { getBranding } from "@/lib/branding"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
@@ -167,15 +168,16 @@ export async function POST(req: NextRequest) {
     if (existingUser.employee) return NextResponse.json({ error: "User already has an employee record" }, { status: 400 })
     if (existingUser.adminRoles.length === 0) return NextResponse.json({ error: "User has no admin role - cannot be hired through this flow" }, { status: 400 })
   } else {
-    if (!workEmail.toLowerCase().trim().endsWith("@datasciencenigeria.ai")) {
-      return NextResponse.json({ error: "Employee email must be a @datasciencenigeria.ai address" }, { status: 400 })
+    const { employeeEmailDomain } = await getBranding()
+    if (employeeEmailDomain && !workEmail.toLowerCase().trim().endsWith(`@${employeeEmailDomain}`)) {
+      return NextResponse.json({ error: `Employee email must be a @${employeeEmailDomain} address` }, { status: 400 })
     }
     const existing = await prisma.user.findFirst({ where: { email: workEmail.toLowerCase().trim() } })
     if (existing) return NextResponse.json({ error: "Email already in use" }, { status: 400 })
   }
 
   const hashedPwd = !existingUserId
-    ? await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1", 10)
+    ? await bcrypt.hash(process.env.DEFAULT_USER_PASSWORD || "Welcome@MDH1", 10)
     : null
 
   // ── Compute manager + PL fields ────────────────────────────────────────────
@@ -215,7 +217,7 @@ export async function POST(req: NextRequest) {
     }
 
     const count = await tx.employee.count()
-    const empId = `DSN${String(count + 1).padStart(4, "0")}`
+    const empId = `MDH${String(count + 1).padStart(4, "0")}`
 
     const emp = await tx.employee.create({
       data: {
@@ -285,7 +287,7 @@ export async function POST(req: NextRequest) {
   } else {
     const inviteLink = `${process.env.NEXTAUTH_URL}/onboard/${invite.token}`
     const loginUrl = `${process.env.NEXTAUTH_URL}/login`
-    const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1"
+    const defaultPassword = process.env.DEFAULT_USER_PASSWORD || "Welcome@MDH1"
     await sendEmail({
       eventKey: body.inviteMode ? "employee_invite" : "employee_account_created",
       to: workEmail,

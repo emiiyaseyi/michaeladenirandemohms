@@ -31,7 +31,7 @@ export const DEFAULT_LEADERSHIP: { text: string }[] = [
   { text: "Develops Leadership Potential: develops your leadership through stretch assignments, feedback, mentorship, and exposure to senior leaders." },
   { text: "Fosters Positive Culture & Trust: ability to foster a positive culture, build trust, and provide autonomy in your role." },
   { text: "Provides Clarity of Role & Goals: clearly defines responsibilities, sets clear goals, and explains how they connect to the team's overall vision." },
-  { text: "Embodies Values & Encourages Innovation: consistently embodies DSN values, encourages innovation, and supports risk-taking as part of learning." },
+  { text: "Embodies Values & Encourages Innovation: consistently embodies company values, encourages innovation, and supports risk-taking as part of learning." },
   { text: "Demonstrates Empathy & Support: demonstrates empathy and provides emotional or practical support during challenges." },
   { text: "Drives Team Success, Morale & Retention: drives the team's success in achieving key objectives, and strengthens team morale." },
 ]

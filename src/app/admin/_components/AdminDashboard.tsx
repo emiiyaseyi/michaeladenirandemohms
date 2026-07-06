@@ -116,7 +116,7 @@ export default async function AdminDashboard() {
           Good {greeting}, {name} 👋
         </h1>
         <p style={{ color: "var(--muted-foreground)", marginTop: 4 }}>
-          Here's what's happening at DSN today.
+          Here's what's happening today.
         </p>
       </div>
 

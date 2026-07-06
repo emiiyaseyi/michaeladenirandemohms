@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
     select: { id: true, userId: true },
   })
 
-  const defaultPwd = process.env.DEFAULT_USER_PASSWORD || "Welcome@DSN1"
+  const defaultPwd = process.env.DEFAULT_USER_PASSWORD || "Welcome@MDH1"
   const hashed = await bcrypt.hash(defaultPwd, 10)
 
   await prisma.user.updateMany({

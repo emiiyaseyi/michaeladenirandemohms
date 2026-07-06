@@ -337,7 +337,7 @@ function DeptFormModal({ dept, onClose, onSuccess }: { dept?: any; onClose: () =
         </div>
         <div>
           <label style={{ display: "block", fontSize: 12, fontWeight: 600, marginBottom: 5 }}>Department Email</label>
-          <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={fi} placeholder="e.g. hr@datasciencenigeria.ai" />
+          <input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} style={fi} placeholder="e.g. hr@michaeldemohrms.example" />
         </div>
 
         <div>

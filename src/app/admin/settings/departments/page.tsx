@@ -78,7 +78,7 @@ export default function DepartmentsSettingsPage() {
             <div><label style={lbl}>Name *</label><input required value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))} style={inp} /></div>
             <div><label style={lbl}>Description</label><input value={form.description} onChange={e => setForm(f => ({...f, description: e.target.value}))} style={inp} /></div>
             <div><label style={lbl}>Department Phone</label><input type="tel" value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} style={inp} placeholder="e.g. +234 800 000 0000" /></div>
-            <div><label style={lbl}>Department Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} style={inp} placeholder="e.g. hr@datasciencenigeria.ai" /></div>
+            <div><label style={lbl}>Department Email</label><input type="email" value={form.email} onChange={e => setForm(f => ({...f, email: e.target.value}))} style={inp} placeholder="e.g. hr@michaeldemohrms.example" /></div>
             {divisions.length > 0 && (
               <div><label style={lbl}>Division</label>
                 <select value={form.divisionId} onChange={e => setForm(f => ({...f, divisionId: e.target.value}))} style={inp}>

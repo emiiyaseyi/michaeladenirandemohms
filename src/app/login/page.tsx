@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Eye, EyeOff, ArrowRight, Loader2 } from "lucide-react"
 import AuthLeftPanel from "@/components/layout/AuthLeftPanel"
+import { useBranding } from "@/hooks/useBranding"
 
 
 export default function LoginPage() {
   const router = useRouter()
+  const branding = useBranding()
   const [email, setEmail]       = useState("")
   const [password, setPassword] = useState("")
   const [showPw, setShowPw]     = useState(false)
@@ -44,7 +46,7 @@ export default function LoginPage() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", background: "var(--background)" }}>
 
-      <AuthLeftPanel />
+      <AuthLeftPanel companyName={branding.companyName} logoUrl={branding.logoUrl} />
 
       {/* ── Right panel ── */}
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" }}>
@@ -53,10 +55,9 @@ export default function LoginPage() {
           {/* Mobile brand */}
           <div className="lg-hide" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginBottom: 36 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--sidebar-bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 8, marginBottom: 4 }}>
-              <img src="/dsn-logo.svg" alt="DSN" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              <img src={branding.logoUrl || "/logo.svg"} alt={branding.companyName} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--foreground)", letterSpacing: "-0.02em" }}>DSN HRMS</div>
-            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Data Science Nigeria</div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--foreground)", letterSpacing: "-0.02em" }}>{branding.companyName}</div>
           </div>
 
           {/* Card */}
@@ -68,7 +69,7 @@ export default function LoginPage() {
             {/* Heading */}
             <div style={{ marginBottom: 28 }}>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: "var(--foreground)", marginBottom: 5, letterSpacing: "-0.02em" }}>Welcome back</h2>
-              <p style={{ color: "var(--muted-foreground)", fontSize: 13, lineHeight: 1.5 }}>Sign in to your DSN HRMS account</p>
+              <p style={{ color: "var(--muted-foreground)", fontSize: 13, lineHeight: 1.5 }}>Sign in to your {branding.companyName} account</p>
             </div>
 
             <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -83,7 +84,7 @@ export default function LoginPage() {
                   value={email} onChange={e => setEmail(e.target.value)}
                   onFocus={() => setFocusedField("email")}
                   onBlur={() => setFocusedField(null)}
-                  placeholder="you@datasciencenigeria.ai"
+                  placeholder="you@michaeldemohrms.example"
                   style={inputStyle("email")}
                 />
               </div>
@@ -161,7 +162,7 @@ export default function LoginPage() {
           </div>
 
           <p style={{ textAlign: "center", fontSize: 12, color: "var(--subtle)", marginTop: 20 }}>
-            © {new Date().getFullYear()} Data Science Nigeria. All rights reserved.
+            © {new Date().getFullYear()} {branding.companyName}. All rights reserved.
           </p>
         </div>
       </div>

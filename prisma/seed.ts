@@ -5,7 +5,7 @@
  *   - Leave Types
  *   - Public Holidays (Nigeria)
  *   - Active Performance Cycle
- *   - Super admin account (edodida@datasciencenigeria.ai)
+ *   - Super admin account (admin@michaeldemohrms.example)
  *   - CEO + Executive Director accounts (top-tier managers)
  *
  * Run: npm run db:seed
@@ -15,6 +15,7 @@ import { PrismaClient } from "@prisma/client"
 import bcrypt from "bcryptjs"
 import { EMAIL_EVENTS } from "../src/lib/email-events"
 import { defaultQuestions, DEFAULT_GLOBAL_KPIS, DEFAULT_WEIGHTS, DEFAULT_QUERY_BANDS, DEFAULT_RECOMMENDATION_BANDS } from "../src/lib/appraisal-defaults"
+import { DEFAULT_BRANDING } from "../src/lib/branding"
 
 const prisma = new PrismaClient()
 
@@ -56,7 +57,7 @@ async function main() {
   ])
   console.log("  ✓ Divisions & Departments")
 
-  // ── Leave Types (DSN policy) ────────────────────────────────────────────────
+  // ── Leave Types (company policy) ────────────────────────────────────────────
   const leavePolicy = {
     annual:        { name: "Annual Leave",        description: "Standard annual leave",                                          defaultDays: 10, minNoticeDays: 10, requiresDoc: false, minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
     sick:          { name: "Sick Leave",          description: "Medical leave - align with your Project Lead.",                  defaultDays: 5,  minNoticeDays: 0,  requiresDoc: true,  minDocDays: 2, internOnly: false, genderSpecific: null,              excludeWeekends: true,  isActive: true },
@@ -70,7 +71,7 @@ async function main() {
     prisma.leaveType.upsert({ where: { name: p.name }, update: p, create: p })
   ))
 
-  // Clean up legacy leave types no longer offered by DSN.
+  // Clean up legacy leave types no longer offered.
   for (const legacyName of ["Study Leave", "Work From Home"]) {
     const lt = await prisma.leaveType.findUnique({ where: { name: legacyName } })
     if (!lt) continue
@@ -88,7 +89,7 @@ async function main() {
       await prisma.leaveType.update({ where: { id: lt.id }, data: { isActive: false } })
     }
   }
-  console.log("  ✓ Leave Types (6 active per DSN policy)")
+  console.log("  ✓ Leave Types (6 active per company policy)")
 
   // ── Request Document Types ────────────────────────────────────────────────────
   await Promise.all([
@@ -124,13 +125,13 @@ async function main() {
 // ── Production HR Admin (Super Admin) ────────────────────────────────────────
   // isSeeded: false - real person, emails flow normally.
   {
-    const hashed = await bcrypt.hash("Admin@DSN2024!", 12)
+    const hashed = await bcrypt.hash("Admin@MDH2024!", 12)
     await prisma.user.upsert({
-      where:  { email: "edodida@datasciencenigeria.ai" },
+      where:  { email: "admin@michaeldemohrms.example" },
       update: { role: "SUPER_ADMIN" as any, mustChangePassword: false, isSeeded: false },
-      create: { name: "HR Admin", email: "edodida@datasciencenigeria.ai", password: hashed, role: "SUPER_ADMIN" as any, mustChangePassword: false, isSeeded: false },
+      create: { name: "HR Admin", email: "admin@michaeldemohrms.example", password: hashed, role: "SUPER_ADMIN" as any, mustChangePassword: false, isSeeded: false },
     })
-    console.log("  ✓ Admin account (edodida@datasciencenigeria.ai)")
+    console.log("  ✓ Admin account (admin@michaeldemohrms.example)")
   }
 
   // ── System Admin Roles ────────────────────────────────────────────────────────
@@ -317,8 +318,8 @@ async function main() {
     create: {
       id: "singleton",
       enabled: false,
-      fromName: "DSN HRMS",
-      fromEmail: process.env.EMAIL_FROM_ADDRESS ?? "noreply@hrms.dsnsandbox.com",
+      fromName: "Michael Demo HRMS",
+      fromEmail: process.env.EMAIL_FROM_ADDRESS ?? "noreply@michaeldemohrms.example",
       eventToggles: {},
     },
   })
@@ -350,14 +351,14 @@ async function main() {
   // have one. They do NOT appear in the staff/PL employee directory.
   // mustChangePassword: true - they set their own password on first login.
   const managerSeeds = [
-    { email: "olubayo@datasciencenigeria.ai", name: "Olubayo Adekanbi", fn: "Olubayo", ln: "Adekanbi", empId: "DSN-M001", title: "CEO/Founder",                          gender: "MALE"   },
-    { email: "toyin@datasciencenigeria.ai",   name: "Toyin Adekanbi",   fn: "Toyin",   ln: "Adekanbi", empId: "DSN-M002", title: "Executive Director, Talent & Process", gender: "FEMALE" },
+    { email: "david@michaeldemohrms.example",  name: "David Michaels", fn: "David",  ln: "Michaels", empId: "MDH-M001", title: "CEO/Founder",                          gender: "MALE"   },
+    { email: "rachel@michaeldemohrms.example", name: "Rachel Bennett", fn: "Rachel", ln: "Bennett",  empId: "MDH-M002", title: "Executive Director, Talent & Process", gender: "FEMALE" },
   ]
   for (const m of managerSeeds) {
     const u = await prisma.user.upsert({
       where:  { email: m.email },
       update: { role: "SUPER_ADMIN" as any, isSeeded: false },
-      create: { name: m.name, email: m.email, password: hash("Welcome@DSN1"), role: "SUPER_ADMIN" as any, mustChangePassword: true, isSeeded: false },
+      create: { name: m.name, email: m.email, password: hash("Welcome@MDH1"), role: "SUPER_ADMIN" as any, mustChangePassword: true, isSeeded: false },
     })
     const emp = await prisma.employee.upsert({
       where:  { userId: u.id },
@@ -375,16 +376,16 @@ async function main() {
       create: { employeeId: emp.id, isSystem: true },
     })
   }
-  console.log("  ✓ Top-tier managers (CEO: Olubayo Adekanbi, ED: Toyin Adekanbi)")
+  console.log("  ✓ Top-tier managers (CEO: David Michaels, ED: Rachel Bennett)")
 
   // ── Announcements ─────────────────────────────────────────────────────────────
-  const superAdminUser = await prisma.user.findUnique({ where: { email: "edodida@datasciencenigeria.ai" }, select: { id: true } })
+  const superAdminUser = await prisma.user.findUnique({ where: { email: "admin@michaeldemohrms.example" }, select: { id: true } })
   const annDefs = [
-    { title: "Welcome to DSN HRMS",              body: "We're excited to launch the new DSN HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
+    { title: "Welcome to Michael Demo HRMS",     body: "We're excited to launch the new HR Management System! This platform will be your one-stop hub for leave requests, payslips, documents, performance reviews, and more.", behavior: "POPUP" as const,            targetRoles: [] as string[] },
     { title: "Q2 2026 Leave Reminder",           body: "Please ensure all annual leave requests for Q2 (April–June) are submitted by April 20, 2026.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
     { title: "Performance Review Cycle Open",    body: "The Q1 2026 performance review cycle is now open. All employees should complete their self-assessment by April 30, 2026.", behavior: "DASHBOARD_SCROLL" as const, targetRoles: [] as string[] },
     { title: "Public Holiday Notice - Workers' Day", body: "May 1, 2026 (Workers' Day) is a public holiday. All offices will be closed.", behavior: "NOTIFICATION_BAR" as const,  targetRoles: [] as string[] },
-    { title: "New HR Policy: Remote Work Guidelines", body: "DSN has updated the Remote Work Policy effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
+    { title: "New HR Policy: Remote Work Guidelines", body: "The Remote Work Policy has been updated effective May 1, 2026. Staff may work remotely up to 2 days per week with line manager approval.", behavior: "POPUP" as const, targetRoles: ["STAFF", "PROJECT_LEAD"] as string[] },
   ]
   if (superAdminUser) {
     for (const ann of annDefs) {
@@ -398,26 +399,34 @@ async function main() {
   await prisma.systemSetting.upsert({
     where:  { key: "company_details" },
     update: {},
-    create: { key: "company_details", value: { companyName: "Data Science Nigeria" } },
+    create: { key: "company_details", value: { companyName: DEFAULT_BRANDING.companyName } },
   })
 
-  const existingWorkplace = await prisma.workplace.findFirst({ where: { displayName: "Data Science Nigeria" } })
+  const existingWorkplace = await prisma.workplace.findFirst({ where: { displayName: DEFAULT_BRANDING.companyName } })
   if (!existingWorkplace) {
     await prisma.workplace.create({
       data: {
-        displayName:  "Data Science Nigeria",
-        addressLine1: "33 Queen Street, Alagomeji-Yaba, Lagos",
-        city:         "Yaba",
+        displayName:  DEFAULT_BRANDING.companyName,
+        addressLine1: "1 Demo Avenue",
+        city:         "Lagos",
         state:        "Lagos",
         country:      "Nigeria",
-        zipCode:      "11011",
-        phone:        "08140000853",
-        email:        "info@datasciencenigeria.ai",
+        zipCode:      "10001",
+        phone:        "08000000000",
+        email:        `info@${DEFAULT_BRANDING.employeeEmailDomain}`,
         isActive:     true,
       },
     })
   }
   console.log("  ✓ Company details & workplace")
+
+  // ── Branding ───────────────────────────────────────────────────────────────────
+  await prisma.systemSetting.upsert({
+    where:  { key: "branding" },
+    update: {},
+    create: { key: "branding", value: DEFAULT_BRANDING as any },
+  })
+  console.log("  ✓ Branding settings")
 
   // ── Test accounts - one per role, known passwords (all: Test@1234) ─────────
   {
@@ -439,15 +448,15 @@ async function main() {
         },
       })
     }
-    // Admin test login (in addition to the production edodida account)
-    await ensureTestUser("admin@dsn-hrms.com", "SUPER_ADMIN", "TEST-ADMIN", "Test", "Admin", "HR Administrator")
+    // Admin test login (in addition to the production admin account)
+    await ensureTestUser("admin.test@michaeldemohrms.example", "SUPER_ADMIN", "TEST-ADMIN", "Test", "Admin", "HR Administrator")
     // Project lead - will be the primary reviewer for the test staff
-    const leadEmp = await ensureTestUser("lead@dsn-hrms.com", "PROJECT_LEAD", "TEST-LEAD", "Test", "Lead", "Team Lead")
+    const leadEmp = await ensureTestUser("lead@michaeldemohrms.example", "PROJECT_LEAD", "TEST-LEAD", "Test", "Lead", "Team Lead")
     // Staff - reviewed by the test lead (so the lead gets a "To Review" item and the staff can rate their lead)
-    await ensureTestUser("staff@dsn-hrms.com", "STAFF", "TEST-STAFF", "Test", "Staff", "Officer", { projectLeadId: leadEmp.id })
+    await ensureTestUser("staff@michaeldemohrms.example", "STAFF", "TEST-STAFF", "Test", "Staff", "Officer", { projectLeadId: leadEmp.id })
     // A second staff in the same dept so peer pools are never empty
-    await ensureTestUser("staff2@dsn-hrms.com", "STAFF", "TEST-STAFF2", "Sam", "Peer", "Officer", { projectLeadId: leadEmp.id })
-    console.log("  ✓ Test accounts (admin/lead/staff/staff2 @dsn-hrms.com - Test@1234)")
+    await ensureTestUser("staff2@michaeldemohrms.example", "STAFF", "TEST-STAFF2", "Sam", "Peer", "Officer", { projectLeadId: leadEmp.id })
+    console.log("  ✓ Test accounts (admin/lead/staff/staff2 @michaeldemohrms.example - Test@1234)")
   }
 
   // ── Active appraisal cycle (open) - generation is idempotent (tops up on reseed) ──
@@ -510,14 +519,14 @@ async function main() {
 
   console.log("\n✅ Seed complete.")
   console.log("\n🔑 Test accounts (password for all: Test@1234):")
-  console.log("   SUPER_ADMIN:   admin@dsn-hrms.com")
-  console.log("   PROJECT_LEAD:  lead@dsn-hrms.com   (primary reviewer for the staff below)")
-  console.log("   STAFF:         staff@dsn-hrms.com  (reviewed by lead@; can rate lead@)")
-  console.log("   STAFF #2:      staff2@dsn-hrms.com")
+  console.log("   SUPER_ADMIN:   admin.test@michaeldemohrms.example")
+  console.log("   PROJECT_LEAD:  lead@michaeldemohrms.example   (primary reviewer for the staff below)")
+  console.log("   STAFF:         staff@michaeldemohrms.example  (reviewed by lead@; can rate lead@)")
+  console.log("   STAFF #2:      staff2@michaeldemohrms.example")
   console.log("\n🔑 Production accounts:")
-  console.log("   HRMS Admin:     edodida@datasciencenigeria.ai  /  Admin@DSN2024!  (SUPER_ADMIN)")
-  console.log("   CEO:            olubayo@datasciencenigeria.ai  /  Welcome@DSN1   (SUPER_ADMIN - must change password on first login)")
-  console.log("   Exec Director:  toyin@datasciencenigeria.ai    /  Welcome@DSN1   (SUPER_ADMIN - must change password on first login)")
+  console.log("   HRMS Admin:     admin@michaeldemohrms.example  /  Admin@MDH2024!  (SUPER_ADMIN)")
+  console.log("   CEO:            david@michaeldemohrms.example  /  Welcome@MDH1   (SUPER_ADMIN - must change password on first login)")
+  console.log("   Exec Director:  rachel@michaeldemohrms.example /  Welcome@MDH1   (SUPER_ADMIN - must change password on first login)")
 }
 
 main()

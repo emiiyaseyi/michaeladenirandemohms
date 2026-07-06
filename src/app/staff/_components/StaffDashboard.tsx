@@ -59,7 +59,7 @@ const TOUR_STEPS = [
   {
     icon: Sparkles,
     color: "#6366F1",
-    title: "Welcome to DSN HRMS!",
+    title: "Welcome to Michael Demo HRMS!",
     body: "This quick tour walks you through the key features of your employee dashboard. You can skip it at any time and restart it from your profile card.",
     wide: true,
   },
@@ -114,7 +114,7 @@ const TOUR_STEPS = [
   },
 ]
 
-const TOUR_KEY = "dsn_hrms_tour_done_v1"
+const TOUR_KEY = "mdh_hrms_tour_done_v1"
 
 function PlatformTour({ forceOpen = false, onStart }: { forceOpen?: boolean; onStart: () => void }) {
   const [open, setOpen] = useState(false)

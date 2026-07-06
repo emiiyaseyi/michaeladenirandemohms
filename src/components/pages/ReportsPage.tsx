@@ -72,7 +72,7 @@ const fmtColor: Record<string, { bg: string; color: string }> = {
   PDF:   { bg: "#FDECEA", color: "#C0392B" },
 }
 
-const HIST_KEY = "dsn_report_history"
+const HIST_KEY = "mdh_report_history"
 
 function loadHistory(): HistoryEntry[] {
   try { return JSON.parse(localStorage.getItem(HIST_KEY) ?? "[]") } catch { return [] }
@@ -127,7 +127,7 @@ async function generatePDF(data: ReportData, _dateFrom: string, _dateTo: string)
   doc.setTextColor(...white)
   doc.setFontSize(9)
   doc.setFont("helvetica", "normal")
-  doc.text("DATA SCIENCE NIGERIA - HRMS", 14, 12)
+  doc.text("MICHAEL DEMO HRMS", 14, 12)
   doc.setFontSize(20)
   doc.setFont("helvetica", "bold")
   doc.text(data.title, 14, 27)
@@ -165,7 +165,7 @@ async function generatePDF(data: ReportData, _dateFrom: string, _dateTo: string)
         doc.setFont("helvetica", "bold")
         doc.text(data.title, 12, 9)
         doc.setFont("helvetica", "normal")
-        doc.text("DSN HRMS", W - 12, 9, { align: "right" })
+        doc.text("Michael Demo HRMS", W - 12, 9, { align: "right" })
       }
     },
   })
@@ -181,7 +181,7 @@ async function generatePDF(data: ReportData, _dateFrom: string, _dateTo: string)
     doc.setFontSize(7)
     doc.setTextColor(80, 80, 80)
     doc.setFont("helvetica", "normal")
-    doc.text("Confidential - Data Science Nigeria HRMS", 12, H - 7)
+    doc.text("Confidential - Michael Demo HRMS", 12, H - 7)
     doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 7, { align: "center" })
     doc.text(new Date().toLocaleDateString("en-NG", { dateStyle: "medium" }), W - 12, H - 7, { align: "right" })
   }

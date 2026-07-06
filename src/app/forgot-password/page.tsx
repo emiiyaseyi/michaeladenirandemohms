@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Mail, Loader2, CheckCircle2, Circle, ArrowLeft, KeyRound, Eye, EyeOff } from "lucide-react"
 import AuthLeftPanel from "@/components/layout/AuthLeftPanel"
+import { useBranding } from "@/hooks/useBranding"
 
 type Step = "email" | "code" | "done"
 
@@ -45,6 +46,7 @@ function PasswordRules({ password }: { password: string }) {
 
 export default function ForgotPasswordPage() {
   const router = useRouter()
+  const branding = useBranding()
   const [step, setStep] = useState<Step>("email")
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
@@ -103,7 +105,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", background: "var(--background)" }}>
-      <AuthLeftPanel />
+      <AuthLeftPanel companyName={branding.companyName} logoUrl={branding.logoUrl} />
 
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 16px" }}>
         <div style={{ width: "100%", maxWidth: 400 }}>
@@ -111,10 +113,9 @@ export default function ForgotPasswordPage() {
           {/* Mobile brand */}
           <div className="lg-hide" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginBottom: 36 }}>
             <div style={{ width: 44, height: 44, borderRadius: 12, background: "var(--sidebar-bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 8, marginBottom: 4 }}>
-              <img src="/dsn-logo.svg" alt="DSN" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+              <img src={branding.logoUrl || "/logo.svg"} alt={branding.companyName} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
             </div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--foreground)", letterSpacing: "-0.02em" }}>DSN HRMS</div>
-            <div style={{ fontSize: 12, color: "var(--muted-foreground)" }}>Data Science Nigeria</div>
+            <div style={{ fontWeight: 800, fontSize: 16, color: "var(--foreground)", letterSpacing: "-0.02em" }}>{branding.companyName}</div>
           </div>
 
           <div style={{ background: "var(--card)", borderRadius: 20, padding: "36px 36px 28px", boxShadow: "0 8px 40px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)", border: "1px solid var(--border)" }}>
@@ -150,7 +151,7 @@ export default function ForgotPasswordPage() {
                     <input
                       type="email" required autoComplete="email"
                       value={email} onChange={e => setEmail(e.target.value)}
-                      placeholder="you@datasciencenigeria.ai"
+                      placeholder="you@michaeldemohrms.example"
                       style={{ width: "100%", padding: "11px 14px", border: "1.5px solid var(--border)", borderRadius: 10, fontSize: 14, color: "var(--foreground)", background: "var(--background)", outline: "none", boxSizing: "border-box" }}
                     />
                   </div>
@@ -287,7 +288,7 @@ export default function ForgotPasswordPage() {
           </div>
 
           <p style={{ textAlign: "center", fontSize: 12, color: "var(--subtle)", marginTop: 20 }}>
-            © {new Date().getFullYear()} Data Science Nigeria. All rights reserved.
+            © {new Date().getFullYear()} {branding.companyName}. All rights reserved.
           </p>
         </div>
       </div>

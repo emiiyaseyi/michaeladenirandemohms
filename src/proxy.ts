@@ -10,9 +10,11 @@ export async function proxy(req: NextRequest) {
     pathname.startsWith("/api/cron") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
+    pathname.startsWith("/icon") ||
     pathname.startsWith("/onboard") ||
     pathname.startsWith("/api/onboard") ||
-    pathname.startsWith("/api/test")
+    pathname.startsWith("/api/test") ||
+    pathname.startsWith("/api/branding")
   ) {
     return NextResponse.next()
   }

@@ -209,7 +209,7 @@ function TabJobPay({ emp, openModal }: { emp: any; openModal: (k: string, d: any
       </InfoCard>
 
       <InfoCard icon={<Building2 size={16} color="#2563eb" />} iconBg="#EFF6FF" title="Workplace">
-        <InfoRow label="Current Workplace" value={emp.workplace?.displayName ?? "Data Science Nigeria"} />
+        <InfoRow label="Current Workplace" value={emp.workplace?.displayName ?? "Michael Demo HRMS"} />
       </InfoCard>
 
       {emp.user?.role === "PROJECT_LEAD" && <PLDepartmentsCard emp={emp} />}
@@ -1140,7 +1140,7 @@ export default function EmployeeProfilePage() {
             <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               {emp.jobTitle && <span style={{ fontSize: 13, color: "rgba(255,255,255,0.7)" }}>{emp.jobTitle}</span>}
               {emp.employmentType && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>· {EMP_TYPE_LABEL[emp.employmentType]}</span>}
-              <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(37,99,235,0.35)", color: "#93c5fd" }}>Data Science Nigeria</span>
+              <span style={{ fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20, background: "rgba(37,99,235,0.35)", color: "#93c5fd" }}>Michael Demo HRMS</span>
               {emp.phone && <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{emp.phone}</span>}
             </div>
             <div style={{ marginTop: 6, fontSize: 12, color: "rgba(255,255,255,0.4)", fontFamily: "monospace" }}>{emp.employeeId}</div>

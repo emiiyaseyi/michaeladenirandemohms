@@ -89,7 +89,7 @@ export async function sendEmail(opts: SendEmailOpts): Promise<void> {
     // ─── CEO / ED permanent block ────────────────────────────────────────────
     // These two accounts are permanently blocked from receiving system emails
     // until this list is manually removed from the code.
-    const CEO_ED_BLOCKED = new Set(["olubayo@datasciencenigeria.ai", "toyin@datasciencenigeria.ai"])
+    const CEO_ED_BLOCKED = new Set(["david@michaeldemohrms.example", "rachel@michaeldemohrms.example"])
     const blockedCeoed = recipients.filter(r => CEO_ED_BLOCKED.has(r.toLowerCase()))
     if (blockedCeoed.length > 0) {
       recipients = recipients.filter(r => !CEO_ED_BLOCKED.has(r.toLowerCase()))

@@ -111,7 +111,7 @@ export default function ManagersPage() {
 
       <div style={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 14, overflow: "hidden" }}>
         <div style={{ padding: "20px 24px", borderBottom: "1px solid var(--border)" }}>
-          <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>Data Science Nigeria Managers</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 800, marginBottom: 6 }}>Company Managers</h2>
           <p style={{ fontSize: 13, color: "var(--muted-foreground)" }}>
             Managers sit above Project Leads in the org chart. Only the Super Admin can add or remove managers.
           </p>

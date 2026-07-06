@@ -439,7 +439,7 @@ export default function AdminInternReportsPage() {
     doc.setTextColor(...white)
     doc.setFontSize(8)
     doc.setFont("helvetica", "normal")
-    doc.text("DATA SCIENCE NIGERIA - HRMS", 14, 11)
+    doc.text("MICHAEL DEMO HRMS", 14, 11)
     doc.setFontSize(18)
     doc.setFont("helvetica", "bold")
     doc.text("Intern Reports", 14, 25)
@@ -467,7 +467,7 @@ export default function AdminInternReportsPage() {
       doc.rect(0, H - 12, W, 12, "F")
       doc.setFontSize(7)
       doc.setTextColor(80, 80, 80)
-      doc.text("Confidential - Data Science Nigeria HRMS", 12, H - 5)
+      doc.text("Confidential - Michael Demo HRMS", 12, H - 5)
       doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 5, { align: "center" })
     }
 
@@ -537,7 +537,7 @@ export default function AdminInternReportsPage() {
     const HEADER_H = 36
     doc.setFillColor(...green); doc.rect(0, 0, W, HEADER_H, "F")
     doc.setTextColor(...white); doc.setFontSize(8); doc.setFont("helvetica", "normal")
-    doc.text("DATA SCIENCE NIGERIA - HRMS", 14, 11)
+    doc.text("MICHAEL DEMO HRMS", 14, 11)
     doc.setFontSize(18); doc.setFont("helvetica", "bold")
     doc.text("Intern Reports", 14, 25)
     doc.setFontSize(8); doc.setFont("helvetica", "normal")
@@ -557,7 +557,7 @@ export default function AdminInternReportsPage() {
     for (let i = 1; i <= totalPages; i++) {
       doc.setPage(i); doc.setFillColor(248, 250, 248); doc.rect(0, H - 12, W, 12, "F")
       doc.setFontSize(7); doc.setTextColor(80, 80, 80)
-      doc.text("Confidential - Data Science Nigeria HRMS", 12, H - 5)
+      doc.text("Confidential - Michael Demo HRMS", 12, H - 5)
       doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 5, { align: "center" })
     }
     zip.file(`intern-reports-${label}.pdf`, doc.output("arraybuffer"))
@@ -636,7 +636,7 @@ export default function AdminInternReportsPage() {
     doc.setTextColor(...white)
     doc.setFontSize(8)
     doc.setFont("helvetica", "normal")
-    doc.text("DATA SCIENCE NIGERIA - HRMS", 14, 11)
+    doc.text("MICHAEL DEMO HRMS", 14, 11)
     doc.setFontSize(16)
     doc.setFont("helvetica", "bold")
     doc.text("Intern Report Overview", 14, 25)
@@ -696,7 +696,7 @@ export default function AdminInternReportsPage() {
       doc.rect(0, H - 12, W, 12, "F")
       doc.setFontSize(7)
       doc.setTextColor(80, 80, 80)
-      doc.text("Confidential - Data Science Nigeria HRMS", 12, H - 5)
+      doc.text("Confidential - Michael Demo HRMS", 12, H - 5)
       doc.text(`Page ${i} of ${totalPages}`, W / 2, H - 5, { align: "center" })
     }
 
