@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { createPortal } from "react-dom"
 import { Search, Users, MoreHorizontal, Plus, Loader2, X } from "lucide-react"
 
@@ -28,7 +29,7 @@ const fi: React.CSSProperties = {
   fontSize: 14, background: "var(--background)", color: "var(--foreground)", outline: "none", boxSizing: "border-box",
 }
 
-function RowMenu({ app, onMoveStage, onUpdateStatus, onDelete }: { app: any; onMoveStage: (stage: string) => void; onUpdateStatus: (s: string) => void; onDelete: () => void }) {
+function RowMenu({ app, onMoveStage, onUpdateStatus, onMakeOffer, onDelete }: { app: any; onMoveStage: (stage: string) => void; onUpdateStatus: (s: string) => void; onMakeOffer: () => void; onDelete: () => void }) {
   const [open, setOpen] = useState(false)
   const [sub, setSub] = useState<"stage" | "status" | null>(null)
   const [pos, setPos] = useState({ top: 0, right: 0 })
@@ -81,6 +82,9 @@ function RowMenu({ app, onMoveStage, onUpdateStatus, onDelete }: { app: any; onM
               </div>
             )}
           </div>
+          <button onClick={() => { setOpen(false); setSub(null); onMakeOffer() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "var(--foreground)", textAlign: "left" }}>
+            {app.offerLetter ? "View Offer" : "Make Offer"}
+          </button>
           <div style={{ borderTop: "1px solid var(--border)", margin: "4px 0" }} />
           <button onClick={() => { setOpen(false); onDelete() }} style={{ display: "block", width: "100%", padding: "10px 16px", background: "none", border: "none", cursor: "pointer", fontSize: 13, color: "#DC2626", textAlign: "left" }}>Delete</button>
         </div>,
@@ -93,6 +97,7 @@ function RowMenu({ app, onMoveStage, onUpdateStatus, onDelete }: { app: any; onM
 const PAGE_SIZE = 10
 
 export default function ApplicantsPage() {
+  const router = useRouter()
   const [applicants, setApplicants] = useState<any[]>([])
   const [jobs, setJobs] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -141,6 +146,11 @@ export default function ApplicantsPage() {
   const doUpdateStatus = async (id: string, status: string) => {
     const r = await fetch(`/api/recruitment/applicants/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status }) })
     if (r.ok) { const { applicant } = await r.json(); setApplicants(prev => prev.map(a => a.id === applicant.id ? applicant : a)) }
+  }
+
+  const doMakeOffer = (app: any) => {
+    if (app.offerLetter) { router.push(`/admin/people/offers/${app.offerLetter.id}/edit`); return }
+    router.push(`/admin/people/offers/new?applicationId=${app.id}`)
   }
 
   const doDelete = async () => {
@@ -253,7 +263,7 @@ export default function ApplicantsPage() {
                         {new Date(a.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                       </td>
                       <td style={{ ...td, textAlign: "right" }}>
-                        <RowMenu app={a} onMoveStage={stage => doMoveStage(a.id, stage)} onUpdateStatus={status => doUpdateStatus(a.id, status)} onDelete={() => setDeleteTarget(a)} />
+                        <RowMenu app={a} onMoveStage={stage => doMoveStage(a.id, stage)} onUpdateStatus={status => doUpdateStatus(a.id, status)} onMakeOffer={() => doMakeOffer(a)} onDelete={() => setDeleteTarget(a)} />
                       </td>
                     </tr>
                   )

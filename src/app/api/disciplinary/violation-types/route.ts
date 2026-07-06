@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user: u2, error: e2 } = await requireAuth()
   if (e2) return e2
-  const p2 = requirePermission(u2, "canViewDisciplinary")
+  const p2 = requirePermission(u2, "canManageViolationTypes")
   if (p2) return p2
 
   const { name } = await req.json()

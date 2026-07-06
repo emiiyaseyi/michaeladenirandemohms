@@ -4,8 +4,10 @@ import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
+  const viewPerm = requirePermission(user, "canViewBenefits")
+  if (viewPerm) return viewPerm
 
   const { id } = await params
   const benefit = await prisma.benefit.findUnique({
@@ -27,7 +29,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  const perm = requirePermission(user, "canViewBenefits")
+  const perm = requirePermission(user, "canManageBenefits")
   if (perm) return perm
 
   const { id } = await params
@@ -59,7 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  const perm = requirePermission(user, "canViewBenefits")
+  const perm = requirePermission(user, "canManageBenefits")
   if (perm) return perm
 
   const { id } = await params

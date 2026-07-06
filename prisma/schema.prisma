@@ -364,38 +364,26 @@ model JobApplication {
   updatedAt       DateTime          @updatedAt
   employee        Employee?         @relation(fields: [employeeId], references: [id])
   jobPosting      JobPosting        @relation(fields: [jobPostingId], references: [id], onDelete: Cascade)
-  offer           Offer?
-}
-
-model Offer {
-  id            String         @id @default(cuid())
-  applicationId String         @unique
-  salary        Float
-  startDate     DateTime?
-  expiryDate    DateTime?
-  status        OfferStatus    @default(PENDING)
-  terms         String?
-  version       Int            @default(1)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  application   JobApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  offerLetter     OfferLetter?
 }
 
 model OfferLetter {
-  id             String      @id @default(cuid())
-  candidateName  String
-  candidateEmail String
-  jobTitle       String?
-  departmentId   String?
-  managerId      String?
-  hireDate       DateTime?
-  salary         Float?
-  letterText     String?
-  status         OfferStatus @default(PENDING)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-  department     Department? @relation(fields: [departmentId], references: [id])
-  manager        Employee?   @relation("OfferManager", fields: [managerId], references: [id])
+  id               String          @id @default(cuid())
+  candidateName    String
+  candidateEmail   String
+  jobTitle         String?
+  departmentId     String?
+  managerId        String?
+  hireDate         DateTime?
+  salary           Float?
+  letterText       String?
+  status           OfferStatus     @default(PENDING)
+  jobApplicationId String?         @unique
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  department       Department?     @relation(fields: [departmentId], references: [id])
+  manager          Employee?       @relation("OfferManager", fields: [managerId], references: [id])
+  jobApplication   JobApplication? @relation(fields: [jobApplicationId], references: [id])
 }
 
 model CustomGroup {
@@ -1625,6 +1613,7 @@ model Project {
   endDate      DateTime?
   departmentId String
   leadId       String
+  deletedAt    DateTime?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
   department   Department    @relation(fields: [departmentId], references: [id])

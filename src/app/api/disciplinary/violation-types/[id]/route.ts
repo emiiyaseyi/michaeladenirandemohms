@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
+  const perm = requirePermission(user, "canManageViolationTypes")
+  if (perm) return perm
 
   const { id } = await params
   const { name } = await req.json()
@@ -26,6 +28,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
+  const perm = requirePermission(user, "canManageViolationTypes")
+  if (perm) return perm
 
   const { id } = await params
   const before = await prisma.violationType.findUnique({ where: { id }, select: { name: true } })

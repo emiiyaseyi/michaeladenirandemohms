@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canEditEmployee")) return forbidden()
+  const perm = requirePermission(user, "canEditEmployee")
+  if (perm) return perm
 
   const { id } = await params
 

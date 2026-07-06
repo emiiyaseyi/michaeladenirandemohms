@@ -7,7 +7,7 @@ import { logAudit } from "@/lib/audit"
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  const perm = requirePermission(user, "canViewBenefits")
+  const perm = requirePermission(user, "canManageBenefits")
   if (perm) return perm
 
   const { id: benefitId } = await params
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  const perm = requirePermission(user, "canViewBenefits")
+  const perm = requirePermission(user, "canManageBenefits")
   if (perm) return perm
 
   const { id: benefitId } = await params

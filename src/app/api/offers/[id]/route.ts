@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
+  const viewPerm = requirePermission(user, "canViewOffers")
+  if (viewPerm) return viewPerm
 
   const { id } = await params
   const offer = await prisma.offerLetter.findUnique({
@@ -14,6 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     include: {
       department: { select: { id: true, name: true } },
       manager: { select: { id: true, firstName: true, lastName: true } },
+      jobApplication: { select: { id: true, jobPosting: { select: { title: true } } } },
     },
   })
   if (!offer) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -23,7 +25,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
+  const perm = requirePermission(user, "canManageOffers")
+  if (perm) return perm
 
   const { id } = await params
   const body = await req.json()
@@ -62,7 +65,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAllEmployees")) return forbidden()
+  const perm = requirePermission(user, "canManageOffers")
+  if (perm) return perm
 
   const { id } = await params
   const before = await prisma.offerLetter.findUnique({ where: { id }, select: { candidateName: true, candidateEmail: true, jobTitle: true } })

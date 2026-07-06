@@ -16,6 +16,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const { title, body: text, type, videoUrl, imageUrl, behavior, targetRoles, sendEmail, status } = body
 
+  const before = await prisma.announcement.findUnique({ where: { id } })
+
   const data: any = {}
   if (title !== undefined) data.title = title
   if (text !== undefined) data.body = text
@@ -25,13 +27,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (behavior !== undefined) data.behavior = behavior
   if (targetRoles !== undefined) data.targetRoles = targetRoles
   if (sendEmail !== undefined) data.sendEmail = sendEmail
+  // EMAIL_ONLY announcements have no in-app renderer - email delivery is mandatory, not optional.
+  const effectiveBehavior = behavior !== undefined ? behavior : before?.behavior
+  if (effectiveBehavior === "EMAIL_ONLY") data.sendEmail = true
   if (status !== undefined) {
     data.status = status
     if (status === "PUBLISHED" && !data.publishedAt) data.publishedAt = new Date()
     if (status === "RETIRED") data.retiredAt = new Date()
   }
-
-  const before = await prisma.announcement.findUnique({ where: { id } })
   const ann = await prisma.announcement.update({
     where: { id },
     data,

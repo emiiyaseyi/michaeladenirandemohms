@@ -8,7 +8,7 @@ export async function GET(_req: NextRequest) {
   if (error) return error
   if (!hasCap(user, "canManageSettings")) return forbidden()
 
-  const [announcements, documents] = await Promise.all([
+  const [announcements, documents, projects] = await Promise.all([
     prisma.announcement.findMany({
       where: { status: "RETIRED" },
       include: { createdBy: { select: { name: true } } },
@@ -19,9 +19,14 @@ export async function GET(_req: NextRequest) {
       include: { uploadedBy: { select: { name: true } } },
       orderBy: { updatedAt: "desc" },
     }),
+    prisma.project.findMany({
+      where: { deletedAt: { not: null } },
+      include: { department: { select: { name: true } }, lead: { select: { firstName: true, lastName: true } } },
+      orderBy: { deletedAt: "desc" },
+    }),
   ])
 
-  return NextResponse.json({ announcements, documents })
+  return NextResponse.json({ announcements, documents, projects })
 }
 
 // Restore: PATCH /api/trash with { type, id }
@@ -42,13 +47,18 @@ export async function PATCH(req: NextRequest) {
       where: { id },
       data: { isActive: true },
     })
+  } else if (type === "project") {
+    await prisma.project.update({
+      where: { id },
+      data: { deletedAt: null },
+    })
   } else {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 })
   }
 
   await logAudit({
     req, actor: user, action: "TRASH_RESTORE",
-    entity: type === "announcement" ? "Announcement" : "OrgDocument",
+    entity: type === "announcement" ? "Announcement" : type === "document" ? "OrgDocument" : "Project",
     entityId: id,
   })
 
@@ -73,13 +83,16 @@ export async function DELETE(req: NextRequest) {
   } else if (type === "document") {
     snapshot = await prisma.orgDocument.findUnique({ where: { id }, select: { title: true, fileUrl: true } })
     await prisma.orgDocument.delete({ where: { id } })
+  } else if (type === "project") {
+    snapshot = await prisma.project.findUnique({ where: { id }, select: { name: true, status: true } })
+    await prisma.project.delete({ where: { id } })
   } else {
     return NextResponse.json({ error: "Unknown type" }, { status: 400 })
   }
 
   await logAudit({
     req, actor: user, action: "TRASH_PURGE",
-    entity: type === "announcement" ? "Announcement" : "OrgDocument",
+    entity: type === "announcement" ? "Announcement" : type === "document" ? "OrgDocument" : "Project",
     entityId: id,
     oldValues: snapshot ?? undefined,
   })

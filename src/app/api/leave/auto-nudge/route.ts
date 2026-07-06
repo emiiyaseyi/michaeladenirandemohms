@@ -3,18 +3,17 @@ import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { getDay, getHours } from "date-fns"
 import { roleBasePath } from "@/lib/api-auth"
+import { requireCronSecret } from "@/lib/cron-auth"
 
-// Called by a scheduler (or Vercel cron) every hour on weekdays.
+// Called by a scheduler every hour on weekdays.
 // Sends in-app notification to pending approvers whose deadline has passed
 // if within 8am–6pm window. Silences weekends.
 //
 // Protect with a shared secret: CRON_SECRET env var.
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret")
-  if (process.env.CRON_SECRET && secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-  }
+  const authError = requireCronSecret(req)
+  if (authError) return authError
 
   const now = new Date()
   const day = getDay(now) // 0=Sun, 6=Sat

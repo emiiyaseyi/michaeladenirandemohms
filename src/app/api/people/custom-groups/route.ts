@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
+import { requireAuth, hasCap, forbidden, requirePermission } from "@/lib/api-auth"
 
 export async function GET() {
   const { user, error } = await requireAuth()
@@ -18,7 +18,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canManageCustomGroups")) return forbidden()
+  const perm = requirePermission(user, "canManageCustomGroups")
+  if (perm) return perm
 
   const { name, description, groupByCurrency, memberIds } = await req.json()
   if (!name?.trim()) return NextResponse.json({ error: "Name is required" }, { status: 400 })

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { format, subDays, startOfDay } from "date-fns"
+import { requireCronSecret } from "@/lib/cron-auth"
 
 // Saturday/Sunday late deductions and the Monday missing-report deduction are always
 // calendar-fixed - they never move even if "Submission Day" (window-open day) is reconfigured.
@@ -13,14 +14,12 @@ function missedMondaysCount(weekStart: Date, now: Date): number {
   return Math.floor((now.getTime() - firstMissedMonday.getTime()) / (7 * 86400000)) + 1
 }
 
-// Runs Monday 07:00 UTC (08:00 WAT) via vercel.json cron.
+// Runs Monday 07:00 UTC (08:00 WAT) - see README for scheduler setup.
 // For every active intern who has NO InternWeeklyReport row for the just-finished work week
 // (Mon-Fri immediately prior), create a MISSING placeholder with a flat weekly deduction and notify the PL.
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const authError = requireCronSecret(req)
+  if (authError) return authError
 
   const now = new Date()
   // Cron runs Monday → "last Monday" is 7 days ago.

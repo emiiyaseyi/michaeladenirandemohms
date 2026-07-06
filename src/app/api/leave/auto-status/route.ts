@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { startOfDay, endOfDay, format } from "date-fns"
 import { roleBasePath } from "@/lib/api-auth"
+import { requireCronSecret } from "@/lib/cron-auth"
 
 // Daily cron: flip Employee.employeeStatus ON/OFF leave on the correct calendar date,
 // and notify the employee + PL approvers + relief officers + admins when leave starts.
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const authError = requireCronSecret(req)
+  if (authError) return authError
 
   const today = new Date()
 
@@ -100,8 +99,11 @@ export async function GET(req: NextRequest) {
     },
     select: { employeeId: true },
   })
-  for (const lr of returning) {
-    await prisma.employee.update({ where: { id: lr.employeeId }, data: { employeeStatus: "ACTIVE" } })
+  if (returning.length > 0) {
+    await prisma.employee.updateMany({
+      where: { id: { in: returning.map(lr => lr.employeeId) } },
+      data: { employeeStatus: "ACTIVE" },
+    })
   }
 
   return NextResponse.json({ ok: true, started: starting.length, flipped, returned: returning.length })

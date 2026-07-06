@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, hasCap } from "@/lib/api-auth"
+import { requireAuth, hasCap, requirePermission } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
@@ -71,6 +71,8 @@ export async function POST(req: NextRequest) {
   if (!UPLOADS_ENABLED) return uploadsDisabledResponse()
   const { user, error } = await requireAuth()
   if (error) return error
+  const perm = requirePermission(user, "canManageViolations")
+  if (perm) return perm
 
   if (!user.employeeId) return NextResponse.json({ error: "No employee record linked to your account" }, { status: 400 })
 

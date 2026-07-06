@@ -2,14 +2,13 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { subMonths, addDays } from "date-fns"
+import { requireCronSecret } from "@/lib/cron-auth"
 
-// Runs Monday 08:00 WAT via vercel.json cron.
+// Runs Monday 08:00 WAT - see README for scheduler setup.
 // Finds employees converted from intern to staff ~5 months ago and notifies HR admins.
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const authError = requireCronSecret(req)
+  if (authError) return authError
 
   const now = new Date()
   const fiveMonthsAgo = subMonths(now, 5)

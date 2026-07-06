@@ -20,7 +20,7 @@ export async function GET(_req: NextRequest) {
   if (!employee) return NextResponse.json({ projects: [] })
 
   const projects = await prisma.project.findMany({
-    where: { leadId: employee.id },
+    where: { leadId: employee.id, deletedAt: null },
     include: {
       department: { select: { id: true, name: true } },
       _count: { select: { members: true } },

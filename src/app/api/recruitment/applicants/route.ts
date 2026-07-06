@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
       ...(stage ? { stage: stage as any } : {}),
       ...(status ? { status: status as any } : {}),
     },
-    include: { jobPosting: { select: { id: true, title: true, department: { select: { name: true } } } } },
+    include: {
+      jobPosting: { select: { id: true, title: true, department: { select: { name: true } } } },
+      offerLetter: { select: { id: true } },
+    },
     orderBy: { createdAt: "desc" },
   })
 

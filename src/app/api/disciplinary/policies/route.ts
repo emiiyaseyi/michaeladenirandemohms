@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  const perm = requirePermission(user, "canViewDisciplinary")
+  const perm = requirePermission(user, "canManagePolicies")
   if (perm) return perm
 
   const { name, violationTypeId, systemAction, hasThreshold, violationCount, description, exemptedEmployeeIds } = await req.json()

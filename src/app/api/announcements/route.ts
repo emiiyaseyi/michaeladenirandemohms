@@ -40,7 +40,9 @@ export async function POST(req: NextRequest) {
   if (perm) return perm
 
   const body = await req.json()
-  const { title, body: text, type = "TEXT", videoUrl, imageUrl, behavior = "NOTIFICATION_BAR", targetRoles = [], sendEmail = false, status = "DRAFT" } = body
+  const { title, body: text, type = "TEXT", videoUrl, imageUrl, behavior = "NOTIFICATION_BAR", targetRoles = [], sendEmail: sendEmailFlag = false, status = "DRAFT" } = body
+  // EMAIL_ONLY announcements have no in-app renderer - email delivery is mandatory, not optional.
+  const sendEmail = behavior === "EMAIL_ONLY" ? true : sendEmailFlag
 
   if (!title) return NextResponse.json({ error: "Title is required" }, { status: 400 })
 

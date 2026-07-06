@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
+  const viewPerm = requirePermission(user, "canViewSurveys")
+  if (viewPerm) return viewPerm
 
   const { searchParams } = new URL(req.url)
   const type = searchParams.get("type")
@@ -31,7 +33,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canManageSettings")) return forbidden()
+  const perm = requirePermission(user, "canCreateSurvey")
+  if (perm) return perm
 
   const { title, type, isAnonymous } = await req.json()
   if (!title || !type) return NextResponse.json({ error: "title and type required" }, { status: 400 })

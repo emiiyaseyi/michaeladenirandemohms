@@ -30,7 +30,12 @@ function CustomTooltip({ active, payload }: any) {
 }
 
 export default function AttritionTrendChart({ data }: { data: DataPoint[] }) {
-  const yTicks = [0, 10, 20, 30, 40, 50, 60]
+  // Derive the axis ceiling from the data (stacked total per point) instead of a
+  // fixed 60 - a headcount that grows past that would otherwise clip silently.
+  const maxStacked = Math.max(0, ...data.map(d => (d.inCompany ?? 0) + (d.exited ?? 0)))
+  const step = Math.max(10, Math.ceil((maxStacked || 60) / 6 / 10) * 10)
+  const yMax = step * 6
+  const yTicks = Array.from({ length: 7 }, (_, i) => i * step)
 
   return (
     <div style={{
@@ -66,7 +71,7 @@ export default function AttritionTrendChart({ data }: { data: DataPoint[] }) {
           />
           <YAxis
             ticks={yTicks}
-            domain={[0, 60]}
+            domain={[0, yMax]}
             tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             axisLine={false} tickLine={false}
             width={28}

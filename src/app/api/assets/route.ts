@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, hasCap, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAssets")) return forbidden()
+  const viewPerm = requirePermission(user, "canViewAssets")
+  if (viewPerm) return viewPerm
 
   const { searchParams } = new URL(req.url)
   const search = searchParams.get("search") ?? ""
@@ -38,7 +39,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canCreateAsset")) return forbidden()
+  const perm = requirePermission(user, "canCreateAsset")
+  if (perm) return perm
 
   const body = await req.json()
   const { name, assetTypeId, description, identifier, commissionDate, isMultiAssignable, maxAssignees, assignments } = body

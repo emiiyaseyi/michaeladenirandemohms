@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { isBusDay, todayUTC, busTier, MAX_SEATS } from "@/lib/bus-utils"
+import { requireCronSecret } from "@/lib/cron-auth"
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-cron-secret")
-  if (secret !== process.env.CRON_SECRET) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const authError = requireCronSecret(req)
+  if (authError) return authError
 
   const body = await req.json().catch(() => ({}))
   const trip = body.trip as "MORNING" | "AFTERNOON"
@@ -72,8 +71,8 @@ export async function POST(req: NextRequest) {
   const loginUrl = process.env.NEXTAUTH_URL ?? ""
 
   // Send notifications + emails to confirmed
-  for (const b of confirmed) {
-    const seatNum = confirmed.indexOf(b) + 1
+  for (const [i, b] of confirmed.entries()) {
+    const seatNum = i + 1
 
     await prisma.notification.create({
       data: {

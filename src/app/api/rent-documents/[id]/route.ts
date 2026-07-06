@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, hasCap, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 import { writeFile, mkdir } from "fs/promises"
 import path from "path"
@@ -25,7 +25,8 @@ async function saveFile(file: File, folder: string): Promise<string> {
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewRentDocuments")) return forbidden()
+  const perm = requirePermission(user, "canViewRentDocuments")
+  if (perm) return perm
 
   const { id } = await params
   const doc = await prisma.rentDocument.findUnique({

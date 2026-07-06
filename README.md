@@ -109,4 +109,20 @@ public/
 
 ## File uploads
 
-Uploaded files are stored in `public/uploads/` which is gitignored. Each team member's uploads are local to their machine. In production, replace with a cloud storage provider (S3, Cloudinary, etc.).
+Uploaded files are stored in `public/uploads/` which is gitignored. Each team member's uploads are local to their machine. In production, replace with a cloud storage provider (S3, Cloudinary, etc.). Uploads are disabled unless `UPLOADS_ENABLED="true"` is set in the environment.
+
+## Scheduled jobs (cron)
+
+This app deploys on Netlify, which doesn't run these routes on a schedule by itself. Six endpoints are designed to be hit periodically by an external scheduler (e.g. a Netlify Scheduled Function, GitHub Actions cron, or a service like cron-job.org), each requiring an `Authorization: Bearer <CRON_SECRET>` header matching the `CRON_SECRET` env var:
+
+| Endpoint | Suggested schedule |
+|---|---|
+| `POST /api/cron/bus-allocate` | Daily, early morning on bus days |
+| `GET /api/cron/birthdays` | Daily, morning |
+| `GET /api/cron/intern-deductions` | Weekly, Monday morning |
+| `GET /api/cron/intern-conversion-check` | Weekly, Monday morning |
+| `GET /api/leave/auto-status` | Daily, early morning |
+| `GET /api/leave/auto-welcome` | Daily, morning |
+| `POST /api/leave/auto-nudge` | Hourly, weekdays 8am–6pm |
+
+Without a scheduler configured, none of these fire on their own — bus seat allocation, intern deduction tracking, and leave status/nudge automation will not run.

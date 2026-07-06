@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
+  const viewPerm = requirePermission(user, "canManageOfferTemplates")
+  if (viewPerm) return viewPerm
   const { id } = await params
   const template = await prisma.offerTemplate.findUnique({ where: { id } })
   if (!template) return NextResponse.json({ error: "Not found" }, { status: 404 })
@@ -14,7 +16,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canManageSettings")) return forbidden()
+  const perm = requirePermission(user, "canManageOfferTemplates")
+  if (perm) return perm
 
   const { id } = await params
   const data = await req.json()
@@ -33,7 +36,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canManageSettings")) return forbidden()
+  const perm = requirePermission(user, "canManageOfferTemplates")
+  if (perm) return perm
 
   const { id } = await params
   await prisma.offerTemplate.delete({ where: { id } })

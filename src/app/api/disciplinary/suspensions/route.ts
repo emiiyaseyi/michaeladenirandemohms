@@ -24,7 +24,7 @@ async function saveFile(file: File, folder: string) {
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  const perm = requirePermission(user, "canViewDisciplinary")
+  const perm = requirePermission(user, "canViewSuspensions")
   if (perm) return perm
 
   const { searchParams } = new URL(req.url)
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   if (!UPLOADS_ENABLED) return uploadsDisabledResponse()
   const { user, error } = await requireAuth()
   if (error) return error
-  const perm = requirePermission(user, "canViewDisciplinary")
+  const perm = requirePermission(user, "canManageSuspensions")
   if (perm) return perm
 
   const form = await req.formData()

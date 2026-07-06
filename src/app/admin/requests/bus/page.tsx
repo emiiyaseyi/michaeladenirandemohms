@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { Bus, Download, RefreshCw } from "lucide-react"
 import { format } from "date-fns"
-import { MORNING_STOPS, AFTERNOON_STOPS } from "@/lib/bus-utils"
+import { MORNING_STOPS, AFTERNOON_STOPS, MAX_SEATS } from "@/lib/bus-utils"
 
 type Booking = {
   id: string; name: string; jobTitle: string; tier: string; dept: string
@@ -141,8 +141,8 @@ export default function AdminBusPage() {
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
         {[
-          { label: "Morning Confirmed", value: `${stats.morningConfirmed}/14`, color: "#3B82F6" },
-          { label: "Afternoon Confirmed", value: `${stats.afternoonConfirmed}/14`, color: "#F59E0B" },
+          { label: "Morning Confirmed", value: `${stats.morningConfirmed}/${MAX_SEATS}`, color: "#3B82F6" },
+          { label: "Afternoon Confirmed", value: `${stats.afternoonConfirmed}/${MAX_SEATS}`, color: "#F59E0B" },
           { label: "Total Pending", value: stats.totalPending, color: "#6366F1" },
           { label: "Total Bounced", value: stats.totalBounced, color: "#EF4444" },
         ].map(s => (

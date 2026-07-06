@@ -12,7 +12,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params
 
   const projects = await prisma.project.findMany({
-    where: { departmentId: id },
+    where: { departmentId: id, deletedAt: null },
     include: {
       lead: { select: { id: true, firstName: true, lastName: true } },
       _count: { select: { members: true } },

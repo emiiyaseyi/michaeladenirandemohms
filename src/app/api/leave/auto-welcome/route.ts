@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma"
 import { sendEmail } from "@/lib/email"
 import { subDays, isWeekend, startOfDay, endOfDay } from "date-fns"
 import { roleBasePath } from "@/lib/api-auth"
+import { requireCronSecret } from "@/lib/cron-auth"
 
 // Returns the most recent business day (Mon-Fri) before today
 function lastBusinessDay(): Date {
@@ -12,10 +13,8 @@ function lastBusinessDay(): Date {
 }
 
 export async function GET(req: NextRequest) {
-  const authHeader = req.headers.get("authorization")
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-  }
+  const authError = requireCronSecret(req)
+  if (authError) return authError
 
   const lbd = lastBusinessDay()
 

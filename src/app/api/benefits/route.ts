@@ -4,8 +4,10 @@ import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit } from "@/lib/audit"
 
 export async function GET(req: NextRequest) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
+  const perm = requirePermission(user, "canViewBenefits")
+  if (perm) return perm
 
   const search = req.nextUrl.searchParams.get("search") ?? ""
 
@@ -21,7 +23,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth()
   if (error) return error
-  const perm = requirePermission(user, "canViewBenefits")
+  const perm = requirePermission(user, "canManageBenefits")
   if (perm) return perm
 
   const body = await req.json()

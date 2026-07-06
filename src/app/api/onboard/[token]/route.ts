@@ -14,6 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
       token: true,
       expiresAt: true,
       usedAt: true,
+      viewedAt: true,
       employee: {
         select: {
           id: true,
@@ -28,6 +29,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   if (!invite) return NextResponse.json({ error: "Invalid invite link" }, { status: 404 })
   if (invite.usedAt) return NextResponse.json({ error: "This invite has already been used" }, { status: 410 })
   if (isExpired(invite)) return NextResponse.json({ error: "This invite link has expired" }, { status: 410 })
+
+  if (!invite.viewedAt) {
+    prisma.employeeInvite.update({ where: { token }, data: { viewedAt: new Date() } }).catch(() => {})
+  }
 
   const { user, ...empFields } = invite.employee as any
   return NextResponse.json({ employee: { ...empFields, email: user?.email ?? null } })

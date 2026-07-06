@@ -6,6 +6,7 @@ import { logAudit } from "@/lib/audit"
 import { notifyDepartmentPLs } from "@/lib/notifications"
 import bcrypt from "bcryptjs"
 import { getBranding } from "@/lib/branding"
+import { sendEmail } from "@/lib/email"
 
 const COMMON_COLS = ["firstName", "middleName", "lastName", "email", "phone", "jobTitle", "hireDate", "dateOfBirth", "gender", "employmentType"]
 const STAFF_COLS = [...COMMON_COLS, "primaryDepartment", "primaryProjectLeadEmail", "secondaryDepartments"]
@@ -202,53 +203,75 @@ export async function POST(req: NextRequest) {
       const empId = `MDH${String(nextNum).padStart(4, "0")}`
       nextNum++
 
-      const newUser = await prisma.user.create({
-        data: { name: fullName, email, password: hashedPwd, role: role as any },
-      })
-
-      const created = await prisma.employee.create({
-        data: {
-          userId: newUser.id,
-          employeeId: empId,
-          firstName, middleName, lastName,
-          phone: row.phone?.trim() || null,
-          jobTitle: jobTitle || null,
-          hireDate: hireDateRaw ? new Date(hireDateRaw) : null,
-          dateOfBirth: dobRaw ? new Date(dobRaw) : null,
-          gender: (genderRaw || null) as any,
-          employmentType: (empTypeRaw || "FULL_TIME") as any,
-          departmentId: computedDepartmentId,
-          managerId: computedManagerId,
-          projectLeadId: computedProjectLeadId,
-          employeeStatus: EmployeeStatus.NEEDS_ATTENTION,
-        },
-      })
-
-      // Junction rows
-      if (role === "STAFF" && primaryDeptIdForJunction) {
-        await prisma.employeeDepartment.create({
-          data: { employeeId: created.id, departmentId: primaryDeptIdForJunction, isPrimary: true },
+      const { newUser, created, invite } = await prisma.$transaction(async (tx) => {
+        const txUser = await tx.user.create({
+          data: { name: fullName, email, password: hashedPwd, role: role as any },
         })
-        for (const secId of secondaryDeptIdsForJunction) {
-          await prisma.employeeDepartment.upsert({
-            where: { employeeId_departmentId: { employeeId: created.id, departmentId: secId } },
-            update: { isPrimary: false },
-            create: { employeeId: created.id, departmentId: secId, isPrimary: false },
+
+        const txEmployee = await tx.employee.create({
+          data: {
+            userId: txUser.id,
+            employeeId: empId,
+            firstName, middleName, lastName,
+            phone: row.phone?.trim() || null,
+            jobTitle: jobTitle || null,
+            hireDate: hireDateRaw ? new Date(hireDateRaw) : null,
+            dateOfBirth: dobRaw ? new Date(dobRaw) : null,
+            gender: (genderRaw || null) as any,
+            employmentType: (empTypeRaw || "FULL_TIME") as any,
+            departmentId: computedDepartmentId,
+            managerId: computedManagerId,
+            projectLeadId: computedProjectLeadId,
+            employeeStatus: EmployeeStatus.NEEDS_ATTENTION,
+          },
+        })
+
+        // Junction rows
+        if (role === "STAFF" && primaryDeptIdForJunction) {
+          await tx.employeeDepartment.create({
+            data: { employeeId: txEmployee.id, departmentId: primaryDeptIdForJunction, isPrimary: true },
           })
-        }
-      } else if (role === "PROJECT_LEAD") {
-        for (const deptId of plDeptIds) {
-          await prisma.projectLeadDepartment.upsert({
-            where: { userId_departmentId: { userId: newUser.id, departmentId: deptId } },
-            update: {},
-            create: { userId: newUser.id, departmentId: deptId },
-          })
-          const d = await prisma.department.findUnique({ where: { id: deptId }, select: { leadEmployeeId: true } })
-          if (d && !d.leadEmployeeId) {
-            await prisma.department.update({ where: { id: deptId }, data: { leadEmployeeId: created.id } })
+          for (const secId of secondaryDeptIdsForJunction) {
+            await tx.employeeDepartment.upsert({
+              where: { employeeId_departmentId: { employeeId: txEmployee.id, departmentId: secId } },
+              update: { isPrimary: false },
+              create: { employeeId: txEmployee.id, departmentId: secId, isPrimary: false },
+            })
+          }
+        } else if (role === "PROJECT_LEAD") {
+          for (const deptId of plDeptIds) {
+            await tx.projectLeadDepartment.upsert({
+              where: { userId_departmentId: { userId: txUser.id, departmentId: deptId } },
+              update: {},
+              create: { userId: txUser.id, departmentId: deptId },
+            })
+            const d = await tx.department.findUnique({ where: { id: deptId }, select: { leadEmployeeId: true } })
+            if (d && !d.leadEmployeeId) {
+              await tx.department.update({ where: { id: deptId }, data: { leadEmployeeId: txEmployee.id } })
+            }
           }
         }
-      }
+
+        const txInvite = await tx.employeeInvite.create({
+          data: { employeeId: txEmployee.id, expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+        })
+
+        return { newUser: txUser, created: txEmployee, invite: txInvite }
+      })
+
+      // Onboarding invite email (outside transaction - fire and forget, matches single-add flow)
+      const inviteLink = `${process.env.NEXTAUTH_URL}/onboard/${invite.token}`
+      sendEmail({
+        eventKey: "employee_invite",
+        to: email,
+        variables: {
+          employeeName: firstName,
+          inviteLink,
+          workEmail: email,
+          loginUrl: `${process.env.NEXTAUTH_URL}/login`,
+          defaultPassword: "(set your own password via the invite link)",
+        },
+      }).catch(() => {})
 
       // Notify PLs (STAFF only - primary + secondaries)
       if (role === "STAFF" && primaryDeptIdForJunction) {

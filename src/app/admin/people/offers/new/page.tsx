@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ChevronRight, Loader2 } from "lucide-react"
 
 const fi: React.CSSProperties = {
@@ -44,6 +44,8 @@ Michael Demo HRMS`
 
 export default function NewOfferPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const applicationId = searchParams.get("applicationId")
   const [step, setStep] = useState(1)
   const [form, setForm] = useState({ ...BLANK })
   const [departments, setDepartments] = useState<any[]>([])
@@ -55,6 +57,16 @@ export default function NewOfferPage() {
     fetch("/api/settings/departments").then(r => r.json()).then(d => setDepartments(d.departments ?? [])).catch(() => {})
     fetch("/api/employees").then(r => r.json()).then(d => setManagers(d.employees ?? [])).catch(() => {})
   }, [])
+
+  useEffect(() => {
+    if (!applicationId) return
+    fetch("/api/recruitment/applicants").then(r => r.json()).then(d => {
+      const app = (d.applicants ?? []).find((a: any) => a.id === applicationId)
+      if (!app) return
+      const [firstName, ...rest] = app.candidateName.split(" ")
+      setForm(f => ({ ...f, firstName, lastName: rest.join(" "), email: app.candidateEmail, jobTitle: app.jobPosting?.title ?? "" }))
+    }).catch(() => {})
+  }, [applicationId])
 
   const set = (k: keyof typeof BLANK, v: string) => setForm(f => ({ ...f, [k]: v }))
 
@@ -82,6 +94,7 @@ export default function NewOfferPage() {
       candidateName, candidateEmail: form.email, jobTitle: form.jobTitle || null,
       departmentId: form.departmentId || null, managerId: form.managerId || null,
       hireDate: form.hireDate || null, salary: form.grossSalary || null, letterText: form.letterText || null,
+      jobApplicationId: applicationId || null,
     }
     const r = await fetch("/api/offers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
     setSaving(false)

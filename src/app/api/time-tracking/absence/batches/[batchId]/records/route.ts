@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, hasCap, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 function daysBetween(a: Date, b: Date) {
   return Math.max(1, Math.round(Math.abs(b.getTime() - a.getTime()) / 86400000) + 1)
@@ -9,7 +9,8 @@ function daysBetween(a: Date, b: Date) {
 export async function GET(req: NextRequest, { params }: { params: Promise<{ batchId: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAbsences")) return forbidden()
+  const viewPerm = requirePermission(user, "canViewAbsences")
+  if (viewPerm) return viewPerm
 
   const { batchId } = await params
   const { searchParams } = new URL(req.url)
@@ -38,7 +39,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ batc
 export async function POST(req: NextRequest, { params }: { params: Promise<{ batchId: string }> }) {
   const { user: _user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(_user, "canCreateAbsence")) return forbidden()
+  const perm = requirePermission(_user, "canCreateAbsence")
+  if (perm) return perm
 
   const { batchId } = await params
   const { employeeId, absentStart, absentEnd, reason, note } = await req.json()

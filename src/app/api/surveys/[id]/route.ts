@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, forbidden, hasCap } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { error } = await requireAuth()
+  const { user, error } = await requireAuth()
   if (error) return error
+  const viewPerm = requirePermission(user, "canViewSurveys")
+  if (viewPerm) return viewPerm
 
   const { id } = await params
   const survey = await prisma.survey.findUnique({
@@ -23,7 +25,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canManageSettings")) return forbidden()
+  const perm = requirePermission(user, "canEditSurvey")
+  if (perm) return perm
 
   const { id } = await params
   const data = await req.json()
@@ -54,7 +57,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canManageSettings")) return forbidden()
+  const perm = requirePermission(user, "canDeleteSurvey")
+  if (perm) return perm
 
   const { id } = await params
   const before = await prisma.survey.findUnique({ where: { id }, select: { title: true } })

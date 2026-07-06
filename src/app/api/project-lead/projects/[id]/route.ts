@@ -6,7 +6,7 @@ async function getProjectAndVerifyOwner(id: string, userId: string) {
   const employee = await prisma.employee.findUnique({ where: { userId }, select: { id: true } })
   if (!employee) return { project: null, employee: null }
   const project = await prisma.project.findUnique({ where: { id } })
-  if (!project) return { project: null, employee }
+  if (!project || project.deletedAt) return { project: null, employee }
   if (project.leadId !== employee.id) return { project: null, employee }
   return { project, employee }
 }
@@ -38,7 +38,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       },
     },
   })
-  if (!project || project.leadId !== employee.id) {
+  if (!project || project.deletedAt || project.leadId !== employee.id) {
     return NextResponse.json({ error: "Not found" }, { status: 404 })
   }
 
@@ -106,6 +106,6 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { project } = await getProjectAndVerifyOwner(id, user.id)
   if (!project) return NextResponse.json({ error: "Not found or not your project" }, { status: 404 })
 
-  await prisma.project.delete({ where: { id } })
+  await prisma.project.update({ where: { id }, data: { deletedAt: new Date() } })
   return NextResponse.json({ ok: true })
 }

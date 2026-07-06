@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth, hasCap, forbidden } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ batchId: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canViewAbsences")) return forbidden()
+  const viewPerm = requirePermission(user, "canViewAbsences")
+  if (viewPerm) return viewPerm
 
   const { batchId } = await params
   const batch = await prisma.absenceBatch.findUnique({ where: { id: batchId } })
@@ -16,7 +17,8 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ batchI
 export async function DELETE(_: NextRequest, { params }: { params: Promise<{ batchId: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
-  if (!hasCap(user, "canDeleteAbsence")) return forbidden()
+  const perm = requirePermission(user, "canDeleteAbsence")
+  if (perm) return perm
 
   const { batchId } = await params
   await prisma.absenceBatch.delete({ where: { id: batchId } })

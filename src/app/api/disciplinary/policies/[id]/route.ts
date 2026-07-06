@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server"
 import { prisma } from "@/lib/prisma"
-import { requireAuth } from "@/lib/api-auth"
+import { requireAuth, requirePermission } from "@/lib/api-auth"
 import { logAudit, diffFields } from "@/lib/audit"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { user, error } = await requireAuth()
+  if (error) return error
+  const viewPerm = requirePermission(user, "canViewDisciplinary")
+  if (viewPerm) return viewPerm
+
   const { id } = await params
   const policy = await prisma.disciplinaryPolicy.findUnique({
     where: { id },
@@ -30,6 +35,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
+  const perm = requirePermission(user, "canManagePolicies")
+  if (perm) return perm
 
   const { id } = await params
   const before = await prisma.disciplinaryPolicy.findUnique({ where: { id } })
@@ -62,6 +69,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { user, error } = await requireAuth()
   if (error) return error
+  const perm = requirePermission(user, "canManagePolicies")
+  if (perm) return perm
 
   const { id } = await params
   const before = await prisma.disciplinaryPolicy.findUnique({ where: { id }, select: { name: true } })

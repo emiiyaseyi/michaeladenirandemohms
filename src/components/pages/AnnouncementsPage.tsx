@@ -213,7 +213,7 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
               const Icon = b.icon
               const sel = form.behavior === b.value
               return (
-                <button key={b.value} onClick={() => setForm(f=>({...f, behavior:b.value}))} type="button" style={{
+                <button key={b.value} onClick={() => setForm(f=>({...f, behavior:b.value, sendEmail: b.value === "EMAIL_ONLY" ? true : f.sendEmail}))} type="button" style={{
                   display:"flex", alignItems:"center", gap:12, padding:"10px 12px",
                   borderRadius:8, border:`1.5px solid ${sel ? "var(--primary)" : "var(--border)"}`,
                   background: sel ? "var(--primary-50, rgba(11,92,46,0.08))" : "transparent", cursor:"pointer", textAlign:"left",
@@ -260,10 +260,12 @@ function AnnModal({ ann, onClose, onSuccess }: { ann?: any; onClose: () => void;
         </div>
 
         {/* Email option */}
-        <label style={{ display:"flex", alignItems:"center", gap:8, cursor:"pointer" }}>
-          <input type="checkbox" checked={form.sendEmail} onChange={e => setForm(f=>({...f, sendEmail:e.target.checked}))} style={{ accentColor:"var(--primary)", width:14, height:14 }} />
+        <label style={{ display:"flex", alignItems:"center", gap:8, cursor: form.behavior === "EMAIL_ONLY" ? "not-allowed" : "pointer", opacity: form.behavior === "EMAIL_ONLY" ? 0.7 : 1 }}>
+          <input type="checkbox" checked={form.sendEmail} disabled={form.behavior === "EMAIL_ONLY"} onChange={e => setForm(f=>({...f, sendEmail:e.target.checked}))} style={{ accentColor:"var(--primary)", width:14, height:14 }} />
           <Mail size={13} style={{ color:"var(--muted-foreground)" }} />
-          <span style={{ fontSize:12, fontWeight:600 }}>Also send as email to target audience</span>
+          <span style={{ fontSize:12, fontWeight:600 }}>
+            {form.behavior === "EMAIL_ONLY" ? "Sent as email (required for Email Only)" : "Also send as email to target audience"}
+          </span>
         </label>
 
         {error && <div style={{ display:"flex", gap:8, color:"#EF4444", fontSize:13 }}><AlertCircle size={14} />{error}</div>}
