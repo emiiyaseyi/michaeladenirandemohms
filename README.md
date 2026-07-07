@@ -2,6 +2,20 @@
 
 Human Resource Management System - built with Next.js 16, Prisma, and PostgreSQL.
 
+## Screenshots
+
+| Login | Dashboard | Employees |
+|---|---|---|
+| ![Login page](docs/screenshots/login.png) | ![Dashboard](docs/screenshots/dashboard.png) | ![Employees list](docs/screenshots/employees.png) |
+
+## Developed by
+
+**Michael Adeniran**
+Nigeria 🇳🇬
+
+🔗 [linkedin.com/in/michaeladeniran](https://linkedin.com/in/michaeladeniran)
+✉️ michaeladeniransnr@gmail.com
+
 ## Reference
 
 - **Feature & code audit:** https://claude.ai/code/artifact/5d4e31a1-b278-4e41-8266-e2c405ae59a6?via=auto_preview — a living status report of what's built, partial, and buggy across the app. This link is redeployed in place as fixes land (same URL, new content) — never delete this entry, and log each redeploy below with a version, date, and time.

@@ -164,6 +164,20 @@ export default function LoginPage() {
           <p style={{ textAlign: "center", fontSize: 12, color: "var(--subtle)", marginTop: 20 }}>
             © {new Date().getFullYear()} {branding.companyName}. All rights reserved.
           </p>
+
+          <div style={{ textAlign: "center", marginTop: 16, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+            <p style={{ fontSize: 11, color: "var(--muted-foreground)", marginBottom: 4 }}>Developed by</p>
+            <p style={{ fontSize: 13, fontWeight: 700, color: "var(--foreground)" }}>Michael Adeniran</p>
+            <p style={{ fontSize: 12, color: "var(--muted-foreground)", marginBottom: 6 }}>Nigeria 🇳🇬</p>
+            <div style={{ display: "flex", justifyContent: "center", gap: 14, fontSize: 12 }}>
+              <a href="https://linkedin.com/in/michaeladeniran" target="_blank" rel="noopener noreferrer" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 600 }}>
+                🔗 LinkedIn
+              </a>
+              <a href="mailto:michaeladeniransnr@gmail.com" style={{ color: "var(--primary)", textDecoration: "none", fontWeight: 600 }}>
+                ✉️ Email
+              </a>
+            </div>
+          </div>
         </div>
       </div>
 
