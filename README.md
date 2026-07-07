@@ -2,6 +2,26 @@
 
 Human Resource Management System - built with Next.js 16, Prisma, and PostgreSQL.
 
+## Features
+
+- **People management** — employee records, departments, managers, job titles, org chart, custom groups, external admins, confirmation tracking
+- **Recruitment** — job postings, applicants, offers
+- **Leave management** — leave requests, auto-approval/status, balances
+- **Requests** — leave, documents, and staff bus booking requests
+- **Performance** — appraisals, peer reviews, team-lead reviews, leaderboards
+- **Time tracking** — attendance and absence records
+- **Disciplinary** — violations, violation types, suspensions, policies, triggers
+- **Assets** — asset inventory and employee assignments
+- **Benefits** — benefits administration
+- **Surveys** — company surveys and templates
+- **Documents** — document requests and storage
+- **Announcements** — company-wide announcements and notices
+- **Reports & analytics** — attrition trends, headcount, and custom reports
+- **Company details & settings** — branding, preferences, admin management
+- **Audit log** — activity tracking for compliance
+- **Role-based access** — SUPER_ADMIN, PROJECT_LEAD, and STAFF roles with scoped dashboards
+- **Scheduled jobs** — automated leave nudges, birthdays, intern conversion checks, bus allocation
+
 ## Screenshots
 
 | Login | Dashboard | Employees |
